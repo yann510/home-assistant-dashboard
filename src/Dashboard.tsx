@@ -1,14 +1,29 @@
-import { Column, TimeCard } from '@hakit/components';
-import { useHass } from "@hakit/core";
+import { ButtonCard, MediaPlayerCard, WeatherCard } from '@hakit/components';
+import { LightsGroup } from './LightsGroup.tsx';
+import { BlindsGroup } from './BlindsGroup.tsx';
 
 function Dashboard() {
-  const { getAllEntities } = useHass();
-  return <Column fullWidth fullHeight>
-    <h2>Succesfully Authenticated!</h2>
-    <p>The time below should be updating from home asisstant every minute</p>
-    <TimeCard />
-    <p>You have <b>{Object.keys(getAllEntities()).length}</b> entities to start automating with! Have fun!</p>
-  </Column>
+
+
+  return (
+    <>
+      <div className={'columns'}>
+        <div className={'column'}>
+          <LightsGroup />
+          <BlindsGroup />
+          <ButtonCard className={'button-card'} entity={'vacuum.roomba'} defaultLayout={'slim'} />
+        </div>
+        <div className={'column'}>
+          <WeatherCard className={'button-card'} entity={'weather.forecast_home'} />
+          <MediaPlayerCard
+            className={'button-card'}
+            entity={'media_player.living_room'}
+            groupMembers={['media_player.living_room', 'media_player.bathroom', 'media_player.bedroom', 'media_player.gym']}
+          />
+        </div>
+      </div>
+    </>
+  );
 }
 
-export default Dashboard
+export default Dashboard;
