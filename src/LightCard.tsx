@@ -40,7 +40,7 @@ export const LightCard = <E extends EntityName>(props: Props<E>) => {
       className='button-card light-card'
       icon={lightEntity.state === 'on' ? 'mdi:lightbulb-on-outline' : 'mdi:lightbulb-outline'}
       onClick={onCardClick as any}
-      defaultLayout={hasSmallScreen ? 'slim-vertical' : 'default'}
+      layoutType={hasSmallScreen ? 'slim-vertical' : 'default'}
       hideDetails={hasSmallScreen}
       hideLastUpdated={hasSmallScreen}
       entity={props.lightEntityName}

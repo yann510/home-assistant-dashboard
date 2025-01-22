@@ -52,12 +52,12 @@
 }
 
 .group-container {
-  height: min-content;
+  padding: 0 1rem 0 1rem !important;
   & div.row {
     display: grid;
   }
-}
 
-.tv-card {
-  height: 500px;
+  & .content {
+    margin-bottom: 1rem;
+  }
 }

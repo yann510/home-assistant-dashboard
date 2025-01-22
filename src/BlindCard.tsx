@@ -24,9 +24,11 @@ const StyledCard = styled(CardBase)`
       }
     }
   }
-  padding: 1rem;
+  padding: 1rem !important;
   cursor: default;
   max-width: 208px;
+  width: 100% !important;
+  height: 100% !important;
 `;
 
 const FabContainer = styled.div`
@@ -64,17 +66,19 @@ const buttonStateInitialState = {
 export const BlindCard = ({ room }: Props) => {
   const { callService } = useHass();
   const [buttonStates, setButtonStates] = useState<ButtonState>(buttonStateInitialState);
-  const shortTimeout = useRef<NodeJS.Timeout>();
-  const longTimeout = useRef<NodeJS.Timeout>();
+  const shortTimeout = useRef<NodeJS.Timeout>(null);
+  const longTimeout = useRef<NodeJS.Timeout>(null);
 
   const controlBedroomBlinds = (action: 'open' | 'close' | 'stop') => {
     if (shortTimeout.current) clearTimeout(shortTimeout.current);
     if (longTimeout.current) clearTimeout(longTimeout.current);
     const updateButtonState = (updates: Partial<ButtonActionState>) => setButtonStates(prev => ({ ...prev, [action]: { ...updates } }));
 
-    setButtonStates(buttonStateInitialState)
+    setButtonStates(buttonStateInitialState);
     updateButtonState({ isDisabled: true, isActive: true });
 
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
     callService({
       domain: 'google_assistant_sdk',
       service: 'send_text_command',

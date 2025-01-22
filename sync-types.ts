@@ -7,4 +7,4 @@ config();
     url: process.env.VITE_HA_URL!,
     token: process.env.VITE_HA_TOKEN!,
   });
-}())
+})();

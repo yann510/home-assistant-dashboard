@@ -5,7 +5,7 @@ import Dashboard from './Dashboard';
 function App() {
   return (
     <>
-      <HassConnect hassUrl={import.meta.env.VITE_HA_URL} options={{ allowNonSecure: true }}>
+      <HassConnect hassUrl={import.meta.env.VITE_HA_URL} hassToken={import.meta.env.VITE_HA_TOKEN}>
         <ThemeProvider includeThemeControls={false} />
         <Dashboard />
       </HassConnect>

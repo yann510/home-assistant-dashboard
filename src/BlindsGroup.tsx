@@ -22,7 +22,7 @@ export const BlindsGroup = () => {
   }, [hasSmallScreen]);
 
   return (
-    <Group title={'Blinds'} className={'group-container'} collapsed={isGroupCollapsed}>
+    <Group title={'Blinds'} className={'group-container'} collapsed={true}>
       <BlindCardsContainer>
         <BlindCard room={'bedroom'} />
         <BlindCard room={'living room'} />

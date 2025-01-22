@@ -15,7 +15,7 @@ export const LightsGroup = () => {
   }, [hasSmallScreen]);
 
   return (
-    <Group title={'Lights'} className={'group-container'} collapsed={isGroupCollapsed}>
+    <Group title={'Lights'} className={'group-container'} collapsed={true}>
       <div className='three-columns-row'>
         <LightCard lightEntityName={'light.light_front_door'} />
         <LightCard lightEntityName={'light.light_laundry_room'} />

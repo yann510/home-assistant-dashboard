@@ -1,17 +1,15 @@
-import { ButtonCard, MediaPlayerCard, WeatherCard } from '@hakit/components';
+import { MediaPlayerCard, VacuumCard, WeatherCard } from '@hakit/components';
 import { LightsGroup } from './LightsGroup.tsx';
 import { BlindsGroup } from './BlindsGroup.tsx';
 
 function Dashboard() {
-
-
   return (
     <>
       <div className={'columns'}>
         <div className={'column'}>
           <LightsGroup />
           <BlindsGroup />
-          <ButtonCard className={'button-card'} entity={'vacuum.roomba'} defaultLayout={'slim'} />
+          <VacuumCard entity={'vacuum.roomba'} layoutType={'slim'} />
         </div>
         <div className={'column'}>
           <WeatherCard className={'button-card'} entity={'weather.forecast_home'} />

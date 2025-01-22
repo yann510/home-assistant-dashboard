@@ -64,7 +64,7 @@ async function deploy() {
         } catch (e) {
           // directory may not exist, ignore
         }
-        console.log(chalk.blue('Uploading', `"${LOCAL_DIRECTORY}"`, 'to', `"${remote}"`));
+        console.info(chalk.blue('Uploading', `"${LOCAL_DIRECTORY}"`, 'to', `"${remote}"`));
         // upload the folder to your home assistant server
         await client.uploadDir(LOCAL_DIRECTORY, remote);
         client.close(); // remember to close connection after you finish
@@ -82,9 +82,7 @@ async function deploy() {
       }
     }
     if (!matched) {
-      throw new Error(
-        'Could not find a config/homeassistant directory in the root of your home assistant installation.'
-      );
+      throw new Error('Could not find a config/homeassistant directory in the root of your home assistant installation.');
     }
   } catch (e: unknown) {
     if (e instanceof Error) {
