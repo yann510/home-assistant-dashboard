@@ -3,6 +3,9 @@
   --dashboard-section-surface: var(--dashboard-card-surface);
   --dashboard-card-hover-surface: var(--ha-S400);
   --dashboard-card-border: color-mix(in srgb, var(--ha-S400) 38%, transparent);
+  --dashboard-nested-card-surface: var(--ha-S100);
+  --dashboard-nested-card-hover-surface: var(--ha-S300);
+  --dashboard-nested-card-border: color-mix(in srgb, var(--ha-S300) 46%, transparent);
 
   width: 100%;
   min-height: 100vh;
@@ -68,6 +71,16 @@
 
 .light-card .footer {
   margin-top: 8px;
+}
+
+.light-card {
+  background-color: var(--dashboard-nested-card-surface) !important;
+  border-color: var(--dashboard-nested-card-border) !important;
+}
+
+.light-card:not(.disabled):not(:disabled):hover,
+.light-card:not(.disabled):not(:disabled):active {
+  background-color: var(--dashboard-nested-card-hover-surface) !important;
 }
 
 .dashboard-section {
