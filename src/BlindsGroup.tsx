@@ -1,6 +1,6 @@
-import { Group } from '@hakit/components';
 import { BlindCard } from './BlindCard.tsx';
 import styled from '@emotion/styled';
+import { DashboardSection } from './DashboardSection.tsx';
 
 const BlindCardsContainer = styled.div`
   display: grid;
@@ -10,12 +10,12 @@ const BlindCardsContainer = styled.div`
 
 export const BlindsGroup = () => {
   return (
-    <Group title={'Blinds'} className={'group-container'} collapsed={true}>
+    <DashboardSection title='Blinds' className='blinds-group'>
       <BlindCardsContainer>
         <BlindCard room={'bedroom'} />
         <BlindCard room={'living room'} />
         <BlindCard room={'gym'} />
       </BlindCardsContainer>
-    </Group>
+    </DashboardSection>
   );
 };

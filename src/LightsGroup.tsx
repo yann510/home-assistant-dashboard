@@ -1,9 +1,9 @@
 import { LightCard } from './LightCard.tsx';
-import { Group } from '@hakit/components';
+import { DashboardSection } from './DashboardSection.tsx';
 
 export const LightsGroup = () => {
   return (
-    <Group title={'Lights'} className={'group-container lights-group'} collapsed={false}>
+    <DashboardSection title='Lights' className='lights-group' defaultOpen>
       <div className='three-columns-row'>
         <LightCard lightEntityName={'light.light_front_door'} />
         <LightCard lightEntityName={'light.light_laundry_room'} />
@@ -25,6 +25,6 @@ export const LightsGroup = () => {
       <div className='three-columns-row'>
         <LightCard lightEntityName={'light.gym'} />
       </div>
-    </Group>
+    </DashboardSection>
   );
 };
