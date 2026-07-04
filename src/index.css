@@ -78,6 +78,9 @@
   box-shadow: 0 8px 24px rgb(0 0 0 / 14%);
   color: var(--ha-S100-contrast);
   padding: clamp(12px, 1.6vw, 18px);
+  transition:
+    background-color var(--ha-transition-duration) var(--ha-easing),
+    border-color var(--ha-transition-duration) var(--ha-easing);
 }
 
 .dashboard-section-header {
@@ -123,4 +126,10 @@
 
 .dashboard-section.is-collapsed {
   padding-block: clamp(12px, 1.6vw, 16px);
+}
+
+.dashboard-section.is-collapsed:hover,
+.dashboard-section.is-collapsed:focus-within {
+  background-color: var(--dashboard-card-hover-surface);
+  border-color: color-mix(in srgb, var(--ha-S500) 48%, transparent);
 }
