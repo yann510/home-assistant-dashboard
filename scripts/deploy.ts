@@ -18,7 +18,7 @@ async function checkDirectoryExists() {
   try {
     await access(LOCAL_DIRECTORY, constants.F_OK);
     return true;
-  } catch (err) {
+  } catch {
     return false;
   }
 }
@@ -61,7 +61,7 @@ async function deploy() {
         // empty the directory initially so we remove anything that doesn't need to be there
         try {
           await client.rmdir(remote);
-        } catch (e) {
+        } catch {
           // directory may not exist, ignore
         }
         console.info(chalk.blue('Uploading', `"${LOCAL_DIRECTORY}"`, 'to', `"${remote}"`));
