@@ -1,6 +1,6 @@
 import { capitalize } from './utils.ts';
 import { Column, FabCard } from '@hakit/components';
-import { useHass } from '@hakit/core';
+import { useService } from '@hakit/core';
 import { useRef, useState } from 'react';
 import styled from '@emotion/styled';
 import { CardBase } from '@hakit/components';
@@ -26,7 +26,7 @@ const StyledCard = styled(CardBase)`
   }
   padding: 1rem !important;
   cursor: default;
-  max-width: 208px;
+  min-width: 0;
   width: 100% !important;
   height: 100% !important;
 `;
@@ -64,10 +64,10 @@ const buttonStateInitialState = {
 };
 
 export const BlindCard = ({ room }: Props) => {
-  const { callService } = useHass();
+  const googleAssistantSdk = useService('googleAssistantSdk', {});
   const [buttonStates, setButtonStates] = useState<ButtonState>(buttonStateInitialState);
-  const shortTimeout = useRef<NodeJS.Timeout>(null);
-  const longTimeout = useRef<NodeJS.Timeout>(null);
+  const shortTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const controlBedroomBlinds = (action: 'open' | 'close' | 'stop') => {
     if (shortTimeout.current) clearTimeout(shortTimeout.current);
@@ -77,11 +77,7 @@ export const BlindCard = ({ room }: Props) => {
     setButtonStates(buttonStateInitialState);
     updateButtonState({ isDisabled: true, isActive: true });
 
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
-    callService({
-      domain: 'google_assistant_sdk',
-      service: 'send_text_command',
+    googleAssistantSdk.sendTextCommand({
       serviceData: {
         command: `${action} all the blinds ${room}`,
       },

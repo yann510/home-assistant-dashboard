@@ -1,6 +1,7 @@
 #root {
   width: 100%;
-  padding: 24px;
+  min-height: 100vh;
+  padding: clamp(8px, 2vw, 24px);
 }
 
 .dashboard-columns-container {
@@ -19,15 +20,11 @@
 
 .columns {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
 
-  @media (max-width: 1024px) {
-    grid-template-columns: 1fr 1fr;
-  }
-
   @media (max-width: 768px) {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -35,11 +32,12 @@
   display: grid;
   grid-auto-rows: min-content;
   gap: 16px;
+  min-width: 0;
 }
 
 .three-columns-row {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
   gap: 8px;
 }
 
@@ -52,9 +50,12 @@
 }
 
 .group-container {
-  padding: 0 1rem 0 1rem !important;
+  min-width: 0;
+  padding: 0 clamp(0.5rem, 2vw, 1rem) !important;
+
   & div.row {
     display: grid;
+    min-width: 0;
   }
 
   & .content {

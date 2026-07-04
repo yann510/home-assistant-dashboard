@@ -1,21 +1,9 @@
 import { LightCard } from './LightCard.tsx';
 import { Group } from '@hakit/components';
-import { useHasSmallScreen } from './useHasSmallScreen.tsx';
-import { useEffect, useState } from 'react';
 
 export const LightsGroup = () => {
-  const [isGroupCollapsed, setIsGroupCollapsed] = useState<boolean | undefined>(undefined);
-  const hasSmallScreen = useHasSmallScreen();
-
-  useEffect(() => {
-    if (hasSmallScreen && isGroupCollapsed === undefined) {
-      setIsGroupCollapsed(true);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasSmallScreen]);
-
   return (
-    <Group title={'Lights'} className={'group-container'} collapsed={true}>
+    <Group title={'Lights'} className={'group-container'} collapsed={false}>
       <div className='three-columns-row'>
         <LightCard lightEntityName={'light.light_front_door'} />
         <LightCard lightEntityName={'light.light_laundry_room'} />
