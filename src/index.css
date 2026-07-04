@@ -1,6 +1,6 @@
 #root {
-  --dashboard-section-surface: var(--ha-S200);
-  --dashboard-card-surface: var(--ha-S300);
+  --dashboard-card-surface: var(--ha-S200);
+  --dashboard-section-surface: var(--dashboard-card-surface);
   --dashboard-card-hover-surface: var(--ha-S400);
   --dashboard-card-border: color-mix(in srgb, var(--ha-S400) 38%, transparent);
 
