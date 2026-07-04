@@ -69,6 +69,19 @@
   background-color: var(--dashboard-card-hover-surface) !important;
 }
 
+.media-card {
+  aspect-ratio: auto !important;
+  min-height: 0 !important;
+}
+
+.media-card .content {
+  min-height: 0;
+}
+
+.media-card .base {
+  padding: 0.75rem !important;
+}
+
 .light-card .footer {
   margin-top: 8px;
 }

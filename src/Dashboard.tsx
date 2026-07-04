@@ -14,9 +14,10 @@ function Dashboard() {
         <div className={'column'}>
           <WeatherCard className={'button-card'} entity={'weather.forecast_home'} />
           <MediaPlayerCard
-            className={'button-card'}
+            className={'button-card media-card'}
             entity={'media_player.living_room'}
             groupMembers={['media_player.living_room', 'media_player.bathroom', 'media_player.bedroom', 'media_player.gym']}
+            layout={'slim'}
           />
         </div>
       </div>
