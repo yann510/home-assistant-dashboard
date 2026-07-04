@@ -60,10 +60,12 @@
 
 .dashboard-section {
   min-width: 0;
-  border-radius: 24px;
-  background: var(--ha-S100);
+  border: 1px solid color-mix(in srgb, var(--ha-S300) 45%, transparent);
+  border-radius: 16px;
+  background: var(--ha-S200);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 14%);
   color: var(--ha-S100-contrast);
-  padding: clamp(16px, 2vw, 24px);
+  padding: clamp(12px, 1.6vw, 18px);
 }
 
 .dashboard-section-header {
@@ -71,11 +73,11 @@
   box-sizing: border-box;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   width: 100%;
-  min-height: 44px;
+  min-height: 36px;
   cursor: pointer;
-  color: var(--ha-S100-contrast);
+  color: var(--ha-S200-contrast);
 }
 
 .dashboard-section-header:focus-visible {
@@ -85,17 +87,17 @@
 }
 
 .dashboard-section-toggle {
-  width: 20px;
-  flex: 0 0 20px;
+  width: 18px;
+  flex: 0 0 18px;
   color: var(--ha-A400);
-  font-size: 28px;
+  font-size: 22px;
   font-weight: 700;
   line-height: 1;
   text-align: center;
 }
 
 .dashboard-section-title {
-  font-size: clamp(1.5rem, 2vw, 2rem);
+  font-size: clamp(1.15rem, 1.45vw, 1.45rem);
   font-weight: 700;
   line-height: 1.1;
 }
@@ -103,10 +105,10 @@
 .dashboard-section-content {
   display: grid;
   gap: 8px;
-  margin-top: 18px;
+  margin-top: 14px;
   min-width: 0;
 }
 
 .dashboard-section.is-collapsed {
-  padding-block: clamp(14px, 2vw, 20px);
+  padding-block: clamp(12px, 1.6vw, 16px);
 }
