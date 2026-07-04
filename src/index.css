@@ -1,4 +1,9 @@
 #root {
+  --dashboard-section-surface: var(--ha-S200);
+  --dashboard-card-surface: var(--ha-S300);
+  --dashboard-card-hover-surface: var(--ha-S400);
+  --dashboard-card-border: color-mix(in srgb, var(--ha-S400) 38%, transparent);
+
   width: 100%;
   min-height: 100vh;
   padding: clamp(8px, 2vw, 24px);
@@ -51,7 +56,14 @@
 }
 
 .button-card {
+  background-color: var(--dashboard-card-surface) !important;
+  border: 1px solid var(--dashboard-card-border) !important;
   width: 100% !important;
+}
+
+.button-card:not(.disabled):not(:disabled):hover,
+.button-card:not(.disabled):not(:disabled):active {
+  background-color: var(--dashboard-card-hover-surface) !important;
 }
 
 .light-card .footer {
@@ -60,9 +72,9 @@
 
 .dashboard-section {
   min-width: 0;
-  border: 1px solid color-mix(in srgb, var(--ha-S300) 45%, transparent);
+  border: 1px solid var(--dashboard-card-border);
   border-radius: 16px;
-  background: var(--ha-S200);
+  background: var(--dashboard-section-surface);
   box-shadow: 0 8px 24px rgb(0 0 0 / 14%);
   color: var(--ha-S100-contrast);
   padding: clamp(12px, 1.6vw, 18px);

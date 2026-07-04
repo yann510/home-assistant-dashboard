@@ -18,12 +18,14 @@ const StyledCard = styled(CardBase)`
   &:not(.disabled) {
     &:hover,
     &:active {
-      background-color: var(--ha-S300);
+      background-color: var(--dashboard-card-hover-surface);
       svg {
         color: currentColor;
       }
     }
   }
+  border: 1px solid var(--dashboard-card-border) !important;
+  background-color: var(--dashboard-card-surface) !important;
   padding: 1rem !important;
   cursor: default;
   min-width: 0;
