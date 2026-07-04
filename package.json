@@ -14,8 +14,8 @@
     "deploy": "npx tsx scripts/deploy.ts"
   },
   "dependencies": {
-    "@hakit/components": "^6.0.2",
-    "@hakit/core": "^6.0.2",
+    "@hakit/components": "^5.1.6",
+    "@hakit/core": "^5.1.6",
     "@uidotdev/usehooks": "^2.4.1",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
