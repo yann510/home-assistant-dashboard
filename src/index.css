@@ -85,6 +85,31 @@
   }
 }
 
+.light-cluster {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  height: 100%;
+  padding: 4px;
+  border: 1px solid color-mix(in srgb, var(--dashboard-nested-card-border) 72%, transparent);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--dashboard-nested-card-surface) 48%, transparent);
+}
+
+.light-cluster--pair {
+  grid-column: span 2;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.light-cluster--single {
+  grid-column: span 1;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.light-cluster > .light-card {
+  height: 100% !important;
+}
+
 .button-card {
   background-color: var(--dashboard-card-surface) !important;
   border: 1px solid var(--dashboard-card-border) !important;
