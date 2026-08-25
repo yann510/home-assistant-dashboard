@@ -43,24 +43,33 @@
   min-width: 0;
 }
 
-.three-columns-row {
+.home-modes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.mode-card {
+  min-height: 64px !important;
+  min-width: 0;
+}
+
+.lights-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
-  width: 100%;
+  min-width: 0;
 
-  @media (max-width: 1180px) {
+  @media (max-width: 340px) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  @media (max-width: 640px) {
-    grid-template-columns: 1fr;
   }
 }
 
 .button-card {
   background-color: var(--dashboard-card-surface) !important;
   border: 1px solid var(--dashboard-card-border) !important;
+  touch-action: manipulation;
   width: 100% !important;
 }
 
@@ -119,6 +128,7 @@
   min-height: 36px;
   cursor: pointer;
   color: var(--ha-S200-contrast);
+  touch-action: manipulation;
 }
 
 .dashboard-section-header:focus-visible {
@@ -141,6 +151,7 @@
   font-size: clamp(1.15rem, 1.45vw, 1.45rem);
   font-weight: 700;
   line-height: 1.1;
+  text-wrap: balance;
 }
 
 .dashboard-section-content {
@@ -148,6 +159,10 @@
   gap: 8px;
   margin-top: 14px;
   min-width: 0;
+}
+
+.dashboard-section-content[hidden] {
+  display: none;
 }
 
 .dashboard-section.is-collapsed {
@@ -158,4 +173,10 @@
 .dashboard-section.is-collapsed:focus-within {
   background-color: var(--dashboard-card-hover-surface);
   border-color: color-mix(in srgb, var(--ha-S500) 48%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-section {
+    transition: none;
+  }
 }

@@ -3,6 +3,59 @@
 import { ServiceFunction, ServiceFunctionTypes } from '@hakit/core';
 declare module '@hakit/core' {
   export interface CustomSupportedServices<T extends ServiceFunctionTypes = 'target'> {
+    homeassistant: {
+      // Saves the persistent states immediately. Maintains the normal periodic saving interval.
+      savePersistentStates: ServiceFunction<object, T, object>;
+      // Generic action to turn devices off under any domain.
+      turnOff: ServiceFunction<object, T, object>;
+      // Generic action to turn devices on under any domain.
+      turnOn: ServiceFunction<object, T, object>;
+      // Generic action to toggle devices on/off under any domain.
+      toggle: ServiceFunction<object, T, object>;
+      // Stops Home Assistant.
+      stop: ServiceFunction<object, T, object>;
+      // Restarts Home Assistant.
+      restart: ServiceFunction<object, T, object>;
+      // Checks the Home Assistant YAML-configuration files for errors. Errors will be shown in the Home Assistant logs.
+      checkConfig: ServiceFunction<object, T, object>;
+      // Forces one or more entities to update their data.
+      updateEntity: ServiceFunction<
+        object,
+        T,
+        {
+          // List of entities to force update.
+          entity_id: string;
+        }
+      >;
+      // Reloads the Core configuration from the YAML-configuration.
+      reloadCoreConfig: ServiceFunction<object, T, object>;
+      // Updates the Home Assistant location.
+      setLocation: ServiceFunction<
+        object,
+        T,
+        {
+          // Latitude of your location. @example 32.87336 @constraints  number: mode: box, min: -90, max: 90, step: any
+          latitude: number;
+          // Longitude of your location. @example 117.22743 @constraints  number: mode: box, min: -180, max: 180, step: any
+          longitude: number;
+          // Elevation of your location above sea level. @example 120 @constraints  number: mode: box, step: any
+          elevation?: number;
+        }
+      >;
+      // Reloads Jinja2 templates found in the `custom_templates` folder in your config. New values will be applied on the next render of the template.
+      reloadCustomTemplates: ServiceFunction<object, T, object>;
+      // Reloads the specified config entry.
+      reloadConfigEntry: ServiceFunction<
+        object,
+        T,
+        {
+          // The configuration entry ID of the entry to be reloaded. @example 8955375327824e14ba89e4b29cc3ec9a
+          entry_id?: unknown;
+        }
+      >;
+      // Reloads all YAML configuration that can be reloaded without restarting Home Assistant.
+      reloadAll: ServiceFunction<object, T, object>;
+    };
     persistentNotification: {
       // Shows a notification on the notifications panel.
       create: ServiceFunction<
@@ -28,59 +81,6 @@ declare module '@hakit/core' {
       >;
       // Deletes all notifications from the notifications panel.
       dismissAll: ServiceFunction<object, T, object>;
-    };
-    homeassistant: {
-      // Saves the persistent states immediately. Maintains the normal periodic saving interval.
-      savePersistentStates: ServiceFunction<object, T, object>;
-      // Generic action to turn devices off under any domain.
-      turnOff: ServiceFunction<object, T, object>;
-      // Generic action to turn devices on under any domain.
-      turnOn: ServiceFunction<object, T, object>;
-      // Generic action to toggle devices on/off under any domain.
-      toggle: ServiceFunction<object, T, object>;
-      // Stops Home Assistant.
-      stop: ServiceFunction<object, T, object>;
-      // Restarts Home Assistant.
-      restart: ServiceFunction<object, T, object>;
-      // Checks the Home Assistant YAML-configuration files for errors. Errors will be shown in the Home Assistant logs.
-      checkConfig: ServiceFunction<object, T, object>;
-      // Forces one or more entities to update its data.
-      updateEntity: ServiceFunction<
-        object,
-        T,
-        {
-          // List of entities to force update.
-          entity_id: string;
-        }
-      >;
-      // Reloads the core configuration from the YAML-configuration.
-      reloadCoreConfig: ServiceFunction<object, T, object>;
-      // Updates the Home Assistant location.
-      setLocation: ServiceFunction<
-        object,
-        T,
-        {
-          // Latitude of your location. @example 32.87336 @constraints  number: mode: box, min: -90, max: 90, step: any
-          latitude: number;
-          // Longitude of your location. @example 117.22743 @constraints  number: mode: box, min: -180, max: 180, step: any
-          longitude: number;
-          // Elevation of your location above sea level. @example 120 @constraints  number: mode: box, step: any
-          elevation?: number;
-        }
-      >;
-      // Reloads Jinja2 templates found in the `custom_templates` folder in your config. New values will be applied on the next render of the template.
-      reloadCustomTemplates: ServiceFunction<object, T, object>;
-      // Reloads the specified config entry.
-      reloadConfigEntry: ServiceFunction<
-        object,
-        T,
-        {
-          // The configuration entry ID of the entry to be reloaded. @example 8955375327824e14ba89e4b29cc3ec9a
-          entry_id?: string;
-        }
-      >;
-      // Reload all YAML configuration that can be reloaded without restarting Home Assistant.
-      reloadAll: ServiceFunction<object, T, object>;
     };
     systemLog: {
       // Deletes all log entries.
@@ -111,10 +111,6 @@ declare module '@hakit/core' {
       >;
       // Sets the log level for one or more integrations.
       setLevel: ServiceFunction<object, T, object>;
-    };
-    person: {
-      // Reloads persons from the YAML-configuration.
-      reload: ServiceFunction<object, T, object>;
     };
     frontend: {
       // Sets the default theme Home Assistant uses. Can be overridden by a user.
@@ -150,11 +146,11 @@ declare module '@hakit/core' {
         object,
         T,
         {
-          // List of entities for which the data is to be removed from the recorder database.
+          // List of entities for which the data is to be removed from the Recorder database.
           entity_id?: string;
-          // List of domains for which the data needs to be removed from the recorder database. @example sun
+          // List of domains for which the data needs to be removed from the Recorder database. @example sun
           domains?: object;
-          // List of glob patterns used to select the entities for which the data is to be removed from the recorder database. @example domain*.object_id*
+          // List of glob patterns used to select the entities for which the data is to be removed from the Recorder database. @example domain*.object_id*
           entity_globs?: object;
           // Number of days to keep the data for rows matching the filter. Starting today, counting backward. A value of `7` means that everything older than a week will be purged. The default of 0 days will remove all matching rows immediately. @constraints  number: min: 0, max: 365, unit_of_measurement: days
           keep_days?: number;
@@ -193,15 +189,6 @@ declare module '@hakit/core' {
           addon: string;
         }
       >;
-      // Updates an add-on. This action should be used with caution since add-on updates can contain breaking changes. It is highly recommended that you review release notes/change logs before updating an add-on.
-      addonUpdate: ServiceFunction<
-        object,
-        T,
-        {
-          // The add-on to update. @example core_ssh
-          addon: string;
-        }
-      >;
       // Writes data to the add-on's standard input.
       addonStdin: ServiceFunction<
         object,
@@ -228,7 +215,7 @@ declare module '@hakit/core' {
           compressed?: boolean;
           // Name of a backup network storage to host backups. @example my_backup_mount
           location?: string;
-          // Exclude the Home Assistant database file from backup
+          // Exclude the Home Assistant database file from the backup.
           homeassistant_exclude_database?: boolean;
         }
       >;
@@ -239,7 +226,7 @@ declare module '@hakit/core' {
         {
           // Includes Home Assistant settings in the backup.
           homeassistant?: boolean;
-          // Exclude the Home Assistant database file from backup
+          // Exclude the Home Assistant database file from the backup.
           homeassistant_exclude_database?: boolean;
           // List of add-ons to include in the backup. Use the name slug of each add-on. @example core_ssh,core_samba,core_mosquitto
           addons?: object;
@@ -284,6 +271,35 @@ declare module '@hakit/core' {
         }
       >;
     };
+    ffmpeg: {
+      // Sends a start command to an FFmpeg-based sensor.
+      start: ServiceFunction<
+        object,
+        T,
+        {
+          // Name of entity that will start. Platform dependent.
+          entity_id?: string;
+        }
+      >;
+      // Sends a stop command to an FFmpeg-based sensor.
+      stop: ServiceFunction<
+        object,
+        T,
+        {
+          // Name of entity that will stop. Platform dependent.
+          entity_id?: string;
+        }
+      >;
+      // Sends a restart command to an FFmpeg-based sensor.
+      restart: ServiceFunction<
+        object,
+        T,
+        {
+          // Name of entity that will restart. Platform dependent.
+          entity_id?: string;
+        }
+      >;
+    };
     update: {
       // Installs an update for a device or service.
       install: ServiceFunction<
@@ -301,38 +317,35 @@ declare module '@hakit/core' {
       // Removes the skipped version marker from an update.
       clearSkipped: ServiceFunction<object, T, object>;
     };
-    cloud: {
-      // Makes the instance UI accessible from outside of the local network by enabling your Home Assistant Cloud connection.
-      remoteConnect: ServiceFunction<object, T, object>;
-      // Disconnects the instance UI from Home Assistant Cloud. This disables access to it from outside your local network.
-      remoteDisconnect: ServiceFunction<object, T, object>;
+    backup: {
+      // Creates a new backup with automatic backup settings.
+      createAutomatic: ServiceFunction<object, T, object>;
     };
-    ffmpeg: {
-      // Sends a start command to a ffmpeg based sensor.
-      start: ServiceFunction<
+    conversation: {
+      // Launches a conversation from a transcribed text.
+      process: ServiceFunction<
         object,
         T,
         {
-          // Name of entity that will start. Platform dependent.
-          entity_id?: string;
+          // Transcribed text input. @example Turn all lights on
+          text: string;
+          // Language of text. Defaults to server language. @example NL
+          language?: string;
+          // Conversation agent to process your request. The conversation agent is the brains of your assistant. It processes the incoming text commands. @example homeassistant
+          agent_id?: string;
+          // ID of the conversation, to be able to continue a previous conversation @example my_conversation_1
+          conversation_id?: string;
         }
       >;
-      // Sends a stop command to a ffmpeg based sensor.
-      stop: ServiceFunction<
+      // Reloads the intent configuration.
+      reload: ServiceFunction<
         object,
         T,
         {
-          // Name of entity that will stop. Platform dependent.
-          entity_id?: string;
-        }
-      >;
-      // Sends a restart command to a ffmpeg based sensor.
-      restart: ServiceFunction<
-        object,
-        T,
-        {
-          // Name of entity that will restart. Platform dependent.
-          entity_id?: string;
+          // Language to clear cached intents for. Defaults to server language. @example NL
+          language?: string;
+          // Conversation agent to reload. @example homeassistant
+          agent_id?: string;
         }
       >;
     };
@@ -374,44 +387,11 @@ declare module '@hakit/core' {
         }
       >;
     };
-    scene: {
-      // Reloads the scenes from the YAML-configuration.
-      reload: ServiceFunction<object, T, object>;
-      // Activates a scene with configuration.
-      apply: ServiceFunction<
-        object,
-        T,
-        {
-          // List of entities and their target state. @example light.kitchen: 'on' light.ceiling:   state: 'on'   brightness: 80
-          entities: object;
-          // Time it takes the devices to transition into the states defined in the scene. @constraints  number: min: 0, max: 300, unit_of_measurement: seconds
-          transition?: number;
-        }
-      >;
-      // Creates a new scene.
-      create: ServiceFunction<
-        object,
-        T,
-        {
-          // The entity ID of the new scene. @example all_lights
-          scene_id: string;
-          // List of entities and their target state. If your entities are already in the target state right now, use `snapshot_entities` instead. @example light.tv_back_light: 'on' light.ceiling:   state: 'on'   brightness: 200
-          entities?: object;
-          // List of entities to be included in the snapshot. By taking a snapshot, you record the current state of those entities. If you do not want to use the current state of all your entities for this scene, you can combine the `snapshot_entities` with `entities`. @example - light.ceiling - light.kitchen
-          snapshot_entities?: string;
-        }
-      >;
-      // Deletes a dynamically created scene.
-      delete: ServiceFunction<object, T, object>;
-      // Activates a scene.
-      turnOn: ServiceFunction<
-        object,
-        T,
-        {
-          // Time it takes the devices to transition into the states defined in the scene. @constraints  number: min: 0, max: 300, unit_of_measurement: seconds
-          transition?: number;
-        }
-      >;
+    cloud: {
+      // Makes the instance UI accessible from outside of the local network by enabling your Home Assistant Cloud connection.
+      remoteConnect: ServiceFunction<object, T, object>;
+      // Disconnects the instance UI from Home Assistant Cloud. This disables access to it from outside your local network.
+      remoteDisconnect: ServiceFunction<object, T, object>;
     };
     camera: {
       // Enables the motion detection.
@@ -456,6 +436,45 @@ declare module '@hakit/core' {
         }
       >;
     };
+    scene: {
+      // Reloads the scenes from the YAML-configuration.
+      reload: ServiceFunction<object, T, object>;
+      // Activates a scene with configuration.
+      apply: ServiceFunction<
+        object,
+        T,
+        {
+          // List of entities and their target state. @example light.kitchen: 'on' light.ceiling:   state: 'on'   brightness: 80
+          entities: object;
+          // Time it takes the devices to transition into the states defined in the scene. @constraints  number: min: 0, max: 300, unit_of_measurement: seconds
+          transition?: number;
+        }
+      >;
+      // Creates a new scene.
+      create: ServiceFunction<
+        object,
+        T,
+        {
+          // The entity ID of the new scene. @example all_lights
+          scene_id: string;
+          // List of entities and their target state. If your entities are already in the target state right now, use 'Entities snapshot' instead. @example light.tv_back_light: 'on' light.ceiling:   state: 'on'   brightness: 200
+          entities?: object;
+          // List of entities to be included in the snapshot. By taking a snapshot, you record the current state of those entities. If you do not want to use the current state of all your entities for this scene, you can combine 'Entities snapshot' with 'Entity states'. @example - light.ceiling - light.kitchen
+          snapshot_entities?: string;
+        }
+      >;
+      // Deletes a dynamically created scene.
+      delete: ServiceFunction<object, T, object>;
+      // Activates a scene.
+      turnOn: ServiceFunction<
+        object,
+        T,
+        {
+          // Time it takes the devices to transition into the states defined in the scene. @constraints  number: min: 0, max: 300, unit_of_measurement: seconds
+          transition?: number;
+        }
+      >;
+    };
     inputSelect: {
       // Reloads helpers from the YAML-configuration.
       reload: ServiceFunction<object, T, object>;
@@ -463,7 +482,7 @@ declare module '@hakit/core' {
       selectFirst: ServiceFunction<object, T, object>;
       // Selects the last option.
       selectLast: ServiceFunction<object, T, object>;
-      // Select the next option.
+      // Selects the next option.
       selectNext: ServiceFunction<
         object,
         T,
@@ -486,7 +505,7 @@ declare module '@hakit/core' {
         object,
         T,
         {
-          // If the option should cycle from the last to the first option on the list.
+          // If the option should cycle from the first to the last option on the list.
           cycle?: boolean;
         }
       >;
@@ -499,23 +518,6 @@ declare module '@hakit/core' {
           options: string;
         }
       >;
-    };
-    inputNumber: {
-      // Reloads helpers from the YAML-configuration.
-      reload: ServiceFunction<object, T, object>;
-      // Sets the value.
-      setValue: ServiceFunction<
-        object,
-        T,
-        {
-          // The target value. @constraints  number: min: 0, max: 9223372036854776000, step: 0.001, mode: box
-          value: number;
-        }
-      >;
-      // Increments the current value by 1 step.
-      increment: ServiceFunction<object, T, object>;
-      // Decrements the current value by 1 step.
-      decrement: ServiceFunction<object, T, object>;
     };
     group: {
       // Reloads group configuration, entities, and notify services from YAML-configuration.
@@ -552,7 +554,7 @@ declare module '@hakit/core' {
       >;
     };
     light: {
-      // Turn on one or more lights and adjust properties of the light, even when they are turned on already.
+      // Turns on one or more lights and adjusts their properties, even when they are turned on already.
       turnOn: ServiceFunction<
         object,
         T,
@@ -562,7 +564,7 @@ declare module '@hakit/core' {
           // The color in RGB format. A list of three integers between 0 and 255 representing the values of red, green, and blue. @example [255, 100, 100]
           rgb_color?: [number, number, number];
           // Color temperature in Kelvin. @constraints  color_temp: unit: kelvin, min: 2000, max: 6500
-          kelvin?: number | object;
+          color_temp_kelvin?: number;
           // Number indicating the percentage of full brightness, where 0 turns the light off, 1 is the minimum brightness, and 100 is the maximum brightness. @constraints  number: min: 0, max: 100, unit_of_measurement: %
           brightness_pct?: number;
           // Change brightness by a percentage. @constraints  number: min: -100, max: 100, unit_of_measurement: %
@@ -728,7 +730,7 @@ declare module '@hakit/core' {
           //  @example [0.52, 0.43]
           xy_color?: [number, number];
           //  @constraints  color_temp: unit: mired, min: 153, max: 500
-          color_temp?: number | object;
+          color_temp?: number;
           //  @constraints  number: min: 0, max: 255
           brightness?: number;
           //  @constraints  number: min: -225, max: 255
@@ -741,7 +743,7 @@ declare module '@hakit/core' {
           flash?: 'long' | 'short';
         }
       >;
-      // Turn off one or more lights.
+      // Turns off one or more lights.
       turnOff: ServiceFunction<
         object,
         T,
@@ -752,7 +754,7 @@ declare module '@hakit/core' {
           flash?: 'long' | 'short';
         }
       >;
-      // Toggles one or more lights, from on to off, or, off to on, based on their current state.
+      // Toggles one or more lights, from on to off, or off to on, based on their current state.
       toggle: ServiceFunction<
         object,
         T,
@@ -762,7 +764,7 @@ declare module '@hakit/core' {
           // The color in RGB format. A list of three integers between 0 and 255 representing the values of red, green, and blue. @example [255, 100, 100]
           rgb_color?: [number, number, number];
           // Color temperature in Kelvin. @constraints  color_temp: unit: kelvin, min: 2000, max: 6500
-          kelvin?: number | object;
+          color_temp_kelvin?: number;
           // Number indicating the percentage of full brightness, where 0 turns the light off, 1 is the minimum brightness, and 100 is the maximum brightness. @constraints  number: min: 0, max: 100, unit_of_measurement: %
           brightness_pct?: number;
           // Light effect.
@@ -926,7 +928,7 @@ declare module '@hakit/core' {
           //  @example [0.52, 0.43]
           xy_color?: [number, number];
           //  @constraints  color_temp: unit: mired, min: 153, max: 500
-          color_temp?: number | object;
+          color_temp?: number;
           //  @constraints  number: min: 0, max: 255
           brightness?: number;
           //
@@ -937,33 +939,6 @@ declare module '@hakit/core' {
           flash?: 'long' | 'short';
         }
       >;
-    };
-    logbook: {
-      // Creates a custom entry in the logbook.
-      log: ServiceFunction<
-        object,
-        T,
-        {
-          // Custom name for an entity, can be referenced using an `entity_id`. @example Kitchen
-          name: string;
-          // Message of the logbook entry. @example is being used
-          message: string;
-          // Entity to reference in the logbook entry.
-          entity_id?: string;
-          // Determines which icon is used in the logbook entry. The icon illustrates the integration domain related to this logbook entry. @example light
-          domain?: string;
-        }
-      >;
-    };
-    inputBoolean: {
-      // Reloads helpers from the YAML-configuration.
-      reload: ServiceFunction<object, T, object>;
-      // Turns on the helper.
-      turnOn: ServiceFunction<object, T, object>;
-      // Turns off the helper.
-      turnOff: ServiceFunction<object, T, object>;
-      // Toggles the helper on/off.
-      toggle: ServiceFunction<object, T, object>;
     };
     inputButton: {
       // Reloads helpers from the YAML-configuration.
@@ -999,6 +974,40 @@ declare module '@hakit/core' {
         }
       >;
     };
+    logbook: {
+      // Creates a custom entry in the logbook.
+      log: ServiceFunction<
+        object,
+        T,
+        {
+          // Custom name for an entity, can be referenced using the 'Entity ID' field. @example Kitchen
+          name: string;
+          // Message of the logbook entry. @example is being used
+          message: string;
+          // Entity to reference in the logbook entry.
+          entity_id?: string;
+          // Determines which icon is used in the logbook entry. The icon illustrates the integration domain related to this logbook entry. @example light
+          domain?: string;
+        }
+      >;
+    };
+    inputNumber: {
+      // Reloads helpers from the YAML-configuration.
+      reload: ServiceFunction<object, T, object>;
+      // Sets the value.
+      setValue: ServiceFunction<
+        object,
+        T,
+        {
+          // The target value. @constraints  number: min: 0, max: 9223372036854776000, step: 0.001, mode: box
+          value: number;
+        }
+      >;
+      // Increments the current value by 1 step.
+      increment: ServiceFunction<object, T, object>;
+      // Decrements the current value by 1 step.
+      decrement: ServiceFunction<object, T, object>;
+    };
     script: {
       //
       stopTheLivingRoomBlinds: ServiceFunction<object, T, object>;
@@ -1012,6 +1021,15 @@ declare module '@hakit/core' {
       disableAllAutomations: ServiceFunction<object, T, object>;
       //
       enableAllAutomations: ServiceFunction<object, T, object>;
+      // Sets physical brightness DP 22 directly so off lights stay off.
+      setLocaltuyaLightsBrightness: ServiceFunction<
+        object,
+        T,
+        {
+          // LocalTuya DP 22 value from 29 (minimum) to 1000 (maximum). @constraints  number: min: 29, max: 1000, step: 1, mode: slider
+          brightness_value: number;
+        }
+      >;
       // Reloads all the available scripts.
       reload: ServiceFunction<object, T, object>;
       // Runs the sequence of actions defined in a script.
@@ -1021,35 +1039,65 @@ declare module '@hakit/core' {
       // Starts a script if it isn't running, stops it otherwise.
       toggle: ServiceFunction<object, T, object>;
     };
+    person: {
+      // Reloads persons from the YAML-configuration.
+      reload: ServiceFunction<object, T, object>;
+    };
     zone: {
       // Reloads zones from the YAML-configuration.
       reload: ServiceFunction<object, T, object>;
     };
-    conversation: {
-      // Launches a conversation from a transcribed text.
-      process: ServiceFunction<
+    inputBoolean: {
+      // Reloads helpers from the YAML-configuration.
+      reload: ServiceFunction<object, T, object>;
+      // Turns on the helper.
+      turnOn: ServiceFunction<object, T, object>;
+      // Turns off the helper.
+      turnOff: ServiceFunction<object, T, object>;
+      // Toggles the helper on/off.
+      toggle: ServiceFunction<object, T, object>;
+    };
+    utilityMeter: {
+      // Resets all counters of a utility meter.
+      reset: ServiceFunction<object, T, object>;
+    };
+    cast: {
+      // Shows a dashboard view on a Chromecast device.
+      showLovelaceView: ServiceFunction<
         object,
         T,
         {
-          // Transcribed text input. @example Turn all lights on
-          text: string;
-          // Language of text. Defaults to server language. @example NL
-          language?: string;
-          // Conversation agent to process your request. The conversation agent is the brains of your assistant. It processes the incoming text commands. @example homeassistant
-          agent_id?: string;
-          // ID of the conversation, to be able to continue a previous conversation @example my_conversation_1
-          conversation_id?: string;
+          // Media player entity to show the dashboard view on.
+          entity_id: string;
+          // The URL path of the dashboard to show, defaults to lovelace if not specified. @example lovelace-cast
+          dashboard_path?: string;
+          // The URL path of the dashboard view to show. @example downstairs
+          view_path: string;
         }
       >;
-      // Reloads the intent configuration.
-      reload: ServiceFunction<
+    };
+    pythonScript: {
+      //
+      toggleLightsBasedOnMotion: ServiceFunction<object, T, object>;
+      //
+      addSpeakerToGroup: ServiceFunction<object, T, object>;
+      // Reloads all available Python scripts.
+      reload: ServiceFunction<object, T, object>;
+    };
+    localtuya: {
+      // Reload localtuya and reconnect to all devices.
+      reload: ServiceFunction<object, T, object>;
+      // Change the value of a datapoint (DP)
+      setDp: ServiceFunction<
         object,
         T,
         {
-          // Language to clear cached intents for. Defaults to server language. @example NL
-          language?: string;
-          // Conversation agent to reload. @example homeassistant
-          agent_id?: string;
+          // Device ID of device to change datapoint value for @example 11100118278aab4de001
+          device_id?: object;
+          // Datapoint index @example 1
+          dp?: object;
+          // New value to set
+          value?: object;
         }
       >;
     };
@@ -1089,21 +1137,6 @@ declare module '@hakit/core' {
         }
       >;
     };
-    cast: {
-      // Shows a dashboard view on a Chromecast device.
-      showLovelaceView: ServiceFunction<
-        object,
-        T,
-        {
-          // Media player entity to show the dashboard view on.
-          entity_id: string;
-          // The URL path of the dashboard to show. @example lovelace-cast
-          dashboard_path: string;
-          // The URL path of the dashboard view to show. @example downstairs
-          view_path?: string;
-        }
-      >;
-    };
     inputText: {
       // Reloads helpers from the YAML-configuration.
       reload: ServiceFunction<object, T, object>;
@@ -1117,21 +1150,11 @@ declare module '@hakit/core' {
         }
       >;
     };
-    pythonScript: {
-      //
-      toggleLightsBasedOnMotion: ServiceFunction<object, T, object>;
-      //
-      addSpeakerToGroup: ServiceFunction<object, T, object>;
-      // Reloads all available Python scripts.
-      reload: ServiceFunction<object, T, object>;
-    };
-    utilityMeter: {
-      // Resets all counters of a utility meter.
-      reset: ServiceFunction<object, T, object>;
-    };
     schedule: {
       // Reloads schedules from the YAML-configuration.
       reload: ServiceFunction<object, T, object>;
+      // Retrieves the configured time ranges of one or multiple schedules.
+      getSchedule: ServiceFunction<object, T, object>;
     };
     notify: {
       // Sends a notification message.
@@ -1154,7 +1177,7 @@ declare module '@hakit/core' {
           message: string;
           // Title of the notification. @example Your Garage Door Friend
           title?: string;
-          // Some integrations provide extended functionality. For information on how to use _data_, refer to the integration documentation.. @example platform specific
+          // Some integrations provide extended functionality via this field. For more information, refer to the integration documentation. @example platform specific
           data?: object;
         }
       >;
@@ -1203,8 +1226,8 @@ declare module '@hakit/core' {
           data?: object;
         }
       >;
-      // Sends a notification message using the mobile_app_iphone integration.
-      mobileAppIphone: ServiceFunction<
+      // Sends a notification message using the mobile_app_yann_thibodeaus_iphone integration.
+      mobileAppYannThibodeausIphone: ServiceFunction<
         object,
         T,
         {
@@ -1272,13 +1295,168 @@ declare module '@hakit/core' {
         }
       >;
     };
-    switch: {
-      // Turns a switch off.
-      turnOff: ServiceFunction<object, T, object>;
-      // Turns a switch on.
+    mediaPlayer: {
+      // Turns on the power of the media player.
       turnOn: ServiceFunction<object, T, object>;
-      // Toggles a switch on/off.
+      // Turns off the power of the media player.
+      turnOff: ServiceFunction<object, T, object>;
+      // Toggles a media player on/off.
       toggle: ServiceFunction<object, T, object>;
+      // Turns up the volume.
+      volumeUp: ServiceFunction<object, T, object>;
+      // Turns down the volume.
+      volumeDown: ServiceFunction<object, T, object>;
+      // Toggles play/pause.
+      mediaPlayPause: ServiceFunction<object, T, object>;
+      // Starts playing.
+      mediaPlay: ServiceFunction<object, T, object>;
+      // Pauses.
+      mediaPause: ServiceFunction<object, T, object>;
+      // Stops playing.
+      mediaStop: ServiceFunction<object, T, object>;
+      // Selects the next track.
+      mediaNextTrack: ServiceFunction<object, T, object>;
+      // Selects the previous track.
+      mediaPreviousTrack: ServiceFunction<object, T, object>;
+      // Removes all items from the playlist.
+      clearPlaylist: ServiceFunction<object, T, object>;
+      // Sets the volume level.
+      volumeSet: ServiceFunction<
+        object,
+        T,
+        {
+          // The volume. 0 is inaudible, 1 is the maximum volume. @constraints  number: min: 0, max: 1, step: 0.01
+          volume_level: number;
+        }
+      >;
+      // Mutes or unmutes the media player.
+      volumeMute: ServiceFunction<
+        object,
+        T,
+        {
+          // Defines whether or not it is muted.
+          is_volume_muted: boolean;
+        }
+      >;
+      // Allows you to go to a different part of the media that is currently playing.
+      mediaSeek: ServiceFunction<
+        object,
+        T,
+        {
+          // Target position in the currently playing media. The format is platform dependent. @constraints  number: min: 0, max: 9223372036854776000, step: 0.01, mode: box
+          seek_position: number;
+        }
+      >;
+      // Groups media players together for synchronous playback. Only works on supported multiroom audio systems.
+      join: ServiceFunction<
+        object,
+        T,
+        {
+          // The players which will be synced with the playback specified in 'Targets'. @example - media_player.multiroom_player2 - media_player.multiroom_player3
+          group_members: string[];
+        }
+      >;
+      // Sends the media player the command to change input source.
+      selectSource: ServiceFunction<
+        object,
+        T,
+        {
+          // Name of the source to switch to. Platform dependent. @example video1
+          source: string;
+        }
+      >;
+      // Selects a specific sound mode.
+      selectSoundMode: ServiceFunction<
+        object,
+        T,
+        {
+          // Name of the sound mode to switch to. @example Music
+          sound_mode?: string;
+        }
+      >;
+      // Starts playing specified media.
+      playMedia: ServiceFunction<
+        object,
+        T,
+        {
+          // The ID of the content to play. Platform dependent. @example https://home-assistant.io/images/cast/splash.png
+          media_content_id: string | number;
+          // The type of the content to play, such as image, music, tv show, video, episode, channel, or playlist. @example music
+          media_content_type: string;
+          // If the content should be played now or be added to the queue.
+          enqueue?: 'play' | 'next' | 'add' | 'replace';
+          // If the media should be played as an announcement. @example true
+          announce?: boolean;
+        }
+      >;
+      // Browses the available media.
+      browseMedia: ServiceFunction<
+        object,
+        T,
+        {
+          // The type of the content to browse, such as image, music, tv show, video, episode, channel, or playlist. @example music
+          media_content_type?: string;
+          // The ID of the content to browse. Integration dependent. @example A:ALBUMARTIST/Beatles
+          media_content_id?: string | number;
+        }
+      >;
+      // Searches the available media.
+      searchMedia: ServiceFunction<
+        object,
+        T,
+        {
+          // The term to search for. @example Beatles
+          search_query: string;
+          // The type of the content to browse, such as image, music, tv show, video, episode, channel, or playlist. @example music
+          media_content_type?: string;
+          // The ID of the content to browse. Integration dependent. @example A:ALBUMARTIST/Beatles
+          media_content_id?: string | number;
+          // List of media classes to filter the search results by. @example album,artist
+          media_filter_classes?: string;
+        }
+      >;
+      // Enables or disables the shuffle mode.
+      shuffleSet: ServiceFunction<
+        object,
+        T,
+        {
+          // Whether the media should be played in randomized order or not.
+          shuffle: boolean;
+        }
+      >;
+      // Removes the player from a group. Only works on platforms which support player groups.
+      unjoin: ServiceFunction<object, T, object>;
+      // Sets the repeat mode.
+      repeatSet: ServiceFunction<
+        object,
+        T,
+        {
+          // Whether the media (one or all) should be played in a loop or not.
+          repeat: 'off' | 'all' | 'one';
+        }
+      >;
+    };
+    samsungtvSmart: {
+      // Send to samsung TV the command to change picture mode.
+      selectPictureMode: ServiceFunction<
+        object,
+        T,
+        {
+          // Name of the target entity @example media_player.tv
+          entity_id: string;
+          // Name of the picture mode to switch to. Possible options can be found in the picture_mode_list state attribute. @example Standard
+          picture_mode: string;
+        }
+      >;
+      // Send to samsung TV the command to set art mode.
+      setArtMode: ServiceFunction<
+        object,
+        T,
+        {
+          // Name of the target entity @example media_player.tv
+          entity_id: string;
+        }
+      >;
     };
     remote: {
       // Sends the turn off command.
@@ -1340,339 +1518,74 @@ declare module '@hakit/core' {
         }
       >;
     };
-    mediaPlayer: {
-      // Turns on the power of the media player.
-      turnOn: ServiceFunction<object, T, object>;
-      // Turns off the power of the media player.
-      turnOff: ServiceFunction<object, T, object>;
-      // Toggles a media player on/off.
-      toggle: ServiceFunction<object, T, object>;
-      // Turns up the volume.
-      volumeUp: ServiceFunction<object, T, object>;
-      // Turns down the volume.
-      volumeDown: ServiceFunction<object, T, object>;
-      // Toggles play/pause.
-      mediaPlayPause: ServiceFunction<object, T, object>;
-      // Starts playing.
-      mediaPlay: ServiceFunction<object, T, object>;
-      // Pauses.
-      mediaPause: ServiceFunction<object, T, object>;
-      // Stops playing.
-      mediaStop: ServiceFunction<object, T, object>;
-      // Selects the next track.
-      mediaNextTrack: ServiceFunction<object, T, object>;
-      // Selects the previous track.
-      mediaPreviousTrack: ServiceFunction<object, T, object>;
-      // Removes all items from the playlist.
-      clearPlaylist: ServiceFunction<object, T, object>;
-      // Sets the volume level.
-      volumeSet: ServiceFunction<
+    alarmControlPanel: {
+      // Disarms the alarm.
+      alarmDisarm: ServiceFunction<
         object,
         T,
         {
-          // The volume. 0 is inaudible, 1 is the maximum volume. @constraints  number: min: 0, max: 1, step: 0.01
-          volume_level: number;
+          // Code to disarm the alarm. @example 1234
+          code?: string;
         }
       >;
-      // Mutes or unmutes the media player.
-      volumeMute: ServiceFunction<
+      // Arms the alarm in the home mode.
+      alarmArmHome: ServiceFunction<
         object,
         T,
         {
-          // Defines whether or not it is muted.
-          is_volume_muted: boolean;
+          // Code to arm the alarm. @example 1234
+          code?: string;
         }
       >;
-      // Allows you to go to a different part of the media that is currently playing.
-      mediaSeek: ServiceFunction<
+      // Arms the alarm in the away mode.
+      alarmArmAway: ServiceFunction<
         object,
         T,
         {
-          // Target position in the currently playing media. The format is platform dependent. @constraints  number: min: 0, max: 9223372036854776000, step: 0.01, mode: box
-          seek_position: number;
+          // Code to arm the alarm. @example 1234
+          code?: string;
         }
       >;
-      // Groups media players together for synchronous playback. Only works on supported multiroom audio systems.
-      join: ServiceFunction<
+      // Arms the alarm in the night mode.
+      alarmArmNight: ServiceFunction<
         object,
         T,
         {
-          // The players which will be synced with the playback specified in `target`. @example - media_player.multiroom_player2 - media_player.multiroom_player3
-          group_members: string[];
+          // Code to arm the alarm. @example 1234
+          code?: string;
         }
       >;
-      // Sends the media player the command to change input source.
-      selectSource: ServiceFunction<
+      // Arms the alarm in the vacation mode.
+      alarmArmVacation: ServiceFunction<
         object,
         T,
         {
-          // Name of the source to switch to. Platform dependent. @example video1
-          source: string;
+          // Code to arm the alarm. @example 1234
+          code?: string;
         }
       >;
-      // Selects a specific sound mode.
-      selectSoundMode: ServiceFunction<
+      // Arms the alarm while allowing to bypass a custom area.
+      alarmArmCustomBypass: ServiceFunction<
         object,
         T,
         {
-          // Name of the sound mode to switch to. @example Music
-          sound_mode?: string;
+          // Code to arm the alarm. @example 1234
+          code?: string;
         }
       >;
-      // Starts playing specified media.
-      playMedia: ServiceFunction<
+      // Triggers the alarm manually.
+      alarmTrigger: ServiceFunction<
         object,
         T,
         {
-          // The ID of the content to play. Platform dependent. @example https://home-assistant.io/images/cast/splash.png
-          media_content_id: string | number;
-          // The type of the content to play. Such as image, music, tv show, video, episode, channel, or playlist. @example music
-          media_content_type: string;
-          // If the content should be played now or be added to the queue.
-          enqueue?: 'play' | 'next' | 'add' | 'replace';
-          // If the media should be played as an announcement. @example true
-          announce?: boolean;
-        }
-      >;
-      // Playback mode that selects the media in randomized order.
-      shuffleSet: ServiceFunction<
-        object,
-        T,
-        {
-          // Whether or not shuffle mode is enabled.
-          shuffle: boolean;
-        }
-      >;
-      // Removes the player from a group. Only works on platforms which support player groups.
-      unjoin: ServiceFunction<object, T, object>;
-      // Playback mode that plays the media in a loop.
-      repeatSet: ServiceFunction<
-        object,
-        T,
-        {
-          // Repeat mode to set.
-          repeat: 'off' | 'all' | 'one';
+          // Code to arm the alarm. @example 1234
+          code?: string;
         }
       >;
     };
-    hue: {
-      // Activates a Hue scene with more control over the options.
-      activateScene: ServiceFunction<
-        object,
-        T,
-        {
-          // Transition duration it takes to bring devices to the state defined in the scene. @constraints  number: min: 0, max: 3600, unit_of_measurement: seconds
-          transition?: number;
-          // Enable dynamic mode of the scene.
-          dynamic?: boolean;
-          // Speed of dynamic palette for this scene. @constraints  number: min: 0, max: 100
-          speed?: number;
-          // Set brightness for the scene. @constraints  number: min: 1, max: 255
-          brightness?: number;
-        }
-      >;
-      // Activates a Hue scene stored in the Hue hub.
-      hueActivateScene: ServiceFunction<
-        object,
-        T,
-        {
-          // Name of Hue group/room from the Hue app. @example Living Room
-          group_name?: string;
-          // Name of Hue scene from the Hue app. @example Energize
-          scene_name?: string;
-          // Enable dynamic mode of the scene (V2 bridges and supported scenes only).
-          dynamic?: boolean;
-        }
-      >;
-    };
-    weather: {
-      // Get weather forecasts.
-      getForecasts: ServiceFunction<
-        object,
-        T,
-        {
-          // Forecast type: daily, hourly or twice daily.
-          type: 'daily' | 'hourly' | 'twice_daily';
-        }
-      >;
-    };
-    vacuum: {
-      // Starts or resumes the cleaning task.
-      start: ServiceFunction<object, T, object>;
-      // Pauses the cleaning task.
-      pause: ServiceFunction<object, T, object>;
-      // Tells the vacuum cleaner to return to its dock.
-      returnToBase: ServiceFunction<object, T, object>;
-      // Tells the vacuum cleaner to do a spot clean-up.
-      cleanSpot: ServiceFunction<object, T, object>;
-      // Locates the vacuum cleaner robot.
-      locate: ServiceFunction<object, T, object>;
-      // Stops the current cleaning task.
-      stop: ServiceFunction<object, T, object>;
-      // Sets the fan speed of the vacuum cleaner.
-      setFanSpeed: ServiceFunction<
-        object,
-        T,
-        {
-          // Fan speed. The value depends on the integration. Some integrations have speed steps, like 'medium'. Some use a percentage, between 0 and 100. @example low
-          fan_speed: string;
-        }
-      >;
-      // Sends a command to the vacuum cleaner.
-      sendCommand: ServiceFunction<
-        object,
-        T,
-        {
-          // Command to execute. The commands are integration-specific. @example set_dnd_timer
-          command: string;
-          // Parameters for the command. The parameters are integration-specific. @example { 'key': 'value' }
-          params?: object;
-        }
-      >;
-    };
-    samsungtvSmart: {
-      // Send to samsung TV the command to change picture mode.
-      selectPictureMode: ServiceFunction<
-        object,
-        T,
-        {
-          // Name of the target entity @example media_player.tv
-          entity_id: string;
-          // Name of the picture mode to switch to. Possible options can be found in the picture_mode_list state attribute. @example Standard
-          picture_mode: string;
-        }
-      >;
-      // Send to samsung TV the command to set art mode.
-      setArtMode: ServiceFunction<
-        object,
-        T,
-        {
-          // Name of the target entity @example media_player.tv
-          entity_id: string;
-        }
-      >;
-    };
-    googleAssistantSdk: {
-      // Sends a command as a text query to Google Assistant.
-      sendTextCommand: ServiceFunction<
-        object,
-        T,
-        {
-          // Command(s) to send to Google Assistant. @example turn off kitchen TV
-          command?: string;
-          // Name(s) of media player entities to play response on. @example media_player.living_room_speaker
-          media_player?: string;
-        }
-      >;
-    };
-    automation: {
-      // Triggers the actions of an automation.
-      trigger: ServiceFunction<
-        object,
-        T,
-        {
-          // Defines whether or not the conditions will be skipped.
-          skip_condition?: boolean;
-        }
-      >;
-      // Toggles (enable / disable) an automation.
-      toggle: ServiceFunction<object, T, object>;
-      // Enables an automation.
-      turnOn: ServiceFunction<object, T, object>;
-      // Disables an automation.
-      turnOff: ServiceFunction<
-        object,
-        T,
-        {
-          // Stops currently running actions.
-          stop_actions?: boolean;
-        }
-      >;
-      // Reloads the automation configuration.
-      reload: ServiceFunction<object, T, object>;
-    };
-    sonos: {
-      // Takes a snapshot of the media player.
-      snapshot: ServiceFunction<
-        object,
-        T,
-        {
-          // Name of entity that will be snapshot.
-          entity_id?: string;
-          // True or False. Also snapshot the group layout.
-          with_group?: boolean;
-        }
-      >;
-      // Restores a snapshot of the media player.
-      restore: ServiceFunction<
-        object,
-        T,
-        {
-          // Name of entity that will be restored.
-          entity_id?: string;
-          // True or False. Also restore the group layout.
-          with_group?: boolean;
-        }
-      >;
-      // Sets a Sonos timer.
-      setSleepTimer: ServiceFunction<
-        object,
-        T,
-        {
-          // Number of seconds to set the timer. @constraints  number: min: 0, max: 7200, unit_of_measurement: seconds
-          sleep_time?: number;
-        }
-      >;
-      // Clears a Sonos timer.
-      clearSleepTimer: ServiceFunction<object, T, object>;
-      // Updates an alarm with new time and volume settings.
-      updateAlarm: ServiceFunction<
-        object,
-        T,
-        {
-          // ID for the alarm to be updated. @constraints  number: min: 1, max: 1440, mode: box
-          alarm_id: number;
-          // Set time for the alarm. @example 07:00
-          time?: string;
-          // Set alarm volume level. @constraints  number: min: 0, max: 1, step: 0.01
-          volume?: number;
-          // Enable or disable the alarm.
-          enabled?: boolean;
-          // Enable or disable including grouped rooms.
-          include_linked_zones?: boolean;
-        }
-      >;
-      // Start playing the queue from the first item.
-      playQueue: ServiceFunction<
-        object,
-        T,
-        {
-          // Position of the song in the queue to start playing from. @constraints  number: min: 0, max: 10000, mode: box
-          queue_position?: number;
-        }
-      >;
-      // Removes an item from the queue.
-      removeFromQueue: ServiceFunction<
-        object,
-        T,
-        {
-          // Position in the queue to remove. @constraints  number: min: 0, max: 10000, mode: box
-          queue_position?: number;
-        }
-      >;
-      // Returns the contents of the queue.
-      getQueue: ServiceFunction<object, T, object>;
-    };
-    number: {
-      // Sets the value of a number.
-      setValue: ServiceFunction<
-        object,
-        T,
-        {
-          // The target value to set. @example 42
-          value?: string;
-        }
-      >;
+    button: {
+      // Press the button entity.
+      press: ServiceFunction<object, T, object>;
     };
     climate: {
       // Turns climate device on.
@@ -1759,10 +1672,6 @@ declare module '@hakit/core' {
           swing_horizontal_mode: string;
         }
       >;
-    };
-    button: {
-      // Press the button entity.
-      press: ServiceFunction<object, T, object>;
     };
     cover: {
       // Opens a cover.
@@ -1871,6 +1780,289 @@ declare module '@hakit/core' {
         }
       >;
     };
+    humidifier: {
+      // Turns the humidifier on.
+      turnOn: ServiceFunction<object, T, object>;
+      // Turns the humidifier off.
+      turnOff: ServiceFunction<object, T, object>;
+      // Toggles the humidifier on/off.
+      toggle: ServiceFunction<object, T, object>;
+      // Sets the humidifier operation mode.
+      setMode: ServiceFunction<
+        object,
+        T,
+        {
+          // Operation mode. For example, 'normal', 'eco', or 'away'. For a list of possible values, refer to the integration documentation. @example away
+          mode: string;
+        }
+      >;
+      // Sets the target humidity.
+      setHumidity: ServiceFunction<
+        object,
+        T,
+        {
+          // Target humidity. @constraints  number: min: 0, max: 100, unit_of_measurement: %
+          humidity: number;
+        }
+      >;
+    };
+    number: {
+      // Sets the value of a number.
+      setValue: ServiceFunction<
+        object,
+        T,
+        {
+          // The target value to set. @example 42
+          value: string;
+        }
+      >;
+    };
+    select: {
+      // Selects the first option.
+      selectFirst: ServiceFunction<object, T, object>;
+      // Selects the last option.
+      selectLast: ServiceFunction<object, T, object>;
+      // Selects the next option.
+      selectNext: ServiceFunction<
+        object,
+        T,
+        {
+          // If the option should cycle from the last to the first.
+          cycle?: boolean;
+        }
+      >;
+      // Selects an option.
+      selectOption: ServiceFunction<
+        object,
+        T,
+        {
+          // Option to be selected. @example 'Item A'
+          option: string;
+        }
+      >;
+      // Selects the previous option.
+      selectPrevious: ServiceFunction<
+        object,
+        T,
+        {
+          // If the option should cycle from the first to the last.
+          cycle?: boolean;
+        }
+      >;
+    };
+    siren: {
+      // Turns the siren on.
+      turnOn: ServiceFunction<
+        object,
+        T,
+        {
+          // The tone to emit. When `available_tones` property is a map, either the key or the value can be used. Must be supported by the integration. @example fire
+          tone?: string;
+          // The volume. 0 is inaudible, 1 is the maximum volume. Must be supported by the integration. @example 0.5 @constraints  number: min: 0, max: 1, step: 0.05
+          volume_level?: number;
+          // Number of seconds the sound is played. Must be supported by the integration. @example 15
+          duration?: string;
+        }
+      >;
+      // Turns the siren off.
+      turnOff: ServiceFunction<object, T, object>;
+      // Toggles the siren on/off.
+      toggle: ServiceFunction<object, T, object>;
+    };
+    switch: {
+      // Turns a switch off.
+      turnOff: ServiceFunction<object, T, object>;
+      // Turns a switch on.
+      turnOn: ServiceFunction<object, T, object>;
+      // Toggles a switch on/off.
+      toggle: ServiceFunction<object, T, object>;
+    };
+    vacuum: {
+      // Starts or resumes the cleaning task.
+      start: ServiceFunction<object, T, object>;
+      // Pauses the cleaning task.
+      pause: ServiceFunction<object, T, object>;
+      // Tells the vacuum cleaner to return to its dock.
+      returnToBase: ServiceFunction<object, T, object>;
+      // Tells the vacuum cleaner to do a spot clean-up.
+      cleanSpot: ServiceFunction<object, T, object>;
+      // Locates the vacuum cleaner robot.
+      locate: ServiceFunction<object, T, object>;
+      // Stops the current cleaning task.
+      stop: ServiceFunction<object, T, object>;
+      // Sets the fan speed of the vacuum cleaner.
+      setFanSpeed: ServiceFunction<
+        object,
+        T,
+        {
+          // Fan speed. The value depends on the integration. Some integrations have speed steps, like 'medium'. Some use a percentage, between 0 and 100. @example low
+          fan_speed: string;
+        }
+      >;
+      // Sends a command to the vacuum cleaner.
+      sendCommand: ServiceFunction<
+        object,
+        T,
+        {
+          // Command to execute. The commands are integration-specific. @example set_dnd_timer
+          command: string;
+          // Parameters for the command. The parameters are integration-specific. @example { 'key': 'value' }
+          params?: object;
+        }
+      >;
+    };
+    weather: {
+      // Retrieves the forecast from selected weather services.
+      getForecasts: ServiceFunction<
+        object,
+        T,
+        {
+          // The scope of the weather forecast.
+          type: 'daily' | 'hourly' | 'twice_daily';
+        }
+      >;
+    };
+    hue: {
+      // Activates a Hue scene with more control over the options.
+      activateScene: ServiceFunction<
+        object,
+        T,
+        {
+          // Transition duration it takes to bring devices to the state defined in the scene. @constraints  number: min: 0, max: 3600, unit_of_measurement: seconds
+          transition?: number;
+          // Enable dynamic mode of the scene.
+          dynamic?: boolean;
+          // Speed of dynamic palette for this scene. @constraints  number: min: 0, max: 100
+          speed?: number;
+          // Set brightness for the scene. @constraints  number: min: 1, max: 255
+          brightness?: number;
+        }
+      >;
+      // Activates a Hue scene stored in the Hue hub.
+      hueActivateScene: ServiceFunction<
+        object,
+        T,
+        {
+          // Name of Hue group/room from the Hue app. @example Living Room
+          group_name?: string;
+          // Name of Hue scene from the Hue app. @example Energize
+          scene_name?: string;
+          // Enable dynamic mode of the scene (V2 bridges and supported scenes only).
+          dynamic?: boolean;
+        }
+      >;
+    };
+    googleAssistantSdk: {
+      // Sends a command as a text query to Google Assistant.
+      sendTextCommand: ServiceFunction<
+        object,
+        T,
+        {
+          // Command(s) to send to Google Assistant. @example turn off kitchen TV
+          command?: string;
+          // Name(s) of media player entities to play response on. @example media_player.living_room_speaker
+          media_player?: string;
+        }
+      >;
+    };
+    sonos: {
+      // Takes a snapshot of a media player.
+      snapshot: ServiceFunction<
+        object,
+        T,
+        {
+          // Name of entity that will be snapshot.
+          entity_id?: string;
+          // Whether the snapshot should include the group layout and the state of other speakers in the group.
+          with_group?: boolean;
+        }
+      >;
+      // Restores a snapshot of a media player.
+      restore: ServiceFunction<
+        object,
+        T,
+        {
+          // Name of entity that will be restored.
+          entity_id?: string;
+          // Whether the group layout and the state of other speakers in the group should also be restored.
+          with_group?: boolean;
+        }
+      >;
+      // Sets a Sonos timer.
+      setSleepTimer: ServiceFunction<
+        object,
+        T,
+        {
+          // Number of seconds to set the timer. @constraints  number: min: 0, max: 7200, unit_of_measurement: seconds
+          sleep_time?: number;
+        }
+      >;
+      // Clears a Sonos timer.
+      clearSleepTimer: ServiceFunction<object, T, object>;
+      // Updates an alarm with new time and volume settings.
+      updateAlarm: ServiceFunction<
+        object,
+        T,
+        {
+          // The ID of the alarm to be updated. @constraints  number: min: 1, max: 1440, mode: box
+          alarm_id: number;
+          // The time for the alarm. @example 07:00
+          time?: string;
+          // The alarm volume level. @constraints  number: min: 0, max: 1, step: 0.01
+          volume?: number;
+          // Whether or not to enable the alarm.
+          enabled?: boolean;
+          // Whether the alarm also plays on grouped players.
+          include_linked_zones?: boolean;
+        }
+      >;
+      // Starts playing the queue from the first item.
+      playQueue: ServiceFunction<
+        object,
+        T,
+        {
+          // Position of the song in the queue to start playing from. @constraints  number: min: 0, max: 10000, mode: box
+          queue_position?: number;
+        }
+      >;
+      // Removes an item from the queue.
+      removeFromQueue: ServiceFunction<
+        object,
+        T,
+        {
+          // Position in the queue to remove. @constraints  number: min: 0, max: 10000, mode: box
+          queue_position?: number;
+        }
+      >;
+      // Returns the contents of the queue.
+      getQueue: ServiceFunction<object, T, object>;
+    };
+    automation: {
+      // Triggers the actions of an automation.
+      trigger: ServiceFunction<
+        object,
+        T,
+        {
+          // Defines whether or not the conditions will be skipped.
+          skip_condition?: boolean;
+        }
+      >;
+      // Toggles (enable / disable) an automation.
+      toggle: ServiceFunction<object, T, object>;
+      // Enables an automation.
+      turnOn: ServiceFunction<object, T, object>;
+      // Disables an automation.
+      turnOff: ServiceFunction<
+        object,
+        T,
+        {
+          // Stops currently running actions.
+          stop_actions?: boolean;
+        }
+      >;
+      // Reloads the automation configuration.
+      reload: ServiceFunction<object, T, object>;
+    };
     lock: {
       // Unlocks a lock.
       unlock: ServiceFunction<
@@ -1900,27 +2092,28 @@ declare module '@hakit/core' {
         }
       >;
     };
-    localtuya: {
-      // Reload localtuya and reconnect to all devices.
-      reload: ServiceFunction<object, T, object>;
-      // Change the value of a datapoint (DP)
-      setDp: ServiceFunction<
+    valve: {
+      // Opens a valve.
+      openValve: ServiceFunction<object, T, object>;
+      // Closes a valve.
+      closeValve: ServiceFunction<object, T, object>;
+      // Moves a valve to a specific position.
+      setValvePosition: ServiceFunction<
         object,
         T,
         {
-          // Device ID of device to change datapoint value for @example 11100118278aab4de001
-          device_id?: object;
-          // Datapoint index @example 1
-          dp?: object;
-          // New value to set
-          value?: object;
+          // Target position. @constraints  number: min: 0, max: 100, unit_of_measurement: %
+          position: number;
         }
       >;
+      // Stops the valve movement.
+      stopValve: ServiceFunction<object, T, object>;
+      // Toggles a valve open/closed.
+      toggle: ServiceFunction<object, T, object>;
     };
   }
   export interface CustomEntityNameContainer {
     names:
-      | 'person.yann_thibodeau'
       | 'update.home_assistant_supervisor_update'
       | 'update.home_assistant_core_update'
       | 'update.advanced_ssh_web_terminal_update'
@@ -1929,7 +2122,12 @@ declare module '@hakit/core' {
       | 'update.nginx_proxy_manager_update'
       | 'update.mariadb_update'
       | 'update.hakit_update'
+      | 'update.terminal_ssh_update'
       | 'update.home_assistant_operating_system_update'
+      | 'conversation.home_assistant'
+      | 'sensor.backup_backup_manager_state'
+      | 'sensor.backup_next_scheduled_automatic_backup'
+      | 'sensor.backup_last_successful_automatic_backup'
       | 'binary_sensor.remote_ui'
       | 'stt.home_assistant_cloud'
       | 'tts.home_assistant_cloud'
@@ -1940,9 +2138,12 @@ declare module '@hakit/core' {
       | 'script.set_random_desk_strip_color'
       | 'script.disable_all_automations'
       | 'script.enable_all_automations'
+      | 'script.set_localtuya_lights_brightness'
+      | 'person.yann_thibodeau'
       | 'zone.work'
+      | 'input_boolean.morning_mode'
+      | 'input_boolean.night_mode'
       | 'zone.home'
-      | 'conversation.home_assistant'
       | 'sun.sun'
       | 'sensor.sun_next_dawn'
       | 'sensor.sun_next_dusk'
@@ -1958,6 +2159,17 @@ declare module '@hakit/core' {
       | 'input_text.motion_toilet_off_time'
       | 'input_text.motion_bedroom_off_time'
       | 'input_text.motion_bedroom_closet_off_time'
+      | 'sensor.hilo_energy_total_medium_cost'
+      | 'light.office_bulbs'
+      | 'light.light_living_room_bulbs'
+      | 'light.living_room_led_strip'
+      | 'light.light_toilet'
+      | 'light.light_bedroom'
+      | 'light.light_front_door'
+      | 'light.light_kitchen'
+      | 'light.desk_led_strip'
+      | 'tts.google_en_com'
+      | 'binary_sensor.rpi_power_status'
       | 'device_tracker.pixel_6'
       | 'sensor.pixel_6_battery_level'
       | 'sensor.pixel_6_battery_state'
@@ -1972,41 +2184,41 @@ declare module '@hakit/core' {
       | 'sensor.kftrwi_battery_level'
       | 'sensor.kftrwi_battery_state'
       | 'sensor.kftrwi_charger_type'
-      | 'binary_sensor.iphone_focus'
+      | 'binary_sensor.yann_thibodeaus_iphone_focus'
+      | 'binary_sensor.yann_thibodeaus_iphone_kiosk_mode'
       | 'device_tracker.iphone'
-      | 'sensor.iphone_battery_level'
-      | 'sensor.iphone_connection_type'
-      | 'sensor.iphone_sim_1'
-      | 'sensor.iphone_battery_state'
-      | 'sensor.iphone_storage'
-      | 'sensor.iphone_ssid'
-      | 'sensor.iphone_bssid'
-      | 'sensor.iphone_last_update_trigger'
-      | 'sensor.iphone_app_version'
-      | 'sensor.iphone_location_permission'
-      | 'sensor.iphone_geocoded_location'
-      | 'sensor.iphone_sim_2'
-      | 'sensor.iphone_activity'
-      | 'sensor.iphone_distance'
-      | 'sensor.iphone_floors_ascended'
-      | 'sensor.iphone_floors_descended'
-      | 'sensor.iphone_steps'
-      | 'sensor.iphone_average_active_pace'
-      | 'sensor.iphone_audio_output'
-      | 'sensor.hilo_energy_total_medium_cost'
-      | 'sensor.broadlink_rm4_remote_control_ir_rf_temperature'
-      | 'sensor.broadlink_rm4_remote_control_ir_rf_humidity'
-      | 'remote.broadlink_rm4_remote_control_ir_rf'
-      | 'tts.google_en_com'
+      | 'sensor.yann_thibodeaus_iphone_distance'
+      | 'sensor.yann_thibodeaus_iphone_steps'
+      | 'sensor.yann_thibodeaus_iphone_floors_ascended'
+      | 'sensor.yann_thibodeaus_iphone_activity'
+      | 'sensor.yann_thibodeaus_iphone_ssid'
+      | 'sensor.yann_thibodeaus_iphone_floors_descended'
+      | 'sensor.yann_thibodeaus_iphone_bssid'
+      | 'sensor.yann_thibodeaus_iphone_storage'
+      | 'sensor.yann_thibodeaus_iphone_battery_level'
+      | 'sensor.yann_thibodeaus_iphone_location_permission'
+      | 'sensor.yann_thibodeaus_iphone_kiosk_brightness'
+      | 'sensor.yann_thibodeaus_iphone_battery_state'
+      | 'sensor.yann_thibodeaus_iphone_last_update_trigger'
+      | 'sensor.yann_thibodeaus_iphone_sim_2'
+      | 'sensor.yann_thibodeaus_iphone_kiosk_volume'
+      | 'sensor.yann_thibodeaus_iphone_average_active_pace'
+      | 'sensor.yann_thibodeaus_iphone_connection_type'
+      | 'sensor.yann_thibodeaus_iphone_app_version'
+      | 'sensor.yann_thibodeaus_iphone_sim_1'
+      | 'sensor.yann_thibodeaus_iphone_audio_output'
+      | 'sensor.yann_thibodeaus_iphone_pressure'
+      | 'sensor.yann_thibodeaus_iphone_geocoded_location'
+      | 'light.light_laundry_room'
       | 'media_player.tv_2'
       | 'remote.tv'
-      | 'media_player.bedroom_speaker'
+      | 'media_player.tv_3'
+      | 'weather.forecast_home'
+      | 'media_player.tv'
       | 'binary_sensor.coda_4680_fiz_wan_status'
       | 'sensor.coda_4680_fiz_external_ip'
       | 'sensor.coda_4680_fiz_kib_s_received'
       | 'sensor.coda_4680_fiz_kib_s_sent'
-      | 'media_player.tv'
-      | 'binary_sensor.rpi_power_status'
       | 'binary_sensor.hue_motion_sensor_1_motion_2'
       | 'binary_sensor.hue_motion_sensor_2_motion'
       | 'binary_sensor.hue_motion_sensor_1_motion'
@@ -2031,7 +2243,14 @@ declare module '@hakit/core' {
       | 'switch.hue_motion_sensor_2_illuminance'
       | 'switch.hue_motion_sensor_1_illuminance_2'
       | 'switch.hue_motion_sensor_1_illuminance_3'
-      | 'weather.forecast_home'
+      | 'sensor.broadlink_rm4_remote_control_ir_rf_temperature'
+      | 'sensor.broadlink_rm4_remote_control_ir_rf_humidity'
+      | 'remote.broadlink_rm4_remote_control_ir_rf'
+      | 'media_player.tv_samsung_q60_series_85'
+      | 'sensor.brother_mfc_j425w_black_ink_cartridge'
+      | 'sensor.brother_mfc_j425w_cyan_ink_cartridge'
+      | 'sensor.brother_mfc_j425w_magenta_ink_cartridge'
+      | 'sensor.brother_mfc_j425w_yellow_ink_cartridge'
       | 'binary_sensor.roomba_bin_full'
       | 'sensor.roomba_battery_level'
       | 'sensor.roomba_battery_cycles'
@@ -2042,18 +2261,23 @@ declare module '@hakit/core' {
       | 'sensor.roomba_canceled_missions'
       | 'sensor.roomba_failed_missions'
       | 'vacuum.roomba'
+      | 'sensor.brother_mfc_j425w'
       | 'media_player.samsung_q60_series_85'
       | 'remote.samsung_q60_series_85'
-      | 'media_player.tv_samsung_q60_series_85'
-      | 'media_player.tv_3'
-      | 'update.button_card_update'
-      | 'update.samsungtv_smart_update'
+      | 'sensor.mfc_j425w_status'
+      | 'sensor.mfc_j425w_page_counter'
+      | 'sensor.mfc_j425w_black_ink_remaining'
+      | 'sensor.mfc_j425w_cyan_ink_remaining'
+      | 'sensor.mfc_j425w_magenta_ink_remaining'
+      | 'sensor.mfc_j425w_yellow_ink_remaining'
       | 'update.hilo_update'
       | 'update.hacs_update'
-      | 'update.rgb_light_card_update'
       | 'update.big_slider_card_update'
       | 'update.local_tuya_update'
+      | 'update.rgb_light_card_update'
+      | 'update.samsungtv_smart_update'
       | 'update.mushroom_update'
+      | 'update.button_card_update'
       | 'sensor.smart_series_8000_d151_time'
       | 'sensor.smart_series_8000_d151_sector'
       | 'sensor.smart_series_8000_d151_number_of_sectors'
@@ -2068,6 +2292,7 @@ declare module '@hakit/core' {
       | 'automation.close_all_the_lights_when_leaving_home'
       | 'automation.play_music_set_lights_brightness_to_100_and_open_the_blinds_when_alarm_goes_off'
       | 'automation.dim_lights_to_25_at_10pm'
+      | 'automation.wind_down_stage_2_dim_lights_to_10_at_10_00pm'
       | 'automation.group_sonos_on_spotify_play_with_movement'
       | 'automation.group_gym_sonos_speaker_if_music_is_playing_in_living_room'
       | 'automation.group_bedroom_sonos_speaker_if_music_is_playing_in_living_room'
@@ -2080,7 +2305,23 @@ declare module '@hakit/core' {
       | 'automation.toggle_office_light_on_motion'
       | 'automation.toggle_toilet_light_on_motion'
       | 'automation.close_open_gym_blinds_based_on_temperature'
-      | 'media_player.spotify_yann_luche_thibodeau'
+      | 'automation.turn_on_neon_light_when_office_light_turns_on'
+      | 'automation.turn_off_neon_light_when_office_light_turns_off'
+      | 'automation.open_living_room_and_gym_blinds_30_minutes_before_sunset'
+      | 'automation.bedroom_lights_on_when_morning_mode_turns_on'
+      | 'automation.apply_night_mode'
+      | 'automation.request_google_device_sync_on_startup'
+      | 'automation.reset_morning_mode_at_9_30pm'
+      | 'sensor.aqara_fp2_bathroom_light_sensor_light_level'
+      | 'button.aqara_fp2_bathroom_identify'
+      | 'binary_sensor.aqara_fp2_bathroom_presence_sensor_1'
+      | 'binary_sensor.gym_microphone'
+      | 'media_player.gym'
+      | 'sensor.aqara_fp2_presence_motion_sensor_light_sensor_light_level'
+      | 'button.aqara_fp2_presence_motion_sensor_identify'
+      | 'binary_sensor.aqara_fp2_presence_motion_sensor_presence_sensor_1'
+      | 'binary_sensor.aqara_fp2_presence_motion_sensor_presence_sensor_2'
+      | 'binary_sensor.aqara_fp2_presence_motion_sensor_presence_sensor_3'
       | 'sensor.meter00_power'
       | 'sensor.thermostat_office_temperature'
       | 'sensor.thermostat_office_power'
@@ -2096,10 +2337,6 @@ declare module '@hakit/core' {
       | 'sensor.switch_bedroom_lamp_power'
       | 'sensor.switch_office_power'
       | 'sensor.defi_hilo'
-      | 'sensor.recompenses_hilo'
-      | 'sensor.notifications_hilo'
-      | 'sensor.outdoor_weather_hilo'
-      | 'sensor.hilo_gateway'
       | 'climate.thermostat_office'
       | 'climate.thermostat_gym'
       | 'climate.thermostat_bedroom'
@@ -2107,18 +2344,51 @@ declare module '@hakit/core' {
       | 'light.gym'
       | 'switch.switch_bedroom_lamp'
       | 'switch.switch_office'
-      | 'binary_sensor.aqara_fp2_presence_motion_sensor_presence_sensor_1'
-      | 'binary_sensor.aqara_fp2_presence_motion_sensor_presence_sensor_2'
-      | 'binary_sensor.aqara_fp2_presence_motion_sensor_presence_sensor_3'
-      | 'sensor.aqara_fp2_presence_motion_sensor_light_sensor_light_level'
-      | 'button.aqara_fp2_presence_motion_sensor_identify'
-      | 'sensor.samsung_q60_series_85_volume'
+      | 'number.gym_bass'
+      | 'number.gym_balance'
+      | 'number.gym_treble'
+      | 'switch.gym_crossfade'
+      | 'switch.gym_loudness'
+      | 'binary_sensor.bathroom_microphone'
+      | 'media_player.bathroom'
+      | 'remote.tv_2'
+      | 'switch.bathroom_crossfade'
+      | 'switch.bathroom_loudness'
+      | 'number.bathroom_bass'
+      | 'number.bathroom_balance'
+      | 'number.bathroom_treble'
+      | 'camera.camera_front_door'
+      | 'event.camera_front_door_motion'
+      | 'sensor.recompenses_hilo'
+      | 'sensor.notifications_hilo'
+      | 'sensor.outdoor_weather_hilo'
+      | 'sensor.hilo_gateway'
+      | 'sensor.living_room_audio_input_format'
+      | 'binary_sensor.living_room_microphone'
+      | 'media_player.living_room'
+      | 'binary_sensor.dryer_wrinkle_prevent_active'
+      | 'binary_sensor.dryer_child_lock'
+      | 'binary_sensor.dryer_remote_control'
+      | 'binary_sensor.dryer_power'
+      | 'binary_sensor.dishwasher_child_lock'
+      | 'binary_sensor.dishwasher_remote_control'
+      | 'binary_sensor.dishwasher_power'
+      | 'binary_sensor.range_child_lock'
+      | 'binary_sensor.range_remote_control'
+      | 'binary_sensor.range_door'
+      | 'binary_sensor.washer_child_lock'
+      | 'binary_sensor.washer_remote_control'
+      | 'binary_sensor.washer_power'
+      | 'button.range_stop'
+      | 'media_player.samsung_q60_series_85_2'
+      | 'number.washer_rinse_cycles'
+      | 'select.dryer'
+      | 'select.dishwasher'
+      | 'select.washer'
       | 'sensor.samsung_q60_series_85_media_input_source'
       | 'sensor.samsung_q60_series_85_media_playback_status'
       | 'sensor.samsung_q60_series_85_tv_channel'
       | 'sensor.samsung_q60_series_85_tv_channel_name'
-      | 'sensor.samsung_q60_series_85_energy_meter'
-      | 'sensor.samsung_q60_series_85_power_meter'
       | 'sensor.dryer_dryer_machine_state'
       | 'sensor.dryer_dryer_job_state'
       | 'sensor.dryer_dryer_completion_time'
@@ -2127,8 +2397,6 @@ declare module '@hakit/core' {
       | 'sensor.dryer_deltaenergy'
       | 'sensor.dryer_powerenergy'
       | 'sensor.dryer_energysaved'
-      | 'sensor.dryer_energy_meter'
-      | 'sensor.dryer_power_meter'
       | 'sensor.dishwasher_dishwasher_machine_state'
       | 'sensor.dishwasher_dishwasher_job_state'
       | 'sensor.dishwasher_dishwasher_completion_time'
@@ -2137,8 +2405,7 @@ declare module '@hakit/core' {
       | 'sensor.dishwasher_deltaenergy'
       | 'sensor.dishwasher_powerenergy'
       | 'sensor.dishwasher_energysaved'
-      | 'sensor.dishwasher_energy_meter'
-      | 'sensor.dishwasher_power_meter'
+      | 'sensor.dishwasher_water_consumption'
       | 'sensor.range_oven_mode'
       | 'sensor.range_oven_machine_state'
       | 'sensor.range_oven_job_state'
@@ -2153,32 +2420,11 @@ declare module '@hakit/core' {
       | 'sensor.washer_washer_machine_state'
       | 'sensor.washer_washer_job_state'
       | 'sensor.washer_washer_completion_time'
-      | 'sensor.washer_energy_meter'
-      | 'sensor.washer_power_meter'
+      | 'switch.dryer_wrinkle_prevent'
       | 'switch.samsung_q60_series_85'
       | 'switch.dryer'
       | 'switch.dishwasher'
       | 'switch.washer'
-      | 'binary_sensor.aqara_fp2_bathroom_presence_sensor_1'
-      | 'sensor.aqara_fp2_bathroom_light_sensor_light_level'
-      | 'button.aqara_fp2_bathroom_identify'
-      | 'binary_sensor.bathroom_microphone'
-      | 'media_player.bathroom'
-      | 'number.bathroom_bass'
-      | 'number.bathroom_balance'
-      | 'number.bathroom_treble'
-      | 'switch.bathroom_crossfade'
-      | 'switch.bathroom_loudness'
-      | 'binary_sensor.bedroom_microphone'
-      | 'media_player.bedroom'
-      | 'switch.bedroom_crossfade'
-      | 'switch.bedroom_loudness'
-      | 'number.bedroom_bass'
-      | 'number.bedroom_balance'
-      | 'number.bedroom_treble'
-      | 'sensor.living_room_audio_input_format'
-      | 'binary_sensor.living_room_microphone'
-      | 'media_player.living_room'
       | 'number.living_room_audio_delay'
       | 'number.living_room_bass'
       | 'number.living_room_balance'
@@ -2191,39 +2437,28 @@ declare module '@hakit/core' {
       | 'switch.living_room_night_sound'
       | 'switch.living_room_speech_enhancement'
       | 'switch.living_room_surround_enabled'
-      | 'binary_sensor.gym_microphone'
-      | 'media_player.gym'
-      | 'number.gym_bass'
-      | 'number.gym_balance'
-      | 'number.gym_treble'
-      | 'switch.gym_crossfade'
-      | 'switch.gym_loudness'
-      | 'camera.camera_front_door'
-      | 'event.camera_front_door_motion'
-      | 'remote.tv_2'
-      | 'sensor.brother_mfc_j425w_black_ink_cartridge'
-      | 'sensor.brother_mfc_j425w_cyan_ink_cartridge'
-      | 'sensor.brother_mfc_j425w_magenta_ink_cartridge'
-      | 'sensor.brother_mfc_j425w_yellow_ink_cartridge'
-      | 'sensor.brother_mfc_j425w'
-      | 'sensor.mfc_j425w_status'
-      | 'sensor.mfc_j425w_page_counter'
-      | 'sensor.mfc_j425w_black_ink_remaining'
-      | 'sensor.mfc_j425w_cyan_ink_remaining'
-      | 'sensor.mfc_j425w_magenta_ink_remaining'
-      | 'sensor.mfc_j425w_yellow_ink_remaining'
+      | 'binary_sensor.bedroom_microphone'
+      | 'media_player.bedroom'
+      | 'number.bedroom_bass'
+      | 'number.bedroom_balance'
+      | 'number.bedroom_treble'
+      | 'switch.bedroom_crossfade'
+      | 'switch.bedroom_loudness'
+      | 'media_player.bedroom_speaker'
       | 'sensor.hilo_energy_total_low_cost'
+      | 'sensor.samsung_q60_series_85_volume'
+      | 'sensor.samsung_q60_series_85_energy_meter'
+      | 'sensor.samsung_q60_series_85_power_meter'
+      | 'sensor.dryer_energy_meter'
+      | 'sensor.dryer_power_meter'
+      | 'sensor.washer_energy_meter'
+      | 'sensor.washer_power_meter'
       | 'script.set_random_light_color'
+      | 'media_player.spotify_yann_luche_thibodeau'
       | 'device_tracker.ekster_2e71'
       | 'sensor.ekster_2e71_estimated_distance'
-      | 'light.office_bulbs'
-      | 'light.light_living_room_bulbs'
-      | 'light.living_room_led_strip'
-      | 'light.light_laundry_room'
-      | 'light.light_toilet'
-      | 'light.light_bedroom'
-      | 'light.light_front_door'
-      | 'light.light_kitchen'
-      | 'light.desk_led_strip';
+      | 'sensor.dishwasher_energy_meter'
+      | 'sensor.dishwasher_power_meter'
+      | 'automation.dim_lights_to_100_brightness_at_6_00am';
   }
 }

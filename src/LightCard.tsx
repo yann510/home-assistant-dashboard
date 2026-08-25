@@ -14,7 +14,13 @@ export const LightCard = (props: Props) => {
   const lightEntity = useEntity(props.lightEntityName);
   const hasSmallScreen = useHasSmallScreen();
   const [stateAtClick, setStateAtClick] = useState(lightEntity.state);
+  const [lastObservedState, setLastObservedState] = useState(lightEntity.state);
   const timeoutId = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  if (lastObservedState !== lightEntity.state) {
+    setLastObservedState(lightEntity.state);
+    setIsChangingState(false);
+  }
 
   const onCardClick = (entity: HassEntityWithService<'light'>) => {
     if (timeoutId.current) {
@@ -32,13 +38,11 @@ export const LightCard = (props: Props) => {
   };
 
   useEffect(() => {
-    if (isChangingState && stateAtClick !== lightEntity.state) {
-      if (timeoutId.current) {
-        clearTimeout(timeoutId.current);
-        timeoutId.current = null;
-      }
+    if (!isChangingState && timeoutId.current) {
+      clearTimeout(timeoutId.current);
+      timeoutId.current = null;
     }
-  }, [isChangingState, lightEntity.state, stateAtClick]);
+  }, [isChangingState]);
 
   useEffect(() => {
     return () => {

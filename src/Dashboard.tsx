@@ -1,10 +1,12 @@
 import { MediaPlayerCard, VacuumCard, WeatherCard } from '@hakit/components';
 import { LightsGroup } from './LightsGroup.tsx';
 import { BlindsGroup } from './BlindsGroup.tsx';
+import { HomeModeControls } from './HomeModeControls.tsx';
 
 function Dashboard() {
   return (
     <>
+      <HomeModeControls />
       <div className={'columns'}>
         <div className={'column'}>
           <LightsGroup />

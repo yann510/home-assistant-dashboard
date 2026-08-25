@@ -18,7 +18,9 @@ export const DashboardSection = ({ title, defaultOpen = false, className = '', c
         </span>
         <span className='dashboard-section-title'>{title}</span>
       </button>
-      {isOpen && <div className='dashboard-section-content'>{children}</div>}
+      <div className='dashboard-section-content' hidden={!isOpen}>
+        {children}
+      </div>
     </section>
   );
 };
