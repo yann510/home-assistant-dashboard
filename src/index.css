@@ -12,6 +12,12 @@
   padding: clamp(8px, 2vw, 24px);
 }
 
+@media (max-width: 768px) {
+  #root {
+    padding-bottom: max(48px, calc(env(safe-area-inset-bottom, 0px) + 16px));
+  }
+}
+
 .dashboard-columns-container {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
