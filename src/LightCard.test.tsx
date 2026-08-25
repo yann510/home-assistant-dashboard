@@ -9,6 +9,10 @@ const light = vi.hoisted(() => ({
   toggle: vi.fn(),
 }));
 
+const screenSize = vi.hoisted(() => ({
+  isSmall: false,
+}));
+
 vi.mock('@hakit/core', () => ({
   useEntity: () => ({
     state: light.state,
@@ -17,27 +21,38 @@ vi.mock('@hakit/core', () => ({
 }));
 
 vi.mock('@hakit/components', () => ({
-  ButtonCard: ({ disabled, onClick }: { disabled?: boolean; onClick: (entity: unknown) => void }) => (
+  ButtonCard: ({
+    disabled,
+    entity,
+    onClick,
+    title,
+  }: {
+    disabled?: boolean;
+    entity: string;
+    onClick: (entity: unknown) => void;
+    title?: string;
+  }) => (
     <button type='button' disabled={disabled} onClick={() => onClick({ state: light.state, service: { toggle: light.toggle } })}>
-      Office light
+      {title ?? entity}
     </button>
   ),
 }));
 
 vi.mock('./useHasSmallScreen.tsx', () => ({
-  useHasSmallScreen: () => false,
+  useHasSmallScreen: () => screenSize.isSmall,
 }));
 
 afterEach(() => {
   cleanup();
   light.state = 'off';
   light.toggle.mockReset();
+  screenSize.isSmall = false;
 });
 
 describe('LightCard', () => {
   it('clears its pending state after Home Assistant confirms the toggle', () => {
     const { rerender } = render(<LightCard lightEntityName='light.office_bulbs' />);
-    const card = screen.getByRole('button', { name: 'Office light' });
+    const card = screen.getByRole('button', { name: 'light.office_bulbs' });
 
     fireEvent.click(card);
     expect(card.hasAttribute('disabled')).toBe(true);
@@ -51,6 +66,14 @@ describe('LightCard', () => {
       rerender(<LightCard lightEntityName='light.office_bulbs' />);
     });
 
-    expect(screen.getByRole('button', { name: 'Office light' }).hasAttribute('disabled')).toBe(false);
+    expect(screen.getByRole('button', { name: 'light.office_bulbs' }).hasAttribute('disabled')).toBe(false);
+  });
+
+  it('uses concise room names on small screens', () => {
+    screenSize.isSmall = true;
+
+    render(<LightCard lightEntityName='light.light_front_door' />);
+
+    expect(screen.getByRole('button', { name: 'Front Door' })).not.toBeNull();
   });
 });

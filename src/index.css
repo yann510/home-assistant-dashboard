@@ -105,6 +105,45 @@
   background-color: var(--dashboard-nested-card-hover-surface) !important;
 }
 
+@media (max-width: 1023px) {
+  .button-card.light-card .contents {
+    padding: 0.75rem 0.4rem;
+  }
+
+  .button-card.light-card .title {
+    width: 100%;
+    margin-bottom: 0;
+    font-size: 0.82rem;
+    line-height: 1.15;
+    text-align: center;
+  }
+
+  .button-card.mode-card .contents {
+    padding: 0.75rem;
+  }
+
+  .button-card.mode-card .layout-between {
+    gap: 8px;
+  }
+
+  .button-card.mode-card .layout-between > :last-child {
+    min-width: 0;
+  }
+
+  .button-card.mode-card .title {
+    width: 100%;
+    font-size: 0.84rem;
+    line-height: 1.15;
+    text-align: center;
+  }
+
+  .button-card.mode-card .description {
+    width: 100%;
+    margin-top: 0.2rem;
+    text-align: center;
+  }
+}
+
 .dashboard-section {
   min-width: 0;
   border: 1px solid var(--dashboard-card-border);

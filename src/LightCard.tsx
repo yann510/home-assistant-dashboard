@@ -5,6 +5,20 @@ import { useHasSmallScreen } from './useHasSmallScreen.tsx';
 
 type LightEntityName = FilterByDomain<EntityName, 'light'>;
 
+const mobileLightTitles: Partial<Record<LightEntityName, string>> = {
+  'light.light_front_door': 'Front Door',
+  'light.light_laundry_room': 'Laundry',
+  'light.light_kitchen': 'Kitchen',
+  'light.light_living_room_bulbs': 'Living Room',
+  'light.living_room_led_strip': 'LED Strip',
+  'light.office_bulbs': 'Office',
+  'light.desk_led_strip': 'Desk Strip',
+  'light.light_bedroom': 'Bedroom',
+  'light.bedroom_closet': 'Closet',
+  'light.light_toilet': 'Toilet',
+  'light.gym': 'Gym',
+};
+
 interface Props {
   lightEntityName: LightEntityName;
 }
@@ -61,6 +75,7 @@ export const LightCard = (props: Props) => {
       hideDetails={hasSmallScreen}
       hideLastUpdated={hasSmallScreen}
       entity={props.lightEntityName}
+      title={hasSmallScreen ? mobileLightTitles[props.lightEntityName] : undefined}
       disabled={isChangingState && stateAtClick === lightEntity.state}
     />
   );
