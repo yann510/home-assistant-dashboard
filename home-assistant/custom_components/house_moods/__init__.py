@@ -1,5 +1,8 @@
 """One-house YAML integration. HA imports stay lazy for pure Python tests."""
 import asyncio
+import logging
+
+_LOGGER = logging.getLogger(__name__)
 
 # Exported lazily so importing pure coordinator modules needs no HA installation.
 def HAAdapter(*args):
@@ -30,7 +33,11 @@ class Runtime:
             return
         task = self.hass.async_create_task(coroutine)
         self.tasks.add(task)
-        task.add_done_callback(self.tasks.discard)
+        def finished(done):
+            self.tasks.discard(done)
+            if not done.cancelled() and done.exception() is not None:
+                _LOGGER.warning("A house mood observation could not be completed")
+        task.add_done_callback(finished)
         return task
 
     def observe(self, target, origin=None):
@@ -83,13 +90,18 @@ class Runtime:
             for value in entry.values():
                 if isinstance(value, dict) and any(getattr(e, '_did', None) == DEVICE and getattr(e, 'entity_id', None) in entities for e in value.get('entities', [])):
                     targets.add(NEON)
+        if domain == 'sonos':
+            if SOURCE in entities and service in ('play_queue', 'remove_from_queue', 'restore'):
+                targets.add(SOURCE + '#playback')
+            if service == 'restore' and entities & set(SPEAKERS):
+                targets.update((GROUPS, *[e + '#volume' for e in entities & set(SPEAKERS)]))
         if domain == 'media_player':
             speakers = entities & set(SPEAKERS)
             if service in ('volume_set', 'volume_up', 'volume_down', 'volume_mute'):
                 targets.update(e + '#volume' for e in speakers)
             if service in ('join', 'unjoin') and (speakers or set(data.get('group_members', [])) & set(SPEAKERS)):
                 targets.add(GROUPS)
-            if SOURCE in speakers and service in ('play_media', 'media_play', 'media_pause', 'media_stop', 'media_play_pause', 'clear_playlist', 'media_next_track', 'media_previous_track', 'turn_off', 'turn_on'):
+            if SOURCE in speakers and service in ('play_media', 'media_play', 'media_pause', 'media_stop', 'media_play_pause', 'clear_playlist', 'turn_off', 'turn_on'):
                 targets.add(SOURCE + '#playback')
         for target in targets:
             self.observe(target, 'external:' + event.context.id)
@@ -153,10 +165,11 @@ async def async_setup(hass, config):
     for name in ('activate', 'end', 'retry_restoration', 'follow_join'):
         schema = vol.Schema({vol.Required('mood'): vol.In(MOODS)}) if name == 'activate' else vol.Schema({vol.Required('room'): str}) if name == 'follow_join' else vol.Schema({})
         hass.services.async_register('house_moods', name, runtime.handle, schema=schema, supports_response=SupportsResponse.ONLY)
-    if hass.state == CoreState.running:
+    async def started(event=None):
+        runtime.unsubscribers.append(runtime.adapter.native_subscribe(lambda: runtime.observe(NEON)))
         await runtime.engine.reconcile()
+    if hass.state == CoreState.running:
+        await started()
     else:
-        async def started(event):
-            await runtime.engine.reconcile()
         runtime.unsubscribers.append(hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STARTED, started))
     return True

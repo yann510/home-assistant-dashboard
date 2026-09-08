@@ -168,7 +168,13 @@ class HAAdapter:
 
     def observation_targets(self, entity):
         if self.lights.owns(entity):
-            return [] if entity == NEON else [entity]
+            if entity == NEON:
+                try:
+                    self.bridge.resolve()
+                except ValueError:
+                    pass
+                return []
+            return [entity]
         if entity in (FOLLOW, FOLLOW_SOURCE):
             return [FOLLOW]
         if entity in SPEAKERS:

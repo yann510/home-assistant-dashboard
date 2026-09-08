@@ -222,6 +222,9 @@ class IntegrationTests(unittest.IsolatedAsyncioTestCase):
             runtime.service_called(Event('call_service',{'domain':domain,'service':service,'service_data':data},context=Context()))
             return {t for t,o in seen}
         self.assertEqual(emit('media_player','volume_set',{'entity_id':SOURCE,'volume_level':.2}),{SOURCE+'#volume'})
+        self.assertEqual(emit('sonos','remove_from_queue',{'entity_id':SOURCE,'queue_position':0}),{SOURCE+'#playback'})
+        self.assertEqual(emit('sonos','play_queue',{'entity_id':SOURCE}),{SOURCE+'#playback'})
+        self.assertEqual(emit('media_player','media_next_track',{'entity_id':SOURCE}),set())
         self.assertEqual(emit('media_player','media_seek',{'entity_id':SOURCE,'seek_position':5}),set())
         self.assertEqual(emit('media_player','media_pause',{'entity_id':SOURCE}),{SOURCE+'#playback'})
         self.assertEqual(emit('input_text','set_value',{'entity_id':FOLLOW_SOURCE,'value':SOURCE}),{FOLLOW,GROUPS})
@@ -249,3 +252,19 @@ class IntegrationTests(unittest.IsolatedAsyncioTestCase):
         runtime=self.hass.data['house_moods']
         self.assertEqual(runtime.adapter.writes,[])
         self.assertEqual(set(self.hass.states.get('sensor.house_mood').attributes),{'success','session_id','active_mood','pending_mood','affected_devices','errors'})
+
+    async def test_native_bridge_attaches_when_entry_arrives_after_yaml_setup(self):
+        from types import SimpleNamespace
+        from custom_components.house_moods.ha_adapter import DEVICE,ENTRY
+        from custom_components.house_moods.presets import NEON
+        await async_setup(self.hass,{})
+        runtime=self.hass.data['house_moods'];callbacks=[]
+        def subscribe(callback):
+            callbacks.append(callback)
+            return lambda:callbacks.remove(callback)
+        self.hass.data['lepro_led']={ENTRY:{'entities':[SimpleNamespace(_did=DEVICE,entity_id=NEON)],'native_state':SimpleNamespace(subscribe=subscribe)}}
+        self.hass.states.async_set(NEON,'on')
+        await self.hass.async_block_till_done()
+        self.assertEqual(len(callbacks),1)
+        await runtime.close()
+        self.assertEqual(callbacks,[])
