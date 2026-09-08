@@ -77,9 +77,45 @@ treated as confirmed observations.
 
 ## Deployment state and remaining acceptance
 
-**Nothing has been deployed, restarted, or exercised on the live house during
-implementation.** The current rainbow and music were left alone. Only read-only
-capability inspection was performed.
+Deployed **e94bb28** on 2026-09-08 using the reviewed installer against the actual
+HA configuration tree. Private full backups and the installed manifest are at
+`/share/house-moods-live-20260908/bundle`. HA 2025.5.3 configuration validation and
+restart succeeded; House Moods and Lepro response services registered correctly.
+
+The versioned live dashboard (`index.html?v=e94bb28`) loaded successfully. An
+unversioned browser visit initially used cached pre-feature assets; refresh is
+required for existing sessions.
+
+Native replay matched fresh device readback, and the user visually confirmed the
+recovered slow rainbow. Love started Crush Radio (user confirmed they manually
+paused it), applied the requested living-room states, enabled follow-me and joined
+Gym after motion. Later an office-light automation set neon brightness to 100%;
+Lepro emitted mode 3 with its inactive special-effect payload. The user observed
+intense rainbow flashing and confirmed they had not changed the neon. End returned
+to idle; its ownership protection preserved the externally changed neon. Explicit
+saved-native replay restored the original rainbow, visually confirmed again.
+
+Lepro correction **66cf5c0** has eight additional passing regression tests, with
+99 backend tests and five installer tests still passing. Independent scoped review
+approved it. It preserves opaque native effect bytes for strip power/brightness
+commands and prevents inactive effect registers from replacing the active effect.
+The reviewed `light.py` was reconstructed from the verified original baseline;
+the installed old file matched its expected hash before replacement. Its private
+backup is `/share/house-moods-live-20260908/neon-fix/light.before.py`. Configuration
+validation passed before the restart to load this correction.
+
+Restart completed successfully with the mood sensor idle and the original
+rainbow bytes still present. A direct neon-only test applied the Love recipe,
+then the same `light.turn_on` with `brightness_pct: 100` used by the office
+automation. Fresh device readback retained mode 2 and the exact rose `d50` recipe
+at brightness 1000, instead of switching to mode 3. The test then returned to 35%.
+The original custom rainbow also retained its exact mode and recipe through a
+90% brightness command and a plain `light.turn_on`. The original full snapshot
+was restored afterward with exact fresh readback, leaving no neon test state
+active. Physical confirmation of the corrected rose appearance is still pending;
+service readback alone does not establish the final visual Love effect. The two
+existing office/neon follow-light automations are unchanged pending the user's
+preference about deferring to an active mood.
 
 [`home-assistant/rollout/README.md`](../../../home-assistant/rollout/README.md)
 describes the concrete hash-guarded staging/install procedure, backups, file

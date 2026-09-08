@@ -1,7 +1,8 @@
-# House Moods rollout (prepared offline)
+# House Moods rollout
 
-This feature has **not been deployed**. Development does not change the current
-lights, music, Home Assistant configuration, or the recovered neon effect.
+The feature was deployed on 2026-09-08; live acceptance is in progress. The private
+installation backup is `/share/house-moods-live-20260908/bundle` on the HA host.
+See the verification report for confirmed results and remaining live checks.
 The neon already belongs to Office in Home Assistant; its entity inherits that area.
 
 ## Contents
