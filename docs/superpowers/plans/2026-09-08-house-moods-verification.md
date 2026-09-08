@@ -166,3 +166,27 @@ playing `GLY` at volume0.20, follow on. End returned idle with no errors. All te
 light states, speaker volumes/groups and follow/source values matched the fresh
 pre-test baseline; neon writable fields matched exactly. Mood music was paused;
 previous TV playback was not resumed, consistent with the no-resume End behavior.
+
+## Dinner kitchen mapping regression
+
+Dinner failed because the preexisting LocalTuya kitchen dimmer configuration
+mapped both brightness and color temperature to DP26. The device is a 3-Way
+Smart Dimmer with DP20 power, DP22 brightness (reported1000), DP26 reported0.
+The incorrect mapping made HA report on/brightness0/color-temperature support;
+the physical dimmer does not provide the requested color-temperature control.
+
+The supported LocalTuya options flow corrected brightness to DP22 and refreshed
+its actual brightness255 in HA. That flow reinserts existing optional defaults,
+so it could not clear the old color_temp mapping by omission. A stopped-core
+configuration edit removes only the unsupported color-temperature settings.
+Private pre-change entry/registry backups are in
+`/share/house-moods-live-20260908/kitchen-fix`. Other LocalTuya device data was
+verified unchanged. Preset correction `90ca463` uses kitchen brightness140 for
+Dinner and102 for Party, with no color-temperature write. 107 backend tests and
+21 HA integration tests pass. Live Dinner → Party → End passed with no errors. Kitchen confirmed brightness140
+for Dinner and102 for Party; the respective playlists played at0.20 and0.40 volume.
+The same session persisted across the switch. End restored every checked light,
+speaker volume/group and follow value to the captured baseline with zero differences;
+neon native fields matched exactly, music stopped, sensor returned idle. Kitchen
+now advertises brightness-only support. Its registry identity and area/device/name
+metadata are unchanged, and unrelated LocalTuya device configurations are unchanged.
