@@ -957,3 +957,62 @@
 .speaker-favourites-trigger { margin-left: auto; }
 .speaker-playback { gap: 4px; }
 .speaker-favourite { align-self: start; }
+
+.house-mood-card {
+  container-type: inline-size;
+  --mood-accent: var(--ha-A400);
+  padding: 14px;
+  margin-bottom: 16px;
+  border: 1px solid var(--dashboard-card-border);
+  border-radius: 16px;
+  background: var(--dashboard-card-surface);
+}
+.house-mood-card[data-mood] {
+  background: color-mix(in srgb, var(--mood-accent) 5%, var(--dashboard-card-surface));
+}
+.house-mood-card h2 { margin: 0 0 12px; font-size: 1rem; font-weight: 600; }
+.house-mood-card [data-mood='love'], .house-mood-card[data-mood='love'] { --mood-accent: #ff3377; }
+.house-mood-card [data-mood='unwind'], .house-mood-card[data-mood='unwind'] { --mood-accent: #ffaa44; }
+.house-mood-card [data-mood='dinner'], .house-mood-card[data-mood='dinner'] { --mood-accent: #ffc070; }
+.house-mood-card [data-mood='party'], .house-mood-card[data-mood='party'] { --mood-accent: #aa44ff; }
+.house-mood-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.house-mood-preset, .house-mood-action {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  min-height: 44px;
+  border: 1px solid var(--dashboard-nested-card-border);
+  border-radius: 12px;
+  background: var(--dashboard-nested-card-surface);
+  padding: 10px 12px;
+}
+.house-mood-preset {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 58px;
+  min-width: 0;
+  font-weight: 500;
+}
+.house-mood-icon { color: var(--mood-accent); font-size: 1.35rem; line-height: 1; }
+.house-mood-preset[aria-pressed='true'] {
+  border-color: var(--mood-accent);
+  background: color-mix(in srgb, var(--mood-accent) 16%, var(--dashboard-nested-card-surface));
+}
+.house-mood-card button:enabled:hover { background: var(--dashboard-card-hover-surface); }
+.house-mood-card button:focus-visible { outline: 2px solid var(--ha-A400); outline-offset: 3px; }
+.house-mood-card button:disabled { opacity: 0.55; cursor: default; }
+.house-mood-footer { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.house-mood-footer:has([role='status']:not(:empty)), .house-mood-footer:has(button) { margin-top: 12px; }
+.house-mood-footer [role='status'] { font-size: 0.85rem; }
+.house-mood-errors { font-size: 0.85rem; line-height: 1.45; }
+.house-mood-errors p { margin: 12px 0; }
+.house-mood-spinner {
+  width: 14px; height: 14px; flex-shrink: 0;
+  border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%;
+  animation: house-mood-spin 1s linear infinite;
+}
+@keyframes house-mood-spin { to { transform: rotate(360deg); } }
+@container (max-width: 480px) { .house-mood-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (prefers-reduced-motion: reduce) { .house-mood-spinner { animation: none; } }

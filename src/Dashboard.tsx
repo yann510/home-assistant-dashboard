@@ -2,12 +2,14 @@ import { VacuumCard, WeatherCard } from '@hakit/components';
 import { LightsGroup } from './LightsGroup.tsx';
 import { BlindsGroup } from './BlindsGroup.tsx';
 import { HomeModeControls } from './HomeModeControls.tsx';
+import { HouseMoodSection } from './HouseMoodSection.tsx';
 import { SpeakerCard } from './SpeakerCard.tsx';
 
 function Dashboard() {
   return (
     <>
       <HomeModeControls />
+      <HouseMoodSection />
       <div className={'columns'}>
         <div className={'column'}>
           <LightsGroup />

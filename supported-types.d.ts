@@ -2125,6 +2125,7 @@ declare module '@hakit/core' {
       | 'update.terminal_ssh_update'
       | 'update.home_assistant_operating_system_update'
       | 'conversation.home_assistant'
+      | 'sensor.house_mood'
       | 'sensor.backup_backup_manager_state'
       | 'sensor.backup_next_scheduled_automatic_backup'
       | 'sensor.backup_last_successful_automatic_backup'
