@@ -21,9 +21,8 @@ EFFECTS={
 'party':'N01:P10001FFFFFFF2100010019U3V3100640000E3004BC2O6004B;'}
 class IO:
     def __init__(self):
-        self.states={e:{'state':'on','attributes':{'brightness':100,'color_mode':mode,'supported_color_modes':[mode], 'supported_features':0}} for e,mode in [(STRIP,'rgb'),(BULBS,'brightness'),(KITCHEN,'color_temp'),(NEON,'rgb')]}
+        self.states={e:{'state':'on','attributes':{'brightness':100,'color_mode':mode,'supported_color_modes':[mode], 'supported_features':0}} for e,mode in [(STRIP,'rgb'),(BULBS,'brightness'),(KITCHEN,'brightness'),(NEON,'rgb')]}
         self.states[STRIP]['attributes']['rgb_color']=[2,3,4]
-        self.states[KITCHEN]['attributes'].update(color_temp_kelvin=3500,min_color_temp_kelvin=3000,max_color_temp_kelvin=6000)
         self.calls=[];self.ignore=False;self.wrong_mode=False
     def state(self,target):return deepcopy(self.states[target])
     async def wait(self,predicate,timeout=15):
@@ -64,10 +63,10 @@ class LightsTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(self.io.states[STRIP]['attributes']['rgb_color'],rgb)
             self.assertEqual(self.io.states[STRIP]['attributes']['brightness'],strip)
             self.assertEqual(self.io.states[BULBS]['attributes']['brightness'],bulbs)
-            if kitchen:self.assertEqual(self.io.states[KITCHEN]['attributes']['brightness'],kitchen);self.assertEqual(self.io.states[KITCHEN]['attributes']['color_temp_kelvin'],3000)
+            if kitchen:self.assertEqual(self.io.states[KITCHEN]['attributes']['brightness'],kitchen)
         for _,_,targets,data in self.io.calls:
             self.assertNotIn('transition',data)
-            if targets==[BULBS]:self.assertEqual(set(data),{'brightness'})
+            if targets in ([BULBS],[KITCHEN]):self.assertEqual(set(data),{'brightness'})
     async def test_supported_transition_and_off_restore(self):
         self.io.states[STRIP]['attributes']['supported_features']=32
         self.io.states[STRIP]['state']='off';baseline=await self.adapter.read(STRIP)
@@ -109,8 +108,8 @@ class LightsTests(unittest.IsolatedAsyncioTestCase):
         await self.adapter.apply_write(write,'s');await self.adapter.restore(NEON,baseline,'s')
         self.assertEqual(self.bridge.sent[-1],original)
     async def test_unsupported_capability_and_range_fail_preflight_without_writes(self):
-        self.io.states[KITCHEN]['attributes']['min_color_temp_kelvin']=None
-        with self.assertRaises(ValueError):await self.adapter.preflight('dinner')
+        self.io.states[KITCHEN]['attributes'].update(supported_color_modes=['color_temp'],min_color_temp_kelvin=None,max_color_temp_kelvin=6000)
+        with self.assertRaises(ValueError):self.adapter._plan_standard(KITCHEN,{'color_temp_kelvin':2700})
         self.assertEqual(self.io.calls,[])
         self.io.states[STRIP]['attributes']['supported_color_modes']=['onoff']
         with self.assertRaises(ValueError):await self.adapter.preflight('love')
@@ -145,3 +144,20 @@ class LightsTests(unittest.IsolatedAsyncioTestCase):
         self.io.wait=timeout
         with self.assertRaisesRegex(TimeoutError, STRIP+' did not confirm the requested state'):
             await self.adapter.apply_write(write,'s')
+
+    async def test_kitchen_dimmer_presets_capture_apply_and_restore_brightness_only(self):
+        for mood,brightness in [('dinner',140),('party',102)]:
+            for power in ('on','off'):
+                with self.subTest(mood=mood,power=power):
+                    self.io.states[KITCHEN]['state']=power
+                    self.io.states[KITCHEN]['attributes']['brightness']=175
+                    baseline=await self.adapter.read(KITCHEN)
+                    self.assertNotIn('color_temp_kelvin',baseline)
+                    await self.adapter.preflight(mood)
+                    write=next(w for w in await self.adapter.plan_apply(mood) if w.targets==[KITCHEN])
+                    self.assertEqual(write.data,{'brightness':brightness})
+                    actual=await self.adapter.apply_write(write,'s')
+                    self.assertEqual(actual[KITCHEN],{'state':'on','brightness':brightness,'color_mode':'brightness'})
+                    await self.adapter.restore(KITCHEN,baseline,'s')
+                    self.assertEqual(self.io.states[KITCHEN]['state'],power)
+                    self.assertEqual(self.io.calls[-1][3],{'brightness':175} if power=='on' else {})

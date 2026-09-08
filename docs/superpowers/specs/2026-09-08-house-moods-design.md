@@ -43,7 +43,7 @@ An explicit brightness turns that light on, even if it was previously off. All l
 |---|---|---|---|---|
 | Living-room LED strip | Rose `#FF3377`, 35% | Amber `#FFAA44`, 25% | Golden amber `#FFC070`, 20% | Violet `#AA44FF`, 70% |
 | Living-room bulbs | 15% | 25% | 35% | 25% |
-| Kitchen | Unchanged | Unchanged | Warm white 2700 K, 55% | Warm white 2700 K, 40% |
+| Kitchen | Unchanged | Unchanged | Brightness 55% | Brightness 40% |
 | Office neon | Rose Breath, 65%, speed 50 | Static amber `#FFAA44`, 25% | Static golden amber `#FFC070`, 20% | Gradient, 70%, speed 85; reproduce the user-approved preview |
 
 Entity mapping:
@@ -56,7 +56,7 @@ Entity mapping:
 | Office neon | `light.neon_light_led_strip` |
 | Office neon speed | `number.neon_light_speed` |
 
-The living-room bulbs are dimmable but cannot change color or color temperature. Kitchen temperature requests must be checked against its supported range and clamped if needed. Use approximately three-second transitions only on lights that actually support them. The neon does not advertise transition support; do not promise a fade on it.
+The living-room bulbs and kitchen are dimmable but cannot change color or color temperature. Live validation identified the kitchen as a 3-Way Smart Dimmer: DP20 controls power, DP22 controls brightness (maximum 1000), and DP26 is countdown. Its previous LocalTuya brightness/color-temperature mapping to DP26 was invalid. Dinner and Party therefore set only kitchen brightness; no color-temperature request is sent. Use approximately three-second transitions only on lights that actually support them. The neon does not advertise transition support; do not promise a fade on it.
 
 Office main bulbs, bedroom, bathroom/toilet, gym, closet, laundry, and front-door lights remain unchanged. There is no verified separate dining-room light; Dinner uses the verified kitchen and living-room lights. Do not infer or add another dining device.
 

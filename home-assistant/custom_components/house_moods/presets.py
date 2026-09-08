@@ -14,6 +14,6 @@ NEON_BRIGHTNESS = {'love': 650, 'unwind': 250, 'dinner': 200, 'party': 698}
 LIGHTS = {
     'love': {STRIP: {'rgb_color': [255,51,119], 'brightness':89}, BULBS: {'brightness':38}},
     'unwind': {STRIP: {'rgb_color': [255,170,68], 'brightness':64}, BULBS: {'brightness':64}},
-    'dinner': {STRIP: {'rgb_color': [255,192,112], 'brightness':51}, BULBS: {'brightness':89}, KITCHEN: {'brightness':140, 'color_temp_kelvin':2700}},
-    'party': {STRIP: {'rgb_color': [170,68,255], 'brightness':178}, BULBS: {'brightness':64}, KITCHEN: {'brightness':102, 'color_temp_kelvin':2700}},
+    'dinner': {STRIP: {'rgb_color': [255,192,112], 'brightness':51}, BULBS: {'brightness':89}, KITCHEN: {'brightness':140}},
+    'party': {STRIP: {'rgb_color': [170,68,255], 'brightness':178}, BULBS: {'brightness':64}, KITCHEN: {'brightness':102}},
 }
