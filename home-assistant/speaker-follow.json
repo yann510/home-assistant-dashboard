@@ -193,6 +193,20 @@
                   "value_template": "{{ original in speakers and states(original) in ['playing', 'buffering'] and room | default('') in motion_rooms and room != original and states(room) not in ['unknown', 'unavailable'] and room not in (state_attr(original, 'group_members') or []) }}"
                 },
                 {
+                  "if": "{{ state_attr('sensor.house_mood', 'session_id') is not none }}",
+                  "then": [
+                    {
+                      "service": "house_moods.follow_join",
+                      "data": { "room": "{{ room }}" },
+                      "response_variable": "result"
+                    },
+                    {
+                      "stop": "Mood follow request completed.",
+                      "response_variable": "result"
+                    }
+                  ]
+                },
+                {
                   "service": "media_player.join",
                   "target": {
                     "entity_id": "{{ original }}"
