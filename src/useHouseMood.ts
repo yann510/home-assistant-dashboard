@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useStore } from '@hakit/core';
 import type { HouseMoodCardProps, MoodId, MoodPhase, MoodStatus } from './HouseMoodCard';
 
@@ -49,7 +49,7 @@ export function useHouseMood(): HouseMoodCardProps {
       runningTimers.clear();
     };
   }, []);
-  useEffect(() => {
+  useLayoutEffect(() => {
     latestEntity.current = entity;
     // A fresh terminal sensor update is authoritative even if its service response was lost.
     if (active.current && active.current.entity !== entity && ['idle', 'active', 'recovery_required'].includes(entity?.state ?? '')) {
