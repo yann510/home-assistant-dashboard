@@ -160,4 +160,9 @@ music retains the confirmed stopped boundary. Empty timeout errors now have a
 readable fallback. All 106 backend tests and 21 HA integration tests pass. The
 Lepro patch roundtrip test was repaired with contextual hunks; generated production
 source is byte-identical, and all eight focused Lepro tests pass.
-Live Unwind/End retest after both corrections is pending.
+Live retest after both corrections passed. Unwind became active without errors:
+living strip HS `[33,73.3]`/brightness64, bulbs64, neon native amber250, Living Room
+playing `GLY` at volume0.20, follow on. End returned idle with no errors. All tested
+light states, speaker volumes/groups and follow/source values matched the fresh
+pre-test baseline; neon writable fields matched exactly. Mood music was paused;
+previous TV playback was not resumed, consistent with the no-resume End behavior.
