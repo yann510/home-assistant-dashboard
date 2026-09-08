@@ -1,5 +1,6 @@
 """Sonos controls behind a small asynchronous Home Assistant I/O boundary."""
 from copy import deepcopy
+from math import isfinite
 from uuid import uuid4
 from .model import ControlWrite
 
@@ -60,17 +61,43 @@ class SonosControls:
     def owns(self, target):
         return target in self.snapshot_targets()
 
+    def _available(self, entity):
+        raw = self.io.state(entity)
+        if not isinstance(raw, dict) or not isinstance(raw.get('state'), str) or raw['state'] in ('unavailable', 'unknown'):
+            raise ValueError(f'{entity} is unavailable; retry when telemetry returns.')
+        return raw
+
+    def _volume(self, entity):
+        raw = self._available(entity)
+        attrs = raw.get('attributes')
+        volume = attrs.get('volume_level') if isinstance(attrs, dict) else None
+        if isinstance(volume, bool) or not isinstance(volume, (int, float)) or not isfinite(volume) or not 0 <= volume <= 1:
+            raise ValueError(f'{entity} volume is unavailable; retry when telemetry returns.')
+        return volume
+
     def _groups(self):
-        groups = []
+        reports = {}
         for speaker in SPEAKERS:
-            members = self.io.state(speaker)['attributes'].get('group_members') or [speaker]
-            if any(e not in SPEAKERS for e in members):
-                raise ValueError('A Sonos group contains an unconfigured speaker.')
-            groups.append(members)
-        return _canonical(groups)
+            attrs = self._available(speaker).get('attributes')
+            members = attrs.get('group_members') if isinstance(attrs, dict) else None
+            if (not isinstance(members, list) or not members
+                    or any(not isinstance(e, str) or e not in SPEAKERS for e in members)
+                    or speaker not in members or len(set(members)) != len(members)):
+                raise ValueError(f'{speaker} group report is incomplete; retry when telemetry returns.')
+            reports[speaker] = _canonical([members])[0]
+        # Every member must report the same coordinator and membership. A partial
+        # join/unjoin event is not evidence of a manual replacement of the graph.
+        for members in reports.values():
+            if any(reports[member] != members for member in members):
+                raise ValueError('Sonos group reports are inconsistent; retry once they settle.')
+        return _canonical(reports.values())
 
     def _follow(self):
-        return {'state': self.io.state(FOLLOW)['state'], 'source': self.io.state(FOLLOW_SOURCE)['state']}
+        state = self._available(FOLLOW)['state']
+        source = self._available(FOLLOW_SOURCE)['state']
+        if state not in ('on', 'off') or source not in ('', *SPEAKERS) or (state == 'on' and not source):
+            raise ValueError('Follow me has no valid switch/source report; retry once it settles.')
+        return {'state': state, 'source': source}
 
     async def read(self, target):
         if target == FOLLOW:
@@ -78,9 +105,9 @@ class SonosControls:
         if target == GROUPS:
             return {'groups': self._groups()}
         entity, control = target.split('#', 1)
-        raw = self.io.state(entity)
         if control == 'volume':
-            return {'volume_level': raw['attributes'].get('volume_level')}  # Offline optional speakers may have no volume.
+            return {'volume_level': self._volume(entity)}
+        raw = self._available(entity)
         if control != 'playback' or entity != SOURCE:
             raise ValueError('Unsupported Sonos control')
         if raw['state'] in ('unavailable', 'unknown'):
@@ -111,6 +138,10 @@ class SonosControls:
         if follow['state'] == 'on' and follow['source'] not in SPEAKERS:
             raise ValueError('Follow me has no valid source. Turn it off before starting a mood.')
         self._groups()
+        # Every configured speaker may be changed by follow-me during this session.
+        # Capture a restorable baseline instead of inventing optional offline state.
+        for speaker in SPEAKERS:
+            self._volume(speaker)
         found, visited = [], set()
         async def visit(kind, ident, depth=0):
             key = (kind, ident)
@@ -177,7 +208,7 @@ class SonosControls:
         call = self.io.call
         if action == 'sonos.volume':
             await call('media_player', 'volume_set', [data['entity']], {'volume_level': data['volume_level']}, session_id)
-            await self.io.wait(lambda: abs((self.io.state(data['entity'])['attributes'].get('volume_level') or 0) - data['volume_level']) <= .01)
+            await self.io.wait(lambda: abs(self._volume(data['entity']) - data['volume_level']) <= .01)
         elif action == 'sonos.stop':
             await call('media_player', 'media_stop', [SOURCE], {}, session_id)
             await self.io.wait(lambda: self.io.state(SOURCE)['state'] in ('idle', 'paused', 'off'))
@@ -206,6 +237,8 @@ class SonosControls:
         return {'state': 'stopped'} if target.endswith('#playback') else baseline
 
     async def prepare_restore(self, session):
+        if FOLLOW not in session.owned or FOLLOW in session.overridden:
+            return []
         follow = self._follow()
         if FOLLOW in session.owned and FOLLOW not in session.overridden and follow['state'] == 'on':
             return [self._write('sonos.freeze_follow', {FOLLOW: dict(follow, state='off')}, {})]
@@ -242,7 +275,7 @@ class SonosControls:
                 raise ValueError('The previous speaker volume was unavailable.')
             entity = target.split('#')[0]
             await call('media_player', 'volume_set', [entity], baseline, session_id)
-            await self.io.wait(lambda: abs((self.io.state(entity)['attributes'].get('volume_level') or 0) - baseline['volume_level']) <= .01)
+            await self.io.wait(lambda: abs(self._volume(entity) - baseline['volume_level']) <= .01)
         elif target == SOURCE + '#playback':
             await call('media_player', 'media_stop', [SOURCE], {}, session_id)
             await self.io.wait(lambda: self.io.state(SOURCE)['state'] in ('idle', 'paused', 'off'))

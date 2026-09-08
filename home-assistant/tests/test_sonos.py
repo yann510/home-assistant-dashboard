@@ -167,3 +167,143 @@ class SonosTests(unittest.IsolatedAsyncioTestCase):
         self.io.call=unjoin
         await self.sonos.restore(GROUPS,desired,'s')
         self.assertEqual([(c[1],c[2]) for c in self.io.calls],[('unjoin',['media_player.bathroom'])])
+
+class SonosTelemetryTests(unittest.IsolatedAsyncioTestCase):
+    async def test_incomplete_controls_are_not_authoritative(self):
+        cases = [
+            (SOURCE, SOURCE+'#volume', {'state':'unavailable','attributes':{}}),
+            (SOURCE, SOURCE+'#volume', {'state':'unknown','attributes':{'volume_level':.25}}),
+            (SOURCE, SOURCE+'#volume', {'state':'paused','attributes':{}}),
+            (SOURCE, SOURCE+'#volume', {'state':'paused','attributes':{'volume_level':None}}),
+            (SOURCE, SOURCE+'#volume', {'state':'paused','attributes':{'volume_level':float('nan')}}),
+            (SOURCE, SOURCE+'#volume', {'state':'paused','attributes':{'volume_level':True}}),
+            (FOLLOW, FOLLOW, {'state':'unavailable','attributes':{}}),
+            ('input_text.speaker_follow_source', FOLLOW, {'state':'unknown','attributes':{}}),
+            ('input_text.speaker_follow_source', FOLLOW, {'attributes':{}}),
+            (SOURCE, GROUPS, {'state':'paused','attributes':{}}),
+            (SOURCE, GROUPS, {'state':'paused','attributes':{'group_members':[]}}),
+            (SOURCE, GROUPS, {'state':'unavailable','attributes':{'group_members':[SOURCE]}}),
+        ]
+        for entity, target, state in cases:
+            with self.subTest(entity=entity,target=target,state=state):
+                io=FakeIO();io.states[entity]=state
+                with self.assertRaises(ValueError):await SonosControls(io).read(target)
+
+    async def test_group_reports_must_form_one_consistent_partition(self):
+        for report in ([SOURCE,'media_player.bathroom'], ['media_player.bathroom'], [SOURCE,SOURCE]):
+            with self.subTest(report=report):
+                io=FakeIO();io.states[SOURCE]['attributes']['group_members']=report
+                with self.assertRaises(ValueError):await SonosControls(io).read(GROUPS)
+
+    async def test_stopped_speakers_and_disabled_empty_follow_are_valid(self):
+        io=FakeIO();sonos=SonosControls(io)
+        for state in ('idle','paused','off','stopped'):
+            io.states[SOURCE]['state']=state
+            self.assertEqual(await sonos.read(SOURCE+'#volume'),{'volume_level':.8})
+            self.assertEqual(len((await sonos.read(GROUPS))['groups']),4)
+        self.assertEqual(await sonos.read(FOLLOW),{'state':'off','source':''})
+
+    async def test_optional_speaker_baselines_fail_closed_before_commands(self):
+        for missing in ('volume_level','group_members'):
+            io=FakeIO();del io.states['media_player.gym']['attributes'][missing]
+            with self.subTest(missing=missing):
+                with self.assertRaises(ValueError):await SonosControls(io).preflight('love')
+                self.assertEqual(io.calls,[])
+
+
+class SonosRecoveryTests(unittest.IsolatedAsyncioTestCase):
+    def seeded(self, target):
+        from test_coordinator import MemoryStore
+        from custom_components.house_moods.model import Session
+        from custom_components.house_moods.coordinator import MoodCoordinator
+        io=FakeIO();sonos=SonosControls(io)
+        baseline = {SOURCE+'#volume':{'volume_level':.8}, FOLLOW:{'state':'off','source':''},
+                    GROUPS:{'groups':[[e] for e in SPEAKERS]}}
+        baseline[GROUPS]['groups'].sort(key=lambda g:SPEAKERS.index(g[0]))
+        expected = {SOURCE+'#volume':{'volume_level':.25},FOLLOW:{'state':'on','source':SOURCE},
+                    GROUPS:{'groups':[[SOURCE,'media_player.bathroom'],['media_player.bedroom'],['media_player.gym']]}}
+        io.states[SOURCE]['attributes']['volume_level']=.25
+        if target == FOLLOW:
+            io.states[FOLLOW]['state']='on';io.states['input_text.speaker_follow_source']['state']=SOURCE
+        if target == GROUPS:
+            for e in (SOURCE,'media_player.bathroom'):
+                io.states[e]['attributes']['group_members']=[SOURCE,'media_player.bathroom']
+        light='light.independent'
+        class Composite:
+            light_state={'state':'on'}
+            async def read(self,t):return deepcopy(self.light_state) if t==light else await sonos.read(t)
+            async def capture(self,targets):return {t:await self.read(t) for t in targets}
+            async def restore(self,t,b,s):
+                if t==light:self.light_state=deepcopy(b)
+                else:await sonos.restore(t,b,s)
+            def restore_dependencies(self):return {FOLLOW,GROUPS}
+            async def prepare_restore(self,s):return await sonos.prepare_restore(s)
+            async def apply_write(self,w,s):return await sonos.apply_write(w,s)
+        adapter=Composite();store=MemoryStore()
+        store.value=Session('s','love','active',baseline={target:baseline[target],light:{'state':'off'}},
+                            expected={target:expected[target],light:{'state':'on'}},owned={target,light})
+        original_call=io.call
+        async def call(domain,service,targets,data,session_id,return_response=False):
+            if service=='unjoin':
+                for e in SPEAKERS:
+                    members=io.states[e]['attributes']['group_members']
+                    io.states[e]['attributes']['group_members']=[e] if e in targets else [m for m in members if m not in targets]
+            return await original_call(domain,service,targets,data,session_id,return_response)
+        io.call=call
+        return io,adapter,store,MoodCoordinator(adapter,store),light
+
+    async def test_disconnect_observation_end_restart_and_retry_preserve_owned_baseline(self):
+        from custom_components.house_moods.coordinator import MoodCoordinator
+        for target, entity in ((SOURCE+'#volume',SOURCE),(FOLLOW,FOLLOW),(GROUPS,SOURCE)):
+            for restart_first in (False,True):
+                with self.subTest(target=target,restart_first=restart_first):
+                    io,adapter,store,engine,light=self.seeded(target)
+                    baseline=deepcopy(store.value.baseline[target]);available=deepcopy(io.states[entity])
+                    io.states[entity]={'state':'unavailable','attributes':{}}
+                    if restart_first:
+                        await engine.reconcile()
+                    else:
+                        with self.assertRaises(ValueError):await engine.observe(target)
+                    self.assertIn(target,store.value.owned)
+                    self.assertFalse((await engine.end())['success'])
+                    self.assertEqual(adapter.light_state,{'state':'off'})
+                    self.assertEqual(store.value.baseline[target],baseline)
+                    self.assertIn(target,store.value.owned)
+                    engine=MoodCoordinator(adapter,store);await engine.reconcile()
+                    self.assertIn(target,store.value.owned)
+                    io.states[entity]=available
+                    self.assertTrue((await engine.retry_restoration())['success'])
+                    self.assertIsNone(store.value)
+                    self.assertEqual(await adapter.read(target),baseline)
+
+    async def test_transient_group_overlap_retains_ownership_until_graph_returns(self):
+        io,adapter,store,engine,_=self.seeded(GROUPS)
+        io.states['media_player.bathroom']['attributes']['group_members']=['media_player.bathroom']
+        self.assertFalse((await engine.end())['success'])
+        self.assertIn(GROUPS,store.value.owned)
+        io.states['media_player.bathroom']['attributes']['group_members']=[SOURCE,'media_player.bathroom']
+        self.assertTrue((await engine.retry_restoration())['success'])
+
+    async def test_genuine_manual_change_after_reconnection_is_preserved(self):
+        for target, entity in ((SOURCE+'#volume',SOURCE),(FOLLOW,FOLLOW),(GROUPS,SOURCE)):
+            with self.subTest(target=target):
+                io,adapter,store,engine,_=self.seeded(target)
+                available=deepcopy(io.states[entity]);io.states[entity]={'state':'unavailable','attributes':{}}
+                self.assertFalse((await engine.end())['success'])
+                io.states[entity]=available
+                if target.endswith('#volume'):io.states[entity]['attributes']['volume_level']=.6
+                elif target==FOLLOW:io.states[FOLLOW]['state']='off'
+                else:
+                    for e in SPEAKERS:io.states[e]['attributes']['group_members']=[e]
+                current=await adapter.read(target)
+                self.assertTrue((await engine.retry_restoration())['success'])
+                self.assertEqual(await adapter.read(target),current)
+
+    async def test_unrelated_offline_speaker_does_not_block_owned_volume_or_light(self):
+        target=SOURCE+'#volume'
+        io,adapter,store,engine,_=self.seeded(target)
+        io.states['media_player.gym']={'state':'unavailable','attributes':{}}
+        self.assertTrue((await engine.end())['success'])
+        self.assertEqual(await adapter.read(target),{'volume_level':.8})
+        self.assertEqual(adapter.light_state,{'state':'off'})
+        self.assertIsNone(store.value)
