@@ -2,7 +2,59 @@
 +++ b/light.py
 @@ -13,0 +14 @@
 +from .native_state import NativeStateBridge
-@@ -1241,0 +1243,9 @@
+@@ -228,0 +230 @@
++        self._native_effect_state = {}
+@@ -238,2 +239,0 @@
+-        if "d50" in device:
+-            self._parse_d50(device["d50"])
+@@ -256,5 +256 @@
+-        if "d60" in device:
+-            sens, parsed_effect = self._parse_d60(device["d60"])
+-            self._sensitivity = sens
+-            if parsed_effect:
+-                self._effect = parsed_effect
++        self._update_native_effect_state(device)
+@@ -507,0 +504,15 @@
++    def _update_native_effect_state(self, data):
++        """Keep opaque recipes; inactive registers must not select an effect."""
++        self._native_effect_state.update({
++            key: data[key] for key in ("d50", "d60", "d52") if key in data
++        })
++        if self._mode == 2 and ("d50" in data or "d2" in data):
++            recipe = self._native_effect_state.get("d50")
++            if isinstance(recipe, str):
++                self._parse_d50(recipe)
++        elif self._mode == 3 and ("d60" in data or "d2" in data):
++            recipe = self._native_effect_state.get("d60")
++            if isinstance(recipe, str):
++                self._sensitivity, effect = self._parse_d60(recipe)
++                self._effect = effect or self.EFFECT_NONE
++
+@@ -509,0 +521,17 @@
++        # Brightness and power are independent of a strip's opaque effect recipe.
++        # Regenerating from the lossy HA effect/RGB attributes destroys app palettes.
++        if not self.is_b_model and self._mode in (2, 3) and set(kwargs) <= {ATTR_BRIGHTNESS, "transition"}:
++            key = "d50" if self._mode == 2 else "d60"
++            recipe = self._native_effect_state.get(key)
++            if not isinstance(recipe, str) or not recipe:
++                raise ValueError("Native strip effect is unknown; wait for a device state report")
++            brightness = kwargs.get(ATTR_BRIGHTNESS, self._brightness)
++            native_brightness = (
++                self._map_ha_brightness(brightness) if ATTR_BRIGHTNESS in kwargs
++                else self._native_effect_state.get("d52", self._map_ha_brightness(brightness))
++            )
++            await self._send_mqtt_command({"d1": 1, "d2": self._mode, key: recipe, "d52": native_brightness})
++            self._is_on = True
++            self._brightness = brightness
++            self.async_write_ha_state()
++            return
+@@ -948,0 +977,5 @@
++            # A subsequent brightness request may arrive before the MQTT echo.
++            self._mode = payload.get("d2", self._mode)
++            self._native_effect_state.update({
++                key: payload[key] for key in ("d50", "d60", "d52") if key in payload
++            })
+@@ -1241,0 +1275,9 @@
 +    async def native_publish(topic, payload):
 +        # Native transactions must fail offline, never queue a delayed mutation.
 +        if mqtt_client.client is None:
@@ -12,12 +64,26 @@
 +    native_state = NativeStateBridge(publish=native_publish)
 +    entry.async_on_unload(native_state.close)
 +
-@@ -1292,0 +1303,2 @@
+@@ -1292,0 +1335,2 @@
 +                if message_type in ('rpt', 'getr'):
 +                    native_state.ingest(did, message_type, data, time.monotonic())
-@@ -1433,0 +1446 @@
+@@ -1365,3 +1409 @@
+-                # Update effect and colors
+-                if 'd50' in data:
+-                    entity._parse_d50(data['d50'])
++                entity._update_native_effect_state(data)
+@@ -1369,8 +1410,0 @@
+-                # Update d60: special effects and sensitivity
+-                if 'd60' in data:
+-                    sens, parsed_effect = entity._parse_d60(data['d60'])
+-                    # update sensitivity
+-                    entity._sensitivity = sens
+-                    # If parser recognizes a special effect code, set it
+-                    if parsed_effect:
+-                        entity._effect = parsed_effect
+@@ -1433,0 +1468 @@
 +        'native_state': native_state,
-@@ -1445,0 +1459,2 @@
+@@ -1445,0 +1481,2 @@
 +    data['native_state'].close()
 +
 --- a/__init__.py

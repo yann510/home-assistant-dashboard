@@ -26,9 +26,9 @@ echo cannot prove success. No protocol request-ID matching is available through
 the confirmed report interface, so freshness means arrival after the get request,
 not a proven device-generated transaction identifier.
 
-## Installation artifact (not deployed)
+## Installation artifact
 
-`integration.patch` is a minimal additive patch against the supplied installed
+`integration.patch` extends the native bridge and fixes effect preservation against the supplied installed
 source captured on 2026-09-08. `baseline-sha256.json` records hashes of light.py,
 __init__.py, number.py, services.yaml, and manifest.json. The supplied originals
 are copied to ignored `.local/lepro-baseline/` in the implementation worktree.
@@ -46,8 +46,9 @@ cp /absolute/path/to/native_state.py /absolute/path/to/native_services.py /path/
 
 Deploy the staged files through the normal Home Assistant deployment workflow,
 validate configuration, and reload/restart the integration. Roll back by restoring
-the complete backup. The patch leaves all existing bulb/entity parsing behavior
-and the installed MQTT callback intact. Its native publisher bypasses offline
+the complete backup. The patch parses only the active effect register and retains opaque strip recipes
+for power and brightness commands. B-series bulb command routing is unchanged.
+Its native publisher bypasses offline
 queuing and propagates broker publish errors so timed-out commands cannot remain
 queued for later delivery. This cannot cancel a command already sent to a broker.
 
@@ -74,3 +75,24 @@ result when `/tmp/lepro-installed-*` baseline files are available. Otherwise tha
 one regression is skipped. Standalone bridge and service-handler tests need only
 Python 3.11+ standard library. Home Assistant runtime and physical readback remain
 deployment validations.
+
+### Strip effect regression
+
+Live testing exposed an existing Lepro parser/control bug: mode 2 reports retained
+`d60` music settings alongside the active `d50` palette. Parsing `d60` last selected
+the inactive music effect; a later office automation brightness command then
+activated mode 3 at full brightness. The patch caches both opaque recipes but
+selects only the active mode for display and power/brightness commands. It also
+preserves recipes the generic parser cannot decode, including the original wave.
+
+The focused suite applies the patch to the captured baseline, executes the actual
+light class and MQTT report processing with lightweight Home Assistant stubs, and
+asserts outgoing commands without connecting to a device:
+
+```sh
+LEPRO_BASELINE_DIR=/path/to/original/lepro_led python3 -m unittest discover -s home-assistant/tests_lepro -v
+```
+
+The default baseline directory is `.local/lepro-baseline` in the worktree. The
+suite fails if that private baseline is missing. Device readback and visual
+confirmation remain separate live checks.
