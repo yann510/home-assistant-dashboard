@@ -1,20 +1,47 @@
 --- a/light.py
 +++ b/light.py
-@@ -13,0 +14 @@
+@@ -11,6 +11,7 @@
+ import numpy as np
+ import colorsys
+ from .const import DOMAIN, REGIONS, LOGIN_PATH, FAMILY_LIST_PATH, USER_PROFILE_PATH, DEVICE_LIST_PATH, SWITCH_API_PATH
 +from .native_state import NativeStateBridge
-@@ -228,0 +230 @@
+ from aiomqtt import Client, MqttError
+ import aiofiles
+ from homeassistant.core import callback
+@@ -226,6 +227,7 @@
+         self._normalizing_effect = False
+         self._b1_static_state = {}
+         self._b1_rgb_state = {}
 +        self._native_effect_state = {}
-@@ -238,2 +239,0 @@
+         # Keep B1-specific default
+         if self.is_b_model:
+             self._effect = self.EFFECT_NONE
+@@ -235,8 +237,6 @@
+         self._sensitivity = 50  # For music mode
+         
+         # Initialize from device data
 -        if "d50" in device:
 -            self._parse_d50(device["d50"])
-@@ -256,5 +256 @@
+         if "d52" in device:
+             self._brightness = self._map_device_brightness(device["d52"])
+         else:
+@@ -253,11 +253,7 @@
+             if "d3" in device:
+                 self._brightness = self._map_device_brightness(device["d3"])
+ 
 -        if "d60" in device:
 -            sens, parsed_effect = self._parse_d60(device["d60"])
 -            self._sensitivity = sens
 -            if parsed_effect:
 -                self._effect = parsed_effect
 +        self._update_native_effect_state(device)
-@@ -507,0 +504,15 @@
+         
+         self._update_b1_static_state(device)
+         
+@@ -505,8 +501,40 @@
+             return 50, None
+ 
+ 
 +    def _update_native_effect_state(self, data):
 +        """Keep opaque recipes; inactive registers must not select an effect."""
 +        self._native_effect_state.update({
@@ -30,7 +57,8 @@
 +                self._sensitivity, effect = self._parse_d60(recipe)
 +                self._effect = effect or self.EFFECT_NONE
 +
-@@ -509,0 +521,17 @@
+     async def async_turn_on(self, **kwargs):
+         """Turn on the light with optional parameters."""
 +        # Brightness and power are independent of a strip's opaque effect recipe.
 +        # Regenerating from the lossy HA effect/RGB attributes destroys app palettes.
 +        if not self.is_b_model and self._mode in (2, 3) and set(kwargs) <= {ATTR_BRIGHTNESS, "transition"}:
@@ -48,13 +76,25 @@
 +            self._brightness = brightness
 +            self.async_write_ha_state()
 +            return
-@@ -948,0 +977,5 @@
+         if not kwargs:
+             self._is_on = True
+             if self.is_b_model:
+@@ -946,6 +974,11 @@
+         }
+         try:
+             await self._mqtt_client.publish(topic, json.dumps(full_payload))
 +            # A subsequent brightness request may arrive before the MQTT echo.
 +            self._mode = payload.get("d2", self._mode)
 +            self._native_effect_state.update({
 +                key: payload[key] for key in ("d50", "d60", "d52") if key in payload
 +            })
-@@ -1241,0 +1275,9 @@
+             _LOGGER.debug("Sent MQTT command: %s - %s", topic, full_payload)
+             if self.is_b_model:
+                 _LOGGER.info(
+@@ -1239,6 +1272,15 @@
+         _LOGGER.error("MQTT connection failed: %s", e)
+         return
+     
 +    async def native_publish(topic, payload):
 +        # Native transactions must fail offline, never queue a delayed mutation.
 +        if mqtt_client.client is None:
@@ -64,15 +104,27 @@
 +    native_state = NativeStateBridge(publish=native_publish)
 +    entry.async_on_unload(native_state.close)
 +
-@@ -1292,0 +1335,2 @@
+     # 8) Create entities
+     entities = []
+     device_entity_map = {}
+@@ -1290,6 +1332,8 @@
+             # Handle different message types
+             if message_type in ["rpt", "set", "getr"]:
+                 data = payload.get('d', {})
 +                if message_type in ('rpt', 'getr'):
 +                    native_state.ingest(did, message_type, data, time.monotonic())
-@@ -1365,3 +1409 @@
+                 if entity.is_b_model:
+                     b1_fields = {
+                         key: data.get(key)
+@@ -1362,18 +1406,8 @@
+                         if entity.is_b_model and entity._mode == 1:
+                             entity._attr_color_mode = ColorMode.RGB
+                 
 -                # Update effect and colors
 -                if 'd50' in data:
 -                    entity._parse_d50(data['d50'])
 +                entity._update_native_effect_state(data)
-@@ -1369,8 +1410,0 @@
+                 
 -                # Update d60: special effects and sensitivity
 -                if 'd60' in data:
 -                    sens, parsed_effect = entity._parse_d60(data['d60'])
@@ -81,19 +133,41 @@
 -                    # If parser recognizes a special effect code, set it
 -                    if parsed_effect:
 -                        entity._effect = parsed_effect
-@@ -1433,0 +1468 @@
+ 
+                 # Normalize devices that report a special-effect mode back to solid light mode.
+                 # if entity.is_b_model and entity._mode == 3:
+@@ -1431,6 +1465,7 @@
+         hass.data[DOMAIN] = {}
+     hass.data[DOMAIN][entry.entry_id] = {
+         'mqtt_client': mqtt_client,
 +        'native_state': native_state,
-@@ -1445,0 +1481,2 @@
+         'entities': entities,
+         'segments': segments_map
+     }
+@@ -1443,6 +1478,8 @@
+     if not data:
+         return True
+         
 +    data['native_state'].close()
 +
+     # Disconnect MQTT client
+     await data['mqtt_client'].disconnect()
+     
 --- a/__init__.py
 +++ b/__init__.py
-@@ -2 +2,3 @@
+@@ -1,5 +1,7 @@
+ from homeassistant.config_entries import ConfigEntry
 -from homeassistant.core import HomeAssistant
 +from homeassistant.core import HomeAssistant, SupportsResponse
 +from .native_state import NativeSnapshot
 +from .native_services import NativeServiceHandlers
-@@ -31,0 +34,19 @@
+ from homeassistant.helpers.typing import ConfigType
+ from homeassistant.helpers import config_validation as cv
+ import voluptuous as vol
+@@ -29,6 +31,25 @@
+         ): [cv.string],
+     }
+ )
 +
 +def _register_native_services(hass):
 +    handlers = NativeServiceHandlers(hass, DOMAIN, NativeSnapshot)
@@ -113,22 +187,43 @@
 +                supports_response=SupportsResponse.ONLY,
 +            )
 +
-@@ -100,0 +122 @@
+ 
+ async def async_setup(hass: HomeAssistant, config: dict):
+     """Set up Lepro LED integration (not via YAML)."""
+@@ -98,10 +119,12 @@
+             _async_request_debug_state,
+             schema=SERVICE_SCHEMA_REQUEST_DEBUG_STATE,
+         )
 +    _register_native_services(hass)
-@@ -104,0 +127 @@
+     return True
+ 
+ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+     """Set up Lepro LED from a config entry."""
 +    _register_native_services(hass)
-@@ -116 +139,4 @@
+     hass.data.setdefault(DOMAIN, {})
+     hass.data[DOMAIN][entry.entry_id] = entry.data
+ 
+@@ -113,8 +136,13 @@
+     """Unload a config entry."""
+     unload_ok = await hass.config_entries.async_unload_platforms(entry, ["light", "number", "switch"])
+     if unload_ok:
 -        hass.data[DOMAIN].pop(entry.entry_id)
 +        entry_data = hass.data[DOMAIN].get(entry.entry_id, {})
 +        if entry_data.get("native_state"):
 +            entry_data["native_state"].close()
 +        hass.data[DOMAIN].pop(entry.entry_id, None)
-@@ -119,0 +146,2 @@
+         if not hass.data[DOMAIN]:
+             hass.services.async_remove(DOMAIN, SERVICE_SEND_DEBUG_COMMAND)
+             hass.services.async_remove(DOMAIN, SERVICE_REQUEST_DEBUG_STATE)
 +            hass.services.async_remove(DOMAIN, "capture_native_state")
 +            hass.services.async_remove(DOMAIN, "restore_native_state")
+     return unload_ok
 --- a/services.yaml
 +++ b/services.yaml
-@@ -49,0 +50,37 @@
+@@ -47,3 +47,40 @@
+         ["d1", "d2", "d3", "online"]
+       selector:
+         object:
 +
 +capture_native_state:
 +  name: Capture native state

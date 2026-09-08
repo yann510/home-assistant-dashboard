@@ -136,3 +136,28 @@ relinquish playback ownership rather than overwrite an uncertain queue.
 The user confirmed the corrected neon is rose breathing without rainbow flashing.
 They found 35% too dim and approved the 65% preview; Love now uses native brightness
 650. Living-room lighting and other presets retain their approved values.
+
+## Unwind live rounding regression
+
+The user's Unwind attempt entered recovery at the first living-room strip write:
+requested HS `[32.727, 73.333]`, observed `[33, 73.3]`, brightness 64 in both. The
+old 0.01 tolerance rejected legitimate device quantization. No subsequent mood
+light/music commands were reached. Saved baseline was off; the strip was restored
+to off and explicit Retry returned the engine to idle. The failed journal is
+backed up privately at `/share/house-moods-live-20260908/unwind-failed-session.json`.
+
+Fix `f85218a` permits circular hue rounding up to 0.5 degrees and saturation
+rounding up to 0.05 percentage points, preserving native exactness and explicit
+manual overrides. Standard-light timeouts now identify the failed target. The
+ambiguous-recovery message is rewritten in plain language. Scoped tests: 60
+passed; HA integration tests: 21 passed. Deployment files were hash-checked and
+backed up in `/share/house-moods-live-20260908/unwind-fix` before replacement.
+The first retest passed the rounded light command and rolled back cleanly after
+a separate Sonos timeout: Living Room was playing TV input, which does not reach
+the stopped music state. Fix `877fcc0` skips stop only for TV and requires confirmed
+playing/buffering with queue source before acknowledging the favorite. Ordinary
+music retains the confirmed stopped boundary. Empty timeout errors now have a
+readable fallback. All 106 backend tests and 21 HA integration tests pass. The
+Lepro patch roundtrip test was repaired with contextual hunks; generated production
+source is byte-identical, and all eight focused Lepro tests pass.
+Live Unwind/End retest after both corrections is pending.

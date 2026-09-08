@@ -67,6 +67,14 @@ class CoordinatorTests(unittest.IsolatedAsyncioTestCase):
         self.store = MemoryStore()
         self.adapter = FakeAdapter()
         self.engine = MoodCoordinator(self.adapter, self.store)
+    async def test_empty_timeout_has_actionable_public_error(self):
+        async def timeout(*args):
+            raise TimeoutError()
+        self.adapter.apply_write = timeout
+        result = await self.engine.activate('love')
+        self.assertFalse(result['success'])
+        self.assertEqual(result['errors'][0]['message'], 'A device did not respond in time. Please try again.')
+
     async def test_switch_keeps_first_baseline(self):
         await self.engine.activate('love')
         initial = (await self.store.load()).baseline

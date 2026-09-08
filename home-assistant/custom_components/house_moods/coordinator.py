@@ -56,7 +56,8 @@ class MoodCoordinator:
                 await self._reconcile()
 
     def _error(self, target, err):
-        record = {'target': target, 'message': str(err)}
+        message = str(err).strip() or ('A device did not respond in time. Please try again.' if isinstance(err, TimeoutError) else 'The operation failed. Please try again.')
+        record = {'target': target, 'message': message}
         self._last_errors.append(record)
         if self.session:
             self.session.errors.append(record)
@@ -242,7 +243,7 @@ class MoodCoordinator:
                         # A failed apply may leave earlier mood ownership intact.
                         pass
                     else:
-                        raise RuntimeError('Ambiguous unconfirmed write; ownership requires review')
+                        raise RuntimeError('A device reported an unexpected state. Its previous settings are saved; restoration is paused to avoid overwriting changes.')
                     entry['resolved'].append(target)
                 except Exception as err:
                     self._error(target, err)
