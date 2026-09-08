@@ -88,7 +88,7 @@ export function useHouseMood(): HouseMoodCardProps {
       ]);
       if (!mounted.current || active.current !== operation) return;
       const response = result.response;
-      if (!response || !phases.includes(response.phase as MoodPhase) || typeof response.success !== 'boolean') {
+      if (!response || !phases.includes(response.phase as MoodPhase) || typeof response.success !== 'boolean' || (response.phase === 'active' && !mood(response.active_mood))) {
         throw new Error('Waiting for Home Assistant to confirm the change.');
       }
       const phase = response.phase as MoodPhase;
@@ -96,8 +96,8 @@ export function useHouseMood(): HouseMoodCardProps {
         entity: latestEntity.current,
         status: {
           phase,
-          activeMood: phase === 'active' ? (requested ?? status.activeMood) : null,
-          pendingMood: phase === 'starting' ? (requested ?? null) : null,
+          activeMood: phase === 'active' ? mood(response.active_mood) : null,
+          pendingMood: phase === 'starting' ? mood(response.pending_mood) : null,
           errors: errors(response.errors),
         },
       });

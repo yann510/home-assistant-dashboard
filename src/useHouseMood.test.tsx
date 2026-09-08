@@ -82,7 +82,7 @@ describe('House mood connection', () => {
     const { result } = renderHook(() => useHouseMood());
     act(() => result.current.onActivate('love'));
     act(() => update('starting', { pending_mood: 'love' }));
-    await act(async () => finish({ response: { success: true, phase: 'active', errors: [] } }));
+    await act(async () => finish({ response: { success: true, phase: 'active', active_mood: 'love', errors: [] } }));
     expect(result.current.status.phase).toBe('active');
     expect(result.current.status.activeMood).toBe('love');
   });
@@ -92,7 +92,7 @@ describe('House mood connection', () => {
     const { result } = renderHook(() => useHouseMood());
     act(() => result.current.onActivate('love'));
     act(() => update('recovery_required', { errors: [{ target: 'neon', message: 'Restore neon.' }] }));
-    await act(async () => finish({ response: { success: true, phase: 'active', errors: [] } }));
+    await act(async () => finish({ response: { success: true, phase: 'active', active_mood: 'love', errors: [] } }));
     expect(result.current.status.phase).toBe('recovery_required');
   });
   it('stays unavailable when the status entity has never existed', () => {
@@ -116,6 +116,14 @@ describe('House mood connection', () => {
     await act(async () => result.current.onActivate('love'));
     expect(result.current.status.phase).toBe('idle');
     expect(result.current.status.errors[0]?.message).toBe('Crush Radio is missing.');
+  });
+  it('keeps the authoritative active mood when a requested switch is rejected', async () => {
+    act(() => update('active', { active_mood: 'love' }));
+    fake.send.mockResolvedValue({ response: { success: false, phase: 'active', active_mood: 'love', errors: [{ target: 'favorite', message: 'Dinner favorite is missing.' }] } });
+    const { result } = renderHook(() => useHouseMood());
+    await act(async () => result.current.onActivate('dinner'));
+    expect(result.current.status.activeMood).toBe('love');
+    expect(result.current.status.errors[0]?.message).toBe('Dinner favorite is missing.');
   });
   it('sends recovery only when the backend reports a recoverable session', async () => {
     act(() => update('recovery_required', { errors: [] }));
