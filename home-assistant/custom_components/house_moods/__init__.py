@@ -21,6 +21,7 @@ class Runtime:
         self.tasks = set()
         self.unsubscribers = []
         self.pending = set()
+        self.dirty = set()
         self.closed = False
 
     def publish(self, status):
@@ -43,13 +44,17 @@ class Runtime:
     def observe(self, target, origin=None):
         key = (target, origin)
         if key in self.pending:
+            self.dirty.add(key)
             return
         self.pending.add(key)
         async def update():
             try:
                 # Explicit service intent alone proves an override, even offline.
-                value = {} if origin is not None else await self.adapter.read(target)
-                await self.engine.observe(target, value, origin)
+                while True:
+                    self.dirty.discard(key)
+                    await self.engine.observe(target, {} if origin is not None else None, origin)
+                    if key not in self.dirty:
+                        break
             except (ValueError, RuntimeError, TimeoutError):
                 pass  # An unavailable report is not evidence of a manual change.
             finally:
@@ -82,14 +87,15 @@ class Runtime:
             targets.update((FOLLOW, GROUPS))
         if domain == 'light':
             targets.update(e for e in entities if e in self.adapter.observation_targets(e) or e == NEON)
-        if domain == 'lepro_led' and service not in ('capture_native_state',):
+        if domain == 'lepro_led' and service in ('restore_native_state', 'send_debug_command'):
             if data.get('device_id') == DEVICE or NEON in entities:
                 targets.add(NEON)
-        if domain == 'number':
-            entry = self.hass.data.get('lepro_led', {})
-            for value in entry.values():
-                if isinstance(value, dict) and any(getattr(e, '_did', None) == DEVICE and getattr(e, 'entity_id', None) in entities for e in value.get('entities', [])):
-                    targets.add(NEON)
+        if domain == 'number' and service == 'set_value':
+            from .ha_adapter import ENTRY
+            numbers = self.hass.data.get('lepro_led', {}).get(ENTRY, {}).get('numbers', {}).get(DEVICE, [])
+            if any(getattr(e, 'entity_id', None) in entities and
+                   getattr(getattr(e, '_light', None), '_did', None) == DEVICE for e in numbers):
+                targets.add(NEON)
         if domain == 'sonos':
             if SOURCE in entities and service in ('play_queue', 'remove_from_queue', 'restore'):
                 targets.add(SOURCE + '#playback')
@@ -119,9 +125,13 @@ class Runtime:
                     result['errors'] = [{'target': 'coordinator', 'message': 'Operation in progress'}]
                     return result
                 try:
+                    from .sonos import FOLLOW, GROUPS
+                    session = self.engine.session
+                    if session and {FOLLOW, GROUPS} <= session.overridden:
+                        return await self.manual_follow_join(call.data['room'])
                     write = await self.adapter.sonos.plan_join(call.data['room'])
                     return await self.engine.apply_owned_write(write) if write else self.engine.status()
-                except ValueError as err:
+                except (ValueError, RuntimeError) as err:
                     result = self.engine.status(False)
                     result['errors'] = [{'target': 'follow', 'message': str(err)}]
                     return result
@@ -130,6 +140,24 @@ class Runtime:
             return await getattr(self.engine, call.service)()
         finally:
             self.tasks.discard(task)
+
+    async def manual_follow_join(self, room):
+        from .sonos import FOLLOW, FOLLOW_SOURCE, GROUPS, SPEAKERS
+        # Serialize against End, without calling the follow script recursively.
+        async with self.engine._lock:
+            session = self.engine.session
+            if not session or session.phase != 'active' or not {FOLLOW, GROUPS} <= session.overridden:
+                raise ValueError('An active manually controlled Follow me session is required.')
+            source = self.io.state(FOLLOW_SOURCE)['state']
+            if (self.io.state(FOLLOW)['state'] != 'on' or source not in SPEAKERS
+                    or room not in SPEAKERS[1:] or room == source
+                    or self.io.state(source)['state'] not in ('playing', 'buffering')
+                    or self.io.state(room)['state'] in ('unknown', 'unavailable')):
+                raise ValueError('This room is not following the saved source.')
+            members = self.io.state(source)['attributes'].get('group_members') or [source]
+            if room not in members:
+                await self.io.call('media_player', 'join', [source], {'group_members': [room]})
+            return self.engine.status()
 
     async def close(self, event=None):
         if self.closed:

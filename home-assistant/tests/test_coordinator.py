@@ -503,3 +503,16 @@ class CoordinatorTests(unittest.IsolatedAsyncioTestCase):
             self.assertFalse(result['success'])
             self.assertEqual(result['phase'],'recovery_required')
         self.assertEqual(self.adapter.writes,[])
+
+    async def test_deferred_observation_reads_current_state_under_lock(self):
+        import asyncio
+        await self.engine.activate('love')
+        self.engine._clock = lambda: 10**20
+        async with self.engine._lock:
+            self.adapter.states[K] = {'state':'on', 'brightness':50}
+            observation = asyncio.create_task(self.engine.observe(K))
+            await asyncio.sleep(0)
+            self.adapter.states[K] = {'state':'on', 'brightness':100}
+        await observation
+        self.assertIn(K, self.engine.session.owned)
+        self.assertNotIn(K, self.engine.session.overridden)

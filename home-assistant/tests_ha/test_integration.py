@@ -268,3 +268,68 @@ class IntegrationTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(callbacks),1)
         await runtime.close()
         self.assertEqual(callbacks,[])
+
+    async def test_coalesced_report_reads_after_operation_lock(self):
+        with patch('custom_components.house_moods.HAAdapter',Adapter):await async_setup(self.hass,{})
+        runtime=self.hass.data['house_moods']
+        await runtime.engine.activate('love')
+        runtime.engine._clock=lambda:10**20
+        async with runtime.engine._lock:
+            runtime.adapter.states['light.test']={'state':'off'}
+            runtime.observe('light.test')
+            await asyncio.sleep(.02)
+            runtime.adapter.states['light.test']={'state':'on'}
+            runtime.observe('light.test')
+        await self.hass.async_block_till_done()
+        self.assertIn('light.test',runtime.engine.session.owned)
+
+    async def test_actual_number_collection_and_read_only_native_intent(self):
+        from types import SimpleNamespace
+        from homeassistant.core import Event
+        from custom_components.house_moods.ha_adapter import DEVICE,ENTRY
+        from custom_components.house_moods.presets import NEON
+        await async_setup(self.hass,{})
+        runtime=self.hass.data['house_moods'];seen=[]
+        runtime.observe=lambda target,origin=None:seen.append(target)
+        light=SimpleNamespace(_did=DEVICE,entity_id=NEON)
+        self.hass.data['lepro_led']={ENTRY:{'entities':[light],'numbers':{DEVICE:[SimpleNamespace(entity_id='number.neon_speed',_light=light),SimpleNamespace(entity_id='number.neon_sensitivity',_light=light)]}}}
+        for entity in ('number.neon_speed','number.neon_sensitivity'):
+            seen.clear()
+            runtime.service_called(Event('call_service',{'domain':'number','service':'set_value','service_data':{'entity_id':entity,'value':50}},context=Context()))
+            self.assertEqual(seen,[NEON])
+        seen.clear()
+        runtime.service_called(Event('call_service',{'domain':'lepro_led','service':'request_debug_state','service_data':{'device_id':'754063076','keys':['d2']}},context=Context()))
+        self.assertEqual(seen,[])
+
+    async def test_read_only_native_request_preserves_ownership(self):
+        from homeassistant.core import Event
+        from custom_components.house_moods.presets import NEON
+        await async_setup(self.hass,{})
+        runtime=self.hass.data['house_moods'];seen=[];runtime.observe=lambda target,origin=None:seen.append(target)
+        runtime.service_called(Event('call_service',{'domain':'lepro_led','service':'request_debug_state','service_data':{'device_id':'754063076','keys':['d2']}},context=Context()))
+        self.assertEqual(seen,[])
+
+    async def test_real_script_manual_follow_override_keeps_normal_source(self):
+        from homeassistant.helpers import config_validation as cv
+        from homeassistant.helpers.script import Script
+        from custom_components.house_moods.sonos import SPEAKERS,SOURCE,FOLLOW,FOLLOW_SOURCE,GROUPS
+        await async_setup(self.hass,{})
+        runtime=self.hass.data['house_moods'];calls=[]
+        async def join(call):calls.append(call)
+        self.hass.services.async_register('media_player','join',join)
+        config=json.loads((Path(__file__).resolve().parents[1]/'speaker-follow.json').read_text())['script']['config']
+        script=Script(self.hass,cv.SCRIPT_SCHEMA(config['sequence']),'follow','script',script_mode='queued')
+        for source in (SOURCE,'media_player.bedroom'):
+            self.hass.states.async_set(FOLLOW,'on');self.hass.states.async_set(FOLLOW_SOURCE,source)
+            for speaker in SPEAKERS:self.hass.states.async_set(speaker,'playing',{'group_members':[speaker],'volume_level':.2})
+            await self.hass.async_block_till_done()
+            s=Session('session','love','active');s.baseline={GROUPS:await runtime.adapter.read(GROUPS),FOLLOW:await runtime.adapter.read(FOLLOW)};s.overridden={GROUPS,FOLLOW}
+            runtime.engine.session=s;runtime.engine._loaded=True;await runtime.engine._save()
+            result=await asyncio.wait_for(script.async_run({'command':'join','room':'media_player.bathroom'},Context()),1)
+            self.assertTrue(result.service_response['success'])
+            self.assertEqual(calls[-1].data['entity_id'],[source])
+            self.assertEqual(s.journal,[]);self.assertEqual(s.owned,set())
+            async with runtime.engine._lock:
+                busy=await asyncio.wait_for(script.async_run({'command':'join','room':'media_player.gym'},Context()),1)
+                self.assertFalse(busy.service_response['success'])
+        self.assertEqual(len(calls),2)

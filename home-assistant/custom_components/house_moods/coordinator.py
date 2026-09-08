@@ -401,13 +401,15 @@ class MoodCoordinator:
             except Exception as err:
                 return await self._storage_error(err)
 
-    async def observe(self, target, observed, context_id=None):
+    async def observe(self, target, observed=None, context_id=None):
         async with self._lock:
             try:
                 await self._load()
                 s = self.session
                 if not s or target not in s.baseline:
                     return
+                if observed is None:
+                    observed = await self.adapter.read(target)
                 expected = s.expected.get(target, s.baseline[target])
                 disposition = classify(target, observed, expected, s.journal, s.session_id, context_id, self._clock())
                 if disposition == 'external':
