@@ -1,0 +1,24 @@
+activate:
+  name: Activate mood
+  description: Start or switch the house mood with durable restoration evidence.
+  fields:
+    mood:
+      required: true
+      selector:
+        select:
+          options: [love, unwind, dinner, party]
+end:
+  name: End mood
+  description: Restore controls still owned by the mood and stop mood music.
+retry_restoration:
+  name: Retry restoration
+  description: Retry unresolved restoration using fresh device state.
+follow_join:
+  name: Join following room
+  description: Internal journaled join for the existing speaker follow script.
+  fields:
+    room:
+      required: true
+      selector:
+        entity:
+          domain: media_player

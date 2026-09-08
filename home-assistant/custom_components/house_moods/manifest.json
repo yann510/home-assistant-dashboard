@@ -1,0 +1,1 @@
+{"domain":"house_moods","name":"House Moods","version":"1.0.0","documentation":"https://github.com/yann510/home-dashboard","codeowners":[],"dependencies":["light","media_player","sonos","script","input_boolean","input_text"],"iot_class":"local_push"}
