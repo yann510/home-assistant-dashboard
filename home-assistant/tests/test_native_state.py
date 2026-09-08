@@ -33,6 +33,26 @@ class NativeStateTests(unittest.IsolatedAsyncioTestCase):
     def report(self, fields=None, kind='getr', at=3):
         self.bridge.ingest(DID, kind, FIELDS if fields is None else fields, at)
 
+    async def test_unload_cancels_suspended_publish_and_queued_transaction(self):
+        for replay in (False, True):
+            with self.subTest(replay=replay):
+                entered, release = asyncio.Event(), asyncio.Event()
+                sent = []
+                async def suspended(topic, payload):
+                    entered.set()
+                    await release.wait()
+                    sent.append(topic)
+                bridge = native.NativeStateBridge(publish=suspended)
+                first = asyncio.create_task(bridge.replay(native.NativeSnapshot(1, DID, 1, FIELDS, {})) if replay else bridge.capture(DID))
+                await entered.wait()
+                queued = asyncio.create_task(bridge.capture(DID))
+                await asyncio.sleep(0)
+                bridge.close()
+                release.set()
+                outcomes = await asyncio.gather(first, queued, return_exceptions=True)
+                self.assertEqual(sent, [], 'No suspended broker publish may resume after unload')
+                self.assertTrue(all(isinstance(result, asyncio.CancelledError) for result in outcomes))
+
     async def test_set_echo_cannot_complete_capture(self):
         pending = await self.start_capture()
         self.report(kind='set')

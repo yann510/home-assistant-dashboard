@@ -6,6 +6,7 @@ not snapshots. captured_at uses the injected monotonic clock's time domain.
 """
 import asyncio
 from copy import deepcopy
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
 import json
 import logging
@@ -73,6 +74,7 @@ class NativeStateBridge:
         self._waiters = {}
         self._subscribers = set()
         self._closed = False
+        self._transactions = set()
 
     def subscribe(self, callback):
         self._subscribers.add(callback)
@@ -120,29 +122,42 @@ class NativeStateBridge:
             elif not future.cancelled():
                 future.exception()  # Retrieve a report error even if publishing failed.
 
+    @asynccontextmanager
+    async def _transaction(self, device_id, timeout):
+        if self._closed:
+            raise RuntimeError('Native state bridge is unloaded')
+        task = asyncio.current_task()
+        self._transactions.add(task)
+        try:
+            async with asyncio.timeout(timeout):
+                async with self._locks.setdefault(device_id, asyncio.Lock()):
+                    if self._closed:
+                        raise RuntimeError('Native state bridge is unloaded')
+                    yield
+        finally:
+            self._transactions.discard(task)
+
     async def capture(self, device_id: str, timeout: float = 10) -> NativeSnapshot:
         if not isinstance(device_id, str) or not device_id.isdecimal():
             raise ValueError('Invalid native device identity')
-        async with asyncio.timeout(timeout):
-            async with self._locks.setdefault(device_id, asyncio.Lock()):
-                return await self._capture_locked(device_id)
+        async with self._transaction(device_id, timeout):
+            return await self._capture_locked(device_id)
 
     async def replay(self, snapshot: NativeSnapshot, timeout: float = 10) -> NativeSnapshot:
         snapshot = NativeSnapshot.from_dict(snapshot.to_dict())
-        async with asyncio.timeout(timeout):
-            async with self._locks.setdefault(snapshot.device_id, asyncio.Lock()):
-                if self._closed:
-                    raise RuntimeError('Native state bridge is unloaded')
-                await self._publish(f'le/{snapshot.device_id}/prp/set', json.dumps({
-                    'id': secrets.randbelow(1000000001), 't': int(time.time()), 'd': snapshot.fields}))
-                actual = await self._capture_locked(snapshot.device_id)
-                if any(actual.fields.get(k) != v or type(actual.fields.get(k)) is not type(v)
-                       for k, v in snapshot.fields.items()):
-                    raise ValueError('Native replay readback differs from requested state')
-                return actual
+        async with self._transaction(snapshot.device_id, timeout):
+            await self._publish(f'le/{snapshot.device_id}/prp/set', json.dumps({
+                'id': secrets.randbelow(1000000001), 't': int(time.time()), 'd': snapshot.fields}))
+            actual = await self._capture_locked(snapshot.device_id)
+            if any(actual.fields.get(k) != v or type(actual.fields.get(k)) is not type(v)
+                   for k, v in snapshot.fields.items()):
+                raise ValueError('Native replay readback differs from requested state')
+            return actual
 
     def close(self):
         self._closed = True
+        for task in tuple(self._transactions):
+            task.cancel()
         for _, future in self._waiters.values():
             future.cancel()
         self._subscribers.clear()
