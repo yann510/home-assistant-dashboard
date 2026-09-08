@@ -32,6 +32,7 @@ vi.mock('@hakit/components', () => ({
 
 vi.mock('./LightsGroup.tsx', () => ({ LightsGroup: () => <div>Lights</div> }));
 vi.mock('./BlindsGroup.tsx', () => ({ BlindsGroup: () => <div>Blinds</div> }));
+vi.mock('./SpeakerCard.tsx', () => ({ SpeakerCard: () => <div>Speakers</div> }));
 
 afterEach(() => {
   cleanup();

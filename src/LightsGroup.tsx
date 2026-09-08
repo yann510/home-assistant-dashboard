@@ -14,7 +14,7 @@ export const LightsGroup = () => {
         </div>
         <div className='light-cluster light-cluster--pair' role='group' aria-label='Office'>
           <LightCard lightEntityName={'light.office_bulbs'} />
-          <LightCard lightEntityName={'light.desk_led_strip'} />
+          <LightCard lightEntityName={'light.neon_light_led_strip'} />
         </div>
         <div className='light-cluster light-cluster--single' role='group' aria-label='Gym'>
           <LightCard lightEntityName={'light.gym'} />

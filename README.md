@@ -14,6 +14,28 @@ npm >=7.0.0
 ## Building
 Run `npm run build` and it will build the files for you, you can then upload them to your home assistant instance using the deploy script mentioned below.
 
+## Speaker motion following
+
+The speaker card's **Follow me** switch enables motion following without immediately grouping any speakers. Motion in the bathroom, bedroom, or gym joins only that room to the saved original Sonos speaker. It works with any playing audio source, without playlist, queue-size, or content-type restrictions. A paused source can be armed; rooms join once it is playing. Rooms stay grouped until Follow me is turned off.
+
+Switching it off disables motion following and unjoins the followers, leaving playback on the original speaker. The original speaker and enabled state are stored in Home Assistant, so following works with the dashboard closed and survives dashboard reloads. Playback controls target only the actual group. Failed cleanup retains the original source and offers **Retry ungrouping**; it cannot be overwritten by re-enabling the switch.
+
+Commands use the dashboard's authenticated Home Assistant WebSocket connection. The queued Home Assistant script serializes enable, motion joins, and disable, and re-checks the enabled state before each join. Service errors are shown with their actual message. Sonos device timeouts during motion appear in that room automation's trace; another room's motion does not request the failing speaker.
+
+Install the backend before deploying the dashboard, using Node.js 24 and the existing `.env` credentials:
+
+```sh
+node scripts/configure-speaker-follow.mjs
+```
+
+The installer backs up the current configuration under `backups.local/`, creates `input_boolean.speaker_follow_motion` and `input_text.speaker_follow_source`, installs `script.speaker_follow_motion`, and replaces these existing automations using [speaker-follow.json](home-assistant/speaker-follow.json):
+
+- `automation.group_sonos_on_spotify_play_with_movement`
+- `automation.group_gym_sonos_speaker_if_music_is_playing_in_living_room`
+- `automation.group_bedroom_sonos_speaker_if_music_is_playing_in_living_room`
+
+The three automations remain enabled but only act while **Follow me** is on. Their existing room sensors are preserved. There is no living-room motion mapping in this configuration; Living Room can be the original source. The separate TV-triggered ungrouping automation remains in place.
+
 ## Deploy to Home Assistant via SSH
 1. Replace the values in the .env file provided with your `VITE_SSH_USERNAME`, `VITE_SSH_HOSTNAME` and `VITE_SSH_PASSWORD`.
 2. To automatically deploy to your home assistant instance, you can run `npm run deploy` after you've retrieved the SSH information specified [here](https://shannonhochkins.github.io/ha-component-kit/?path=/docs/introduction-deploying--docs), NOTE! The script has already been created for you, you just need to run it after you've updated the .env values.

@@ -17,7 +17,7 @@ describe('LightsGroup', () => {
     const expectedGroups = [
       ['Entry', ['light.light_front_door', 'light.light_laundry_room']],
       ['Kitchen', ['light.light_kitchen']],
-      ['Office', ['light.office_bulbs', 'light.desk_led_strip']],
+      ['Office', ['light.office_bulbs', 'light.neon_light_led_strip']],
       ['Gym', ['light.gym']],
       ['Living Room', ['light.light_living_room_bulbs', 'light.living_room_led_strip']],
       ['Toilet', ['light.light_toilet']],

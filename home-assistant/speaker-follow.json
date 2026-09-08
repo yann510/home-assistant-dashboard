@@ -1,0 +1,337 @@
+{
+  "helpers": [
+    {
+      "type": "input_boolean/create",
+      "name": "Speaker Follow Motion",
+      "icon": "mdi:motion-sensor"
+    },
+    {
+      "type": "input_text/create",
+      "name": "Speaker Follow Source",
+      "min": 0,
+      "max": 100,
+      "mode": "text"
+    }
+  ],
+  "script": {
+    "id": "speaker_follow_motion",
+    "config": {
+      "alias": "Speaker Follow Motion",
+      "description": "Enable without grouping; join only the room reporting motion; disable and keep the saved original speaker.",
+      "mode": "queued",
+      "max": 20,
+      "fields": {
+        "command": {
+          "description": "enable, disable, or join",
+          "required": true
+        },
+        "source_entity": {
+          "description": "Source speaker when enabling"
+        },
+        "room": {
+          "description": "Room speaker reporting motion"
+        }
+      },
+      "sequence": [
+        {
+          "variables": {
+            "speakers": ["media_player.living_room", "media_player.bathroom", "media_player.bedroom", "media_player.gym"],
+            "motion_rooms": ["media_player.bathroom", "media_player.gym", "media_player.bedroom"]
+          }
+        },
+        {
+          "choose": [
+            {
+              "conditions": "{{ command == 'enable' }}",
+              "sequence": [
+                {
+                  "if": "{{ is_state('input_boolean.speaker_follow_motion', 'on') }}",
+                  "then": [
+                    {
+                      "variables": {
+                        "result": {
+                          "success": true
+                        }
+                      }
+                    },
+                    {
+                      "stop": "Follow me is already enabled.",
+                      "response_variable": "result"
+                    }
+                  ]
+                },
+                {
+                  "if": "{{ states('input_text.speaker_follow_source') not in ['', 'unknown'] }}",
+                  "then": [
+                    {
+                      "variables": {
+                        "result": {
+                          "success": false,
+                          "error": "Finish turning off Follow me before choosing another source."
+                        }
+                      }
+                    },
+                    {
+                      "stop": "Finish turning off Follow me before choosing another source.",
+                      "response_variable": "result"
+                    }
+                  ]
+                },
+                {
+                  "if": "{{ source_entity | default('') not in speakers or states(source_entity | default('')) not in ['playing', 'buffering', 'paused'] }}",
+                  "then": [
+                    {
+                      "variables": {
+                        "result": {
+                          "success": false,
+                          "error": "Start audio on an available speaker before enabling Follow me."
+                        }
+                      }
+                    },
+                    {
+                      "stop": "Start audio on an available speaker before enabling Follow me.",
+                      "response_variable": "result"
+                    }
+                  ]
+                },
+                {
+                  "variables": {
+                    "original": "{{ (state_attr(source_entity, 'group_members') or [source_entity])[0] }}"
+                  }
+                },
+                {
+                  "if": "{{ original not in speakers or states(original) not in ['playing', 'buffering', 'paused'] }}",
+                  "then": [
+                    {
+                      "variables": {
+                        "result": {
+                          "success": false,
+                          "error": "The original speaker is unavailable."
+                        }
+                      }
+                    },
+                    {
+                      "stop": "The original speaker is unavailable.",
+                      "response_variable": "result"
+                    }
+                  ]
+                },
+                {
+                  "service": "input_text.set_value",
+                  "target": {
+                    "entity_id": "input_text.speaker_follow_source"
+                  },
+                  "data": {
+                    "value": "{{ original }}"
+                  }
+                },
+                {
+                  "service": "input_boolean.turn_on",
+                  "target": {
+                    "entity_id": "input_boolean.speaker_follow_motion"
+                  }
+                }
+              ]
+            },
+            {
+              "conditions": "{{ command == 'disable' }}",
+              "sequence": [
+                {
+                  "service": "input_boolean.turn_off",
+                  "target": {
+                    "entity_id": "input_boolean.speaker_follow_motion"
+                  }
+                },
+                {
+                  "variables": {
+                    "original": "{{ states('input_text.speaker_follow_source') }}",
+                    "followers": "{% set ns = namespace(ids=[]) %}{% for speaker in expand(speakers) %}{% if speaker.entity_id != original and (original in (speaker.attributes.group_members | default([])) or speaker.entity_id in (state_attr(original, 'group_members') or [])) %}{% set ns.ids = ns.ids + [speaker.entity_id] %}{% endif %}{% endfor %}{{ ns.ids }}"
+                  }
+                },
+                {
+                  "if": "{{ followers | length > 0 }}",
+                  "then": [
+                    {
+                      "service": "media_player.unjoin",
+                      "target": {
+                        "entity_id": "{{ followers }}"
+                      }
+                    },
+                    {
+                      "wait_template": "{% set ns = namespace(joined=false) %}{% for speaker in expand(followers) %}{% if original in (speaker.attributes.group_members | default([])) %}{% set ns.joined = true %}{% endif %}{% endfor %}{{ not ns.joined }}",
+                      "timeout": "00:00:15",
+                      "continue_on_timeout": false
+                    }
+                  ]
+                },
+                {
+                  "service": "input_text.set_value",
+                  "target": {
+                    "entity_id": "input_text.speaker_follow_source"
+                  },
+                  "data": {
+                    "value": ""
+                  }
+                }
+              ]
+            },
+            {
+              "conditions": "{{ command == 'join' }}",
+              "sequence": [
+                {
+                  "condition": "state",
+                  "entity_id": "input_boolean.speaker_follow_motion",
+                  "state": "on"
+                },
+                {
+                  "variables": {
+                    "original": "{{ states('input_text.speaker_follow_source') }}"
+                  }
+                },
+                {
+                  "condition": "template",
+                  "value_template": "{{ original in speakers and states(original) in ['playing', 'buffering'] and room | default('') in motion_rooms and room != original and states(room) not in ['unknown', 'unavailable'] and room not in (state_attr(original, 'group_members') or []) }}"
+                },
+                {
+                  "service": "media_player.join",
+                  "target": {
+                    "entity_id": "{{ original }}"
+                  },
+                  "data": {
+                    "group_members": ["{{ room }}"]
+                  }
+                }
+              ]
+            }
+          ],
+          "default": [
+            {
+              "variables": {
+                "result": {
+                  "success": false,
+                  "error": "Unknown Follow me command."
+                }
+              }
+            },
+            {
+              "stop": "Unknown Follow me command.",
+              "response_variable": "result"
+            }
+          ]
+        },
+        {
+          "variables": {
+            "result": {
+              "success": true
+            }
+          }
+        },
+        {
+          "stop": "Follow me command completed.",
+          "response_variable": "result"
+        }
+      ]
+    }
+  },
+  "automations": [
+    {
+      "entity_id": "automation.group_sonos_on_spotify_play_with_movement",
+      "config": {
+        "id": "unique_identifier_for_this_automation",
+        "alias": "Follow speaker audio on bathroom motion",
+        "description": "Armed by the speaker card Follow me switch. No playlist or queue requirement.",
+        "trigger": [
+          {
+            "platform": "state",
+            "entity_id": ["binary_sensor.aqara_fp2_bathroom_presence_sensor_1"],
+            "from": "off",
+            "to": "on"
+          }
+        ],
+        "condition": [
+          {
+            "condition": "state",
+            "entity_id": "input_boolean.speaker_follow_motion",
+            "state": "on"
+          }
+        ],
+        "action": [
+          {
+            "service": "script.speaker_follow_motion",
+            "data": {
+              "command": "join",
+              "room": "media_player.bathroom"
+            }
+          }
+        ],
+        "mode": "single"
+      }
+    },
+    {
+      "entity_id": "automation.group_gym_sonos_speaker_if_music_is_playing_in_living_room",
+      "config": {
+        "id": "1696799091938",
+        "alias": "Follow speaker audio on gym motion",
+        "description": "Armed by the speaker card Follow me switch. No playlist or queue requirement.",
+        "trigger": [
+          {
+            "platform": "state",
+            "entity_id": ["binary_sensor.hue_motion_sensor_1_motion_2"],
+            "from": "off",
+            "to": "on"
+          }
+        ],
+        "condition": [
+          {
+            "condition": "state",
+            "entity_id": "input_boolean.speaker_follow_motion",
+            "state": "on"
+          }
+        ],
+        "action": [
+          {
+            "service": "script.speaker_follow_motion",
+            "data": {
+              "command": "join",
+              "room": "media_player.gym"
+            }
+          }
+        ],
+        "mode": "single"
+      }
+    },
+    {
+      "entity_id": "automation.group_bedroom_sonos_speaker_if_music_is_playing_in_living_room",
+      "config": {
+        "id": "1696799299222",
+        "alias": "Follow speaker audio on bedroom motion",
+        "description": "Armed by the speaker card Follow me switch. No playlist or queue requirement.",
+        "trigger": [
+          {
+            "platform": "state",
+            "entity_id": ["binary_sensor.hue_motion_sensor_1_motion"],
+            "from": "off",
+            "to": "on"
+          }
+        ],
+        "condition": [
+          {
+            "condition": "state",
+            "entity_id": "input_boolean.speaker_follow_motion",
+            "state": "on"
+          }
+        ],
+        "action": [
+          {
+            "service": "script.speaker_follow_motion",
+            "data": {
+              "command": "join",
+              "room": "media_player.bedroom"
+            }
+          }
+        ],
+        "mode": "single"
+      }
+    }
+  ]
+}

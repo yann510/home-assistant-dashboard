@@ -1,7 +1,8 @@
-import { MediaPlayerCard, VacuumCard, WeatherCard } from '@hakit/components';
+import { VacuumCard, WeatherCard } from '@hakit/components';
 import { LightsGroup } from './LightsGroup.tsx';
 import { BlindsGroup } from './BlindsGroup.tsx';
 import { HomeModeControls } from './HomeModeControls.tsx';
+import { SpeakerCard } from './SpeakerCard.tsx';
 
 function Dashboard() {
   return (
@@ -15,12 +16,7 @@ function Dashboard() {
         </div>
         <div className={'column'}>
           <WeatherCard className={'button-card'} entity={'weather.forecast_home'} />
-          <MediaPlayerCard
-            className={'button-card media-card'}
-            entity={'media_player.living_room'}
-            groupMembers={['media_player.living_room', 'media_player.bathroom', 'media_player.bedroom', 'media_player.gym']}
-            layout={'slim'}
-          />
+          <SpeakerCard />
         </div>
       </div>
     </>

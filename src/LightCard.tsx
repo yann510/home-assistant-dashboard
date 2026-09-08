@@ -12,7 +12,7 @@ const mobileLightTitles: Partial<Record<LightEntityName, string>> = {
   'light.light_living_room_bulbs': 'Living Room',
   'light.living_room_led_strip': 'LED Strip',
   'light.office_bulbs': 'Office',
-  'light.desk_led_strip': 'Desk Strip',
+  'light.neon_light_led_strip': 'Neon',
   'light.light_bedroom': 'Bedroom',
   'light.bedroom_closet': 'Closet',
   'light.light_toilet': 'Toilet',
@@ -25,14 +25,14 @@ interface Props {
 
 export const LightCard = (props: Props) => {
   const [isChangingState, setIsChangingState] = useState(false);
-  const lightEntity = useEntity(props.lightEntityName);
+  const lightEntity = useEntity(props.lightEntityName, { returnNullIfNotFound: true });
   const hasSmallScreen = useHasSmallScreen();
-  const [stateAtClick, setStateAtClick] = useState(lightEntity.state);
-  const [lastObservedState, setLastObservedState] = useState(lightEntity.state);
+  const [stateAtClick, setStateAtClick] = useState(lightEntity?.state);
+  const [lastObservedState, setLastObservedState] = useState(lightEntity?.state);
   const timeoutId = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  if (lastObservedState !== lightEntity.state) {
-    setLastObservedState(lightEntity.state);
+  if (lastObservedState !== lightEntity?.state) {
+    setLastObservedState(lightEntity?.state);
     setIsChangingState(false);
   }
 
@@ -66,17 +66,31 @@ export const LightCard = (props: Props) => {
     };
   }, []);
 
+  if (!lightEntity) {
+    return (
+      <ButtonCard
+        className='button-card light-card'
+        icon='mdi:lightbulb-alert-outline'
+        title={`${mobileLightTitles[props.lightEntityName] ?? 'Light'} · Unavailable`}
+        disabled
+        layoutType={hasSmallScreen ? 'slim-vertical' : 'default'}
+        hideDetails
+        hideLastUpdated
+      />
+    );
+  }
+
   return (
     <ButtonCard
       className='button-card light-card'
-      icon={lightEntity.state === 'on' ? 'mdi:lightbulb-on-outline' : 'mdi:lightbulb-outline'}
+      icon={lightEntity?.state === 'on' ? 'mdi:lightbulb-on-outline' : 'mdi:lightbulb-outline'}
       onClick={onCardClick}
       layoutType={hasSmallScreen ? 'slim-vertical' : 'default'}
       hideDetails={hasSmallScreen}
       hideLastUpdated={hasSmallScreen}
       entity={props.lightEntityName}
       title={hasSmallScreen ? mobileLightTitles[props.lightEntityName] : undefined}
-      disabled={isChangingState && stateAtClick === lightEntity.state}
+      disabled={isChangingState && stateAtClick === lightEntity?.state}
     />
   );
 };
