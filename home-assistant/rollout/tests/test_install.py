@@ -50,3 +50,24 @@ class InstallTests(unittest.TestCase):
         (self.bundle/'staged/configuration.yaml').write_text('modified')
         with self.assertRaises(ValueError):r.apply(self.bundle)
         self.assertFalse((self.bundle/'backup').exists())
+    def test_nested_index_collision_is_rejected_before_backend_or_backup_writes(self):
+        (self.dist/'nested').mkdir();(self.dist/'nested/index.html').write_text('new nested')
+        (self.config/'www/dashboard/nested').mkdir();(self.config/'www/dashboard/nested/index.html').write_text('old nested')
+        r.stage(self.config,self.bundle,self.dist)
+        before=r.fingerprint(self.config,r.PATHS)
+        with self.assertRaises(ValueError):r.apply(self.bundle)
+        self.assertEqual(r.fingerprint(self.config,r.PATHS),before)
+        self.assertFalse((self.bundle/'backup').exists())
+    def test_failed_backup_keeps_staged_bundle_retryable_without_partial_backup(self):
+        r.stage(self.config,self.bundle,self.dist)
+        before=r.fingerprint(self.config,r.PATHS)
+        original=r.shutil.copy2
+        def failure(source,destination,*args,**kwargs):
+            if Path(source).name=='scripts.yaml':raise OSError('backup disk full')
+            return original(source,destination,*args,**kwargs)
+        with patch.object(r.shutil,'copy2',side_effect=failure):
+            with self.assertRaises(OSError):r.apply(self.bundle)
+        self.assertEqual(r.fingerprint(self.config,r.PATHS),before)
+        self.assertFalse((self.bundle/'backup').exists())
+        self.assertEqual(json.loads((self.bundle/'manifest.json').read_text())['status'],'staged')
+        self.assertEqual(r.apply(self.bundle)['status'],'installed')

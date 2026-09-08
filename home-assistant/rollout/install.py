@@ -126,16 +126,25 @@ def apply(bundle):
     if fingerprint(staged,PATHS)!=manifest['staged']:raise ValueError('Staged files changed after review; prepare a fresh bundle.')
     # Validate frontend collisions before making any configuration changes.
     for source in (staged/'www/dashboard').rglob('*'):
-        if source.is_file() and source.name!='index.html':
+        if source.is_file() and source.relative_to(staged/'www/dashboard')!=Path('index.html'):
             target=root/'www/dashboard'/source.relative_to(staged/'www/dashboard')
             if target.exists() and digest(target)!=digest(source):raise ValueError('A dashboard asset collision requires a rebuilt asset name.')
-    backup=bundle/'backup';backup.mkdir(mode=0o700)
-    for relative in PATHS:
-        source=root/relative;destination=backup/relative
-        if source.is_dir():shutil.copytree(source,destination,ignore=shutil.ignore_patterns('__pycache__','*.pyc'))
-        elif source.is_file():destination.parent.mkdir(parents=True,exist_ok=True);shutil.copy2(source,destination)
-    # Backups and snapshots may include local secrets; never put bundle under www.
-    for path in backup.rglob('*'):path.chmod(0o700 if path.is_dir() else 0o600)
+    backup=bundle/'backup'
+    if backup.exists():raise ValueError('A backup already exists; inspect this bundle before retrying.')
+    working=Path(tempfile.mkdtemp(prefix='.backup-',dir=bundle))
+    try:
+        for relative in PATHS:
+            source=root/relative;destination=working/relative
+            if source.is_dir():shutil.copytree(source,destination,ignore=shutil.ignore_patterns('__pycache__','*.pyc'))
+            elif source.is_file():destination.parent.mkdir(parents=True,exist_ok=True);shutil.copy2(source,destination)
+        # Verify all bytes and check the source again before making this the
+        # recovery backup. Incomplete copies never masquerade as usable backups.
+        check_fingerprint(working,manifest['before'])
+        check_fingerprint(root,manifest['before'])
+        for path in working.rglob('*'):path.chmod(0o700 if path.is_dir() else 0o600)
+        os.replace(working,backup)
+    finally:
+        if working.exists():shutil.rmtree(working)
     manifest['status']='applying';(bundle/'manifest.json').write_text(json.dumps(manifest,indent=2)+'\n')
     try:
         for relative in PATHS[:4]:
