@@ -190,3 +190,12 @@ speaker volume/group and follow value to the captured baseline with zero differe
 neon native fields matched exactly, music stopped, sensor returned idle. Kitchen
 now advertises brightness-only support. Its registry identity and area/device/name
 metadata are unchanged, and unrelated LocalTuya device configurations are unchanged.
+
+## Neon brightness preference
+
+The user subsequently requested 100% neon brightness across all moods. Love,
+Unwind, Dinner and Party now use native brightness1000, retaining each recipe.
+All15 lighting tests pass, including exact original-state restoration. The live
+neon was raised to100% through native replay, with effect fields preserved.
+The previous preset file is backed up at
+`/share/house-moods-live-20260908/neon-fix/presets.before-all100.py`.
