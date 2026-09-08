@@ -38,6 +38,11 @@ python3 -m unittest discover -s home-assistant/tests -v
 .venv-ha/bin/python -m unittest discover -s home-assistant/tests_ha -v
 ```
 
+The compatibility tests use Python 3.13 with the pinned offline requirements in
+`home-assistant/tests_ha/requirements.txt`. Install these only in a local virtual
+environment; they are not a Home Assistant host upgrade. Also run the local
+installer exercise with `.venv-ha/bin/python -m unittest discover -s home-assistant/rollout/tests -v`.
+
 Use Python with PyYAML (the isolated HA environment includes it). First copy the
 verified HA config tree to a **private directory outside `www`**, or use a private
 mount. The default command stages a bundle and writes nothing to that config tree:
