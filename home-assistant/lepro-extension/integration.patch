@@ -1,17 +1,8 @@
 --- a/light.py
 +++ b/light.py
-@@ -11,6 +11,7 @@
- import numpy as np
- import colorsys
- from .const import DOMAIN, REGIONS, LOGIN_PATH, FAMILY_LIST_PATH, USER_PROFILE_PATH, DEVICE_LIST_PATH, SWITCH_API_PATH
+@@ -13,0 +14 @@
 +from .native_state import NativeStateBridge
- from aiomqtt import Client, MqttError
- import aiofiles
- from homeassistant.core import callback
-@@ -1239,6 +1240,15 @@
-         _LOGGER.error("MQTT connection failed: %s", e)
-         return
-     
+@@ -1241,0 +1243,9 @@
 +    async def native_publish(topic, payload):
 +        # Native transactions must fail offline, never queue a delayed mutation.
 +        if mqtt_client.client is None:
@@ -21,50 +12,22 @@
 +    native_state = NativeStateBridge(publish=native_publish)
 +    entry.async_on_unload(native_state.close)
 +
-     # 8) Create entities
-     entities = []
-     device_entity_map = {}
-@@ -1290,6 +1300,8 @@
-             # Handle different message types
-             if message_type in ["rpt", "set", "getr"]:
-                 data = payload.get('d', {})
+@@ -1292,0 +1303,2 @@
 +                if message_type in ('rpt', 'getr'):
 +                    native_state.ingest(did, message_type, data, time.monotonic())
-                 if entity.is_b_model:
-                     b1_fields = {
-                         key: data.get(key)
-@@ -1431,6 +1443,7 @@
-         hass.data[DOMAIN] = {}
-     hass.data[DOMAIN][entry.entry_id] = {
-         'mqtt_client': mqtt_client,
+@@ -1433,0 +1446 @@
 +        'native_state': native_state,
-         'entities': entities,
-         'segments': segments_map
-     }
-@@ -1443,6 +1456,8 @@
-     if not data:
-         return True
-         
+@@ -1445,0 +1459,2 @@
 +    data['native_state'].close()
 +
-     # Disconnect MQTT client
-     await data['mqtt_client'].disconnect()
-     
 --- a/__init__.py
 +++ b/__init__.py
-@@ -1,5 +1,7 @@
- from homeassistant.config_entries import ConfigEntry
+@@ -2 +2,3 @@
 -from homeassistant.core import HomeAssistant
 +from homeassistant.core import HomeAssistant, SupportsResponse
 +from .native_state import NativeSnapshot
 +from .native_services import NativeServiceHandlers
- from homeassistant.helpers.typing import ConfigType
- from homeassistant.helpers import config_validation as cv
- import voluptuous as vol
-@@ -29,6 +31,25 @@
-         ): [cv.string],
-     }
- )
+@@ -31,0 +34,19 @@
 +
 +def _register_native_services(hass):
 +    handlers = NativeServiceHandlers(hass, DOMAIN, NativeSnapshot)
@@ -84,43 +47,22 @@
 +                supports_response=SupportsResponse.ONLY,
 +            )
 +
- 
- async def async_setup(hass: HomeAssistant, config: dict):
-     """Set up Lepro LED integration (not via YAML)."""
-@@ -98,10 +119,12 @@
-             _async_request_debug_state,
-             schema=SERVICE_SCHEMA_REQUEST_DEBUG_STATE,
-         )
+@@ -100,0 +122 @@
 +    _register_native_services(hass)
-     return True
- 
- async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-     """Set up Lepro LED from a config entry."""
+@@ -104,0 +127 @@
 +    _register_native_services(hass)
-     hass.data.setdefault(DOMAIN, {})
-     hass.data[DOMAIN][entry.entry_id] = entry.data
- 
-@@ -113,8 +136,13 @@
-     """Unload a config entry."""
-     unload_ok = await hass.config_entries.async_unload_platforms(entry, ["light", "number", "switch"])
-     if unload_ok:
+@@ -116 +139,4 @@
 -        hass.data[DOMAIN].pop(entry.entry_id)
 +        entry_data = hass.data[DOMAIN].get(entry.entry_id, {})
 +        if entry_data.get("native_state"):
 +            entry_data["native_state"].close()
 +        hass.data[DOMAIN].pop(entry.entry_id, None)
-         if not hass.data[DOMAIN]:
-             hass.services.async_remove(DOMAIN, SERVICE_SEND_DEBUG_COMMAND)
-             hass.services.async_remove(DOMAIN, SERVICE_REQUEST_DEBUG_STATE)
+@@ -119,0 +146,2 @@
 +            hass.services.async_remove(DOMAIN, "capture_native_state")
 +            hass.services.async_remove(DOMAIN, "restore_native_state")
-     return unload_ok
 --- a/services.yaml
 +++ b/services.yaml
-@@ -47,3 +47,40 @@
-         ["d1", "d2", "d3", "online"]
-       selector:
-         object:
+@@ -49,0 +50,37 @@
 +
 +capture_native_state:
 +  name: Capture native state
