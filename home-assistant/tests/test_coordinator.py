@@ -370,10 +370,127 @@ class CoordinatorTests(unittest.IsolatedAsyncioTestCase):
         await restarted.reconcile()
         self.assertEqual((await self.store.load()).journal[0]['status'], 'failed')
 
-    async def test_switch_restores_controls_touched_by_attributed_motion(self):
+    async def test_switch_to_excluding_dinner_restores_attributed_motion(self):
         group = 'sonos#groups'
         self.adapter.states[group] = {'members': ['bathroom']}
         await self.engine.activate('love')
         await self.engine.apply_owned_write(ControlWrite('motion', 'join', [group], {group: {'members': ['living', 'bathroom']}}, {}))
-        await self.engine.activate('party')
+        await self.engine.activate('dinner')
         self.assertEqual(self.adapter.states[group], {'members': ['bathroom']})
+
+    async def test_semantic_inclusion_retains_motion_groups_without_rewriting(self):
+        group, follow = 'sonos#groups', 'input_boolean.speaker_follow_motion'
+        self.adapter.states.update({group: {'members': ['bathroom']}, follow: {'state': 'off'}})
+        self.adapter.plans['love'][follow] = {'state': 'on'}
+        self.adapter.plans['party'][follow] = {'state': 'on'}
+        async def included(mood):
+            return [*self.adapter.plans[mood], group]
+        self.adapter.included_targets = included
+        await self.engine.activate('love')
+        self.assertEqual((await self.store.load()).baseline[group], {'members': ['bathroom']})
+        self.assertNotIn(group, (await self.store.load()).owned)
+        await self.engine.apply_owned_write(ControlWrite('motion', 'join', [group], {group: {'members': ['living', 'bathroom']}}, {}))
+        await self.engine.activate('party')
+        self.assertEqual(self.adapter.states[group], {'members': ['living', 'bathroom']})
+        self.assertEqual([w for w in self.adapter.writes if w[1] == group], [('apply', group)])
+        await self.engine.end()
+        self.assertEqual(self.adapter.states[group], {'members': ['bathroom']})
+
+    async def test_semantic_inclusion_does_not_reclaim_manually_changed_group(self):
+        group = 'sonos#groups'
+        self.adapter.states[group] = {'members': ['bathroom']}
+        async def included(mood):
+            return [*self.adapter.plans[mood], group]
+        self.adapter.included_targets = included
+        await self.engine.activate('love')
+        await self.engine.apply_owned_write(ControlWrite('motion', 'join', [group], {group: {'members': ['living', 'bathroom']}}, {}))
+        self.adapter.states[group] = {'members': ['bedroom', 'bathroom']}
+        await self.engine.observe(group, self.adapter.states[group], 'user')
+        await self.engine.activate('party')
+        self.assertIn(group, self.engine.session.overridden)
+        self.assertNotIn(group, self.engine.session.owned)
+        await self.engine.end()
+        self.assertEqual(self.adapter.states[group], {'members': ['bedroom', 'bathroom']})
+
+    async def test_failed_follow_preparation_restores_independent_controls(self):
+        group, follow = 'sonos#groups', 'input_boolean.speaker_follow_motion'
+        volume, playback = 'media_player.living#volume', 'media_player.living#playback'
+        self.adapter.states.update({group: {'members': ['bathroom']}, follow: {'state': 'off'}, volume: {'volume': .1}, playback: {'state': 'stopped'}})
+        self.adapter.plans['love'].update({group: {'members': ['living', 'bathroom']}, follow: {'state': 'on'}, volume: {'volume': .3}, playback: {'state': 'playing'}})
+        async def prepare(session):
+            await self.adapter.read(follow)
+            return [ControlWrite('freeze', 'freeze', [follow], {follow: {'state': 'off'}}, {})]
+        self.adapter.prepare_restore = prepare
+        self.adapter.restore_dependencies = lambda: {group, follow}
+        await self.engine.activate('love')
+        self.adapter.fail_on.add(follow)
+        result = await self.engine.end()
+        self.assertEqual(result['phase'], 'recovery_required')
+        self.assertEqual(self.adapter.states[K], {'state': 'off'})
+        self.assertEqual(self.adapter.states[volume], {'volume': .1})
+        self.assertEqual(self.adapter.states[playback], {'state': 'stopped'})
+        self.assertEqual(self.adapter.states[group], {'members': ['living', 'bathroom']})
+        self.assertNotIn(('restore', group), self.adapter.writes)
+        self.adapter.fail_on.clear()
+        self.adapter.states[group] = {'members': ['bedroom', 'bathroom']}
+        await self.engine.retry_restoration()
+        self.assertEqual(self.adapter.states[group], {'members': ['bedroom', 'bathroom']})
+        self.assertIsNone(await self.store.load())
+
+    async def test_switch_to_excluding_mood_prepares_before_dropped_group_restore(self):
+        group, follow = 'sonos#groups', 'input_boolean.speaker_follow_motion'
+        self.adapter.states.update({group: {'members': ['bathroom']}, follow: {'state': 'off'}})
+        self.adapter.plans['love'][follow] = {'state': 'on'}
+        self.adapter.plans['dinner'][follow] = {'state': 'off'}
+        async def included(mood):
+            return [*self.adapter.plans[mood], *([group] if mood == 'love' else [])]
+        async def prepare(session):
+            return [ControlWrite('freeze', 'freeze', [follow], {follow: {'state': 'off'}}, {})]
+        self.adapter.included_targets = included
+        self.adapter.prepare_restore = prepare
+        self.adapter.restore_dependencies = lambda: {group, follow}
+        await self.engine.activate('love')
+        await self.engine.apply_owned_write(ControlWrite('motion', 'join', [group], {group: {'members': ['living', 'bathroom']}}, {}))
+        original_restore = self.adapter.restore
+        async def restore(target, baseline, sid):
+            if target == group:
+                self.assertEqual(self.adapter.states[follow], {'state': 'off'})
+            await original_restore(target, baseline, sid)
+        self.adapter.restore = restore
+        result = await self.engine.activate('dinner')
+        self.assertTrue(result['success'])
+        self.assertEqual(self.adapter.states[group], {'members': ['bathroom']})
+
+    async def test_failed_freeze_write_keeps_journal_and_restores_independent_light(self):
+        group, follow = 'sonos#groups', 'input_boolean.speaker_follow_motion'
+        self.adapter.states.update({group: {'members': ['bathroom']}, follow: {'state': 'off'}})
+        self.adapter.plans['love'].update({group: {'members': ['living', 'bathroom']}, follow: {'state': 'on'}})
+        async def prepare(session):
+            return [ControlWrite('freeze', 'freeze', [follow], {follow: {'state': 'off'}}, {})]
+        self.adapter.prepare_restore = prepare
+        self.adapter.restore_dependencies = lambda: {group, follow}
+        await self.engine.activate('love')
+        self.adapter.reject_on.add(follow)
+        result = await self.engine.end()
+        self.assertEqual(result['phase'], 'recovery_required')
+        self.assertEqual(self.adapter.states[K], {'state': 'off'})
+        self.assertNotIn(('restore', group), self.adapter.writes)
+        self.assertTrue(any(e['operation_id'] == 'freeze' and e['status'] == 'planned' for e in (await self.store.load()).journal))
+        self.adapter.reject_on.clear()
+        await self.engine.retry_restoration()
+        self.assertEqual(self.adapter.states[group], {'members': ['bathroom']})
+        self.assertIsNone(await self.store.load())
+
+    async def test_unknown_preparer_failure_blocks_unknown_controls_only(self):
+        unknown = 'custom.script_control'
+        self.adapter.states[unknown] = {'state': 'before'}
+        self.adapter.plans['love'][unknown] = {'state': 'mood'}
+        async def prepare(session):
+            raise OSError('quiescence unavailable')
+        self.adapter.prepare_restore = prepare
+        await self.engine.activate('love')
+        result = await self.engine.end()
+        self.assertEqual(result['phase'], 'recovery_required')
+        self.assertEqual(self.adapter.states[K], {'state': 'off'})
+        self.assertEqual(self.adapter.states[unknown], {'state': 'mood'})
+        self.assertEqual((await self.store.load()).baseline[unknown], {'state': 'before'})

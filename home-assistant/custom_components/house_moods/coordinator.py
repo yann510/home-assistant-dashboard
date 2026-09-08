@@ -94,9 +94,12 @@ class MoodCoordinator:
                     if not write.targets or set(write.targets) != set(write.requested):
                         raise ValueError('Every operation must enumerate its requested controls')
                     targets.update(write.targets)
-                capture_targets = targets
+                included = targets.copy()
+                if hasattr(self.adapter, 'included_targets'):
+                    included.update(await self.adapter.included_targets(mood))
+                capture_targets = included.copy()
                 if not self.session and hasattr(self.adapter, 'snapshot_targets'):
-                    capture_targets = targets | set(await self.adapter.snapshot_targets())
+                    capture_targets |= set(await self.adapter.snapshot_targets())
                 captured = await self.adapter.capture(sorted(capture_targets))
                 if set(captured) != capture_targets:
                     raise ValueError('Incomplete target snapshot')
@@ -112,12 +115,14 @@ class MoodCoordinator:
                 s.phase, s.pending_mood, s.errors = 'starting', mood, []
                 await self._save()
                 try:
-                    await self._restore_targets(previous - targets)
+                    dropped = (previous - included) & s.owned
+                    blocked, _ = await self._prepare_restoration(dropped)
+                    await self._restore_targets(dropped - blocked)
                     if s.phase == 'recovery_required':
                         raise RuntimeError('Dropped controls need recovery')
                     for write in writes:
                         await self._apply_write(write)
-                    s.active_mood, s.pending_mood, s.phase, s.included = mood, None, 'active', targets
+                    s.active_mood, s.pending_mood, s.phase, s.included = mood, None, 'active', included
                     await self._save()
                     return self.status()
                 except PersistenceError:
@@ -279,38 +284,58 @@ class MoodCoordinator:
                 s.phase = 'recovery_required'
                 await self._save()
 
+    def _restoration_dependencies(self):
+        """Only these controls are blocked when quiescence cannot be confirmed."""
+        if hasattr(self.adapter, 'restore_dependencies'):
+            dependencies = self.adapter.restore_dependencies()
+            if not isinstance(dependencies, (set, list, tuple)) or any(not isinstance(t, str) for t in dependencies):
+                raise ValueError('Invalid restoration dependency controls')
+            return set(dependencies)
+        # Older adapters can still restore controls known to be independent.
+        # Unknown/script controls fail closed until their dependency is stated.
+        return {t for t in self.session.baseline
+                if not (t.startswith('light.') or t.endswith(('#volume', '#playback')))}
+
+    async def _prepare_restoration(self, targets):
+        s = self.session
+        if not hasattr(self.adapter, 'prepare_restore') or not targets:
+            return set(), False
+        dependencies = set(s.baseline)
+        try:
+            dependencies = self._restoration_dependencies()
+            if not targets & dependencies:
+                return set(), False
+            writes = await self.adapter.prepare_restore(copy.deepcopy(s))
+            for write in writes:
+                if not write.targets or set(write.targets) != set(write.requested):
+                    raise ValueError('Invalid preparation operation')
+                eligible = s.owned - s.overridden - self._pending_targets()
+                if not set(write.targets) <= eligible:
+                    raise ValueError('Restoration preparation includes unowned controls')
+                for target in write.targets:
+                    current = await self.adapter.read(target)
+                    if not matches(target, s.expected[target], current):
+                        s.overridden.add(target)
+                        s.owned.discard(target)
+                        await self._save()
+                        raise RuntimeError('Preparation control changed externally')
+                await self._apply_write(write)
+            return set(), False
+        except PersistenceError:
+            raise
+        except Exception as err:
+            self._error('restoration preparation', err)
+            s.phase = 'recovery_required'
+            await self._save()
+            return dependencies, True
+
     async def _finish_restoration(self):
         s = self.session
         s.phase, s.active_mood, s.pending_mood = 'restoring', None, None
         await self._save()
-        if hasattr(self.adapter, 'prepare_restore'):
-            try:
-                writes = await self.adapter.prepare_restore(copy.deepcopy(s))
-                for write in writes:
-                    if not write.targets or set(write.targets) != set(write.requested):
-                        raise ValueError('Invalid preparation operation')
-                    eligible = s.owned - s.overridden - self._pending_targets()
-                    if not set(write.targets) <= eligible:
-                        # The preparer must respect relinquished and unresolved
-                        # controls. Reject an unsafe plan rather than reclaiming.
-                        raise ValueError('Restoration preparation includes unowned controls')
-                    for target in write.targets:
-                        current = await self.adapter.read(target)
-                        if not matches(target, s.expected[target], current):
-                            s.overridden.add(target)
-                            s.owned.discard(target)
-                            await self._save()
-                            raise RuntimeError('Preparation control changed externally')
-                    await self._apply_write(write)
-            except PersistenceError:
-                raise
-            except Exception as err:
-                self._error('restoration preparation', err)
-                s.phase = 'recovery_required'
-                await self._save()
-                return
-        await self._restore_targets(s.owned.copy())
-        if s.owned or self._pending_targets():
+        blocked, preparation_failed = await self._prepare_restoration(s.owned.copy())
+        await self._restore_targets(s.owned - blocked)
+        if s.owned or self._pending_targets() or preparation_failed:
             s.phase = 'recovery_required'
         else:
             self.session = None

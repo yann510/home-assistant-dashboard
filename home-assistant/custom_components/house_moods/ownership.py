@@ -2,6 +2,10 @@
 PROGRESSION_FIELDS = {'media_position', 'media_position_updated_at', 'media_title', 'media_artist', 'media_album_name', 'media_duration'}
 
 def matches(target, expected, observed):
+    if 'native' in expected:
+        # Snapshot timestamps/freshness metadata are durable replay evidence,
+        # not part of the device's writable effect configuration.
+        return 'native' in observed and expected['native'] == observed['native']
     ignored = PROGRESSION_FIELDS if target.endswith('#playback') else set()
     for key, value in expected.items():
         if key in ignored:
@@ -11,6 +15,12 @@ def matches(target, expected, observed):
         actual = observed[key]
         if key == 'brightness' and target.startswith('light.') and 'native' not in expected:
             if isinstance(value, (int, float)) and isinstance(actual, (int, float)) and abs(value - actual) <= 2:
+                continue
+        if key == 'hs_color' and target.startswith('light.'):
+            if (isinstance(value, (list, tuple)) and isinstance(actual, (list, tuple))
+                    and len(value) == len(actual) == 2
+                    and all(isinstance(a, (int, float)) and isinstance(b, (int, float))
+                            and abs(a - b) <= 0.01 + 1e-12 for a, b in zip(value, actual))):
                 continue
         if value != actual:
             return False

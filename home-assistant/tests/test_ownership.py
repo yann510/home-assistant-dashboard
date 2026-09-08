@@ -19,3 +19,17 @@ class OwnershipTests(unittest.TestCase):
         self.assertEqual(classify('light.k', {'state': 'off'}, {'state': 'on'}, journal, 'session', None, 11), 'external')
     def test_stale_session_ack_never_reclaims_override(self):
         self.assertEqual(classify('light.k', {'state': 'on'}, {'state': 'off'}, [], 'session', 'session', 20), 'ack')
+
+    def test_native_capture_metadata_is_not_an_effect_change(self):
+        expected = {'native': {'d2': 3, 'd60': 'opaque'}, 'snapshot': {'captured_at': 'before', 'sequence': 2}}
+        observed = {'native': {'d2': 3, 'd60': 'opaque'}, 'snapshot': {'captured_at': 'after', 'sequence': 3}}
+        self.assertTrue(matches('light.neon', expected, observed))
+        observed['native']['d60'] = 'different'
+        self.assertFalse(matches('light.neon', expected, observed))
+
+    def test_standard_hs_rounding_tolerance_is_narrow(self):
+        expected = {'hs_color': [340, 80]}
+        self.assertTrue(matches('light.strip', expected, {'hs_color': [340.009, 79.991]}))
+        self.assertFalse(matches('light.strip', expected, {'hs_color': [340.011, 80]}))
+        self.assertFalse(matches('light.strip', expected, {'hs_color': [340, 80.011]}))
+        self.assertFalse(matches('light.neon', {'native': {'hs_color': [340, 80]}}, {'native': {'hs_color': [340.001, 80]}}))
