@@ -10,7 +10,7 @@ NEON_EFFECTS = {
     'dinner': 'N01:P10001FFC070F2100010019U3V3000640000E1;',
     'party': 'N01:P10001FFFFFFF2100010019U3V3100640000E3004BC2O6004B;',
 }
-NEON_BRIGHTNESS = {'love': 349, 'unwind': 250, 'dinner': 200, 'party': 698}
+NEON_BRIGHTNESS = {'love': 650, 'unwind': 250, 'dinner': 200, 'party': 698}
 LIGHTS = {
     'love': {STRIP: {'rgb_color': [255,51,119], 'brightness':89}, BULBS: {'brightness':38}},
     'unwind': {STRIP: {'rgb_color': [255,170,68], 'brightness':64}, BULBS: {'brightness':64}},

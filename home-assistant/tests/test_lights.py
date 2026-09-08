@@ -46,7 +46,7 @@ class LightsTests(unittest.IsolatedAsyncioTestCase):
         self.io=IO();self.bridge=Bridge();self.adapter=LightControls(self.io,self.bridge,'754063076')
     async def test_all_native_recipes_restore_original_bytes_without_generic_light_write(self):
         baseline=await self.adapter.read(NEON);original=deepcopy(baseline)
-        for mood,brightness in [('love',349),('unwind',250),('dinner',200),('party',698)]:
+        for mood,brightness in [('love',650),('unwind',250),('dinner',200),('party',698)]:
             writes=await self.adapter.plan_apply(mood)
             write=next(w for w in writes if NEON in w.targets)
             observed=await self.adapter.apply_write(write,'session')

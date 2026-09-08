@@ -44,7 +44,7 @@ An explicit brightness turns that light on, even if it was previously off. All l
 | Living-room LED strip | Rose `#FF3377`, 35% | Amber `#FFAA44`, 25% | Golden amber `#FFC070`, 20% | Violet `#AA44FF`, 70% |
 | Living-room bulbs | 15% | 25% | 35% | 25% |
 | Kitchen | Unchanged | Unchanged | Warm white 2700 K, 55% | Warm white 2700 K, 40% |
-| Office neon | Rose Breath, 35%, speed 50 | Static amber `#FFAA44`, 25% | Static golden amber `#FFC070`, 20% | Gradient, 70%, speed 85; reproduce the user-approved preview |
+| Office neon | Rose Breath, 65%, speed 50 | Static amber `#FFAA44`, 25% | Static golden amber `#FFC070`, 20% | Gradient, 70%, speed 85; reproduce the user-approved preview |
 
 Entity mapping:
 

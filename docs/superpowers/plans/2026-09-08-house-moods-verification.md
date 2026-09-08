@@ -112,8 +112,8 @@ at brightness 1000, instead of switching to mode 3. The test then returned to 35
 The original custom rainbow also retained its exact mode and recipe through a
 90% brightness command and a plain `light.turn_on`. The original full snapshot
 was restored afterward with exact fresh readback, leaving no neon test state
-active. Physical confirmation of the corrected rose appearance is still pending;
-service readback alone does not establish the final visual Love effect. The two
+active. The user subsequently confirmed the corrected rose appearance in a second
+neon-only test (see visual acceptance below). The two
 existing office/neon follow-light automations are unchanged pending the user's
 preference about deferring to an active mood.
 
@@ -130,3 +130,9 @@ certify physical effect appearance or network/device timing. The native protocol
 has no verified request-ID correlation; captures are serialized and require a
 complete post-request report. Dynamic radio queue changes conservatively
 relinquish playback ownership rather than overwrite an uncertain queue.
+
+## Live Love visual acceptance
+
+The user confirmed the corrected neon is rose breathing without rainbow flashing.
+They found 35% too dim and approved the 65% preview; Love now uses native brightness
+650. Living-room lighting and other presets retain their approved values.
