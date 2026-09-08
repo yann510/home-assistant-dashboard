@@ -149,8 +149,11 @@ class SonosControls:
             groups = _remove(groups, SOURCE)
             writes.append(self._write('sonos.unjoin', {GROUPS: {'groups': groups}}, {'entity': SOURCE}))
         writes.append(self._write('sonos.volume', {SOURCE + '#volume': {'volume_level': volume}}, {'entity': SOURCE, 'volume_level': volume}))
+        # Confirm a stopped boundary so old, already-playing music cannot
+        # falsely acknowledge a rejected/delayed favorite command.
+        writes.append(self._write('sonos.stop', {SOURCE + '#playback': {'state': 'stopped'}}, {}))
         writes.append(self._write('sonos.play', {SOURCE + '#playback': {'state': 'playing'}}, self._favorites[mood]))
-        if following and follow['state'] != 'on':
+        if following:
             writes.append(self._write('sonos.follow_enable', {FOLLOW: {'state': 'on', 'source': SOURCE}}, {}))
         return writes
 
@@ -175,6 +178,9 @@ class SonosControls:
         if action == 'sonos.volume':
             await call('media_player', 'volume_set', [data['entity']], {'volume_level': data['volume_level']}, session_id)
             await self.io.wait(lambda: abs((self.io.state(data['entity'])['attributes'].get('volume_level') or 0) - data['volume_level']) <= .01)
+        elif action == 'sonos.stop':
+            await call('media_player', 'media_stop', [SOURCE], {}, session_id)
+            await self.io.wait(lambda: self.io.state(SOURCE)['state'] in ('idle', 'paused', 'off'))
         elif action == 'sonos.play':
             await call('media_player', 'play_media', [SOURCE], {k: data[k] for k in ('media_content_id', 'media_content_type')}, session_id)
             await self.io.wait(lambda: self.io.state(SOURCE)['state'] in ('playing', 'buffering'))
@@ -221,11 +227,14 @@ class SonosControls:
             if self._groups() == desired:
                 return
             # All group mutations are one explicitly journaled aggregate control.
+            unchanged = [group for group in self._groups() if group in desired]
             for group in self._groups():
+                if group in unchanged:
+                    continue
                 for member in group[1:]:
                     await call('media_player', 'unjoin', [member], {}, session_id)
             for group in desired:
-                if len(group) > 1:
+                if len(group) > 1 and group not in unchanged:
                     await call('media_player', 'join', [group[0]], {'group_members': group[1:]}, session_id)
             await self.io.wait(lambda: self._groups() == desired)
         elif target.endswith('#volume'):

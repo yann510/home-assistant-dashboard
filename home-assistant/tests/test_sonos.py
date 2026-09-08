@@ -130,3 +130,40 @@ class SonosTests(unittest.IsolatedAsyncioTestCase):
     async def test_switch_semantically_retains_all_music_controls(self):
         self.assertIn(GROUPS, self.sonos.included_targets('party'))
         self.assertIn(FOLLOW, self.sonos.included_targets('dinner'))
+
+    async def test_no_effect_play_cannot_confirm_already_playing_old_music(self):
+        self.io.states[SOURCE]['state']='playing'
+        original=self.io.call
+        async def ignore_play(domain,service,targets,data,session_id,return_response=False):
+            if service=='play_media':return {}
+            return await original(domain,service,targets,data,session_id,return_response)
+        self.io.call=ignore_play
+        await self.sonos.preflight('love')
+        with self.assertRaises(TimeoutError):
+            for write in await self.sonos.plan_apply('love'):
+                await self.sonos.apply_write(write,'s')
+        self.assertEqual(self.io.states[FOLLOW]['state'],'off')
+
+    async def test_already_enabled_follow_is_owned_for_safe_end(self):
+        self.io.states[FOLLOW]['state']='on'
+        self.io.states['input_text.speaker_follow_source']['state']=SOURCE
+        await self.sonos.preflight('love')
+        writes=await self.sonos.plan_apply('love')
+        self.assertTrue(any(FOLLOW in w.targets for w in writes))
+
+    async def test_restoring_one_group_preserves_unchanged_other_group(self):
+        self.io.states[SOURCE]['attributes']['group_members']=[SOURCE,'media_player.bathroom']
+        self.io.states['media_player.bathroom']['attributes']['group_members']=[SOURCE,'media_player.bathroom']
+        self.io.states['media_player.bedroom']['attributes']['group_members']=['media_player.bedroom','media_player.gym']
+        self.io.states['media_player.gym']['attributes']['group_members']=['media_player.bedroom','media_player.gym']
+        desired={'groups':[[SOURCE],['media_player.bathroom'],['media_player.bedroom','media_player.gym']]}
+        original=self.io.call
+        async def unjoin(domain,service,targets,data,session_id,return_response=False):
+            if service=='unjoin':
+                for e in SPEAKERS:
+                    group=self.io.states[e]['attributes']['group_members']
+                    self.io.states[e]['attributes']['group_members']=[e] if e in targets else [s for s in group if s not in targets]
+            return await original(domain,service,targets,data,session_id,return_response)
+        self.io.call=unjoin
+        await self.sonos.restore(GROUPS,desired,'s')
+        self.assertEqual([(c[1],c[2]) for c in self.io.calls],[('unjoin',['media_player.bathroom'])])
