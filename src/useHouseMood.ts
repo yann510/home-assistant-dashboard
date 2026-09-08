@@ -36,6 +36,7 @@ export function useHouseMood(): HouseMoodCardProps {
   const active = useRef<{ entity: unknown; id: symbol } | null>(null);
   const timers = useRef(new Set<ReturnType<typeof setTimeout>>());
   const mounted = useRef(true);
+  const latestEntity = useRef(entity);
   const status = local?.entity === entity ? local.status : server;
 
   useEffect(() => {
@@ -49,6 +50,7 @@ export function useHouseMood(): HouseMoodCardProps {
     };
   }, []);
   useEffect(() => {
+    latestEntity.current = entity;
     // A fresh terminal sensor update is authoritative even if its service response was lost.
     if (active.current && active.current.entity !== entity && ['idle', 'active', 'recovery_required'].includes(entity?.state ?? '')) {
       active.current = null;
@@ -91,7 +93,7 @@ export function useHouseMood(): HouseMoodCardProps {
       }
       const phase = response.phase as MoodPhase;
       setLocal({
-        entity,
+        entity: latestEntity.current,
         status: {
           phase,
           activeMood: phase === 'active' ? (requested ?? status.activeMood) : null,

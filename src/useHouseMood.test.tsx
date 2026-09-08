@@ -76,6 +76,25 @@ describe('House mood connection', () => {
     expect(result.current.status.phase).toBe('recovery_required');
     expect(result.current.status.errors[0]?.message).toBe('Restore neon.');
   });
+  it('accepts a terminal response after an intermediate sensor event', async () => {
+    let finish!: (value: unknown) => void;
+    fake.send.mockReturnValue(new Promise(resolve => { finish = resolve; }));
+    const { result } = renderHook(() => useHouseMood());
+    act(() => result.current.onActivate('love'));
+    act(() => update('starting', { pending_mood: 'love' }));
+    await act(async () => finish({ response: { success: true, phase: 'active', errors: [] } }));
+    expect(result.current.status.phase).toBe('active');
+    expect(result.current.status.activeMood).toBe('love');
+  });
+  it('keeps a terminal sensor update authoritative over a late response', async () => {
+    let finish!: (value: unknown) => void;
+    fake.send.mockReturnValue(new Promise(resolve => { finish = resolve; }));
+    const { result } = renderHook(() => useHouseMood());
+    act(() => result.current.onActivate('love'));
+    act(() => update('recovery_required', { errors: [{ target: 'neon', message: 'Restore neon.' }] }));
+    await act(async () => finish({ response: { success: true, phase: 'active', errors: [] } }));
+    expect(result.current.status.phase).toBe('recovery_required');
+  });
   it('does not invent a usable backend from missing or malformed status', () => {
     act(() => update('unknown'));
     const { result } = renderHook(() => useHouseMood());

@@ -1,5 +1,9 @@
 #root {
   --dashboard-card-surface: var(--ha-S200);
+  --dashboard-mood-love: #ff3377;
+  --dashboard-mood-unwind: #ffaa44;
+  --dashboard-mood-dinner: #ffc070;
+  --dashboard-mood-party: #aa44ff;
   --dashboard-section-surface: var(--dashboard-card-surface);
   --dashboard-card-hover-surface: var(--ha-S400);
   --dashboard-card-border: color-mix(in srgb, var(--ha-S400) 38%, transparent);
@@ -971,10 +975,10 @@
   background: color-mix(in srgb, var(--mood-accent) 5%, var(--dashboard-card-surface));
 }
 .house-mood-card h2 { margin: 0 0 12px; font-size: 1rem; font-weight: 600; }
-.house-mood-card [data-mood='love'], .house-mood-card[data-mood='love'] { --mood-accent: #ff3377; }
-.house-mood-card [data-mood='unwind'], .house-mood-card[data-mood='unwind'] { --mood-accent: #ffaa44; }
-.house-mood-card [data-mood='dinner'], .house-mood-card[data-mood='dinner'] { --mood-accent: #ffc070; }
-.house-mood-card [data-mood='party'], .house-mood-card[data-mood='party'] { --mood-accent: #aa44ff; }
+.house-mood-card [data-mood='love'], .house-mood-card[data-mood='love'] { --mood-accent: var(--dashboard-mood-love); }
+.house-mood-card [data-mood='unwind'], .house-mood-card[data-mood='unwind'] { --mood-accent: var(--dashboard-mood-unwind); }
+.house-mood-card [data-mood='dinner'], .house-mood-card[data-mood='dinner'] { --mood-accent: var(--dashboard-mood-dinner); }
+.house-mood-card [data-mood='party'], .house-mood-card[data-mood='party'] { --mood-accent: var(--dashboard-mood-party); }
 .house-mood-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
 .house-mood-preset, .house-mood-action {
   font: inherit;
