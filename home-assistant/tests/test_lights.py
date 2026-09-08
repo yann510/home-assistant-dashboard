@@ -115,3 +115,13 @@ class LightsTests(unittest.IsolatedAsyncioTestCase):
         self.io.states[STRIP]['attributes']['supported_color_modes']=['onoff']
         with self.assertRaises(ValueError):await self.adapter.preflight('love')
         self.assertEqual(self.io.calls,[])
+    async def test_hs_strip_uses_explicit_conversion_from_approved_rgb(self):
+        self.io.states[STRIP]['state']='off'
+        self.io.states[STRIP]['attributes'].update(color_mode=None,supported_color_modes=['hs'])
+        write=next(w for w in await self.adapter.plan_apply('love') if w.targets==[STRIP])
+        await self.adapter.apply_write(write,'s')
+        data=self.io.calls[-1][3]
+        self.assertNotIn('rgb_color',data)
+        self.assertAlmostEqual(data['hs_color'][0],340,places=3)
+        self.assertAlmostEqual(data['hs_color'][1],80,places=3)
+        self.assertEqual(write.requested[STRIP]['color_mode'],'hs')

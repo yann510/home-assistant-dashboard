@@ -1,5 +1,6 @@
 """Whole-light ownership and confirmed standard/native light operations."""
 from copy import deepcopy
+import colorsys
 from .model import ControlWrite
 from .neon import NeonControls
 from .ownership import matches
@@ -72,10 +73,11 @@ class LightControls:
         modes = attributes.get('supported_color_modes', [])
         data = deepcopy(data)
         if 'rgb_color' in data:
-            # HA accepts RGB and converts to a device's advertised native mode;
-            # require RGB here so a guessed converted color cannot confirm success.
             if 'rgb' not in modes:
-                raise ValueError(f'{target} must support RGB readback')
+                if 'hs' not in modes:
+                    raise ValueError(f'{target} must support RGB or HS readback')
+                hue, saturation, _ = colorsys.rgb_to_hsv(*(channel / 255 for channel in data.pop('rgb_color')))
+                data['hs_color'] = [round(hue * 360, 3), round(saturation * 100, 3)]
         if 'color_temp_kelvin' in data:
             if 'color_temp' not in modes:
                 raise ValueError(f'{target} does not support color temperature')
@@ -88,6 +90,8 @@ class LightControls:
         requested = {'state':'on', **deepcopy(data)}
         if 'rgb_color' in data:
             requested['color_mode'] = 'rgb'
+        elif 'hs_color' in data:
+            requested['color_mode'] = 'hs'
         elif 'color_temp_kelvin' in data:
             requested['color_mode'] = 'color_temp'
         elif attributes.get('color_mode'):
