@@ -180,10 +180,12 @@ class SonosControls:
             groups = _remove(groups, SOURCE)
             writes.append(self._write('sonos.unjoin', {GROUPS: {'groups': groups}}, {'entity': SOURCE}))
         writes.append(self._write('sonos.volume', {SOURCE + '#volume': {'volume_level': volume}}, {'entity': SOURCE, 'volume_level': volume}))
-        # Confirm a stopped boundary so old, already-playing music cannot
-        # falsely acknowledge a rejected/delayed favorite command.
-        writes.append(self._write('sonos.stop', {SOURCE + '#playback': {'state': 'stopped'}}, {}))
-        writes.append(self._write('sonos.play', {SOURCE + '#playback': {'state': 'playing'}}, self._favorites[mood]))
+        # TV input cannot be stopped. Its transition to the queue source is the
+        # confirmation boundary; ordinary music still needs a confirmed stop so
+        # an unchanged, already-playing queue cannot acknowledge a failed play.
+        if self._available(SOURCE)['attributes'].get('source') != 'TV':
+            writes.append(self._write('sonos.stop', {SOURCE + '#playback': {'state': 'stopped'}}, {}))
+        writes.append(self._write('sonos.play', {SOURCE + '#playback': {'state': 'playing', 'source': None}}, self._favorites[mood]))
         if following:
             writes.append(self._write('sonos.follow_enable', {FOLLOW: {'state': 'on', 'source': SOURCE}}, {}))
         return writes
@@ -214,7 +216,11 @@ class SonosControls:
             await self.io.wait(lambda: self.io.state(SOURCE)['state'] in ('idle', 'paused', 'off'))
         elif action == 'sonos.play':
             await call('media_player', 'play_media', [SOURCE], {k: data[k] for k in ('media_content_id', 'media_content_type')}, session_id)
-            await self.io.wait(lambda: self.io.state(SOURCE)['state'] in ('playing', 'buffering'))
+            try:
+                await self.io.wait(lambda: (self._available(SOURCE)['state'] in ('playing', 'buffering')
+                                           and self._available(SOURCE)['attributes'].get('source') is None))
+            except TimeoutError as err:
+                raise TimeoutError('Living Room did not confirm favorite playback away from TV/external input') from err
         elif action in ('sonos.follow_enable', 'sonos.follow_disable'):
             command = 'enable' if action.endswith('enable') else 'disable'
             result = await call('script', 'speaker_follow_motion', [], {'command': command, **({'source_entity': SOURCE} if command == 'enable' else {})}, session_id, return_response=True)

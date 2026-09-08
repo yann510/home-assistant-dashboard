@@ -307,3 +307,48 @@ class SonosRecoveryTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(await adapter.read(target),{'volume_level':.8})
         self.assertEqual(adapter.light_state,{'state':'off'})
         self.assertIsNone(store.value)
+
+class SonosTVTests(unittest.IsolatedAsyncioTestCase):
+    async def tv_adapter(self, effect=True):
+        io=FakeIO();io.states[SOURCE]['state']='playing';io.states[SOURCE]['attributes']['source']='TV'
+        original=io.call
+        async def call(domain,service,targets,data,session_id,return_response=False):
+            if service=='media_stop' and io.states[SOURCE]['attributes'].get('source')=='TV':
+                io.calls.append((domain,service,targets,deepcopy(data)))
+                return {}  # Sonos cannot stop a playing TV input.
+            if service=='play_media':
+                if not effect:
+                    io.calls.append((domain,service,targets,deepcopy(data)))
+                    return {}
+                io.states[SOURCE]['attributes'].pop('source',None)
+            return await original(domain,service,targets,data,session_id,return_response)
+        io.call=call
+        sonos=SonosControls(io);await sonos.preflight('love')
+        return io,sonos
+
+    async def test_tv_to_favorite_confirms_source_transition_without_stopping_tv(self):
+        io,sonos=await self.tv_adapter()
+        writes=await sonos.plan_apply('love')
+        play=next(w for w in writes if w.action=='sonos.play')
+        self.assertEqual(play.requested[SOURCE+'#playback'],{'state':'playing','source':None})
+        for write in writes:await sonos.apply_write(write,'s')
+        self.assertNotIn('media_stop',[c[1] for c in io.calls])
+        self.assertEqual((await sonos.read(SOURCE+'#playback'))['source'],None)
+        self.assertEqual(io.states[FOLLOW]['state'],'on')
+
+    async def test_unchanged_playing_tv_cannot_confirm_favorite(self):
+        io,sonos=await self.tv_adapter(effect=False)
+        writes=await sonos.plan_apply('love')
+        play=next(w for w in writes if w.action=='sonos.play')
+        with self.assertRaisesRegex(TimeoutError,'favorite playback'):
+            await sonos.apply_write(play,'s')
+        self.assertEqual(io.states[FOLLOW]['state'],'off')
+        self.assertEqual(io.states[SOURCE]['attributes']['source'],'TV')
+
+    async def test_tv_manual_return_is_not_owned_favorite_playback(self):
+        from custom_components.house_moods.ownership import matches
+        io,sonos=await self.tv_adapter()
+        play=next(w for w in await sonos.plan_apply('love') if w.action=='sonos.play')
+        await sonos.apply_write(play,'s')
+        io.states[SOURCE]['attributes']['source']='TV'
+        self.assertFalse(matches(SOURCE+'#playback',play.requested[SOURCE+'#playback'],await sonos.read(SOURCE+'#playback')))
