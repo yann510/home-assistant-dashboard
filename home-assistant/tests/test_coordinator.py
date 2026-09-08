@@ -494,3 +494,12 @@ class CoordinatorTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.adapter.states[K], {'state': 'off'})
         self.assertEqual(self.adapter.states[unknown], {'state': 'mood'})
         self.assertEqual((await self.store.load()).baseline[unknown], {'state': 'before'})
+
+    async def test_unreadable_initial_store_is_recovery_and_never_allows_activation(self):
+        async def unreadable():raise ValueError('invalid recovery data')
+        self.store.load=unreadable
+        for operation in (lambda:self.engine.activate('love'), self.engine.reconcile, lambda:self.engine.activate('party')):
+            result=await operation()
+            self.assertFalse(result['success'])
+            self.assertEqual(result['phase'],'recovery_required')
+        self.assertEqual(self.adapter.writes,[])

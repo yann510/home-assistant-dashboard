@@ -47,7 +47,10 @@ class MoodCoordinator:
 
     async def _load(self):
         if not self._loaded:
-            self.session = await self.store.load()
+            try:
+                self.session = await self.store.load()
+            except Exception as err:
+                raise PersistenceError(str(err)) from err
             self._loaded = True
             if self.session:
                 await self._reconcile()
@@ -59,6 +62,7 @@ class MoodCoordinator:
             self.session.errors.append(record)
 
     async def _storage_error(self, err):
+        self._storage_failed = True
         self._error('storage', err)
         if self.session:
             self.session.phase = 'recovery_required'
