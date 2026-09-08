@@ -37,7 +37,7 @@ export function useHouseMood(): HouseMoodCardProps {
   const timers = useRef(new Set<ReturnType<typeof setTimeout>>());
   const mounted = useRef(true);
   const latestEntity = useRef(entity);
-  const status = local?.entity === entity ? local.status : server;
+  const status = local && local.entity === entity ? local.status : server;
 
   useEffect(() => {
     mounted.current = true;

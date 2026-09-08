@@ -95,6 +95,12 @@ describe('House mood connection', () => {
     await act(async () => finish({ response: { success: true, phase: 'active', errors: [] } }));
     expect(result.current.status.phase).toBe('recovery_required');
   });
+  it('stays unavailable when the status entity has never existed', () => {
+    fake.state = { ...fake.state, entities: {} };
+    const { result } = renderHook(() => useHouseMood());
+    expect(result.current.available).toBe(false);
+    expect(result.current.status.phase).toBe('idle');
+  });
   it('does not invent a usable backend from missing or malformed status', () => {
     act(() => update('unknown'));
     const { result } = renderHook(() => useHouseMood());
