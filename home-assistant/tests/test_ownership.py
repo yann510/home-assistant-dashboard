@@ -27,9 +27,18 @@ class OwnershipTests(unittest.TestCase):
         observed['native']['d60'] = 'different'
         self.assertFalse(matches('light.neon', expected, observed))
 
-    def test_standard_hs_rounding_tolerance_is_narrow(self):
-        expected = {'hs_color': [340, 80]}
-        self.assertTrue(matches('light.strip', expected, {'hs_color': [340.009, 79.991]}))
-        self.assertFalse(matches('light.strip', expected, {'hs_color': [340.011, 80]}))
-        self.assertFalse(matches('light.strip', expected, {'hs_color': [340, 80.011]}))
+    def test_standard_hs_device_quantization_is_narrow_and_circular(self):
+        expected = {'hs_color': [32.727, 73.333], 'brightness': 64}
+        self.assertTrue(matches('light.strip', expected, {'hs_color': [33, 73.3], 'brightness': 64}))
+        self.assertTrue(matches('light.strip', {'hs_color': [359.8, 80]}, {'hs_color': [0, 80]}))
+        self.assertTrue(matches('light.strip', {'hs_color': [0, 80]}, {'hs_color': [359.8, 80]}))
+        self.assertTrue(matches('light.strip', {'hs_color': [340, 80]}, {'hs_color': [340.5, 80.05]}))
+        for hs in ([340.501, 80], [340, 80.051], [341, 80], [340, 81]):
+            self.assertFalse(matches('light.strip', {'hs_color': [340, 80]}, {'hs_color': hs}))
         self.assertFalse(matches('light.neon', {'native': {'hs_color': [340, 80]}}, {'native': {'hs_color': [340.001, 80]}}))
+
+    def test_rounded_report_ack_still_preserves_explicit_manual_origin(self):
+        expected={'hs_color':[32.727,73.333],'brightness':64}
+        observed={'hs_color':[33,73.3],'brightness':64}
+        self.assertEqual(classify('light.strip',observed,expected,[],'s',None,20),'ack')
+        self.assertEqual(classify('light.strip',observed,expected,[],'s','manual',20),'external')

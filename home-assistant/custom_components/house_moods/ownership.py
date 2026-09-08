@@ -20,7 +20,11 @@ def matches(target, expected, observed):
             if (isinstance(value, (list, tuple)) and isinstance(actual, (list, tuple))
                     and len(value) == len(actual) == 2
                     and all(isinstance(a, (int, float)) and isinstance(b, (int, float))
-                            and abs(a - b) <= 0.01 + 1e-12 for a, b in zip(value, actual))):
+                            for a, b in zip(value, actual))
+                    # HA strips report integer hue and tenth-percent saturation.
+                    # Hue wraps at 360; allow only half of each quantization step.
+                    and abs((value[0] - actual[0] + 180) % 360 - 180) <= 0.5 + 1e-12
+                    and abs(value[1] - actual[1]) <= 0.05 + 1e-12):
                 continue
         if value != actual:
             return False

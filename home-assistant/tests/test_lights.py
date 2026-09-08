@@ -125,3 +125,23 @@ class LightsTests(unittest.IsolatedAsyncioTestCase):
         self.assertAlmostEqual(data['hs_color'][0],340,places=3)
         self.assertAlmostEqual(data['hs_color'][1],80,places=3)
         self.assertEqual(write.requested[STRIP]['color_mode'],'hs')
+
+    async def test_unwind_confirms_integer_hue_and_tenth_percent_saturation(self):
+        self.io.states[STRIP]['attributes'].update(color_mode='hs',supported_color_modes=['hs'],hs_color=[0,50])
+        call=self.io.call
+        async def rounded_call(*args,**kwargs):
+            await call(*args,**kwargs)
+            self.io.states[STRIP]['attributes']['hs_color']=[33,73.3]
+        self.io.call=rounded_call
+        write=next(w for w in await self.adapter.plan_apply('unwind') if w.targets==[STRIP])
+        self.assertEqual(write.requested[STRIP]['hs_color'],[32.727,73.333])
+        observed=await self.adapter.apply_write(write,'s')
+        self.assertEqual(observed[STRIP]['hs_color'],[33,73.3])
+        self.assertEqual(observed[STRIP]['brightness'],64)
+
+    async def test_empty_confirmation_timeout_names_the_light_and_failure(self):
+        write=next(w for w in await self.adapter.plan_apply('unwind') if w.targets==[STRIP])
+        async def timeout(*args,**kwargs):raise TimeoutError()
+        self.io.wait=timeout
+        with self.assertRaisesRegex(TimeoutError, STRIP+' did not confirm the requested state'):
+            await self.adapter.apply_write(write,'s')

@@ -119,7 +119,10 @@ class LightControls:
             observed = await self.neon.replay(write.data)
         else:
             await self.io.call('light','turn_on',[target],deepcopy(write.data),session_id)
-            await self.io.wait(lambda: matches(target, write.requested[target], self.standard_state(target)))
+            try:
+                await self.io.wait(lambda: matches(target, write.requested[target], self.standard_state(target)))
+            except TimeoutError as err:
+                raise TimeoutError(f'{target} did not confirm the requested state before timeout') from err
             observed = self.standard_state(target)
         if not matches(target, write.requested[target], observed):
             raise ValueError(f'{target} did not confirm the requested state')
