@@ -20,6 +20,11 @@ The minimal new top-level configuration is:
 house_moods: {}
 ```
 
+Before starting a mood, the backend requires valid volume and consistent group
+reports from all four configured speakers so their original state can be saved.
+It refuses incomplete snapshots. During restoration, unavailable controls retain
+their baseline for Retry while independent available lights and volumes can return.
+
 The source configuration already uses `script: !include scripts.yaml`. The
 installer intentionally refuses other layouts, modified follow scripts, modified
 Lepro source, existing House Moods installations, or changed files after staging.

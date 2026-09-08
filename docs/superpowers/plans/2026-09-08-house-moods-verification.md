@@ -35,12 +35,13 @@ The authoritative lighting/music table remains in
 
 ## Offline verification
 
-Verified against the implementation at **8f78928**:
+Verified against the final implementation at **0ecf5d3** (frontend unchanged from
+its full passing run at 8f78928):
 
 | Check | Result |
 |---|---|
 | `npm test` | 101 passed in 8 files |
-| `python3 -m unittest discover -s home-assistant/tests -v` | 91 passed |
+| `python3 -m unittest discover -s home-assistant/tests -v` | 99 passed |
 | `.venv-ha/bin/python -m unittest discover -s home-assistant/tests_ha -v` | 21 passed |
 | `.venv-ha/bin/python -m unittest discover -s home-assistant/rollout/tests -v` | 5 passed |
 | `npm run lint` | Passed |
@@ -63,7 +64,16 @@ switch labels, stale transition reports, manual neon number controls, manual
 follow takeover, and backup/collision failure paths.
 
 Individual native, engine, lighting, Sonos, HA, UI and installer task reviews are
-approved after fixes. Whole-feature independent review is the final gate.
+approved after fixes. The independent whole-feature review and scoped final
+re-review are **approved**, with no remaining actionable findings. Its final
+disconnect regression now retains volume, follow and group baselines through
+End/restart/retry, while preserving later genuine manual changes.
+
+Startup requires valid baselines for all four configured speakers. Missing or
+inconsistent telemetry stops activation before commands; during recovery,
+independent available lights/volumes can restore while unavailable controls keep
+their saved return state. No synthetic singleton groups or unknown volumes are
+treated as confirmed observations.
 
 ## Deployment state and remaining acceptance
 
