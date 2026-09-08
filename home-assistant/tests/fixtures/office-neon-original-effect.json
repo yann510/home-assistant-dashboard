@@ -1,0 +1,13 @@
+{
+  "description": "Original device-reported Office neon effect recovered from Home Assistant log at 2026-09-08 09:34:38.396. Replay with lepro_led.send_debug_command. Reapplied, confirmed by device readback, and visually confirmed by the user as the original slow rainbow wave on 2026-09-08.",
+  "service_data": {
+    "device_id": "754063076",
+    "entry_id": "01M20KMKHSQVZTTT0QVQC109JS",
+    "payload": {
+      "d1": 1,
+      "d2": 2,
+      "d50": "N01:P10003ff000000ff000000ffU3F601030000V3002640800;",
+      "d52": 1000
+    }
+  }
+}
