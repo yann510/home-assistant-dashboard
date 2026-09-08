@@ -76,7 +76,9 @@ class Runtime:
         origin = self.io.origin(event.context)
         if origin:
             return
-        call = ServiceCall(self.hass, domain, service, data, context=event.context)
+        # Lepro device_id is a native decimal identity, not an HA registry selector.
+        target_data = {k: v for k, v in data.items() if k != 'device_id'} if domain == 'lepro_led' else data
+        call = ServiceCall(self.hass, domain, service, target_data, context=event.context)
         selected = async_extract_referenced_entity_ids(self.hass, call)
         entities = selected.referenced | selected.indirectly_referenced
         targets = set()
