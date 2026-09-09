@@ -971,9 +971,6 @@
   border-radius: 16px;
   background: var(--dashboard-card-surface);
 }
-.house-mood-card[data-mood] {
-  background: color-mix(in srgb, var(--mood-accent) 5%, var(--dashboard-card-surface));
-}
 .house-mood-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; margin-bottom: 12px; }
 .house-mood-card h2 { margin: 0; font-size: 1rem; font-weight: 600; }
 .house-mood-card [data-mood='love'], .house-mood-card[data-mood='love'] { --mood-accent: var(--dashboard-mood-love); }
@@ -1003,9 +1000,12 @@
 .house-mood-icon { color: var(--mood-accent); font-size: 1.35rem; line-height: 1; }
 .house-mood-preset[aria-pressed='true'] {
   border-color: var(--mood-accent);
-  background: color-mix(in srgb, var(--mood-accent) 16%, var(--dashboard-nested-card-surface));
+  background: color-mix(in srgb, var(--mood-accent) 30%, var(--dashboard-nested-card-surface));
 }
 .house-mood-card button:enabled:hover { background: var(--dashboard-card-hover-surface); }
+.house-mood-preset[aria-pressed='true']:enabled:hover {
+  background: color-mix(in srgb, var(--mood-accent) 36%, var(--dashboard-nested-card-surface));
+}
 .house-mood-card button:focus-visible { outline: 2px solid var(--ha-A400); outline-offset: 3px; }
 .house-mood-card button:disabled { opacity: 0.55; cursor: default; }
 .house-mood-notice { display: block; margin-top: 12px; font-size: 0.85rem; }

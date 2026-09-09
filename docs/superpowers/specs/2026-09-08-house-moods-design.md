@@ -200,3 +200,9 @@ End mood sits in the header opposite House Mood. The active check/accent provide
 state feedback without an additional “Love is on” row. Header height stays stable;
 starting progress appears in the selected preset, restoring appears in the disabled
 header action, and errors remain visible below. Love leaves living-room bulbs untouched.
+
+### Approved selected-mood styling
+
+The card background remains neutral while active. The selected mood retains its
+colored border and checkmark, with 30% accent fill (36% on hover), matching the
+approved comparison prototype.
