@@ -13,7 +13,7 @@ NEON_EFFECTS = {
 NEON_BRIGHTNESS = {'love': 1000, 'unwind': 1000, 'dinner': 1000, 'party': 1000}
 LIGHTS = {
     'love': {STRIP: {'rgb_color': [255,51,119], 'brightness':89}},
-    'unwind': {STRIP: {'rgb_color': [255,170,68], 'brightness':64}, BULBS: {'brightness':64}},
+    'unwind': {STRIP: {'rgb_color': [255,170,68], 'brightness':64}},
     'dinner': {STRIP: {'rgb_color': [255,192,112], 'brightness':51}, BULBS: {'brightness':89}, KITCHEN: {'brightness':140}},
     'party': {STRIP: {'rgb_color': [170,68,255], 'brightness':178}, BULBS: {'brightness':64}, KITCHEN: {'brightness':102}},
 }

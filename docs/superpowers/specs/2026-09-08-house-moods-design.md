@@ -42,7 +42,7 @@ An explicit brightness turns that light on, even if it was previously off. All l
 | Light | Love | Unwind | Dinner | Party |
 |---|---|---|---|---|
 | Living-room LED strip | Rose `#FF3377`, 35% | Amber `#FFAA44`, 25% | Golden amber `#FFC070`, 20% | Violet `#AA44FF`, 70% |
-| Living-room bulbs | Unchanged | 25% | 35% | 25% |
+| Living-room bulbs | Unchanged | Unchanged | 35% | 25% |
 | Kitchen | Unchanged | Unchanged | Brightness 55% | Brightness 40% |
 | Office neon | Rose Breath, 100%, speed 50 | Static amber `#FFAA44`, 100% | Static golden amber `#FFC070`, 100% | Gradient, 100%, speed 85; reproduce the user-approved preview |
 
@@ -206,3 +206,6 @@ header action, and errors remain visible below. Love leaves living-room bulbs un
 The card background remains neutral while active. The selected mood retains its
 colored border and checkmark, with 30% accent fill (36% on hover), matching the
 approved comparison prototype.
+
+Unwind, like Love, leaves living-room bulbs untouched. Only Dinner and Party
+include the bulbs in their presets.

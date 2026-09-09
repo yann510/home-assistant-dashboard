@@ -55,7 +55,7 @@ class LightsTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(self.bridge.sent[-1]['extra_observed'],{'d30':42})
         self.assertEqual(baseline,original);self.assertEqual(self.io.calls,[])
     async def test_exact_standard_presets_and_exclusions(self):
-        for mood,rgb,strip,bulbs,kitchen in [('love',[255,51,119],89,None,None),('unwind',[255,170,68],64,64,None),('dinner',[255,192,112],51,89,140),('party',[170,68,255],178,64,102)]:
+        for mood,rgb,strip,bulbs,kitchen in [('love',[255,51,119],89,None,None),('unwind',[255,170,68],64,None,None),('dinner',[255,192,112],51,89,140),('party',[170,68,255],178,64,102)]:
             writes=await self.adapter.plan_apply(mood);targets={w.targets[0] for w in writes}
             self.assertEqual(targets,{STRIP,NEON}|({BULBS} if bulbs else set())|({KITCHEN} if kitchen else set()))
             for write in writes:
