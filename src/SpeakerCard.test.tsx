@@ -30,6 +30,7 @@ vi.mock('./SpeakerPlayer', () => ({
     <div aria-label='Playback controls' data-entity={entityId} data-members={JSON.stringify(members)} />
   ),
 }));
+vi.mock('./AppliancesCard.tsx', () => ({ AppliancesCard: () => null }));
 vi.mock('./HomeModeControls.tsx', () => ({ HomeModeControls: () => null }));
 vi.mock('./LightsGroup.tsx', () => ({ LightsGroup: () => null }));
 vi.mock('./BlindsGroup.tsx', () => ({ BlindsGroup: () => null }));

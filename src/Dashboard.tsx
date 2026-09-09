@@ -3,6 +3,7 @@ import { LightsGroup } from './LightsGroup.tsx';
 import { BlindsGroup } from './BlindsGroup.tsx';
 import { HomeModeControls } from './HomeModeControls.tsx';
 import { HouseMoodSection } from './HouseMoodSection.tsx';
+import { AppliancesCard } from './AppliancesCard.tsx';
 import { SpeakerCard } from './SpeakerCard.tsx';
 
 function Dashboard() {
@@ -19,6 +20,7 @@ function Dashboard() {
         <div className={'column'}>
           <WeatherCard className={'button-card'} entity={'weather.forecast_home'} />
           <SpeakerCard />
+          <AppliancesCard />
         </div>
       </div>
     </>

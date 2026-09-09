@@ -1023,3 +1023,71 @@
 @keyframes house-mood-spin { to { transform: rotate(360deg); } }
 @container (max-width: 480px) { .house-mood-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (prefers-reduced-motion: reduce) { .house-mood-spinner { animation: none; } }
+
+.appliances-card {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--dashboard-card-border);
+  border-radius: 16px;
+  background: var(--dashboard-card-surface);
+  color: var(--ha-S200-contrast);
+}
+.appliances-card h2 {
+  margin: 0 0 8px;
+  font-size: 1rem;
+  font-weight: 600;
+}
+.appliances-card ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.appliance-row {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) minmax(0, 1.6fr);
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 8px 0;
+}
+.appliance-row + .appliance-row {
+  border-top: 1px solid var(--dashboard-card-border);
+}
+.appliance-icon {
+  display: flex;
+  align-items: center;
+  font-size: 22px;
+}
+.appliance-name { font-weight: 500; }
+.appliance-status {
+  text-align: right;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.appliance-status-icon {
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  overflow: visible;
+  color: inherit;
+}
+.appliance-status-icon[data-state='running'] {
+  color: color-mix(in srgb, var(--ha-A400) 65%, var(--ha-S200-contrast));
+}
+.appliance-status-icon[data-state='paused'] { color: var(--dashboard-mood-unwind); }
+.appliance-status-icon[data-state='unavailable'],
+.appliance-status-icon[data-state='unknown'] {
+  color: color-mix(in srgb, var(--ha-S200-contrast) 55%, var(--dashboard-card-surface));
+}
+.appliance-drum { transform-origin: 16px 19px; }
+.appliance-status-icon[data-state='running'].washer .appliance-drum { animation: appliance-wash 2.4s linear infinite; }
+.appliance-status-icon[data-state='running'].dryer .appliance-drum { animation: appliance-tumble 3.2s ease-in-out infinite; }
+.appliance-status-icon[data-state='running'] .appliance-spray { animation: appliance-spray 1.6s ease-in-out infinite; }
+.appliance-spray-second { opacity: 0.55; }
+.appliance-status-icon[data-state='running'] .appliance-spray-second { animation-delay: -0.8s; }
+@keyframes appliance-wash { to { transform: rotate(360deg); } }
+@keyframes appliance-tumble { 0% { transform: rotate(0); } 45%, 60% { transform: rotate(160deg); } 100% { transform: rotate(360deg); } }
+@keyframes appliance-spray { 0% { transform: translateY(-1px); opacity: 0.2; } 45% { opacity: 1; } 100% { transform: translateY(3px); opacity: 0.2; } }
+@media (prefers-reduced-motion: reduce) { .appliance-status-icon * { animation: none !important; } }

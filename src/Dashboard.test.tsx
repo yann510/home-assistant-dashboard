@@ -32,6 +32,8 @@ vi.mock('@hakit/components', () => ({
 
 vi.mock('./HouseMoodSection.tsx', () => ({ HouseMoodSection: () => <section aria-label='House Mood' /> }));
 
+vi.mock('./AppliancesCard.tsx', () => ({ AppliancesCard: () => <section aria-label='Appliances' /> }));
+
 vi.mock('./LightsGroup.tsx', () => ({ LightsGroup: () => <div>Lights</div> }));
 vi.mock('./BlindsGroup.tsx', () => ({ BlindsGroup: () => <div>Blinds</div> }));
 vi.mock('./SpeakerCard.tsx', () => ({ SpeakerCard: () => <div>Speakers</div> }));
