@@ -199,3 +199,24 @@ All15 lighting tests pass, including exact original-state restoration. The live
 neon was raised to100% through native replay, with effect fields preserved.
 The previous preset file is backed up at
 `/share/house-moods-live-20260908/neon-fix/presets.before-all100.py`.
+
+## September 9 rainbow restoration investigation
+
+The user reported the neon remained rose after a mood sequence. HA history shows
+Love at20:52:57 UTC September8, Dinner at20:53:20, and successful End/idle at20:56:45.
+No recovery errors or retained session remained. The current native payload was
+the exact Love rose recipe at1000 brightness.
+
+Saved test evidence shows the cause of the rose default: the neon-only visual test
+started from the original rainbow, but its rose preview was left running after
+brightness approval. Subsequent Unwind and Dinner/Party test baseline snapshots
+contain that rose recipe (650 and1000 respectively). Those tests restored rose
+correctly as their captured baseline. This strongly explains the user's later
+return to rose; the completed user session's journal has been cleared, so its exact
+captured baseline cannot be independently reconstructed. There is no evidence of
+an unresolved mood or a new restoration-code failure.
+
+Restored the original saved rainbow recipe on September9, preserving other native
+fields, and verified exact fresh readback at brightness1000. No music commands were
+sent. Future standalone effect previews must restore their pre-preview state after
+approval; approval changes the preset, not the user's everyday baseline.
