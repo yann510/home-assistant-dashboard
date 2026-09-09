@@ -55,14 +55,14 @@ class LightsTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(self.bridge.sent[-1]['extra_observed'],{'d30':42})
         self.assertEqual(baseline,original);self.assertEqual(self.io.calls,[])
     async def test_exact_standard_presets_and_exclusions(self):
-        for mood,rgb,strip,bulbs,kitchen in [('love',[255,51,119],89,38,None),('unwind',[255,170,68],64,64,None),('dinner',[255,192,112],51,89,140),('party',[170,68,255],178,64,102)]:
+        for mood,rgb,strip,bulbs,kitchen in [('love',[255,51,119],89,None,None),('unwind',[255,170,68],64,64,None),('dinner',[255,192,112],51,89,140),('party',[170,68,255],178,64,102)]:
             writes=await self.adapter.plan_apply(mood);targets={w.targets[0] for w in writes}
-            self.assertEqual(targets,{STRIP,BULBS,NEON}|({KITCHEN} if kitchen else set()))
+            self.assertEqual(targets,{STRIP,NEON}|({BULBS} if bulbs else set())|({KITCHEN} if kitchen else set()))
             for write in writes:
                 if NEON not in write.targets:await self.adapter.apply_write(write,'s')
             self.assertEqual(self.io.states[STRIP]['attributes']['rgb_color'],rgb)
             self.assertEqual(self.io.states[STRIP]['attributes']['brightness'],strip)
-            self.assertEqual(self.io.states[BULBS]['attributes']['brightness'],bulbs)
+            if bulbs:self.assertEqual(self.io.states[BULBS]['attributes']['brightness'],bulbs)
             if kitchen:self.assertEqual(self.io.states[KITCHEN]['attributes']['brightness'],kitchen)
         for _,_,targets,data in self.io.calls:
             self.assertNotIn('transition',data)
@@ -93,7 +93,7 @@ class LightsTests(unittest.IsolatedAsyncioTestCase):
             await self.adapter.restore(STRIP,baseline,'s')
             self.assertEqual(self.io.calls[-1][3],{'brightness':100,key:value})
     async def test_included_targets_excludes_kitchen_for_love(self):
-        self.assertEqual(set(self.adapter.included_targets('love')),{STRIP,BULBS,NEON})
+        self.assertEqual(set(self.adapter.included_targets('love')),{STRIP,NEON})
         self.assertEqual(set(self.adapter.included_targets('dinner')),{STRIP,BULBS,KITCHEN,NEON})
     async def test_missing_active_color_cannot_be_captured_as_complete_baseline(self):
         del self.io.states[STRIP]['attributes']['rgb_color']
@@ -161,3 +161,30 @@ class LightsTests(unittest.IsolatedAsyncioTestCase):
                     await self.adapter.restore(KITCHEN,baseline,'s')
                     self.assertEqual(self.io.states[KITCHEN]['state'],power)
                     self.assertEqual(self.io.calls[-1][3],{'brightness':175} if power=='on' else {})
+
+    async def test_love_leaves_bulbs_untouched_and_switch_restores_only_owned_bulbs(self):
+        from custom_components.house_moods.coordinator import MoodCoordinator
+        from test_coordinator import MemoryStore
+        controls=self.adapter
+        class Adapter:
+            def __getattr__(self,name):return getattr(controls,name)
+            async def snapshot_targets(self):return controls.snapshot_targets()
+            async def included_targets(self,mood):return controls.included_targets(mood)
+        for manual in (False,True):
+            with self.subTest(manual=manual):
+                self.io.states[BULBS]['state']='on'
+                self.io.states[BULBS]['attributes']['brightness']=175
+                original=deepcopy(self.io.states[BULBS])
+                self.io.calls.clear()
+                engine=MoodCoordinator(Adapter(),MemoryStore())
+                self.assertTrue((await engine.activate('love'))['success'])
+                self.assertEqual(self.io.states[BULBS],original)
+                self.assertFalse(any(c[2]==[BULBS] for c in self.io.calls))
+                self.assertTrue((await engine.activate('dinner'))['success'])
+                if manual:
+                    self.io.states[BULBS]['attributes']['brightness']=123
+                    await engine.observe(BULBS,context_id='manual')
+                self.assertTrue((await engine.activate('love'))['success'])
+                self.assertEqual(self.io.states[BULBS]['attributes']['brightness'],123 if manual else 175)
+                self.assertNotIn(BULBS,engine.session.owned)
+                self.assertTrue((await engine.end())['success'])

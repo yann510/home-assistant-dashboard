@@ -42,7 +42,7 @@ An explicit brightness turns that light on, even if it was previously off. All l
 | Light | Love | Unwind | Dinner | Party |
 |---|---|---|---|---|
 | Living-room LED strip | Rose `#FF3377`, 35% | Amber `#FFAA44`, 25% | Golden amber `#FFC070`, 20% | Violet `#AA44FF`, 70% |
-| Living-room bulbs | 15% | 25% | 35% | 25% |
+| Living-room bulbs | Unchanged | 25% | 35% | 25% |
 | Kitchen | Unchanged | Unchanged | Brightness 55% | Brightness 40% |
 | Office neon | Rose Breath, 100%, speed 50 | Static amber `#FFAA44`, 100% | Static golden amber `#FFC070`, 100% | Gradient, 100%, speed 85; reproduce the user-approved preview |
 
@@ -148,7 +148,7 @@ If preflight fails, make no changes. If an operation fails after some changes ha
 
 Keep the baseline from before the first mood. Switching Love → Dinner → Party does not replace it. A newly selected mood is an explicit request to apply that mood's settings to its included devices, including devices previously adjusted manually.
 
-Restore a device when it was used by the previous mood but is excluded by the next one, unless manually overridden. Example: Dinner → Love restores the kitchen to its baseline, preserving any manual kitchen adjustment.
+Restore a device when it was used by the previous mood but is excluded by the next one, unless manually overridden. Example: Dinner → Love restores the kitchen and living-room bulbs to their baselines, preserving any manual adjustment to either light. Starting Love leaves the living-room bulbs untouched; it does not turn them off.
 
 If an excluded device has been manually adjusted and later becomes included again, preserve that newer manual state as its return destination before applying the new preset. This avoids discarding a deliberate change while retaining the original baseline for devices with no such intervention.
 
