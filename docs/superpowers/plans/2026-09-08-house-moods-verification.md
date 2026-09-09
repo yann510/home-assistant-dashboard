@@ -220,3 +220,28 @@ Restored the original saved rainbow recipe on September9, preserving other nativ
 fields, and verified exact fresh readback at brightness1000. No music commands were
 sent. Future standalone effect previews must restore their pre-preview state after
 approval; approval changes the preset, not the user's everyday baseline.
+
+## September 9 header and Love bulb refinement
+
+Approved refinement: End mood moved beside the title; redundant active text/footer
+removed. Starting progress remains on the selected preset and accessible live
+status, restoration uses the disabled header action, recovery stays visible below.
+Rendered 620px and340px cards retain identical heights across idle/active/starting/
+restoring states (144px and210px respectively). Love excludes living-room bulbs
+entirely; other presets still control them. Tests cover direct exclusion and
+Dinner→Love restoration while preserving manual adjustments.
+
+101 frontend and108 backend tests passed; lint, TypeScript and Vite build passed
+(existing bundle-size advisory). Deployment backup is
+`/share/house-moods-live-20260908/header-update/backup`. Assets were copied before
+atomic index replacement; old assets retained. Preset deployment was checked to
+remove only Love's bulb entry.
+
+The deployed browser loaded the new hashed asset and header with no console errors.
+The first restart left LocalTuya UNLOAD_IN_PROGRESS, with its lights unavailable;
+an explicit reload was refused by HA in that state. A second core restart was
+initiated to recover the integration. No Tuya configuration was changed by this
+UI/preset deployment.
+
+The second restart recovered LocalTuya: kitchen on, living-room strip off, bulbs
+off, and mood sensor idle. No physical mood preview was started for this update.
