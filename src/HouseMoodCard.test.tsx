@@ -29,6 +29,8 @@ describe('House mood card', () => {
     p.status = { ...p.status, phase: 'active', activeMood: 'love' };
     render(<HouseMoodCard {...p} />);
     expect(screen.getByRole('button', { name: 'Love' }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.queryByText('Love is on')).toBeNull();
+    expect(screen.getByRole('button', { name: 'End mood' }).closest('header')?.contains(screen.getByRole('heading', { name: 'House Mood' }))).toBe(true);
     await userEvent.click(screen.getByRole('button', { name: 'Love' }));
     expect(p.onActivate).not.toHaveBeenCalled();
     await userEvent.click(screen.getByRole('button', { name: 'Party' }));

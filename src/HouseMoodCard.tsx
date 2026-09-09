@@ -25,7 +25,6 @@ export function HouseMoodCard({ status, connected, available, onActivate, onEnd,
   const pending = status.phase === 'starting' || status.phase === 'restoring';
   const recovering = status.phase === 'recovery_required';
   const locked = !connected || !available || pending || recovering;
-  const activeName = moods.find(mood => mood.id === status.activeMood)?.name;
   const message = !connected
     ? 'Reconnecting to Home Assistant…'
     : !available
@@ -36,13 +35,18 @@ export function HouseMoodCard({ status, connected, available, onActivate, onEnd,
           ? 'Restoring…'
           : recovering
             ? 'Restoration needs attention.'
-            : activeName
-              ? `${activeName} is on`
-              : '';
+            : '';
 
   return (
     <section className='house-mood-card' data-mood={status.activeMood ?? undefined} aria-labelledby='house-mood-title'>
-      <h2 id='house-mood-title'>House Mood</h2>
+      <header className='house-mood-header'>
+        <h2 id='house-mood-title'>House Mood</h2>
+        {(status.activeMood || status.phase === 'restoring') && !recovering && (
+          <button className='house-mood-action' type='button' disabled={!connected || !available || pending} onClick={onEnd}>
+            {status.phase === 'restoring' ? 'Restoring…' : 'End mood'}
+          </button>
+        )}
+      </header>
       <div className='house-mood-grid'>
         {moods.map(mood => (
           <button
@@ -69,16 +73,9 @@ export function HouseMoodCard({ status, connected, available, onActivate, onEnd,
           </button>
         ))}
       </div>
-      <div className='house-mood-footer'>
-        <span role='status' aria-live='polite'>
-          {message}
-        </span>
-        {status.activeMood && !recovering && (
-          <button className='house-mood-action' type='button' disabled={!connected || !available || pending} onClick={onEnd}>
-            End mood
-          </button>
-        )}
-      </div>
+      <span className={!connected || !available || recovering ? 'house-mood-notice' : 'house-mood-status-hidden'} role='status' aria-live='polite'>
+        {message}
+      </span>
       {status.errors.length > 0 && (
         <div className='house-mood-errors' role='alert'>
           {status.errors.map((error, index) => (

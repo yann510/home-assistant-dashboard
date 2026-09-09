@@ -193,3 +193,10 @@ Acceptance scenarios:
 The actual source, follow-me behavior, and installed Lepro version are verified. The new full-state adapter must still be implemented: the current handler parses outgoing `set` echoes alongside `rpt`/`getr` device reports, lacks an exposed opaque snapshot, and its normal send method swallows publish failures. Snapshot confirmation must use fresh complete device reports and propagate failures.
 
 The next step after written-spec approval is an implementation plan. No dashboard implementation, integration modification, mood activation, or deployment is authorized solely by writing this spec.
+
+### Approved September 9 card refinement
+
+End mood sits in the header opposite House Mood. The active check/accent provides
+state feedback without an additional “Love is on” row. Header height stays stable;
+starting progress appears in the selected preset, restoring appears in the disabled
+header action, and errors remain visible below. Love leaves living-room bulbs untouched.
