@@ -1,0 +1,36 @@
+dismiss:
+  name: Dismiss completion
+  description: Dismiss this exact completed appliance cycle on every dashboard.
+  fields:
+    id:
+      required: true
+      selector:
+        text:
+    episode:
+      required: true
+      selector:
+        text:
+snooze:
+  name: Snooze reminder
+  description: Snooze this exact reminder for its configured duration.
+  fields:
+    id:
+      required: true
+      selector:
+        text:
+    episode:
+      required: true
+      selector:
+        text:
+unsnooze:
+  name: Restore reminder
+  description: Make a snoozed reminder visible again.
+  fields:
+    id:
+      required: true
+      selector:
+        text:
+    episode:
+      required: true
+      selector:
+        text:

@@ -1,3 +1,4 @@
+vi.mock('./AttentionPanel', () => ({ AttentionPanel: () => null }));
 vi.mock('./TemperatureCard', () => ({ TemperatureCard: () => null }));
 // @vitest-environment jsdom
 
