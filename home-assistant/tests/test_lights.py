@@ -39,6 +39,13 @@ class Bridge:
     async def capture(self,device_id):return native.NativeSnapshot.from_dict(self.value.to_dict())
     async def replay(self,value):
         native.validate_snapshot(value);self.sent.append(value.to_dict());self.value=native.NativeSnapshot.from_dict(value.to_dict());return await self.capture(value.device_id)
+class CoordinatorLightAdapter:
+    """Expose the real light controls through the coordinator's async boundary."""
+    def __init__(self, controls):self.controls=controls
+    def __getattr__(self,name):return getattr(self.controls,name)
+    async def snapshot_targets(self):return self.controls.snapshot_targets()
+    async def included_targets(self,mood):return self.controls.included_targets(mood)
+
 class LightsTests(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         self.assertIsNotNone(LightControls,'LightControls implementation missing')
@@ -165,18 +172,13 @@ class LightsTests(unittest.IsolatedAsyncioTestCase):
     async def test_love_leaves_bulbs_untouched_and_switch_restores_only_owned_bulbs(self):
         from custom_components.house_moods.coordinator import MoodCoordinator
         from test_coordinator import MemoryStore
-        controls=self.adapter
-        class Adapter:
-            def __getattr__(self,name):return getattr(controls,name)
-            async def snapshot_targets(self):return controls.snapshot_targets()
-            async def included_targets(self,mood):return controls.included_targets(mood)
         for manual in (False,True):
             with self.subTest(manual=manual):
                 self.io.states[BULBS]['state']='on'
                 self.io.states[BULBS]['attributes']['brightness']=175
                 original=deepcopy(self.io.states[BULBS])
                 self.io.calls.clear()
-                engine=MoodCoordinator(Adapter(),MemoryStore())
+                engine=MoodCoordinator(CoordinatorLightAdapter(self.adapter),MemoryStore())
                 self.assertTrue((await engine.activate('love'))['success'])
                 self.assertEqual(self.io.states[BULBS],original)
                 self.assertFalse(any(c[2]==[BULBS] for c in self.io.calls))
@@ -188,3 +190,42 @@ class LightsTests(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(self.io.states[BULBS]['attributes']['brightness'],123 if manual else 175)
                 self.assertNotIn(BULBS,engine.session.owned)
                 self.assertTrue((await engine.end())['success'])
+
+    async def test_three_complete_mood_cycles_keep_first_rainbow_baseline_and_restore_exactly(self):
+        from custom_components.house_moods.coordinator import MoodCoordinator
+        from test_coordinator import MemoryStore
+        sequence=('unwind','party','love','dinner')
+        for power,brightness in ((1,1000),(1,367),(0,621)):
+            with self.subTest(power=power,brightness=brightness):
+                fields={**deepcopy(FIELDS),'d1':power,'d52':brightness}
+                self.bridge.value=native.NativeSnapshot(1,'754063076',1,fields,{'d30':42})
+                self.io.states[NEON]['state']='on' if power else 'off'
+                original=deepcopy(await self.adapter.capture(self.adapter.snapshot_targets()))
+                adapter=CoordinatorLightAdapter(self.adapter)
+                store=MemoryStore();engine=MoodCoordinator(adapter,store)
+                for cycle in range(3):
+                    for mood in sequence:
+                        result=await engine.activate(mood)
+                        self.assertTrue(result['success'],result)
+                        self.assertEqual(result['active_mood'],mood)
+                        self.assertEqual(store.value.baseline,original)
+                        self.assertIn(NEON,store.value.owned)
+                        self.assertNotIn(NEON,store.value.overridden)
+                        self.assertEqual(self.bridge.value.fields['d50'],EFFECTS[mood])
+                        self.assertEqual(self.bridge.value.fields['d1'],1)
+                        self.assertEqual(self.bridge.value.fields['d52'],1000)
+                    # Loading the durable session must retain the first rainbow too.
+                    engine=MoodCoordinator(adapter,store)
+                    self.assertTrue((await engine.reconcile())['success'])
+                    self.assertEqual(store.value.baseline,original)
+                result=await engine.end()
+                self.assertTrue(result['success'],result)
+                self.assertEqual(result['phase'],'idle')
+                self.assertIsNone(store.value)
+                self.assertEqual(self.bridge.value.to_dict(),original[NEON]['snapshot'])
+                self.assertEqual(self.bridge.sent[-1]['fields'],fields)
+                self.assertEqual(self.bridge.value.fields['d50'],FIELDS['d50'])
+                self.assertEqual(self.bridge.value.fields['d1'],power)
+                self.assertEqual(self.bridge.value.fields['d52'],brightness)
+                for target in (STRIP,BULBS,KITCHEN):
+                    self.assertEqual(await self.adapter.read(target),original[target])
