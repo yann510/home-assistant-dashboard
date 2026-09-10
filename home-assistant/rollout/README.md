@@ -130,3 +130,15 @@ File rollback is not device restoration. If a live test changed devices, use End
 or its retained recovery journal before removing the integration. The saved original
 neon fixture is an emergency recipe for the confirmed earlier rainbow, not a
 substitute for capturing the actual baseline of every new session.
+
+
+## Office neon follow automations
+
+The two existing office-light follow automations must include the idle condition
+recorded in `../office-neon-follow.json`: `sensor.house_mood == idle`. Apply the
+condition to the existing automation IDs through Home Assistant's automation
+editor/configuration API, preserving their triggers and actions. These guards
+were deployed on September 9, 2026. They prevent office automation commands from
+relinquishing neon ownership during a mood, so End can restore the original
+native effect after any preset sequence. Keep the condition during future edits;
+the initial file installer does not manage these existing automations.

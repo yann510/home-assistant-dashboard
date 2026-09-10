@@ -114,8 +114,8 @@ The original custom rainbow also retained its exact mode and recipe through a
 was restored afterward with exact fresh readback, leaving no neon test state
 active. The user subsequently confirmed the corrected rose appearance in a second
 neon-only test (see visual acceptance below). The two
-existing office/neon follow-light automations are unchanged pending the user's
-preference about deferring to an active mood.
+existing office/neon follow-light automations were initially unchanged; the
+September 9 Unwind investigation below supersedes that decision.
 
 [`home-assistant/rollout/README.md`](../../../home-assistant/rollout/README.md)
 describes the concrete hash-guarded staging/install procedure, backups, file
@@ -245,3 +245,36 @@ UI/preset deployment.
 
 The second restart recovered LocalTuya: kitchen on, living-room strip off, bulbs
 off, and mood sensor idle. No physical mood preview was started for this update.
+
+
+## September 9 Unwind restoration and office automation conflict
+
+The reported amber neon after End had a separate cause from the earlier rose
+preview baseline. HA history and native write logs show Unwind started at
+18:57 local, then the office-follow automation powered the neon off at 19:16
+while the mood was active. That external command relinquished mood ownership,
+so End at 19:34 preserved the changed light instead of restoring its recipe.
+The office automation later powered it on with the retained amber recipe.
+
+Both existing office/neon follow automations now require sensor.house_mood to
+be idle. This prevents automatic office on/off events from taking control during
+starting, active, restoring or recovery. Ordinary manual-change protection is
+unchanged. The supported HA automation configuration API saved and reloaded both
+updates; fresh reads verified the conditions and enabled states, without a core
+restart. The deployed configurations are recorded in
+home-assistant/office-neon-follow.json. Private originals are saved in
+.local/live/office-neon-automations-before.json.
+
+Restored the saved original rainbow at brightness1000 and confirmed exact native
+readback before testing. Regression coverage now exercises 36 mood activations
+across three initial power/brightness states, with session reloads and an exact
+original baseline assertion. All 109 backend tests pass.
+
+Live verification completed Love → Unwind → Dinner → Party → Love → Unwind → End.
+Every activation succeeded in the same session. During every preset, explicit
+execution of both office automations with skip_condition=False left all native
+fields unchanged. End returned success/idle with no errors and exact equality
+against the complete original rainbow native snapshot. The test runner retries
+only the coordinator's transient Operation in progress response; the initial
+attempt stopped safely after encountering that response during observation.
+Evidence: .local/live/multiswitch-test.log and multiswitch-rainbow-baseline.json.

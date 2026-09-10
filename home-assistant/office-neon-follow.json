@@ -1,0 +1,68 @@
+{
+  "automations": [
+    {
+      "id": "1768667581540",
+      "alias": "Turn on neon light when office light turns on",
+      "description": "",
+      "triggers": [
+        {
+          "type": "turned_on",
+          "device_id": "57a9d54094cdf89e9b4af6786698013b",
+          "entity_id": "60639df7055d6ecb32313f0cdf244e90",
+          "domain": "light",
+          "trigger": "device"
+        }
+      ],
+      "conditions": [
+        {
+          "condition": "state",
+          "entity_id": "sensor.house_mood",
+          "state": "idle"
+        }
+      ],
+      "actions": [
+        {
+          "action": "light.turn_on",
+          "target": {
+            "entity_id": "light.neon_light_led_strip"
+          },
+          "data": {
+            "brightness_pct": 100
+          }
+        }
+      ],
+      "mode": "single"
+    },
+    {
+      "id": "1768667616062",
+      "alias": "Turn off neon light when office light turns off",
+      "description": "",
+      "triggers": [
+        {
+          "type": "turned_off",
+          "device_id": "57a9d54094cdf89e9b4af6786698013b",
+          "entity_id": "60639df7055d6ecb32313f0cdf244e90",
+          "domain": "light",
+          "trigger": "device"
+        }
+      ],
+      "conditions": [
+        {
+          "condition": "state",
+          "entity_id": "sensor.house_mood",
+          "state": "idle"
+        }
+      ],
+      "actions": [
+        {
+          "action": "light.turn_off",
+          "target": {
+            "entity_id": "light.neon_light_led_strip"
+          },
+          "data": {}
+        }
+      ],
+      "mode": "single"
+    }
+  ]
+}
