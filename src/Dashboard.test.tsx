@@ -1,3 +1,4 @@
+vi.mock('./TemperatureCard', () => ({ TemperatureCard: () => null }));
 // @vitest-environment jsdom
 
 import { cleanup, render, screen } from '@testing-library/react';

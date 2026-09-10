@@ -1,3 +1,4 @@
+import { TemperatureCard } from './TemperatureCard';
 import { VacuumCard, WeatherCard } from '@hakit/components';
 import { LightsGroup } from './LightsGroup.tsx';
 import { BlindsGroup } from './BlindsGroup.tsx';
@@ -21,6 +22,7 @@ function Dashboard() {
           <WeatherCard className={'button-card'} entity={'weather.forecast_home'} />
           <SpeakerCard />
           <AppliancesCard />
+          <TemperatureCard />
         </div>
       </div>
     </>
