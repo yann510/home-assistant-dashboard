@@ -1,24 +1,24 @@
 # House moods design
 
 Date: 2026-09-08
-Status: Preset behavior and UI/UX approved in conversation on 2026-09-08. Technical implementation prerequisites remain to be verified.
+Status: Original presets approved September 8; Gym and photo tiles approved September 11, 2026. Live verification is recorded in the companion verification document.
 
 ## Purpose and scope
 
-Add one House Mood card with four curated presets: Love, Unwind, Dinner, and Party. Every preset starts an existing Sonos favorite and applies explicit lighting settings. Follow-me moves music only; lighting remains fixed in the selected rooms. Night and user-created presets are excluded from the first version.
+Add one House Mood card with five curated presets: Love, Unwind, Dinner, Party, and Gym. Every preset starts an existing Sonos favorite and applies explicit lighting settings. Follow-me moves music only; lighting remains fixed in the selected rooms. Night and user-created presets are excluded from the first version.
 
-The card contains four labeled mood buttons, an active-mood indicator, and End mood. There is no details control. Existing dashboard controls remain the way to inspect and adjust individual devices. Brief progress and actionable failure messages remain necessary.
+The card contains five labeled mood buttons, an active-mood indicator, and End mood. There is no details control. Existing dashboard controls remain the way to inspect and adjust individual devices. Brief progress and actionable failure messages remain necessary.
 
-No mood implementation or deployment has happened yet. This specification records the agreed behavior and proposes the supporting architecture.
+The original four moods are deployed. The September 11 addition retains their behavior and adds a gym-only preset.
 
 ### Approved UI and interaction states
 
 - Place House Mood immediately after `HomeModeControls` and before the two `.columns`, full width and always visible. Keep Day/Night separate and treat its light changes as external adjustments.
-- Use the existing dashboard's card styling, `--dashboard-card-*` tokens, and at least 44px touch targets. Show the title “House Mood” and four equal buttons labeled Love, Unwind, Dinner, and Party, with a corresponding icon and restrained rose, amber, gold, or violet accent.
-- Use one row of four buttons when the card width accommodates readable labels and comfortable touch targets; use a 2×2 grid at narrower widths. Match the deployed dashboard's spacing and typography after locating its source.
+- Use the existing dashboard's card styling, `--dashboard-card-*` tokens, and at least 44px touch targets. Show the title “House Mood” and five photo-backed buttons labeled Love, Unwind, Dinner, Party, and Gym. Use the approved rose, forest, dinner table, concert, and gym photos with a dark gradient for readable labels.
+- Use one row of five buttons when the card width accommodates readable labels and comfortable touch targets; use two columns at narrower widths, with Gym spanning the last row. Match the deployed dashboard's spacing and typography after locating its source.
 - In the neutral state, no mood is selected and End mood is hidden. There is no settings button, playlist picker, or expandable details panel.
 - On activation, immediately display “Starting…” and a spinner in the requested button. Disable preset actions during the pending operation to prevent overlapping requests.
-- On success, mark the active button with an outline and checkmark, give the card a subtle matching tint, and show a footer such as “Love is on” with End mood. Selection must remain understandable without color alone.
+- On success, mark the active button with an outline and checkmark, keep the card neutral and show End mood beside the title, with no redundant active footer. Selection must remain understandable without color alone.
 - Switching is a single tap on another mood, with no confirmation dialog and no separate End step. Tapping the active mood does not restart playback.
 - On End, show “Restoring…” until completion. Successful restoration returns the card to its neutral appearance and hides End mood.
 - Keep errors inside the card until resolved, with a specific recovery action such as “Office neon couldn’t be restored” and “Retry restoration.” Do not hide recovery failures in temporary notifications.
@@ -58,11 +58,11 @@ Entity mapping:
 
 The living-room bulbs and kitchen are dimmable but cannot change color or color temperature. Live validation identified the kitchen as a 3-Way Smart Dimmer: DP20 controls power, DP22 controls brightness (maximum 1000), and DP26 is countdown. Its previous LocalTuya brightness/color-temperature mapping to DP26 was invalid. Dinner and Party therefore set only kitchen brightness; no color-temperature request is sent. Use approximately three-second transitions only on lights that actually support them. The neon does not advertise transition support; do not promise a fade on it.
 
-Office main bulbs, bedroom, bathroom/toilet, gym, closet, laundry, and front-door lights remain unchanged. There is no verified separate dining-room light; Dinner uses the verified kitchen and living-room lights. Do not infer or add another dining device.
+Gym controls only `light.gym` at 100%; it does not change the office neon or other lights. Switching from another mood to Gym restores lights dropped from that mood, including the exact native neon snapshot. The original four presets leave the gym light unchanged. Office main bulbs, bedroom, bathroom/toilet, closet, laundry, and front-door lights remain unchanged. There is no verified separate dining-room light; Dinner uses the verified kitchen and living-room lights. Do not infer or add another dining device.
 
 ### Sonos selections
 
-All moods start on `media_player.living_room`.
+Love, Unwind, Dinner, and Party start on `media_player.living_room`. Gym starts only on `media_player.gym`, separating it from any existing group before playback.
 
 | Mood | Sonos favorite | Observed favorite ID | Volume | Follow-me |
 |---|---|---|---|---|
@@ -70,10 +70,11 @@ All moods start on `media_player.living_room`.
 | Unwind | Chill House Mix | `FV:2/4` | 20% | On |
 | Dinner | Cozy Dinner Mix | `FV:2/3` | 20% | Off |
 | Party | Electro House Mix | `FV:2/7` | 40% | On |
+| Gym | Bangers Workout Mix | `FV:2/2` | Keep current Gym volume | Off |
 
 Favorites were retrieved through the Living Room Sonos media browser, under Favorites → Playlists; their media content type is `favorite_item_id`. Validate the favorite ID/title mapping before playback. If a saved ID disappears or changes title, resolve a unique exact-title match. If no unambiguous match exists, stop activation and explain which favorite must be restored. Do not silently substitute another playlist.
 
-Other available favorites are Modern Jazz Mix, Bangers Workout Mix, and Discover Weekly. No additional playlists are required for the initial presets.
+Other available favorites are Modern Jazz Mix and Discover Weekly. No additional playlists are required for the initial presets.
 
 Existing follow-me automations discovered:
 

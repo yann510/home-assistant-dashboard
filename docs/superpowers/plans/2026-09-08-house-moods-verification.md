@@ -278,3 +278,42 @@ against the complete original rainbow native snapshot. The test runner retries
 only the coordinator's transient Operation in progress response; the initial
 attempt stopped safely after encountering that response during observation.
 Evidence: .local/live/multiswitch-test.log and multiswitch-rainbow-baseline.json.
+
+
+## September 11 Gym and photo tiles
+
+Approved addition: Gym turns on light.gym at 100%, starts the exact Sonos favorite
+Bangers Workout Mix (FV:2/2) on media_player.gym alone, leaves its volume unchanged,
+and disables follow-me. Gym does not apply neon or other lighting recipes. Source
+playback ownership now includes Gym; switches restore dropped controls before
+applying the next preset. Restoration comparisons use the safe restored state
+(off lights / stopped playback), preventing retained brightness or queue metadata
+from replacing the original baseline during repeated switches.
+
+The approved photographs replace icons for all five mood tiles. Assets are bundled
+locally (source references in src/assets/moods/README.md), labels use dark gradient
+overlays, and selection retains accent outline and checkmark. End stays beside the
+header. Five columns collapse to two, with Gym spanning the last row. The actual
+mobile dashboard has no horizontal overflow; active and idle card heights are stable.
+
+Verification before rollout: 135 frontend tests, 114 backend tests and 21 HA
+integration tests pass; changed-file ESLint, TypeScript and Vite build pass
+(existing bundle-size advisory). Independent review verified actual HA queue reads
+use the Sonos group coordinator. It identified a new Gym-light availability
+dependency; a regression test now proves the other moods work when only the gym
+light is unavailable. Gym captures its light baseline when first included.
+
+Deployment backup/staging location: /share/house-moods-gym-20260911. Before backend
+replacement, all twelve live integration files matched expected original hashes.
+The integration and dashboard were backed up. Frontend rollout copies assets first
+and replaces index atomically, retaining previous assets.
+
+Live test completed Gym → Love → Gym → Dinner → Gym → Party → Gym → Unwind → Gym
+→ End, retaining one session throughout. Each Gym activation independently confirmed
+solo Gym playback, original volume, light brightness255, follow off, and exact
+original neon fields. End returned success/idle with no errors. All checked light
+states/brightness, four speaker groups/volumes, follow switch/source and full native
+neon payload matched their captured starting values. Evidence is stored privately
+in .local/live/gym-live-baseline.json and gym-live-test.log. Configuration check
+passed before the restart. The restart's startup was delayed by the unrelated
+Brother printer integration; required mood devices loaded successfully.
