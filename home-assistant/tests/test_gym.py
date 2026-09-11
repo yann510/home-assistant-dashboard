@@ -78,6 +78,8 @@ class GymTests(unittest.IsolatedAsyncioTestCase):
         for mood in ['love','gym','unwind','gym','dinner','gym','party','gym','love','gym']:
             result=await engine.activate(mood);self.assertTrue(result['success'],result)
             if baseline is None:baseline=deepcopy(store.value.baseline)
+            if mood == 'gym' and GYM_LIGHT not in baseline:
+                baseline[GYM_LIGHT]={'state':'off','brightness':77,'color_mode':'brightness'}
             self.assertEqual(store.value.baseline,baseline)
             if mood=='gym':
                 self.assertEqual(bridge.value.fields,FIELDS)
@@ -119,3 +121,13 @@ class GymTests(unittest.IsolatedAsyncioTestCase):
         result=await engine.end();self.assertTrue(result['success'],result)
         self.assertEqual(io.states[GYM]['state'],'playing')
         self.assertEqual(io.states[GYM_LIGHT]['attributes']['brightness'],80)
+
+    async def test_unavailable_gym_light_only_blocks_gym_before_writes(self):
+        io=HouseIO();io.states[GYM_LIGHT]['state']='unavailable'
+        bridge=Bridge();adapter=Adapter(io,bridge);store=MemoryStore();engine=MoodCoordinator(adapter,store)
+        result=await engine.activate('gym');self.assertFalse(result['success'])
+        self.assertEqual(io.calls,[])
+        self.assertEqual(bridge.sent,[])
+        self.assertIsNone(store.value)
+        result=await engine.activate('love');self.assertTrue(result['success'],result)
+        self.assertNotIn(GYM_LIGHT,store.value.baseline)

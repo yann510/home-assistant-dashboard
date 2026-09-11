@@ -16,7 +16,7 @@ class LightControls:
         self.neon = NeonControls(bridge, device_id)
 
     def snapshot_targets(self):
-        return [STRIP, BULBS, KITCHEN, NEON, GYM]
+        return [STRIP, BULBS, KITCHEN, NEON]
 
     def included_targets(self, mood):
         if mood not in LIGHTS:
@@ -24,7 +24,7 @@ class LightControls:
         return [*LIGHTS[mood], *([NEON] if mood in NEON_EFFECTS else [])]
 
     def owns(self, target):
-        return target in self.snapshot_targets()
+        return target == GYM or target in self.snapshot_targets()
 
     def _state(self, target):
         if not self.owns(target):
@@ -64,7 +64,7 @@ class LightControls:
         if mood not in LIGHTS:
             raise ValueError('Unknown mood')
         # The coordinator captures the entire collection before writing anything.
-        for target in self.snapshot_targets():
+        for target in dict.fromkeys([*self.snapshot_targets(), *self.included_targets(mood)]):
             await self.read(target)
         await self.plan_apply(mood)
 

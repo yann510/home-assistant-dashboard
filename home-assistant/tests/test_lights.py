@@ -88,7 +88,7 @@ class LightsTests(unittest.IsolatedAsyncioTestCase):
         self.io.ignore=False;self.io.wrong_mode=True
         with self.assertRaises(TimeoutError):await self.adapter.apply_write(write,'s')
     async def test_preflight_checks_collection_availability_and_capabilities_without_writes(self):
-        self.assertEqual(set(self.adapter.snapshot_targets()),{STRIP,BULBS,KITCHEN,NEON,'light.gym'})
+        self.assertEqual(set(self.adapter.snapshot_targets()),{STRIP,BULBS,KITCHEN,NEON})
         self.assertTrue(self.adapter.owns(NEON));self.assertFalse(self.adapter.owns('light.office'))
         self.io.states[KITCHEN]['state']='unavailable'
         with self.assertRaises(ValueError):await self.adapter.preflight('love')
