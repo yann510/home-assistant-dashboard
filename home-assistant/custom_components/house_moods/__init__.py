@@ -70,7 +70,7 @@ class Runtime:
         from homeassistant.helpers.service import async_extract_referenced_entity_ids
         from .ha_adapter import DEVICE
         from .presets import NEON
-        from .sonos import SPEAKERS, SOURCE, FOLLOW, FOLLOW_SOURCE, FOLLOW_SCRIPT, GROUPS
+        from .sonos import SPEAKERS, SOURCE, PLAYBACK_SOURCES, FOLLOW, FOLLOW_SOURCE, FOLLOW_SCRIPT, GROUPS
         domain, service = event.data['domain'], event.data['service']
         data = event.data.get('service_data', {})
         origin = self.io.origin(event.context)
@@ -99,8 +99,8 @@ class Runtime:
                    getattr(getattr(e, '_light', None), '_did', None) == DEVICE for e in numbers):
                 targets.add(NEON)
         if domain == 'sonos':
-            if SOURCE in entities and service in ('play_queue', 'remove_from_queue', 'restore'):
-                targets.add(SOURCE + '#playback')
+            if service in ('play_queue', 'remove_from_queue', 'restore'):
+                targets.update(e + '#playback' for e in entities & set(PLAYBACK_SOURCES))
             if service == 'restore' and entities & set(SPEAKERS):
                 targets.update((GROUPS, *[e + '#volume' for e in entities & set(SPEAKERS)]))
         if domain == 'media_player':
@@ -109,8 +109,8 @@ class Runtime:
                 targets.update(e + '#volume' for e in speakers)
             if service in ('join', 'unjoin') and (speakers or set(data.get('group_members', [])) & set(SPEAKERS)):
                 targets.add(GROUPS)
-            if SOURCE in speakers and service in ('play_media', 'media_play', 'media_pause', 'media_stop', 'media_play_pause', 'clear_playlist', 'turn_off', 'turn_on'):
-                targets.add(SOURCE + '#playback')
+            if service in ('play_media', 'media_play', 'media_pause', 'media_stop', 'media_play_pause', 'clear_playlist', 'turn_off', 'turn_on'):
+                targets.update(e + '#playback' for e in speakers & set(PLAYBACK_SOURCES))
         for target in targets:
             self.observe(target, 'external:' + event.context.id)
 

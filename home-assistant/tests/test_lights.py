@@ -21,7 +21,7 @@ EFFECTS={
 'party':'N01:P10001FFFFFFF2100010019U3V3100640000E3004BC2O6004B;'}
 class IO:
     def __init__(self):
-        self.states={e:{'state':'on','attributes':{'brightness':100,'color_mode':mode,'supported_color_modes':[mode], 'supported_features':0}} for e,mode in [(STRIP,'rgb'),(BULBS,'brightness'),(KITCHEN,'brightness'),(NEON,'rgb')]}
+        self.states={e:{'state':'on','attributes':{'brightness':100,'color_mode':mode,'supported_color_modes':[mode], 'supported_features':0}} for e,mode in [(STRIP,'rgb'),(BULBS,'brightness'),(KITCHEN,'brightness'),(NEON,'rgb'),('light.gym','brightness')]}
         self.states[STRIP]['attributes']['rgb_color']=[2,3,4]
         self.calls=[];self.ignore=False;self.wrong_mode=False
     def state(self,target):return deepcopy(self.states[target])
@@ -88,7 +88,7 @@ class LightsTests(unittest.IsolatedAsyncioTestCase):
         self.io.ignore=False;self.io.wrong_mode=True
         with self.assertRaises(TimeoutError):await self.adapter.apply_write(write,'s')
     async def test_preflight_checks_collection_availability_and_capabilities_without_writes(self):
-        self.assertEqual(set(self.adapter.snapshot_targets()),{STRIP,BULBS,KITCHEN,NEON})
+        self.assertEqual(set(self.adapter.snapshot_targets()),{STRIP,BULBS,KITCHEN,NEON,'light.gym'})
         self.assertTrue(self.adapter.owns(NEON));self.assertFalse(self.adapter.owns('light.office'))
         self.io.states[KITCHEN]['state']='unavailable'
         with self.assertRaises(ValueError):await self.adapter.preflight('love')

@@ -2,9 +2,9 @@
 from dataclasses import asdict, dataclass, field
 from typing import Any, Literal, Protocol
 
-MoodId = Literal['love', 'unwind', 'dinner', 'party']
+MoodId = Literal['love', 'unwind', 'dinner', 'party', 'gym']
 Phase = Literal['idle', 'starting', 'active', 'restoring', 'recovery_required']
-MOODS = ('love', 'unwind', 'dinner', 'party')
+MOODS = ('love', 'unwind', 'dinner', 'party', 'gym')
 
 @dataclass
 class NativeSnapshot:

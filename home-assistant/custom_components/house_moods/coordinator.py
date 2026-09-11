@@ -113,8 +113,14 @@ class MoodCoordinator:
                 s = self.session
                 previous = s.included.copy()
                 for target in capture_targets:
+                    # Compare excluded controls with the state we restored: an
+                    # off light retains its last brightness, and stopped playback
+                    # retains the mood queue. Neither changes the first baseline.
+                    destination = s.baseline.get(target, {})
+                    if hasattr(self.adapter, 'restoration_state') and target in s.baseline:
+                        destination = self.adapter.restoration_state(target, destination)
                     excluded_changed = (target not in previous and target in s.baseline
-                                        and not matches(target, s.baseline[target], captured[target]))
+                                        and not matches(target, destination, captured[target]))
                     if target not in s.baseline or (target not in previous and (target in s.overridden or excluded_changed)):
                         s.baseline[target] = copy.deepcopy(captured[target])
                 s.phase, s.pending_mood, s.errors = 'starting', mood, []

@@ -4,7 +4,7 @@ import colorsys
 from .model import ControlWrite
 from .neon import NeonControls
 from .ownership import matches
-from .presets import STRIP, BULBS, KITCHEN, NEON, LIGHTS
+from .presets import STRIP, BULBS, KITCHEN, NEON, LIGHTS, GYM, NEON_EFFECTS
 
 COLOR_KEYS = {'rgb':'rgb_color', 'hs':'hs_color', 'xy':'xy_color', 'color_temp':'color_temp_kelvin', 'rgbw':'rgbw_color', 'rgbww':'rgbww_color'}
 TRANSITION = 32  # Home Assistant LightEntityFeature.TRANSITION
@@ -16,12 +16,12 @@ class LightControls:
         self.neon = NeonControls(bridge, device_id)
 
     def snapshot_targets(self):
-        return [STRIP, BULBS, KITCHEN, NEON]
+        return [STRIP, BULBS, KITCHEN, NEON, GYM]
 
     def included_targets(self, mood):
         if mood not in LIGHTS:
             raise ValueError('Unknown mood')
-        return [*LIGHTS[mood], NEON]
+        return [*LIGHTS[mood], *([NEON] if mood in NEON_EFFECTS else [])]
 
     def owns(self, target):
         return target in self.snapshot_targets()
@@ -105,6 +105,8 @@ class LightControls:
         if mood not in LIGHTS:
             raise ValueError('Unknown mood')
         writes = [self._plan_standard(target, data) for target,data in LIGHTS[mood].items()]
+        if mood not in NEON_EFFECTS:
+            return writes
         self._state(NEON)
         snapshot = await self.neon.recipe(mood)
         writes.append(ControlWrite('light:neon', 'native', [NEON], {NEON:{'native':deepcopy(snapshot.fields)}}, snapshot.to_dict()))

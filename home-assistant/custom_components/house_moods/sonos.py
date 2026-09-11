@@ -6,11 +6,18 @@ from .model import ControlWrite
 
 SOURCE = 'media_player.living_room'
 SPEAKERS = (SOURCE, 'media_player.bathroom', 'media_player.bedroom', 'media_player.gym')
+GYM_SOURCE = 'media_player.gym'
+PLAYBACK_SOURCES = (SOURCE, GYM_SOURCE)
+
+def mood_source(mood):
+    return GYM_SOURCE if mood == 'gym' else SOURCE
+
 FOLLOW = 'input_boolean.speaker_follow_motion'
 FOLLOW_SOURCE = 'input_text.speaker_follow_source'
 FOLLOW_SCRIPT = 'script.speaker_follow_motion'
 GROUPS = 'sonos#groups'
 FAVORITES = {
+    'gym': ('FV:2/2', 'Bangers Workout Mix', None, False),
     'love': ('FV:2/1', 'Crush Radio', .25, True),
     'unwind': ('FV:2/4', 'Chill House Mix', .20, True),
     'dinner': ('FV:2/3', 'Cozy Dinner Mix', .20, False),
@@ -52,11 +59,12 @@ class SonosControls:
         self._favorites = {}
 
     def snapshot_targets(self):
-        return [*[e + '#volume' for e in SPEAKERS], GROUPS, SOURCE + '#playback', FOLLOW]
+        return [*[e + '#volume' for e in SPEAKERS], GROUPS, *[e + '#playback' for e in PLAYBACK_SOURCES], FOLLOW]
 
     def included_targets(self, mood):
-        # Switching recipes retains music controls even without a physical write.
-        return self.snapshot_targets()
+        # Keep settings across switches; dropping a previous playback source
+        # lets the coordinator stop its owned music before the next recipe.
+        return [t for t in self.snapshot_targets() if not t.endswith('#playback') or t == mood_source(mood) + '#playback']
 
     def owns(self, target):
         return target in self.snapshot_targets()
@@ -108,7 +116,7 @@ class SonosControls:
         if control == 'volume':
             return {'volume_level': self._volume(entity)}
         raw = self._available(entity)
-        if control != 'playback' or entity != SOURCE:
+        if control != 'playback' or entity not in PLAYBACK_SOURCES:
             raise ValueError('Unsupported Sonos control')
         if raw['state'] in ('unavailable', 'unknown'):
             raise ValueError('Living Room speaker is unavailable.')
@@ -126,9 +134,10 @@ class SonosControls:
         }
 
     async def preflight(self, mood):
+        source = mood_source(mood)
         ident, title, _, _ = FAVORITES[mood]
-        if self.io.state(SOURCE)['state'] in ('unavailable', 'unknown'):
-            raise ValueError('Living Room speaker is unavailable.')
+        if self.io.state(source)['state'] in ('unavailable', 'unknown'):
+            raise ValueError(f'{source} is unavailable.')
         for entity in (FOLLOW, FOLLOW_SOURCE, FOLLOW_SCRIPT):
             if self.io.state(entity)['state'] in ('unavailable', 'unknown'):
                 raise ValueError('Follow me is unavailable.')
@@ -150,7 +159,7 @@ class SonosControls:
             if depth > 5 or len(visited) >= 50:
                 raise ValueError('Sonos favorites contain too many folders.')
             visited.add(key)
-            result = await self.io.browse(SOURCE, kind, ident)
+            result = await self.io.browse(source, kind, ident)
             for item in result.get('children', []):
                 if item.get('can_play'):
                     found.append(item)
@@ -166,28 +175,35 @@ class SonosControls:
     async def plan_apply(self, mood):
         if mood not in self._favorites:
             raise ValueError('Validate the Sonos favorite before activation.')
+        source = mood_source(mood)
         _, _, volume, following = FAVORITES[mood]
         follow = self._follow()
         groups = self._groups()
         writes = []
-        if follow['source'] and (follow['state'] != 'on' or not following or follow['source'] != SOURCE):
+        if follow['source'] and (follow['state'] != 'on' or not following or follow['source'] != source):
             old = next((g for g in groups if follow['source'] in g), [])
             groups = _canonical([g for g in groups if g != old] + [[e] for e in old])
             follow = {'state': 'off', 'source': ''}
             writes.append(self._write('sonos.follow_disable', {FOLLOW: follow, GROUPS: {'groups': groups}}, {}))
-        source_group = next(g for g in groups if SOURCE in g)
-        if source_group[0] != SOURCE:
-            groups = _remove(groups, SOURCE)
-            writes.append(self._write('sonos.unjoin', {GROUPS: {'groups': groups}}, {'entity': SOURCE}))
-        writes.append(self._write('sonos.volume', {SOURCE + '#volume': {'volume_level': volume}}, {'entity': SOURCE, 'volume_level': volume}))
+        # Gym must be solo even when it currently coordinates a group.
+        if mood == 'gym' and next(g for g in groups if source in g)[0] == source:
+            for member in next(g for g in groups if source in g)[1:]:
+                groups = _remove(groups, member)
+                writes.append(self._write('sonos.unjoin', {GROUPS: {'groups': groups}}, {'entity': member}))
+        source_group = next(g for g in groups if source in g)
+        if source_group[0] != source:
+            groups = _remove(groups, source)
+            writes.append(self._write('sonos.unjoin', {GROUPS: {'groups': groups}}, {'entity': source}))
+        if volume is not None:
+            writes.append(self._write('sonos.volume', {source + '#volume': {'volume_level': volume}}, {'entity': source, 'volume_level': volume}))
         # TV input cannot be stopped. Its transition to the queue source is the
         # confirmation boundary; ordinary music still needs a confirmed stop so
         # an unchanged, already-playing queue cannot acknowledge a failed play.
-        if self._available(SOURCE)['attributes'].get('source') != 'TV':
-            writes.append(self._write('sonos.stop', {SOURCE + '#playback': {'state': 'stopped'}}, {}))
-        writes.append(self._write('sonos.play', {SOURCE + '#playback': {'state': 'playing', 'source': None}}, self._favorites[mood]))
+        if self._available(source)['attributes'].get('source') != 'TV':
+            writes.append(self._write('sonos.stop', {source + '#playback': {'state': 'stopped'}}, {'entity': source}))
+        writes.append(self._write('sonos.play', {source + '#playback': {'state': 'playing', 'source': None}}, dict(self._favorites[mood], entity=source)))
         if following:
-            writes.append(self._write('sonos.follow_enable', {FOLLOW: {'state': 'on', 'source': SOURCE}}, {}))
+            writes.append(self._write('sonos.follow_enable', {FOLLOW: {'state': 'on', 'source': source}}, {}))
         return writes
 
     async def plan_join(self, room):
@@ -212,15 +228,17 @@ class SonosControls:
             await call('media_player', 'volume_set', [data['entity']], {'volume_level': data['volume_level']}, session_id)
             await self.io.wait(lambda: abs(self._volume(data['entity']) - data['volume_level']) <= .01)
         elif action == 'sonos.stop':
-            await call('media_player', 'media_stop', [SOURCE], {}, session_id)
-            await self.io.wait(lambda: self.io.state(SOURCE)['state'] in ('idle', 'paused', 'off'))
+            source = data.get('entity', SOURCE)
+            await call('media_player', 'media_stop', [source], {}, session_id)
+            await self.io.wait(lambda: self.io.state(source)['state'] in ('idle', 'paused', 'off'))
         elif action == 'sonos.play':
-            await call('media_player', 'play_media', [SOURCE], {k: data[k] for k in ('media_content_id', 'media_content_type')}, session_id)
+            source = data.get('entity', SOURCE)
+            await call('media_player', 'play_media', [source], {k: data[k] for k in ('media_content_id', 'media_content_type')}, session_id)
             try:
-                await self.io.wait(lambda: (self._available(SOURCE)['state'] in ('playing', 'buffering')
-                                           and self._available(SOURCE)['attributes'].get('source') is None))
+                await self.io.wait(lambda: (self._available(source)['state'] in ('playing', 'buffering')
+                                           and self._available(source)['attributes'].get('source') is None))
             except TimeoutError as err:
-                raise TimeoutError('Living Room did not confirm favorite playback away from TV/external input') from err
+                raise TimeoutError(f'{source} did not confirm favorite playback away from TV/external input') from err
         elif action in ('sonos.follow_enable', 'sonos.follow_disable'):
             command = 'enable' if action.endswith('enable') else 'disable'
             result = await call('script', 'speaker_follow_motion', [], {'command': command, **({'source_entity': SOURCE} if command == 'enable' else {})}, session_id, return_response=True)
@@ -282,8 +300,9 @@ class SonosControls:
             entity = target.split('#')[0]
             await call('media_player', 'volume_set', [entity], baseline, session_id)
             await self.io.wait(lambda: abs(self._volume(entity) - baseline['volume_level']) <= .01)
-        elif target == SOURCE + '#playback':
-            await call('media_player', 'media_stop', [SOURCE], {}, session_id)
-            await self.io.wait(lambda: self.io.state(SOURCE)['state'] in ('idle', 'paused', 'off'))
+        elif target in [e + '#playback' for e in PLAYBACK_SOURCES]:
+            entity = target.split('#')[0]
+            await call('media_player', 'media_stop', [entity], {}, session_id)
+            await self.io.wait(lambda: self.io.state(entity)['state'] in ('idle', 'paused', 'off'))
         else:
             raise ValueError('Unsupported Sonos restore target')

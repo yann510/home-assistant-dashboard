@@ -221,6 +221,10 @@ class IntegrationTests(unittest.IsolatedAsyncioTestCase):
             seen.clear()
             runtime.service_called(Event('call_service',{'domain':domain,'service':service,'service_data':data},context=Context()))
             return {t for t,o in seen}
+        gym = 'media_player.gym'
+        self.assertEqual(runtime.adapter.observation_targets(gym), [gym+'#volume',GROUPS,gym+'#playback'])
+        self.assertEqual(emit('sonos','play_queue',{'entity_id':gym}),{gym+'#playback'})
+        self.assertEqual(emit('media_player','media_pause',{'entity_id':gym}),{gym+'#playback'})
         self.assertEqual(emit('media_player','volume_set',{'entity_id':SOURCE,'volume_level':.2}),{SOURCE+'#volume'})
         self.assertEqual(emit('sonos','remove_from_queue',{'entity_id':SOURCE,'queue_position':0}),{SOURCE+'#playback'})
         self.assertEqual(emit('sonos','play_queue',{'entity_id':SOURCE}),{SOURCE+'#playback'})

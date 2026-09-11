@@ -6,7 +6,7 @@ activate:
       required: true
       selector:
         select:
-          options: [love, unwind, dinner, party]
+          options: [love, unwind, dinner, party, gym]
 end:
   name: End mood
   description: Restore controls still owned by the mood and stop mood music.

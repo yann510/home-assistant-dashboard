@@ -1,4 +1,5 @@
 """Authoritative approved mood recipes; the client selects only a mood ID."""
+GYM = 'light.gym'
 STRIP = 'light.living_room_led_strip'
 BULBS = 'light.light_living_room_bulbs'
 KITCHEN = 'light.light_kitchen'
@@ -12,6 +13,7 @@ NEON_EFFECTS = {
 }
 NEON_BRIGHTNESS = {'love': 1000, 'unwind': 1000, 'dinner': 1000, 'party': 1000}
 LIGHTS = {
+    'gym': {GYM: {'brightness':255}},
     'love': {STRIP: {'rgb_color': [255,51,119], 'brightness':89}},
     'unwind': {STRIP: {'rgb_color': [255,170,68], 'brightness':64}},
     'dinner': {STRIP: {'rgb_color': [255,192,112], 'brightness':51}, BULBS: {'brightness':89}, KITCHEN: {'brightness':140}},

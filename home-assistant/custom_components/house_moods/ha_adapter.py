@@ -4,7 +4,7 @@ from copy import deepcopy
 from homeassistant.core import Context, CoreState
 from .lights import LightControls
 from .presets import NEON
-from .sonos import SonosControls, SPEAKERS, SOURCE, FOLLOW, FOLLOW_SOURCE, FOLLOW_SCRIPT, GROUPS
+from .sonos import SonosControls, SPEAKERS, SOURCE, PLAYBACK_SOURCES, FOLLOW, FOLLOW_SOURCE, FOLLOW_SCRIPT, GROUPS
 
 DEVICE = '754063076'
 ENTRY = '01M20KMKHSQVZTTT0QVQC109JS'
@@ -178,7 +178,7 @@ class HAAdapter:
         if entity in (FOLLOW, FOLLOW_SOURCE):
             return [FOLLOW]
         if entity in SPEAKERS:
-            return [entity + '#volume', GROUPS] + ([SOURCE + '#playback'] if entity == SOURCE else [])
+            return [entity + '#volume', GROUPS] + ([entity + '#playback'] if entity in PLAYBACK_SOURCES else [])
         return []
 
     def native_subscribe(self, callback):
