@@ -322,3 +322,26 @@ Post-deployment verification: the live page serves index-BmQuKFyO.js and all fiv
 local hashed photos, shows all five controls, and has no mobile horizontal overflow.
 Home Assistant completed startup successfully and reports RUNNING; mood status is
 idle with no errors. The integration needed only one restart.
+
+
+## September 11 Gym speaker unavailable report
+
+The failed activation recorded preflight error media_player.gym is unavailable at
+12:37:37.300 UTC. Recorder history shows that speaker unavailable from12:29:30.860
+until12:37:41.568: it recovered roughly four seconds after the user's tap. Both
+members of the Gym stereo pair responded to direct HTTP checks afterward. Retained
+logs do not establish why the speaker lost availability; no network or pairing
+change was made, and this fix does not claim to resolve that underlying outage.
+
+Sonos preflight now waits up to15 seconds when the selected source is unavailable,
+then performs the full normal validation before any writes. Continued unavailability
+produces a friendly room-specific error. No retry happens after device writes and
+no unavailable state is bypassed. Red/green tests cover recovery during the wait and
+persistent failure with no writes. 116 backend and21 HA tests pass. The deployed
+sonos.py matched its original hash before atomic replacement; the original and new
+files are backed up in /share/house-moods-gym-20260911/reconnect.
+
+After deployment/restart, HA reports RUNNING. Live Gym activation and End both
+returned success with no errors: solo Gym playback, preserved volume, full gym
+brightness, follow off, unchanged native neon. End restored every checked baseline
+value. Evidence: .local/live/gym-reconnect-live.log and its private baseline JSON.
