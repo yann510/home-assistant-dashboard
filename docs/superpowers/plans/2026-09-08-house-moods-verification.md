@@ -317,3 +317,8 @@ neon payload matched their captured starting values. Evidence is stored privatel
 in .local/live/gym-live-baseline.json and gym-live-test.log. Configuration check
 passed before the restart. The restart's startup was delayed by the unrelated
 Brother printer integration; required mood devices loaded successfully.
+
+Post-deployment verification: the live page serves index-BmQuKFyO.js and all five
+local hashed photos, shows all five controls, and has no mobile horizontal overflow.
+Home Assistant completed startup successfully and reports RUNNING; mood status is
+idle with no errors. The integration needed only one restart.
