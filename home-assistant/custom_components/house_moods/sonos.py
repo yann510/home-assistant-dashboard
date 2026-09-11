@@ -137,7 +137,13 @@ class SonosControls:
         source = mood_source(mood)
         ident, title, _, _ = FAVORITES[mood]
         if self.io.state(source)['state'] in ('unavailable', 'unknown'):
-            raise ValueError(f'{source} is unavailable.')
+            # Sonos can reconnect moments after a tap. This read-only grace
+            # period stays before planning/capture and every device write.
+            try:
+                await self.io.wait(lambda: self.io.state(source)['state'] not in ('unavailable', 'unknown'), timeout=15)
+            except TimeoutError as err:
+                room = 'Gym' if source == GYM_SOURCE else 'Living Room'
+                raise ValueError(f'{room} speaker is unavailable. Please try again once it reconnects.') from err
         for entity in (FOLLOW, FOLLOW_SOURCE, FOLLOW_SCRIPT):
             if self.io.state(entity)['state'] in ('unavailable', 'unknown'):
                 raise ValueError('Follow me is unavailable.')

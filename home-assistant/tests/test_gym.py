@@ -131,3 +131,31 @@ class GymTests(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(store.value)
         result=await engine.activate('love');self.assertTrue(result['success'],result)
         self.assertNotIn(GYM_LIGHT,store.value.baseline)
+
+    async def test_gym_preflight_waits_for_speaker_reconnect_before_any_writes(self):
+        io=HouseIO();io.states[GYM]['state']='unavailable';sonos=SonosControls(io)
+        waits=[]
+        async def reconnect(predicate,timeout=15):
+            waits.append(timeout)
+            self.assertEqual(io.calls,[])
+            self.assertFalse(predicate())
+            io.states[GYM]['state']='paused'
+            self.assertTrue(predicate())
+        io.wait=reconnect
+        await sonos.preflight('gym')
+        self.assertEqual(waits,[15])
+        self.assertEqual(io.calls,[])
+        self.assertTrue(any(w.action=='sonos.play' for w in await sonos.plan_apply('gym')))
+
+    async def test_gym_preflight_timeout_is_friendly_and_never_writes(self):
+        io=HouseIO();io.states[GYM]['state']='unavailable';sonos=SonosControls(io)
+        waits=[]
+        async def timeout(predicate,timeout=15):
+            waits.append(timeout)
+            self.assertFalse(predicate())
+            raise TimeoutError('not confirmed')
+        io.wait=timeout
+        with self.assertRaisesRegex(ValueError,'Gym speaker is unavailable'):
+            await sonos.preflight('gym')
+        self.assertEqual(waits,[15])
+        self.assertEqual(io.calls,[])
