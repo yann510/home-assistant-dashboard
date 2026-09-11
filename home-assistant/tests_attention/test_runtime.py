@@ -67,3 +67,33 @@ class FailureTests(unittest.IsolatedAsyncioTestCase):
         store.fail = False
         await runtime.tick()
         self.assertTrue(published['attrs']['ready'])
+
+class GatewayRuntimeTests(unittest.IsolatedAsyncioTestCase):
+    async def test_live_gateway_overrides_stale_entity_and_real_faults_recover(self):
+        published = {}
+        hass = SimpleNamespace(states=SimpleNamespace(async_set=lambda e,s,a: published.update(attrs=a)))
+        now = [0]
+        gateway = ['on']
+        runtime = module.Runtime(hass, Store(), lambda: now[0], gateway=lambda: gateway[0])
+        await runtime.start({'sensor.hilo_gateway': 'unavailable', 'climate.thermostat_office': 'heat'})
+        for timestamp in (120, 730):
+            now[0] = timestamp
+            await runtime.tick()
+        ids = lambda: {item['id'] for item in published['attrs']['items']}
+        self.assertNotIn('hilo', ids())
+        gateway[0] = 'off'
+        for timestamp in (740, 1341):
+            now[0] = timestamp
+            await runtime.tick()
+        self.assertIn('hilo', ids())
+        self.assertNotIn('offline:climate.thermostat_office', ids())
+        gateway[0] = 'on'
+        for timestamp in (1350, 1411):
+            now[0] = timestamp
+            await runtime.tick()
+        self.assertNotIn('hilo', ids())
+        await runtime.change('climate.thermostat_office', 'unavailable', {}, 1411)
+        now[0] = 2012
+        await runtime.tick()
+        self.assertIn('offline:climate.thermostat_office', ids())
+        self.assertNotIn('hilo', ids())

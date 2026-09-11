@@ -9,7 +9,8 @@ DOMAIN = 'dashboard_attention'
 _LOGGER = logging.getLogger(__name__)
 
 class Runtime:
-    def __init__(self, hass, store, clock=None):
+    def __init__(self, hass, store, clock=None, gateway=None):
+        self.gateway = gateway
         self.hass = hass
         self.store = store
         self.clock = clock or (lambda: datetime.now(timezone.utc).timestamp())
@@ -25,6 +26,8 @@ class Runtime:
         async with self.lock:
             saved = await self.store.async_load()
             self.engine = Engine(self.clock(), saved)
+            if self.gateway:
+                states = {**states, "sensor.hilo_gateway": self.gateway()}
             self.engine.prime(states, self.clock())
             await self.flush()
 
@@ -53,6 +56,8 @@ class Runtime:
 
     async def tick(self):
         async with self.lock:
+            if self.gateway:
+                self.engine.update("sensor.hilo_gateway", self.gateway(), {}, self.clock())
             self.engine.tick(self.clock())
             await self.flush()
 
@@ -99,7 +104,18 @@ async def async_setup(hass, config):
     from homeassistant.helpers.event import async_track_state_change_event, async_track_time_interval
     from homeassistant.helpers.storage import Store
 
-    runtime = Runtime(hass, Store(hass, 1, DOMAIN))
+    from homeassistant.helpers import entity_registry as er
+    from .gateway import gateway_state
+    registry = er.async_get(hass)
+    def resolve_gateway():
+        config_ids = {entry.config_entry_id for entity in ('climate.thermostat_office', 'climate.thermostat_gym', 'climate.thermostat_bedroom')
+                      if (entry := registry.async_get(entity)) is not None}
+        entries = [dict(entity_id=e.entity_id, platform=e.platform, unique_id=e.unique_id,
+                        config_entry_id=e.config_entry_id, disabled_by=e.disabled_by) for e in registry.entities.values()]
+        states = {e['entity_id']: {'state': state.state, 'attributes': dict(state.attributes)} for e in entries
+                  if (state := hass.states.get(e['entity_id'])) is not None}
+        return gateway_state(entries, states, config_ids)
+    runtime = Runtime(hass, Store(hass, 1, DOMAIN), gateway=resolve_gateway)
     hass.data[DOMAIN] = runtime
     hass.states.async_set('sensor.dashboard_attention', 0, {'items': [], 'ready': False})
 
@@ -109,7 +125,7 @@ async def async_setup(hass, config):
             state = event.data.get('new_state')
             runtime.schedule(runtime.change(event.data['entity_id'], state.state if state else 'unavailable',
                                             dict(state.attributes) if state else {}, runtime.clock()))
-        runtime.unsubscribers.append(async_track_state_change_event(hass, ENTITIES, changed))
+        runtime.unsubscribers.append(async_track_state_change_event(hass, ENTITIES - {"sensor.hilo_gateway"}, changed))
         await runtime.start({entity: state.state for entity in ENTITIES if (state := hass.states.get(entity)) is not None})
         @callback
         def timer(_now):

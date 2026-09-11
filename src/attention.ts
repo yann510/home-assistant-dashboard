@@ -69,6 +69,8 @@ export function attentionExplanation(item: AttentionItem): string {
     return 'Replace this sensor’s battery when convenient. This reminder clears after the reported level stays at 25% or more for 30 minutes.';
   if (item.target === 'appliances')
     return 'Check the appliance and its connection. This reminder clears when reliable status returns or the paused cycle resumes or ends. Missing status is not proof that a cycle finished.';
+  if (item.id === 'hilo')
+    return 'The gateway is not reporting a healthy connection. Thermostats are checked separately and may still be available. This reminder clears after the gateway reports healthy status for one minute.';
   if (item.target === 'temperature')
     return 'Check the thermostat or gateway connection. Temperature controls become available again when reliable status returns.';
   if (item.target === 'details' && item.id.startsWith('offline:'))

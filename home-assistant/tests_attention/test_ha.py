@@ -18,7 +18,9 @@ class HATests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.hass = HomeAssistant(self.temp.name)
+        from homeassistant.helpers import entity_registry as er
         self.hass.state = CoreState.running
+        await er.async_load(self.hass)
         await async_setup(self.hass, {'dashboard_attention': {}})
         self.runtime = self.hass.data['dashboard_attention']
         self.now = self.runtime.clock() + 130
@@ -54,7 +56,9 @@ class StartupTests(unittest.IsolatedAsyncioTestCase):
             async def async_save(self, value): self.saved = value
         with tempfile.TemporaryDirectory() as directory:
             hass = HomeAssistant(directory)
+            from homeassistant.helpers import entity_registry as er
             hass.state = CoreState.running
+            await er.async_load(hass)
             store = DelayedStore()
             with patch('homeassistant.helpers.storage.Store', return_value=store):
                 setup = asyncio.create_task(async_setup(hass, {'dashboard_attention': {}}))

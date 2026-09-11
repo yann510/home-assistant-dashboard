@@ -172,7 +172,7 @@ class Engine:
                            target='temperature' if entity.startswith('climate.') else 'details', snooze=14400)
         gateway = self.value('sensor.hilo_gateway')
         self.condition('hilo', gateway in BAD or gateway == 'off', now, 600, 60,
-                       title='Heating status unavailable', detail='The Hilo gateway is unavailable. Check the heating controls below.',
+                       title='Hilo gateway status unavailable', detail='Gateway connectivity cannot be confirmed. Thermostat availability is checked separately.',
                        icon='heat', target='temperature', snooze=14400)
         self.batteries(now)
         mood = self.value('sensor.house_mood')
