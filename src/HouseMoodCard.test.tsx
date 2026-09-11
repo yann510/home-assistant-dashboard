@@ -15,10 +15,10 @@ const props = (): HouseMoodCardProps => ({
 });
 
 describe('House mood card', () => {
-  it('starts any of the four moods directly without extra controls', async () => {
+  it('starts any of the five moods directly without extra controls', async () => {
     const p = props();
     render(<HouseMoodCard {...p} />);
-    for (const name of ['Love', 'Unwind', 'Dinner', 'Party']) {
+    for (const name of ['Love', 'Unwind', 'Dinner', 'Party', 'Gym']) {
       await userEvent.click(screen.getByRole('button', { name }));
       expect(p.onActivate).toHaveBeenLastCalledWith(name.toLowerCase());
     }

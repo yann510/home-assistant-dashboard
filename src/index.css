@@ -977,7 +977,7 @@
 .house-mood-card [data-mood='unwind'], .house-mood-card[data-mood='unwind'] { --mood-accent: var(--dashboard-mood-unwind); }
 .house-mood-card [data-mood='dinner'], .house-mood-card[data-mood='dinner'] { --mood-accent: var(--dashboard-mood-dinner); }
 .house-mood-card [data-mood='party'], .house-mood-card[data-mood='party'] { --mood-accent: var(--dashboard-mood-party); }
-.house-mood-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.house-mood-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
 .house-mood-preset, .house-mood-action {
   font: inherit;
   color: inherit;
@@ -988,24 +988,23 @@
   background: var(--dashboard-nested-card-surface);
   padding: 10px 12px;
 }
+/* Keep the photo contrast independent of the user's dashboard theme. */
+.house-mood-card [data-mood='gym'] { --mood-accent: var(--ha-A400); }
 .house-mood-preset {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  min-height: 58px;
-  min-width: 0;
-  font-weight: 500;
+  position: relative; isolation: isolate; overflow: hidden;
+  height: 116px; min-width: 0; border: 2px solid transparent;
+  text-align: left; color: #fff;
+  transition: border-color .18s, box-shadow .18s;
 }
-.house-mood-icon { color: var(--mood-accent); font-size: 1.35rem; line-height: 1; }
-.house-mood-preset[aria-pressed='true'] {
-  border-color: var(--mood-accent);
-  background: color-mix(in srgb, var(--mood-accent) 30%, var(--dashboard-nested-card-surface));
-}
-.house-mood-card button:enabled:hover { background: var(--dashboard-card-hover-surface); }
-.house-mood-preset[aria-pressed='true']:enabled:hover {
-  background: color-mix(in srgb, var(--mood-accent) 36%, var(--dashboard-nested-card-surface));
-}
+.house-mood-photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: -2; filter: saturate(.8); transition: transform .25s, filter .25s; }
+.house-mood-shade { position: absolute; inset: 0; z-index: -1; background: linear-gradient(180deg, rgb(0 0 0 / 12%), rgb(0 0 0 / 22%) 30%, rgb(0 0 0 / 79%) 100%); }
+.house-mood-name { position: absolute; left: 11px; bottom: 12px; font-size: 14px; font-weight: 650; text-shadow: 0 1px 4px #000; }
+.house-mood-check { position: absolute; right: 8px; top: 8px; width: 22px; height: 22px; border-radius: 50%; background: var(--mood-accent); color: #10151b; display: grid; place-items: center; font-weight: 800; font-size: 14px; }
+.house-mood-preset[aria-pressed='true'] { border-color: var(--mood-accent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--mood-accent) 25%, transparent); }
+.house-mood-preset[aria-pressed='true'] .house-mood-photo { filter: saturate(1.15); }
+.house-mood-preset:enabled:hover .house-mood-photo { transform: scale(1.055); filter: saturate(1.1); }
+.house-mood-action:enabled:hover { background: var(--dashboard-card-hover-surface); }
+.house-mood-check.house-mood-spinner { width: 22px; height: 22px; background: transparent; color: white; }
 .house-mood-card button:focus-visible { outline: 2px solid var(--ha-A400); outline-offset: 3px; }
 .house-mood-card button:disabled { opacity: 0.55; cursor: default; }
 .house-mood-notice { display: block; margin-top: 12px; font-size: 0.85rem; }
@@ -1021,8 +1020,13 @@
   animation: house-mood-spin 1s linear infinite;
 }
 @keyframes house-mood-spin { to { transform: rotate(360deg); } }
-@container (max-width: 480px) { .house-mood-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (prefers-reduced-motion: reduce) { .house-mood-spinner { animation: none; } }
+@container (max-width: 480px) {
+  .house-mood-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .house-mood-preset { height: 104px; }
+  .house-mood-preset:last-child { grid-column: 1 / -1; height: 90px; }
+  .house-mood-preset:last-child .house-mood-photo { object-position: center 58%; }
+}
+@media (prefers-reduced-motion: reduce) { .house-mood-spinner { animation: none; } .house-mood-preset, .house-mood-photo { transition: none; } }
 
 .appliances-card {
   min-width: 0;

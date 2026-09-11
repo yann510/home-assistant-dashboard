@@ -1,4 +1,10 @@
-export type MoodId = 'love' | 'unwind' | 'dinner' | 'party';
+import lovePhoto from './assets/moods/love.jpg';
+import unwindPhoto from './assets/moods/unwind.jpg';
+import dinnerPhoto from './assets/moods/dinner.jpg';
+import partyPhoto from './assets/moods/party.jpg';
+import gymPhoto from './assets/moods/gym.jpg';
+
+export type MoodId = 'love' | 'unwind' | 'dinner' | 'party' | 'gym';
 export type MoodPhase = 'idle' | 'starting' | 'active' | 'restoring' | 'recovery_required';
 export type MoodStatus = {
   phase: MoodPhase;
@@ -15,10 +21,11 @@ export type HouseMoodCardProps = {
   onRetry: () => void;
 };
 const moods = [
-  { id: 'love', name: 'Love', icon: '♡' },
-  { id: 'unwind', name: 'Unwind', icon: '☀' },
-  { id: 'dinner', name: 'Dinner', icon: '🍷' },
-  { id: 'party', name: 'Party', icon: '✦' },
+  { id: 'love', name: 'Love', photo: lovePhoto },
+  { id: 'unwind', name: 'Unwind', photo: unwindPhoto },
+  { id: 'dinner', name: 'Dinner', photo: dinnerPhoto },
+  { id: 'party', name: 'Party', photo: partyPhoto },
+  { id: 'gym', name: 'Gym', photo: gymPhoto },
 ] as const;
 
 export function HouseMoodCard({ status, connected, available, onActivate, onEnd, onRetry }: HouseMoodCardProps) {
@@ -61,14 +68,13 @@ export function HouseMoodCard({ status, connected, available, onActivate, onEnd,
               if (!locked && status.activeMood !== mood.id) onActivate(mood.id);
             }}
           >
-            <span className='house-mood-icon' aria-hidden='true'>
-              {mood.icon}
-            </span>
-            <span>{mood.name}</span>
+            <img className='house-mood-photo' src={mood.photo} alt='' draggable={false} />
+            <span className='house-mood-shade' aria-hidden='true' />
+            <span className='house-mood-name'>{mood.name}</span>
             {status.phase === 'starting' && status.pendingMood === mood.id ? (
-              <span className='house-mood-spinner' aria-hidden='true' />
+              <span className='house-mood-check house-mood-spinner' aria-hidden='true' />
             ) : (
-              status.activeMood === mood.id && <span aria-hidden='true'>✓</span>
+              status.activeMood === mood.id && <span className='house-mood-check' aria-hidden='true'>✓</span>
             )}
           </button>
         ))}

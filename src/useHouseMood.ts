@@ -3,7 +3,7 @@ import { useStore } from '@hakit/core';
 import type { HouseMoodCardProps, MoodId, MoodPhase, MoodStatus } from './HouseMoodCard';
 
 const phases: MoodPhase[] = ['idle', 'starting', 'active', 'restoring', 'recovery_required'];
-const moodIds: MoodId[] = ['love', 'unwind', 'dinner', 'party'];
+const moodIds: MoodId[] = ['love', 'unwind', 'dinner', 'party', 'gym'];
 const idle: MoodStatus = { phase: 'idle', activeMood: null, pendingMood: null, errors: [] };
 const record = (value: unknown): Record<string, unknown> =>
   value !== null && typeof value === 'object' ? (value as Record<string, unknown>) : {};

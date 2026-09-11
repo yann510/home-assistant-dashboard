@@ -36,6 +36,13 @@ afterEach(() => {
   vi.useRealTimers();
 });
 describe('House mood connection', () => {
+  it('recognizes Gym from the server and does not restart it', () => {
+    update('active', { active_mood: 'gym' });
+    const { result } = renderHook(() => useHouseMood());
+    expect(result.current.status.activeMood).toBe('gym');
+    act(() => result.current.onActivate('gym'));
+    expect(fake.send).not.toHaveBeenCalled();
+  });
   it('locks immediately and sends one authenticated service request for double taps', async () => {
     fake.send.mockReturnValue(new Promise(() => {}));
     const { result } = renderHook(() => useHouseMood());
