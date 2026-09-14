@@ -122,14 +122,14 @@ class GymTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(io.states[GYM]['state'],'playing')
         self.assertEqual(io.states[GYM_LIGHT]['attributes']['brightness'],80)
 
-    async def test_unavailable_gym_light_only_blocks_gym_before_writes(self):
+    async def test_unavailable_gym_light_does_not_block_unwind(self):
         io=HouseIO();io.states[GYM_LIGHT]['state']='unavailable'
         bridge=Bridge();adapter=Adapter(io,bridge);store=MemoryStore();engine=MoodCoordinator(adapter,store)
         result=await engine.activate('gym');self.assertFalse(result['success'])
         self.assertEqual(io.calls,[])
         self.assertEqual(bridge.sent,[])
         self.assertIsNone(store.value)
-        result=await engine.activate('love');self.assertTrue(result['success'],result)
+        result=await engine.activate('unwind');self.assertTrue(result['success'],result)
         self.assertNotIn(GYM_LIGHT,store.value.baseline)
 
     async def test_gym_preflight_waits_for_speaker_reconnect_before_any_writes(self):

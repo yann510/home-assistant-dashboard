@@ -24,7 +24,7 @@ class LightControls:
         return [*LIGHTS[mood], *([NEON] if mood in NEON_EFFECTS else [])]
 
     def owns(self, target):
-        return target == GYM or target in self.snapshot_targets()
+        return target in self.snapshot_targets() or any(target in recipe for recipe in LIGHTS.values())
 
     def _state(self, target):
         if not self.owns(target):
@@ -40,7 +40,7 @@ class LightControls:
         result = {'state': state['state']}
         if state['state'] == 'on':
             mode = attributes.get('color_mode')
-            if attributes.get('brightness') is None or mode not in {'brightness', 'white', *COLOR_KEYS}:
+            if mode != 'onoff' and (attributes.get('brightness') is None or mode not in {'brightness', 'white', *COLOR_KEYS}):
                 raise ValueError(f'{target} has incomplete brightness/mode state')
             color = COLOR_KEYS.get(mode)
             if color and attributes.get(color) is None:
@@ -70,6 +70,9 @@ class LightControls:
 
     def _plan_standard(self, target, data):
         attributes = self._state(target)['attributes']
+        if data.get('state') == 'off':
+            transition = 3 if attributes.get('supported_features',0) & TRANSITION else 0
+            return ControlWrite(f'light:{target}', 'light', [target], {target:{'state':'off'}}, {'transition':transition} if transition else {}, transition)
         modes = attributes.get('supported_color_modes', [])
         data = deepcopy(data)
         if 'rgb_color' in data:
@@ -120,7 +123,7 @@ class LightControls:
         if target == NEON:
             observed = await self.neon.replay(write.data)
         else:
-            await self.io.call('light','turn_on',[target],deepcopy(write.data),session_id)
+            await self.io.call('light','turn_off' if write.requested[target]['state']=='off' else 'turn_on',[target],deepcopy(write.data),session_id)
             try:
                 await self.io.wait(lambda: matches(target, write.requested[target], self.standard_state(target)))
             except TimeoutError as err:

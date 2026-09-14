@@ -12,16 +12,19 @@ try:
     from custom_components.house_moods.lights import LightControls
 except ImportError:
     LightControls = None
+from custom_components.house_moods.presets import STRIP_ONLY_OFF
 STRIP='light.living_room_led_strip'; BULBS='light.light_living_room_bulbs'; KITCHEN='light.light_kitchen'; NEON='light.neon_light_led_strip'
 FIELDS=json.loads((ROOT/'tests/fixtures/office-neon-original-effect.json').read_text())['service_data']['payload']
 EFFECTS={
 'love':'N01:P10001FF3377F2100010019U3V3000640000E40088000000881664;',
 'unwind':'N01:P10001FFAA44F2100010019U3V3000640000E1;',
 'dinner':'N01:P10001FFC070F2100010019U3V3000640000E1;',
-'party':'N01:P10001FFFFFFF2100010019U3V3100640000E3004BC2O6004B;'}
+'party':'N01:P10007FF0000FF8000FFFF0000FF000080FF4B00FFFF0080F2100070004000400040004000300030003U3V3100640000E30038C2O60038;'}
 class IO:
     def __init__(self):
         self.states={e:{'state':'on','attributes':{'brightness':100,'color_mode':mode,'supported_color_modes':[mode], 'supported_features':0}} for e,mode in [(STRIP,'rgb'),(BULBS,'brightness'),(KITCHEN,'brightness'),(NEON,'rgb'),('light.gym','brightness')]}
+        for entity in ('light.office_bulbs','light.light_toilet','light.light_bedroom','light.light_front_door','light.light_laundry_room','light.bedroom_closet'):
+            self.states[entity]={'state':'off','attributes':{'color_mode':'onoff','supported_color_modes':['onoff']}}
         self.states[STRIP]['attributes']['rgb_color']=[2,3,4]
         self.calls=[];self.ignore=False;self.wrong_mode=False
     def state(self,target):return deepcopy(self.states[target])
@@ -62,18 +65,18 @@ class LightsTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(self.bridge.sent[-1]['extra_observed'],{'d30':42})
         self.assertEqual(baseline,original);self.assertEqual(self.io.calls,[])
     async def test_exact_standard_presets_and_exclusions(self):
-        for mood,rgb,strip,bulbs,kitchen in [('love',[255,51,119],89,None,None),('unwind',[255,170,68],64,None,None),('dinner',[255,192,112],51,89,140),('party',[170,68,255],178,64,102)]:
+        for mood,rgb,strip,bulbs,kitchen in [('love',[255,51,119],89,None,None),('unwind',[255,170,68],64,None,None),('dinner',[255,192,112],51,89,140),('party',[170,68,255],178,None,None)]:
             writes=await self.adapter.plan_apply(mood);targets={w.targets[0] for w in writes}
-            self.assertEqual(targets,{STRIP,NEON}|({BULBS} if bulbs else set())|({KITCHEN} if kitchen else set()))
+            self.assertEqual(targets,{STRIP,NEON}|(set(STRIP_ONLY_OFF) if mood in ('love','party') else set())|({BULBS} if bulbs else set())|({KITCHEN} if kitchen else set()))
             for write in writes:
                 if NEON not in write.targets:await self.adapter.apply_write(write,'s')
             self.assertEqual(self.io.states[STRIP]['attributes']['rgb_color'],rgb)
             self.assertEqual(self.io.states[STRIP]['attributes']['brightness'],strip)
             if bulbs:self.assertEqual(self.io.states[BULBS]['attributes']['brightness'],bulbs)
             if kitchen:self.assertEqual(self.io.states[KITCHEN]['attributes']['brightness'],kitchen)
-        for _,_,targets,data in self.io.calls:
+        for _,service,targets,data in self.io.calls:
             self.assertNotIn('transition',data)
-            if targets in ([BULBS],[KITCHEN]):self.assertEqual(set(data),{'brightness'})
+            if service=='turn_on' and targets in ([BULBS],[KITCHEN]):self.assertEqual(set(data),{'brightness'})
     async def test_supported_transition_and_off_restore(self):
         self.io.states[STRIP]['attributes']['supported_features']=32
         self.io.states[STRIP]['state']='off';baseline=await self.adapter.read(STRIP)
@@ -99,8 +102,8 @@ class LightsTests(unittest.IsolatedAsyncioTestCase):
             baseline=await self.adapter.read(STRIP)
             await self.adapter.restore(STRIP,baseline,'s')
             self.assertEqual(self.io.calls[-1][3],{'brightness':100,key:value})
-    async def test_included_targets_excludes_kitchen_for_love(self):
-        self.assertEqual(set(self.adapter.included_targets('love')),{STRIP,NEON})
+    async def test_included_targets_scopes_strip_only_lights_to_love_and_party(self):
+        self.assertEqual(set(self.adapter.included_targets('love')),{STRIP,NEON,*STRIP_ONLY_OFF})
         self.assertEqual(set(self.adapter.included_targets('dinner')),{STRIP,BULBS,KITCHEN,NEON})
     async def test_missing_active_color_cannot_be_captured_as_complete_baseline(self):
         del self.io.states[STRIP]['attributes']['rgb_color']
@@ -153,7 +156,7 @@ class LightsTests(unittest.IsolatedAsyncioTestCase):
             await self.adapter.apply_write(write,'s')
 
     async def test_kitchen_dimmer_presets_capture_apply_and_restore_brightness_only(self):
-        for mood,brightness in [('dinner',140),('party',102)]:
+        for mood,brightness in [('dinner',140)]:
             for power in ('on','off'):
                 with self.subTest(mood=mood,power=power):
                     self.io.states[KITCHEN]['state']=power
@@ -169,7 +172,7 @@ class LightsTests(unittest.IsolatedAsyncioTestCase):
                     self.assertEqual(self.io.states[KITCHEN]['state'],power)
                     self.assertEqual(self.io.calls[-1][3],{'brightness':175} if power=='on' else {})
 
-    async def test_love_leaves_bulbs_untouched_and_switch_restores_only_owned_bulbs(self):
+    async def test_unwind_leaves_bulbs_untouched_and_switch_restores_only_owned_bulbs(self):
         from custom_components.house_moods.coordinator import MoodCoordinator
         from test_coordinator import MemoryStore
         for manual in (False,True):
@@ -179,14 +182,14 @@ class LightsTests(unittest.IsolatedAsyncioTestCase):
                 original=deepcopy(self.io.states[BULBS])
                 self.io.calls.clear()
                 engine=MoodCoordinator(CoordinatorLightAdapter(self.adapter),MemoryStore())
-                self.assertTrue((await engine.activate('love'))['success'])
+                self.assertTrue((await engine.activate('unwind'))['success'])
                 self.assertEqual(self.io.states[BULBS],original)
                 self.assertFalse(any(c[2]==[BULBS] for c in self.io.calls))
                 self.assertTrue((await engine.activate('dinner'))['success'])
                 if manual:
                     self.io.states[BULBS]['attributes']['brightness']=123
                     await engine.observe(BULBS,context_id='manual')
-                self.assertTrue((await engine.activate('love'))['success'])
+                self.assertTrue((await engine.activate('unwind'))['success'])
                 self.assertEqual(self.io.states[BULBS]['attributes']['brightness'],123 if manual else 175)
                 self.assertNotIn(BULBS,engine.session.owned)
                 self.assertTrue((await engine.end())['success'])
@@ -200,7 +203,7 @@ class LightsTests(unittest.IsolatedAsyncioTestCase):
                 fields={**deepcopy(FIELDS),'d1':power,'d52':brightness}
                 self.bridge.value=native.NativeSnapshot(1,'754063076',1,fields,{'d30':42})
                 self.io.states[NEON]['state']='on' if power else 'off'
-                original=deepcopy(await self.adapter.capture(self.adapter.snapshot_targets()))
+                original=deepcopy(await self.adapter.capture(list(dict.fromkeys([*self.adapter.snapshot_targets(),*STRIP_ONLY_OFF]))))
                 adapter=CoordinatorLightAdapter(self.adapter)
                 store=MemoryStore();engine=MoodCoordinator(adapter,store)
                 for cycle in range(3):
@@ -208,7 +211,7 @@ class LightsTests(unittest.IsolatedAsyncioTestCase):
                         result=await engine.activate(mood)
                         self.assertTrue(result['success'],result)
                         self.assertEqual(result['active_mood'],mood)
-                        self.assertEqual(store.value.baseline,original)
+                        self.assertEqual(store.value.baseline,{t:original[t] for t in store.value.baseline})
                         self.assertIn(NEON,store.value.owned)
                         self.assertNotIn(NEON,store.value.overridden)
                         self.assertEqual(self.bridge.value.fields['d50'],EFFECTS[mood])
@@ -217,7 +220,7 @@ class LightsTests(unittest.IsolatedAsyncioTestCase):
                     # Loading the durable session must retain the first rainbow too.
                     engine=MoodCoordinator(adapter,store)
                     self.assertTrue((await engine.reconcile())['success'])
-                    self.assertEqual(store.value.baseline,original)
+                    self.assertEqual(store.value.baseline,{t:original[t] for t in store.value.baseline})
                 result=await engine.end()
                 self.assertTrue(result['success'],result)
                 self.assertEqual(result['phase'],'idle')

@@ -223,6 +223,11 @@ class IntegrationTests(unittest.IsolatedAsyncioTestCase):
             return {t for t,o in seen}
         gym = 'media_player.gym'
         self.assertEqual(runtime.adapter.observation_targets(gym), [gym+'#volume',GROUPS,gym+'#playback'])
+        for entity in ('light.office_bulbs','light.light_toilet','light.light_bedroom','light.light_front_door','light.light_laundry_room','light.bedroom_closet'):
+            self.assertEqual(runtime.adapter.observation_targets(entity),[entity])
+            self.assertEqual(emit('light','turn_on',{'entity_id':entity}),{entity})
+        self.assertEqual(runtime.adapter.observation_targets('light.all_lights_except_gym_and_bedroom_closet'),[])
+
         self.assertEqual(emit('sonos','play_queue',{'entity_id':gym}),{gym+'#playback'})
         self.assertEqual(emit('media_player','media_pause',{'entity_id':gym}),{gym+'#playback'})
         self.assertEqual(emit('media_player','volume_set',{'entity_id':SOURCE,'volume_level':.2}),{SOURCE+'#volume'})
