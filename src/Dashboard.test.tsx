@@ -87,7 +87,7 @@ describe('Dashboard home modes', () => {
 
 it('surfaces running laundry above dashboard columns and keeps appliance navigation available', () => {
   const { container } = render(<Dashboard />);
-  const running = screen.getByRole('region', { name: 'Running' });
+  const running = screen.getByRole('region', { name: 'In progress' });
   const columns = container.querySelector('.columns');
   expect(running.nextElementSibling).toBe(columns);
   expect(screen.getByRole('link', { name: /Dryer/ }).getAttribute('href')).toBe('#appliances-card');

@@ -38,7 +38,7 @@ All View targets are dashboard sections or inline details. These services never 
 
 The UI owns its disconnected-client banner, entrance animation, in-page navigation and relative times. Fault/recovery items rank first, followed by Roomba intervention, completions, other interruptions, then batteries.
 
-The compact Running area follows Needs attention and shows only washer/dryer machines reporting `run`, excluding a terminal `finish`/`finished` job. It shows the reported phase and a future completion estimate when usable, updating remaining minutes every 30 seconds. It hides during dashboard disconnection and links to the full Appliances card without moving it. Paused cycles remain covered by the existing ten-minute attention rule. No percentage is invented from the finish estimate.
+The compact In progress area follows Needs attention and shows washer/dryer/dishwasher machines reporting `run` or `pause`, excluding a terminal `finish`/`finished` job. Running appliances show the reported phase and a future completion estimate when usable, updating remaining minutes every 30 seconds; paused appliances show Paused with no ETA or running animation. Roomba appears while cleaning or returning to dock. The area hides during dashboard disconnection and links to the full appliance or vacuum card without moving it. Existing completion, pause, stuck/error, and bin-full attention rules remain unchanged. Docking is not inferred as a successful cleaning completion. No percentage is invented from a finish estimate.
 
 ### Laundry door limitation
 

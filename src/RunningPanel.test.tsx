@@ -26,25 +26,24 @@ afterEach(() => {
 it('shows live laundry activity without invented progress and removes it once finished', () => {
   dryer();
   const view = render(<RunningPanel />);
-  expect(screen.getByRole('region', { name: 'Running' })).toBeTruthy();
+  expect(screen.getByRole('region', { name: 'In progress' })).toBeTruthy();
   expect(screen.getByRole('link', { name: /Dryer.*Drying/ })).toBeTruthy();
   expect(screen.queryByRole('progressbar')).toBeNull();
   dryer('stop', 'finished');
   view.rerender(<RunningPanel />);
   expect(screen.queryByRole('region')).toBeNull();
 });
-it.each(['stop', 'pause', 'unknown', 'unavailable', ''])('hides non-running machine %s', machine => {
+it.each(['stop', 'unknown', 'unavailable', ''])('hides non-running machine %s', machine => {
   dryer(machine);
   render(<RunningPanel />);
   expect(screen.queryByRole('region')).toBeNull();
 });
-it.each(['finish', 'finished'])('does not show stale run with terminal job %s', job => {
-  dryer('run', job);
+it.each([['run', 'finish'], ['run', 'finished'], ['pause', 'finish'], ['pause', 'finished']])('does not show stale %s with terminal job %s', (machine, job) => {
+  dryer(machine, job);
   render(<RunningPanel />);
   expect(screen.queryByRole('region')).toBeNull();
 });
-it('does not show missing machines or expand the feature to the dishwasher', () => {
-  ha.entities['sensor.dishwasher_dishwasher_machine_state'] = { state: 'run' };
+it('does not show missing machines', () => {
   render(<RunningPanel />);
   expect(screen.queryByRole('region')).toBeNull();
 });
@@ -126,7 +125,60 @@ it('uses quiet icons and instant navigation in Night mode', () => {
       <AppliancesCard />
     </>
   );
-  expect(screen.getByRole('region', { name: 'Running' }).classList.contains('running-quiet')).toBe(true);
+  expect(screen.getByRole('region', { name: 'In progress' }).classList.contains('running-quiet')).toBe(true);
   fireEvent.click(screen.getByRole('link', { name: /Dryer/ }));
   expect(scroll).toHaveBeenCalledWith({ behavior: 'instant', block: 'center' });
+});
+
+it('shows dishwasher activity and removes it on completion', () => {
+  ha.entities['sensor.dishwasher_dishwasher_machine_state'] = { state: 'run' };
+  ha.entities['sensor.dishwasher_dishwasher_job_state'] = { state: 'washing' };
+  const view = render(<RunningPanel />);
+  expect(screen.getByRole('link', { name: /Dishwasher.*Washing/ }).getAttribute('href')).toBe('#appliances-card');
+  ha.entities['sensor.dishwasher_dishwasher_job_state'].state = 'finish';
+  view.rerender(<RunningPanel />);
+  expect(screen.queryByRole('region')).toBeNull();
+});
+it.each(['washer', 'dryer', 'dishwasher'])('keeps paused %s visible without a running animation or ETA', kind => {
+  ha.entities[`sensor.${kind}_${kind}_machine_state`] = { state: 'pause' };
+  ha.entities[`sensor.${kind}_${kind}_job_state`] = { state: 'wash' };
+  ha.entities[`sensor.${kind}_${kind}_completion_time`] = { state: '2099-01-01T12:00:00Z' };
+  render(<RunningPanel />);
+  expect(screen.getByRole('region', { name: 'In progress' })).toBeTruthy();
+  expect(screen.getByText('Paused')).toBeTruthy();
+  expect(screen.queryByText(/min left/)).toBeNull();
+  expect(screen.getByRole('link').querySelector('svg')?.getAttribute('data-state')).toBe('paused');
+});
+it.each([['cleaning', 'Cleaning'], ['returning', 'Returning to dock']])('shows Roomba %s and focuses its actual card', (state, label) => {
+  ha.entities['vacuum.roomba'] = { state };
+  const scroll = vi.fn();
+  HTMLElement.prototype.scrollIntoView = scroll;
+  render(<><RunningPanel /><div id='attention-target-vacuum' tabIndex={-1}>Vacuum details</div></>);
+  const link = screen.getByRole('link', { name: `Roomba ${label}` });
+  expect(link.getAttribute('href')).toBe('#attention-target-vacuum');
+  fireEvent.click(link);
+  expect(document.activeElement?.id).toBe('attention-target-vacuum');
+  expect(scroll).toHaveBeenCalledWith({ behavior: 'smooth', block: 'center' });
+});
+it.each(['docked', 'idle', 'paused', 'error', 'unknown', 'unavailable'])('leaves Roomba %s out of the activity area', state => {
+  ha.entities['vacuum.roomba'] = { state };
+  render(<RunningPanel />);
+  expect(screen.queryByRole('region')).toBeNull();
+});
+it('hides cached dishwasher and Roomba activity while disconnected', () => {
+  ha.entities['sensor.dishwasher_dishwasher_machine_state'] = { state: 'run' };
+  ha.entities['vacuum.roomba'] = { state: 'cleaning' };
+  ha.connected = false;
+  render(<RunningPanel />);
+  expect(screen.queryByRole('region')).toBeNull();
+});
+it('shows all four active devices together and removes only the device that stops', () => {
+  for (const kind of ['washer', 'dryer', 'dishwasher']) ha.entities[`sensor.${kind}_${kind}_machine_state`] = { state: 'run' };
+  ha.entities['vacuum.roomba'] = { state: 'cleaning' };
+  const view = render(<RunningPanel />);
+  expect(screen.getAllByRole('link')).toHaveLength(4);
+  ha.entities['vacuum.roomba'].state = 'docked';
+  view.rerender(<RunningPanel />);
+  expect(screen.getAllByRole('link')).toHaveLength(3);
+  expect(screen.queryByRole('link', { name: /Roomba/ })).toBeNull();
 });

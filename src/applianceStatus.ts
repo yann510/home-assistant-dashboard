@@ -1,5 +1,6 @@
 const activities: Record<string, string> = {
   wash: 'Washing',
+  washing: 'Washing',
   ai_wash: 'Washing',
   pre_wash: 'Prewashing',
   air_wash: 'Air washing',
