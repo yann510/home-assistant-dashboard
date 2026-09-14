@@ -39,7 +39,7 @@ class StripOnlyTests(unittest.IsolatedAsyncioTestCase):
                 for entity in OFF_LIGHTS:self.assertEqual(io.states[entity]['state'],original[entity]['state'])
         # A user's manual power change after Party is preserved.
         io.states['light.light_bedroom']['state']='on'
-        await engine.observe('light.light_bedroom', 'external:manual')
+        await engine.observe('light.light_bedroom', context_id='external:manual')
         result=await engine.end();self.assertTrue(result['success'],result)
         for entity in OFF_LIGHTS:
             self.assertEqual(io.states[entity]['state'],'on' if entity=='light.light_bedroom' else original[entity]['state'])
