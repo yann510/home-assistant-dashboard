@@ -86,3 +86,12 @@ it('updates icon state on pause and disables running appearance after disconnect
   view.rerender(<AppliancesCard />);
   expect(icon()?.getAttribute('data-state')).toBe('unavailable');
 });
+it.each(['finish', 'finished'])('shows terminal %s job as finished even before machine run updates', job => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date('2026-09-10T12:00:00Z'));
+  dryer('run', job);
+  render(<AppliancesCard />);
+  expect(screen.getByText('Finished')).toBeTruthy();
+  expect(screen.queryByText(/min left/)).toBeNull();
+  expect(screen.getByText('Dryer').closest('li')?.querySelector('svg')?.getAttribute('data-state')).toBe('idle');
+});

@@ -13,7 +13,15 @@ const modes = vi.hoisted(() => ({
 }));
 
 vi.mock('@hakit/core', () => ({
-  useEntity: (entity: string) => (entity === 'input_boolean.morning_mode' ? modes.morning : modes.night),
+  useEntity: (entity: string) =>
+    entity === 'sensor.dryer_dryer_machine_state'
+      ? { state: 'run' }
+      : entity === 'sensor.dryer_dryer_job_state'
+        ? { state: 'drying' }
+        : entity === 'input_boolean.morning_mode'
+          ? modes.morning
+          : modes.night,
+  useStore: (select: (state: unknown) => unknown) => select({ connection: { connected: true }, connectionStatus: 'connected' }),
 }));
 
 vi.mock('@hakit/components', () => ({
@@ -75,4 +83,12 @@ describe('Dashboard home modes', () => {
     expect(modes.morning.service.turnOn).toHaveBeenCalledOnce();
     expect(modes.morning.service.toggle).not.toHaveBeenCalled();
   });
+});
+
+it('surfaces running laundry above dashboard columns and keeps appliance navigation available', () => {
+  const { container } = render(<Dashboard />);
+  const running = screen.getByRole('region', { name: 'Running' });
+  const columns = container.querySelector('.columns');
+  expect(running.nextElementSibling).toBe(columns);
+  expect(screen.getByRole('link', { name: /Dryer/ }).getAttribute('href')).toBe('#appliances-card');
 });

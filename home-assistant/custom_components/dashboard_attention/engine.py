@@ -21,6 +21,8 @@ DEVICES = {
     'binary_sensor.hue_motion_sensor_1_motion_2': 'Gym motion sensor',
 }
 APPLIANCES = ('washer', 'dryer', 'dishwasher')
+LAUNDRY_COMPLETIONS = {'complete:washer', 'complete:dryer'}
+LAUNDRY_UPDATE_DETAIL = 'Recent cycle update. Clears 2 hours after finishing, or tap Done. Door opening is not detected.'
 ENTITIES = set(BATTERIES) | set(DEVICES) | {
     'vacuum.roomba', 'binary_sensor.roomba_bin_full', 'binary_sensor.rpi_power_status',
     'binary_sensor.coda_4680_fiz_wan_status', 'sensor.hilo_gateway', 'sensor.house_mood',
@@ -125,8 +127,14 @@ class Engine:
 
     def tick(self, now):
         for key, item in list(self.events.items()):
-            if item['kind'] == 'completion' and now - datetime.fromisoformat(item['occurred_at']).timestamp() >= 86400:
-                del self.events[key]
+            if item['kind'] == 'completion':
+                # Migrate saved laundry updates without renewing their original age.
+                laundry = key in LAUNDRY_COMPLETIONS
+                if laundry:
+                    item['detail'] = LAUNDRY_UPDATE_DETAIL
+                lifetime = 7200 if laundry else 86400
+                if now - datetime.fromisoformat(item['occurred_at']).timestamp() >= lifetime:
+                    del self.events[key]
         if now < self.started + 120:
             return
         def binary(entity):

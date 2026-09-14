@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { RunningPanel } from './RunningPanel';
 import { AttentionPanel } from './AttentionPanel';
 import { AttentionTarget } from './AttentionStrip';
 import type { AttentionItem } from './attention';
@@ -21,6 +22,7 @@ function Dashboard() {
         <HouseMoodSection />
       </AttentionTarget>
       <AttentionPanel selected={selected} onView={setSelected} onClose={close} />
+      <RunningPanel />
       <div className={'columns'}>
         <div className={'column'}>
           <LightsGroup />

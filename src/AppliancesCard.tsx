@@ -1,5 +1,6 @@
 import { ApplianceIcon, type ApplianceIconState } from './ApplianceIcon';
-import { useEffect, useState } from 'react';
+import { useApplianceClock } from './useApplianceClock';
+import { runningApplianceStatus } from './applianceStatus';
 import { useEntity, useStore } from '@hakit/core';
 
 const appliances = [
@@ -7,30 +8,6 @@ const appliances = [
   { id: 'dryer', prefix: 'sensor.dryer_dryer', name: 'Dryer' },
   { id: 'dishwasher', prefix: 'sensor.dishwasher_dishwasher', name: 'Dishwasher' },
 ] as const;
-const activities: Record<string, string> = {
-  wash: 'Washing',
-  ai_wash: 'Washing',
-  pre_wash: 'Prewashing',
-  air_wash: 'Air washing',
-  rinse: 'Rinsing',
-  ai_rinse: 'Rinsing',
-  spin: 'Spinning',
-  ai_spin: 'Spinning',
-  drying: 'Drying',
-  ai_drying: 'Drying',
-  cooling: 'Cooling',
-  refreshing: 'Refreshing',
-  weight_sensing: 'Sensing load',
-  wrinkle_prevent: 'Wrinkle prevention',
-  delay_wash: 'Delayed start',
-  pre_drain: 'Draining',
-  sanitizing: 'Sanitizing',
-  dehumidifying: 'Dehumidifying',
-  continuous_dehumidifying: 'Dehumidifying',
-  internal_care: 'Internal care',
-  freeze_protection: 'Freeze protection',
-  thawing_frozen_inside: 'Thawing',
-};
 
 function ApplianceRow({ appliance, now, connected }: { appliance: (typeof appliances)[number]; now: number; connected: boolean }) {
   const { prefix, name, id } = appliance;
@@ -38,11 +15,14 @@ function ApplianceRow({ appliance, now, connected }: { appliance: (typeof applia
   const job = useEntity(`${prefix}_job_state`, { returnNullIfNotFound: true });
   const completion = useEntity(`${prefix}_completion_time`, { returnNullIfNotFound: true });
   const state = machine?.state;
+  const finished = ['finish', 'finished'].includes(job?.state ?? '');
   const iconState: ApplianceIconState =
     !connected || !machine || state === 'unavailable'
       ? 'unavailable'
       : state === 'run'
-        ? 'running'
+        ? finished
+          ? 'idle'
+          : 'running'
         : state === 'pause'
           ? 'paused'
           : state === 'stop'
@@ -53,11 +33,7 @@ function ApplianceRow({ appliance, now, connected }: { appliance: (typeof applia
   else if (state === 'stop') status = 'Idle';
   else if (state === 'pause') status = 'Paused';
   else if (state === 'run') {
-    status = activities[job?.state ?? ''] ?? 'Running';
-    const finish = Date.parse(completion?.state ?? '');
-    if (Number.isFinite(finish) && finish > now) {
-      status += ` · ~${Math.ceil((finish - now) / 60_000)} min left`;
-    }
+    status = finished ? 'Finished' : runningApplianceStatus(job?.state, completion?.state, now);
   }
   return (
     <li className='appliance-row'>
@@ -71,19 +47,10 @@ function ApplianceRow({ appliance, now, connected }: { appliance: (typeof applia
 }
 
 export function AppliancesCard() {
-  const [now, setNow] = useState(() => Date.now());
+  const now = useApplianceClock();
   const connected = useStore(state => Boolean(state.connection?.connected && state.connectionStatus === 'connected'));
-  useEffect(() => {
-    const update = () => setNow(Date.now());
-    const timer = window.setInterval(update, 30_000);
-    document.addEventListener('visibilitychange', update);
-    return () => {
-      window.clearInterval(timer);
-      document.removeEventListener('visibilitychange', update);
-    };
-  }, []);
   return (
-    <section className='appliances-card' aria-labelledby='appliances-title'>
+    <section id='appliances-card' tabIndex={-1} className='appliances-card' aria-labelledby='appliances-title'>
       <h2 id='appliances-title'>Appliances</h2>
       <ul>
         {appliances.map(appliance => (

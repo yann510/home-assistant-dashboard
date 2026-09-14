@@ -27,7 +27,7 @@ All View targets are dashboard sections or inline details. These services never 
 
 ## Implemented rules
 
-- Explicit washer/dryer/dishwasher finish after observed activity, immediately captured and deduplicated. Completion expires after 24 hours or a confirmed new active cycle. No completion estimate inference. Done dismisses, without claiming unloading.
+- Explicit washer/dryer/dishwasher finish after observed activity, immediately captured and deduplicated. Washer and dryer updates expire two hours after the original finish; dishwasher updates expire after 24 hours. A confirmed new active cycle or Done clears the update sooner. Snooze and restart never renew its age. Existing saved laundry updates adopt the shorter window and explicit expiry text on upgrade. No completion estimate or unloading inference.
 - Tracked appliance pause for 10 minutes; snooze one hour. Primary status loss for 10 minutes during unfinished activity; snooze one hour. Stopped/none/finished or intentionally paused episodes do not trigger running-cycle offline warnings.
 - Roomba bin-full 60 seconds, clearing after empty for 60 seconds; snooze four hours. Error 60 seconds with trustworthy non-error recovery for 60 seconds. Pause 10 minutes after observed cleaning/returning, clearing after cleaning/returning/docked for 60 seconds; snooze one hour. Active startup snapshots establish cleaning sessions, but an initially paused snapshot does not backfill one. Idle or unknown does not clear an existing pause; a verified error supersedes its display until resolved.
 - Four fixed Hue sensor batteries at ≤20% for 30 minutes; recover ≥25% for 30 minutes. Grouped with sensor names and percentages, seven-day snooze. ≤10% escalation can break snooze once per unresolved grouped episode. Numeric invalid/unknown values never prove recovery.
@@ -37,6 +37,12 @@ All View targets are dashboard sections or inline details. These services never 
 - `sensor.house_mood = recovery_required` immediately after startup grace. Speaker cleanup: Follow me off, saved `media_player.*` source, and Follow me script off continuously five seconds. Empty saved source resolves cleanup. These refer to the existing persistent server state.
 
 The UI owns its disconnected-client banner, entrance animation, in-page navigation and relative times. Fault/recovery items rank first, followed by Roomba intervention, completions, other interruptions, then batteries.
+
+The compact Running area follows Needs attention and shows only washer/dryer machines reporting `run`, excluding a terminal `finish`/`finished` job. It shows the reported phase and a future completion estimate when usable, updating remaining minutes every 30 seconds. It hides during dashboard disconnection and links to the full Appliances card without moving it. Paused cycles remain covered by the existing ten-minute attention rule. No percentage is invented from the finish estimate.
+
+### Laundry door limitation
+
+Read-only inspection on September 13, 2026 confirmed that neither washer nor dryer exposes a door/contact sensor, including disabled entities and the raw SmartThings device capability/status responses. Both reset to stopped/none and power off shortly after finishing; the washer can subsequently become unavailable. These signals do not establish unloading. The two-hour window is therefore a recent-cycle update policy, not automatic door-open acknowledgement. Done remains the immediate persistent dismissal across tablets. Automatic door clearing would require an actual supported door signal.
 
 ## Reliability and limits
 
