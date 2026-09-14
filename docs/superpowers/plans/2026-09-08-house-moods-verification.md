@@ -345,3 +345,43 @@ After deployment/restart, HA reports RUNNING. Live Gym activation and End both
 returned success with no errors: solo Gym playback, preserved volume, full gym
 brightness, follow off, unchanged native neon. End restored every checked baseline
 value. Evidence: .local/live/gym-reconnect-live.log and its private baseline JSON.
+
+## September 14: Love/Party strip-only lighting and rainbow (not deployed)
+
+User requested Love and Party turn off every other light and keep only the two
+LED strips on. Nine individual non-strip lights now receive journaled, confirmed
+power-off writes. Other presets retain their own recipes. Switching to a preset
+that drops a light restores its original still-owned state, and End retains the
+existing manual-override rules. On/off-only lights are supported for this operation.
+No aggregate light entity is controlled.
+
+Party previously had a white single-color Gradient at speed85. Its replacement
+uses the supported grouped palette: red/orange/yellow/green/blue/violet/pink across
+25 segments, Gradient speed100, native brightness1000. A regression test failed on
+the white palette, then passed the actual Lepro parser and generator roundtrip with
+the new palette. This does not establish its physical appearance; live confirmation
+is still outstanding. Original custom rainbow restoration remains byte-exact in
+repeated-cycle tests.
+
+Verification: backend suite ran118 tests, OK with one environment-dependent skip;
+HA integration21 tests pass; Lepro tests9 pass. Read-only independent review found
+no blocking implementation issue and corrected one manual-context test argument.
+Unrelated concurrent laundry UI edits were preserved and excluded from these commits.
+
+Deployment blocked on September14: homeassistant.local fails name resolution and
+192.168.0.157 ports8123 and22 both time out; this computer's default gateway is
+192.168.100.1. No live device state, files, or automation configuration was changed.
+The deployed dashboard/backend therefore still use the earlier presets.
+
+When home-network access returns:
+1. Confirm live mood is idle and inspect current individual-light availability and
+   automation configuration. Check motion-light scripts do not immediately turn
+   suppressed lights back on; inspect their actual current source before changing
+   any guards. Manual wall/dashboard changes should remain respected.
+2. Back up and hash-check current presets.py/lights.py before replacing only those
+   integration files. Run HA configuration check, then restart once.
+3. Capture private light and native-neon baselines. Run Love → Party → Dinner →
+   Love → Unwind → Party → End, confirming all nine non-strip lights are off in
+   Love/Party and original still-owned states/native fields return on End.
+4. Confirm with the user that the Party rainbow has the desired physical appearance;
+   software readback alone cannot prove perceived flashiness. Restore test baselines.

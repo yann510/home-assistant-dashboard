@@ -1,7 +1,7 @@
 # House moods design
 
 Date: 2026-09-08
-Status: Original presets approved September 8; Gym and photo tiles approved September 11, 2026. Live verification is recorded in the companion verification document.
+Status: Love/Party strip-only lighting and faster rainbow requested September 14, 2026; implemented locally, deployment pending home-network access. Earlier features are deployed; see the companion verification document.
 
 ## Purpose and scope
 
@@ -42,9 +42,9 @@ An explicit brightness turns that light on, even if it was previously off. All l
 | Light | Love | Unwind | Dinner | Party |
 |---|---|---|---|---|
 | Living-room LED strip | Rose `#FF3377`, 35% | Amber `#FFAA44`, 25% | Golden amber `#FFC070`, 20% | Violet `#AA44FF`, 70% |
-| Living-room bulbs | Unchanged | Unchanged | 35% | 25% |
-| Kitchen | Unchanged | Unchanged | Brightness 55% | Brightness 40% |
-| Office neon | Rose Breath, 100%, speed 50 | Static amber `#FFAA44`, 100% | Static golden amber `#FFC070`, 100% | Gradient, 100%, speed 85; reproduce the user-approved preview |
+| Living-room bulbs | Off | Unchanged | 35% | Off |
+| Kitchen | Off | Unchanged | Brightness 55% | Off |
+| Office neon | Rose Breath, 100%, speed 50 | Static amber `#FFAA44`, 100% | Static golden amber `#FFC070`, 100% | Seven-color rainbow Gradient, 100%, speed 100 |
 
 Entity mapping:
 
@@ -56,9 +56,9 @@ Entity mapping:
 | Office neon | `light.neon_light_led_strip` |
 | Office neon speed | `number.neon_light_speed` |
 
-The living-room bulbs and kitchen are dimmable but cannot change color or color temperature. Live validation identified the kitchen as a 3-Way Smart Dimmer: DP20 controls power, DP22 controls brightness (maximum 1000), and DP26 is countdown. Its previous LocalTuya brightness/color-temperature mapping to DP26 was invalid. Dinner and Party therefore set only kitchen brightness; no color-temperature request is sent. Use approximately three-second transitions only on lights that actually support them. The neon does not advertise transition support; do not promise a fade on it.
+The living-room bulbs and kitchen are dimmable but cannot change color or color temperature. Live validation identified the kitchen as a 3-Way Smart Dimmer: DP20 controls power, DP22 controls brightness (maximum 1000), and DP26 is countdown. Its previous LocalTuya brightness/color-temperature mapping to DP26 was invalid. Dinner therefore sets only kitchen brightness; Love and Party switch it off; no color-temperature request is sent. Use approximately three-second transitions only on lights that actually support them. The neon does not advertise transition support; do not promise a fade on it.
 
-Gym controls only `light.gym` at 100%; it does not change the office neon or other lights. Switching from another mood to Gym restores lights dropped from that mood, including the exact native neon snapshot. The original four presets leave the gym light unchanged. Office main bulbs, bedroom, bathroom/toilet, closet, laundry, and front-door lights remain unchanged. There is no verified separate dining-room light; Dinner uses the verified kitchen and living-room lights. Do not infer or add another dining device.
+Gym controls only `light.gym` at 100%; it does not change the office neon or other lights. Switching from another mood to Gym restores lights dropped from that mood, including the exact native neon snapshot. Love and Party switch off all nine individual non-strip lights: office main bulbs, living-room bulbs, kitchen, bedroom, bathroom/toilet, closet, laundry, front door, and gym. Unwind and Dinner leave the gym and other excluded rooms unchanged. Each off command is journaled and confirmed, with original states retained for restoration; no aggregate light group is used. There is no verified separate dining-room light; Dinner uses the verified kitchen and living-room lights. Do not infer or add another dining device.
 
 ### Sonos selections
 
@@ -112,7 +112,7 @@ Provide a backend adapter that can request and capture a fresh device report, ap
 
 Incoming device reports are evidence of state; an echo of an outgoing command is not sufficient confirmation. Validate report freshness and compare returned raw configuration with the requested effect. Retain opaque effect strings even when the integration cannot interpret them. Restore the effect payload in one operation where possible, avoiding a later generic RGB command that could flatten the palette.
 
-For Party, preserve the exact approved Gradient behavior rather than replacing it with the unsuccessful custom rainbow experiment. Verify its reproducibility after restoring the original rainbow. Love, Unwind, and Dinner must explicitly establish their own single-color palettes so they do not inherit rainbow segments.
+The September 14 request supersedes the earlier white Gradient preview: Party uses red, orange, yellow, green, blue, violet, and pink across 25 segments at speed 100. This uses the supported grouped-color Gradient encoding, verified through the actual Lepro parser/generator. Physical appearance still needs live confirmation after deployment. Love, Unwind, and Dinner must explicitly establish their own single-color palettes so they do not inherit rainbow segments.
 
 If the installed integration cannot expose complete fresh snapshots, extend its adapter interface before enabling moods that modify the neon. The known rainbow recovery file must never be presented as a snapshot of an arbitrary later Lepro-app effect.
 
@@ -149,7 +149,7 @@ If preflight fails, make no changes. If an operation fails after some changes ha
 
 Keep the baseline from before the first mood. Switching Love → Dinner → Party does not replace it. A newly selected mood is an explicit request to apply that mood's settings to its included devices, including devices previously adjusted manually.
 
-Restore a device when it was used by the previous mood but is excluded by the next one, unless manually overridden. Example: Dinner → Love restores the kitchen and living-room bulbs to their baselines, preserving any manual adjustment to either light. Starting Love leaves the living-room bulbs untouched; it does not turn them off.
+Restore a device when it was used by the previous mood but is excluded by the next one, unless manually overridden. Example: Love → Unwind restores the non-strip lights dropped by Unwind. Dinner → Love explicitly switches the kitchen and living-room bulbs off; switching to another preset reclaims that preset’s controls. End restores the original still-owned light states.
 
 If an excluded device has been manually adjusted and later becomes included again, preserve that newer manual state as its return destination before applying the new preset. This avoids discarding a deliberate change while retaining the original baseline for devices with no such intervention.
 
@@ -182,7 +182,7 @@ Acceptance scenarios:
 3. Love reproduces the approved Breath; Party reproduces the approved fast Gradient.
 4. Start with the recovered rainbow, activate each neon preset, then end: raw device readback matches the saved rainbow and the user sees the same wave.
 5. Repeat with a different Lepro-app effect: the fresh snapshot restores that effect rather than the recovery-file rainbow.
-6. Love → Dinner → Love restores the kitchen correctly; End restores the original remaining devices.
+6. Love → Dinner → Love switches the kitchen off again; End restores the original still-owned devices.
 7. Manual light, neon-speed, playback, volume, and follow-me changes survive End mood as specified.
 8. Device rounding and delayed MQTT reports do not create false manual overrides.
 9. A missing favorite or incomplete neon snapshot prevents activation before changes; an unavailable device during End does not prevent other restorations.
