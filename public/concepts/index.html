@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <title>A little less, a lot calmer · Home concepts</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="./style.css" />
+    <script src="./prototype.js" defer></script>
+  </head>
+  <body>
+    <header class="studio">
+      <a class="brand" href="#quiet"
+        ><span class="brand-mark">h.</span><span>HOME LAB<small>Less noise. More home.</small></span></a
+      >
+      <nav id="concepts" aria-label="Dashboard concepts"></nav>
+      <span class="prototype-label"><i></i> Interactive prototypes</span>
+    </header>
+    <main>
+      <section class="intro">
+        <div>
+          <p class="eyebrow" id="concept-number"></p>
+          <h1 id="concept-title"></h1>
+          <p id="concept-description"></p>
+        </div>
+        <div class="scenario">
+          <span class="eyebrow">Try a moment at home</span>
+          <div id="scenarios" class="segmented" aria-label="Sample scenario"></div>
+        </div>
+      </section>
+      <div class="canvas" id="canvas"></div>
+      <section class="design-notes" aria-label="Concept tradeoffs">
+        <div>
+          <span class="eyebrow">The decluttering idea</span>
+          <p id="idea"></p>
+        </div>
+        <div>
+          <span class="eyebrow">The tradeoff</span>
+          <p id="tradeoff"></p>
+        </div>
+        <div>
+          <span class="eyebrow">Try this</span>
+          <p id="try"></p>
+        </div>
+      </section>
+      <footer><span>Sample data · Controls simulate changes only</span><button id="reset">Reset this moment ↺</button></footer>
+    </main>
+    <dialog id="drawer" aria-labelledby="drawer-title">
+      <div class="drawer-top">
+        <span class="eyebrow">Home controls</span><button class="icon-button" id="close-drawer" aria-label="Close details">✕</button>
+      </div>
+      <div id="drawer-body"></div>
+    </dialog>
+    <div id="toast" role="status" aria-live="polite"></div>
+  </body>
+</html>
