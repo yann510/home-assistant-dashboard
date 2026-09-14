@@ -2,3 +2,6 @@
 homeassistant==2025.5.3
 # aiodns bundled by this HA release needs the pre-5.x pycares API.
 pycares==4.11.0
+
+# Required by the actual HA python_script sandbox execution tests.
+RestrictedPython==8.0
