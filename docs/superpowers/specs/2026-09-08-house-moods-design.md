@@ -1,7 +1,7 @@
 # House moods design
 
 Date: 2026-09-08
-Status: Love/Party strip-only lighting and faster rainbow requested September 14, 2026; implemented locally, deployment pending home-network access. Earlier features are deployed; see the companion verification document.
+Status: Love/Party strip-only lighting and faster rainbow requested September 14, 2026; deployed and live-tested September 14. Earlier features are deployed; see the companion verification document.
 
 ## Purpose and scope
 
@@ -112,7 +112,7 @@ Provide a backend adapter that can request and capture a fresh device report, ap
 
 Incoming device reports are evidence of state; an echo of an outgoing command is not sufficient confirmation. Validate report freshness and compare returned raw configuration with the requested effect. Retain opaque effect strings even when the integration cannot interpret them. Restore the effect payload in one operation where possible, avoiding a later generic RGB command that could flatten the palette.
 
-The September 14 request supersedes the earlier white Gradient preview: Party uses red, orange, yellow, green, blue, violet, and pink across 25 segments at speed 100. This uses the supported grouped-color Gradient encoding, verified through the actual Lepro parser/generator. Physical appearance still needs live confirmation after deployment. Love, Unwind, and Dinner must explicitly establish their own single-color palettes so they do not inherit rainbow segments.
+The September 14 request supersedes the earlier white Gradient preview: Party uses red, orange, yellow, green, blue, violet, and pink across 25 segments at speed 100. This uses the supported grouped-color Gradient encoding, verified through the actual Lepro parser/generator. The exact recipe has passed live device readback; the user’s visual confirmation of flashiness remains pending. Love, Unwind, and Dinner must explicitly establish their own single-color palettes so they do not inherit rainbow segments.
 
 If the installed integration cannot expose complete fresh snapshots, extend its adapter interface before enabling moods that modify the neon. The known rainbow recovery file must never be presented as a snapshot of an arbitrary later Lepro-app effect.
 

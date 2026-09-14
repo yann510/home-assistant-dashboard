@@ -385,3 +385,32 @@ When home-network access returns:
    Love/Party and original still-owned states/native fields return on End.
 4. Confirm with the user that the Party rainbow has the desired physical appearance;
    software readback alone cannot prove perceived flashiness. Restore test baselines.
+
+
+## September 14: strip-only rollout completed
+
+After Yann returned home and explicitly authorized testing, local access worked.
+The reminder was paused. The deployed presets.py and lights.py matched their
+expected previous hashes. Inspected the current motion script and found it could
+re-enable non-strip lights during Love/Party; added a guard per target for both
+motion-on and delayed motion-off. The latter rechecks the current mood after sleep.
+Other mood behavior and manual device controls are unchanged.
+
+Backed up and installed exactly three files under
+/share/house-moods-strip-only-20260914: house_moods/presets.py, house_moods/lights.py,
+and python_scripts/toggle_lights_based_on_motion.py. Configuration check passed;
+one core restart completed, and HA reported RUNNING with mood idle. All three live
+SHA256 hashes match repository source. No dashboard frontend was deployed in this
+rollout; unrelated activity-card changes retain their separate deployment status.
+
+Verification: 122 backend tests OK (one existing environment skip), 25 HA tests
+including actual RestrictedPython script execution, and 9 Lepro tests pass.
+Live Love → Party → Dinner → Love → Unwind → Party → End completed in one session.
+Every Love/Party activation confirmed all nine individual non-strip lights off,
+both strips on, and exact requested native palette plus brightness1000. Final Party
+held45 seconds for the user's visual check. End returned success/idle/no errors.
+All checked light power/color/brightness, speaker groups/volumes, follow helpers,
+and every native neon field matched the captured baseline, including the original
+slow rainbow. Private evidence: .local/live/strip-only-baseline.json and
+.local/live/strip-only-live.log. User confirmation of perceived flashiness remains
+pending; device readback alone is not visual confirmation.
