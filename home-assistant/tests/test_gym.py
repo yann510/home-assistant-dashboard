@@ -132,6 +132,52 @@ class GymTests(unittest.IsolatedAsyncioTestCase):
         result=await engine.activate('unwind');self.assertTrue(result['success'],result)
         self.assertNotIn(GYM_LIGHT,store.value.baseline)
 
+    async def test_gym_starts_and_ends_without_reading_unrelated_lights(self):
+        for failure in ('native_timeout', 'unavailable_lights'):
+            with self.subTest(failure=failure):
+                io=HouseIO();bridge=Bridge();adapter=Adapter(io,bridge)
+                async def unreadable(device):
+                    raise TimeoutError('Office neon did not answer')
+                bridge.capture=unreadable
+                if failure == 'unavailable_lights':
+                    for entity in io.states:
+                        if entity.startswith('light.') and entity != GYM_LIGHT:
+                            io.states[entity]['state']='unavailable'
+                engine=MoodCoordinator(adapter,MemoryStore())
+                result=await engine.activate('gym')
+                self.assertTrue(result['success'],result)
+                self.assertEqual(io.states[GYM]['state'],'playing')
+                self.assertEqual(io.states[GYM_LIGHT]['attributes']['brightness'],255)
+                self.assertTrue((await engine.end())['success'])
+                self.assertEqual(io.states[GYM_LIGHT]['state'],'off')
+                self.assertEqual(io.states[GYM]['state'],'paused')
+                self.assertEqual(bridge.sent,[])
+
+    async def test_switch_from_gym_captures_neon_when_first_needed(self):
+        io=HouseIO();bridge=Bridge();adapter=Adapter(io,bridge)
+        store=MemoryStore();engine=MoodCoordinator(adapter,store)
+        self.assertTrue((await engine.activate('gym'))['success'])
+        # A manual change before a light is ever used becomes its baseline.
+        bridge.value.fields['d52']=417
+        original=deepcopy(bridge.value.fields)
+        self.assertTrue((await engine.activate('love'))['success'])
+        self.assertTrue((await engine.end())['success'])
+        self.assertEqual(bridge.value.fields,original)
+
+    async def test_failed_neon_preflight_preserves_active_gym(self):
+        io=HouseIO();bridge=Bridge();adapter=Adapter(io,bridge)
+        engine=MoodCoordinator(adapter,MemoryStore())
+        self.assertTrue((await engine.activate('gym'))['success'])
+        async def unreadable(device):raise TimeoutError('Office neon did not answer')
+        bridge.capture=unreadable
+        before=deepcopy(io.states);calls=len(io.calls)
+        result=await engine.activate('love')
+        self.assertFalse(result['success'])
+        self.assertEqual(result['active_mood'],'gym')
+        self.assertEqual(io.states,before)
+        self.assertEqual(len(io.calls),calls)
+        self.assertTrue((await engine.end())['success'])
+
     async def test_gym_preflight_waits_for_speaker_reconnect_before_any_writes(self):
         io=HouseIO();io.states[GYM]['state']='unavailable';sonos=SonosControls(io)
         waits=[]

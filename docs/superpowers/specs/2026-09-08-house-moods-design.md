@@ -138,8 +138,8 @@ Coordinator status includes active mood, phase, affected devices, and actionable
 ### Activation
 
 1. Serialize requests and reject overlapping activation while a change is in progress. Tapping the already active mood is a no-op; it must not restart music or overwrite manual changes.
-2. Preflight required devices, the selected favorite, and complete neon snapshot support before changing anything.
-3. Capture and persist original state for the lights used across the preset collection and the relevant music/follow-me controls. Capturing a state does not authorize changing an otherwise excluded light.
+2. Preflight the selected mood’s required devices and favorite. Require a complete neon snapshot only for a mood that uses the neon.
+3. Capture and persist each light’s original state when a selected mood first includes it, before any writes. Snapshot the relevant music/follow-me controls at session start. Gym must not read or depend on unrelated lights.
 4. Apply lights and start the selected music at the preset volume; apply the preset follow-me setting in an order validated against the existing automations to avoid unintended routing.
 5. Confirm device outcomes and publish the active mood. Report partial failure rather than falsely showing full success.
 
@@ -147,7 +147,7 @@ If preflight fails, make no changes. If an operation fails after some changes ha
 
 ### Switching
 
-Keep the baseline from before the first mood. Switching Love → Dinner → Party does not replace it. A newly selected mood is an explicit request to apply that mood's settings to its included devices, including devices previously adjusted manually.
+Keep each light’s baseline from before it was first included. Switching Love → Dinner → Party does not replace an existing baseline. A newly selected mood is an explicit request to apply that mood's settings to its included devices, including devices previously adjusted manually.
 
 Restore a device when it was used by the previous mood but is excluded by the next one, unless manually overridden. Example: Love → Unwind restores the non-strip lights dropped by Unwind. Dinner → Love explicitly switches the kitchen and living-room bulbs off; switching to another preset reclaims that preset’s controls. End restores the original still-owned light states.
 
@@ -185,7 +185,7 @@ Acceptance scenarios:
 6. Love → Dinner → Love switches the kitchen off again; End restores the original still-owned devices.
 7. Manual light, neon-speed, playback, volume, and follow-me changes survive End mood as specified.
 8. Device rounding and delayed MQTT reports do not create false manual overrides.
-9. A missing favorite or incomplete neon snapshot prevents activation before changes; an unavailable device during End does not prevent other restorations.
+9. A missing favorite or an incomplete snapshot for a required light prevents activation before changes; Gym works without a neon snapshot. An unavailable device during End does not prevent other restorations.
 10. Refresh and backend restart retain the correct active/recovery state without replaying music.
 11. The card contains no details control and remains usable on the actual dashboard's target display.
 

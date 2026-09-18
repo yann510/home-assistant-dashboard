@@ -91,7 +91,7 @@ class LightsTests(unittest.IsolatedAsyncioTestCase):
         self.io.ignore=False;self.io.wrong_mode=True
         with self.assertRaises(TimeoutError):await self.adapter.apply_write(write,'s')
     async def test_preflight_checks_collection_availability_and_capabilities_without_writes(self):
-        self.assertEqual(set(self.adapter.snapshot_targets()),{STRIP,BULBS,KITCHEN,NEON})
+        self.assertEqual(self.adapter.snapshot_targets(),[])
         self.assertTrue(self.adapter.owns(NEON));self.assertFalse(self.adapter.owns('light.office'))
         self.io.states[KITCHEN]['state']='unavailable'
         with self.assertRaises(ValueError):await self.adapter.preflight('love')
@@ -203,7 +203,7 @@ class LightsTests(unittest.IsolatedAsyncioTestCase):
                 fields={**deepcopy(FIELDS),'d1':power,'d52':brightness}
                 self.bridge.value=native.NativeSnapshot(1,'754063076',1,fields,{'d30':42})
                 self.io.states[NEON]['state']='on' if power else 'off'
-                original=deepcopy(await self.adapter.capture(list(dict.fromkeys([*self.adapter.snapshot_targets(),*STRIP_ONLY_OFF]))))
+                original=deepcopy(await self.adapter.capture(list(dict.fromkeys([STRIP,NEON,*STRIP_ONLY_OFF]))))
                 adapter=CoordinatorLightAdapter(self.adapter)
                 store=MemoryStore();engine=MoodCoordinator(adapter,store)
                 for cycle in range(3):

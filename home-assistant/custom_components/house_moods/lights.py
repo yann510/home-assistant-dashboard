@@ -16,7 +16,9 @@ class LightControls:
         self.neon = NeonControls(bridge, device_id)
 
     def snapshot_targets(self):
-        return [STRIP, BULBS, KITCHEN, NEON]
+        # Lights cannot be changed by follow-me. Capture each one only when a
+        # selected recipe first includes it, before any writes.
+        return []
 
     def included_targets(self, mood):
         if mood not in LIGHTS:
@@ -24,7 +26,7 @@ class LightControls:
         return [*LIGHTS[mood], *([NEON] if mood in NEON_EFFECTS else [])]
 
     def owns(self, target):
-        return target in self.snapshot_targets() or any(target in recipe for recipe in LIGHTS.values())
+        return target == NEON or any(target in recipe for recipe in LIGHTS.values())
 
     def _state(self, target):
         if not self.owns(target):
@@ -63,8 +65,7 @@ class LightControls:
     async def preflight(self, mood):
         if mood not in LIGHTS:
             raise ValueError('Unknown mood')
-        # The coordinator captures the entire collection before writing anything.
-        for target in dict.fromkeys([*self.snapshot_targets(), *self.included_targets(mood)]):
+        for target in self.included_targets(mood):
             await self.read(target)
         await self.plan_apply(mood)
 

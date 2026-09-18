@@ -8,7 +8,139 @@
  from aiomqtt import Client, MqttError
  import aiofiles
  from homeassistant.core import callback
-@@ -226,6 +227,7 @@
+@@ -33,6 +34,8 @@
+ _LOGGER = logging.getLogger(__name__)
+ 
+ class MQTTClientWrapper:
++    RECONNECT_DELAY = 5
++
+     def __init__(self, hass, host, port, ssl_context, client_id):
+         self.hass = hass
+         self.host = host
+@@ -42,73 +45,76 @@
+         self.client = None
+         self._message_callback = None
+         self._loop_task = None
+-        self._pending_subscriptions = []
+-        self._pending_messages = []
++        self._subscriptions = set()
++        self._connected = asyncio.Event()
++        self._closed = False
+ 
+     async def _connect_and_run(self):
+-        try:
+-            async with Client(
+-                hostname=self.host,
+-                port=self.port,
+-                identifier=self.client_id,
+-                tls_context=self.ssl_context,
+-                clean_session=True
+-            ) as client:
+-                self.client = client
+-                
+-                # Process pending subscriptions
+-                for topic in self._pending_subscriptions:
+-                    await client.subscribe(topic)
+-                self._pending_subscriptions = []
+-                
+-                # Process pending messages
+-                for topic, payload in self._pending_messages:
+-                    await client.publish(topic, payload)
+-                self._pending_messages = []
+-                
+-                # Start message loop
+-                async for message in client.messages:
+-                    if self._message_callback:
+-                        await self._message_callback(message)
+-        except MqttError as e:
+-            _LOGGER.error("MQTT error: %s", e)
+-        finally:
+-            self.client = None
++        while not self._closed:
++            try:
++                async with Client(
++                    hostname=self.host,
++                    port=self.port,
++                    identifier=self.client_id,
++                    tls_context=self.ssl_context,
++                    clean_session=True,
++                ) as client:
++                    # Clean MQTT sessions lose broker subscriptions. Keep our
++                    # desired topics across reconnects, including topics added
++                    # while subscription acknowledgements are in flight.
++                    subscribed = set()
++                    while self._subscriptions - subscribed:
++                        for topic in sorted(self._subscriptions - subscribed):
++                            await client.subscribe(topic)
++                            subscribed.add(topic)
++                    self.client = client
++                    self._connected.set()
++                    async for message in client.messages:
++                        if self._message_callback:
++                            await self._message_callback(message)
++            except MqttError as error:
++                _LOGGER.warning("Lepro MQTT disconnected; reconnecting: %s", error)
++            finally:
++                self.client = None
++                self._connected.clear()
++            if not self._closed:
++                await asyncio.sleep(self.RECONNECT_DELAY)
+ 
+     async def connect(self):
+-        if self._loop_task and not self._loop_task.done():
+-            return
+-            
+-        self._pending_subscriptions = []
+-        self._pending_messages = []
+-        self._loop_task = asyncio.create_task(self._connect_and_run())
++        if self._closed:
++            raise ConnectionError("Lepro MQTT client is closed")
++        if not self._loop_task or self._loop_task.done():
++            self._loop_task = asyncio.create_task(self._connect_and_run())
+ 
+     async def subscribe(self, topic):
++        self._subscriptions.add(topic)
++        await self.connect()
+         if self.client:
+             await self.client.subscribe(topic)
+-        else:
+-            self._pending_subscriptions.append(topic)
+-            if not self._loop_task or self._loop_task.done():
+-                await self.connect()
+ 
+     async def publish(self, topic, payload):
+-        if self.client:
+-            await self.client.publish(topic, payload)
+-        else:
+-            self._pending_messages.append((topic, payload))
+-            if not self._loop_task or self._loop_task.done():
+-                await self.connect()
++        await self.connect()
++        # A caller owns its command while waiting. Cancellation/timeout must
++        # never leave a stale light command queued for a later connection.
++        async with asyncio.timeout(10):
++            await self._connected.wait()
++            client = self.client
++            if client is None:
++                raise ConnectionError("Lepro MQTT disconnected before publish")
++            await client.publish(topic, payload)
+ 
+     def set_message_callback(self, callback):
+         self._message_callback = callback
+ 
+     async def disconnect(self):
++        self._closed = True
+         if self._loop_task:
+             self._loop_task.cancel()
+             try:
+                 await self._loop_task
+             except asyncio.CancelledError:
+                 pass
++
+ 
+ async def async_login(session, account, password, mac, login_url, api_host, language="en", fcm_token=""):
+     """Perform login and return bearer token."""
+@@ -226,6 +232,7 @@
          self._normalizing_effect = False
          self._b1_static_state = {}
          self._b1_rgb_state = {}
@@ -16,7 +148,7 @@
          # Keep B1-specific default
          if self.is_b_model:
              self._effect = self.EFFECT_NONE
-@@ -235,8 +237,6 @@
+@@ -235,8 +242,6 @@
          self._sensitivity = 50  # For music mode
          
          # Initialize from device data
@@ -25,7 +157,7 @@
          if "d52" in device:
              self._brightness = self._map_device_brightness(device["d52"])
          else:
-@@ -253,11 +253,7 @@
+@@ -253,11 +258,7 @@
              if "d3" in device:
                  self._brightness = self._map_device_brightness(device["d3"])
  
@@ -38,7 +170,7 @@
          
          self._update_b1_static_state(device)
          
-@@ -505,8 +501,40 @@
+@@ -505,8 +506,40 @@
              return 50, None
  
  
@@ -79,7 +211,7 @@
          if not kwargs:
              self._is_on = True
              if self.is_b_model:
-@@ -946,6 +974,11 @@
+@@ -946,6 +979,11 @@
          }
          try:
              await self._mqtt_client.publish(topic, json.dumps(full_payload))
@@ -91,7 +223,7 @@
              _LOGGER.debug("Sent MQTT command: %s - %s", topic, full_payload)
              if self.is_b_model:
                  _LOGGER.info(
-@@ -1239,6 +1272,15 @@
+@@ -1239,6 +1277,15 @@
          _LOGGER.error("MQTT connection failed: %s", e)
          return
      
@@ -107,7 +239,7 @@
      # 8) Create entities
      entities = []
      device_entity_map = {}
-@@ -1290,6 +1332,8 @@
+@@ -1290,6 +1337,8 @@
              # Handle different message types
              if message_type in ["rpt", "set", "getr"]:
                  data = payload.get('d', {})
@@ -116,7 +248,7 @@
                  if entity.is_b_model:
                      b1_fields = {
                          key: data.get(key)
-@@ -1362,18 +1406,8 @@
+@@ -1362,18 +1411,8 @@
                          if entity.is_b_model and entity._mode == 1:
                              entity._attr_color_mode = ColorMode.RGB
                  
@@ -136,7 +268,7 @@
  
                  # Normalize devices that report a special-effect mode back to solid light mode.
                  # if entity.is_b_model and entity._mode == 3:
-@@ -1431,6 +1465,7 @@
+@@ -1431,6 +1470,7 @@
          hass.data[DOMAIN] = {}
      hass.data[DOMAIN][entry.entry_id] = {
          'mqtt_client': mqtt_client,
@@ -144,7 +276,7 @@
          'entities': entities,
          'segments': segments_map
      }
-@@ -1443,6 +1478,8 @@
+@@ -1443,6 +1483,8 @@
      if not data:
          return True
          

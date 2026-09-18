@@ -96,3 +96,22 @@ LEPRO_BASELINE_DIR=/path/to/original/lepro_led python3 -m unittest discover -s h
 The default baseline directory is `.local/lepro-baseline` in the worktree. The
 suite fails if that private baseline is missing. Device readback and visual
 confirmation remain separate live checks.
+
+## September 18 MQTT reconnect correction
+
+The patched wrapper retains desired subscriptions across clean MQTT sessions and
+reconnects after broker failures, resubscribing before exposing the connection.
+The former wrapper exited on a broker error and cleared subscription/message
+queues when a later command reconnected it. Publishing could then succeed while
+all device replies were lost. Live logs recorded this failure on September 15 at
+04:35:42 EDT; no incoming reports followed it before the repair.
+
+Ordinary commands now wait up to 10 seconds for a subscribed connection in the
+caller’s coroutine. Cancellation or timeout leaves no command queued for later.
+Native snapshot/replay still fails immediately while disconnected and never queues
+writes. Disconnect on integration unload cancels the retry loop.
+
+Regression coverage: `python3 -m unittest discover -s home-assistant/tests_lepro`.
+The fake broker drops a connection and verifies a replacement subscription and
+incoming report without any user command; startup subscription retention,
+cancelled offline commands, and unload are covered separately.
