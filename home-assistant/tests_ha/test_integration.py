@@ -1,4 +1,4 @@
-"""Run with the isolated HA 2025.5.3 Python environment, without real devices."""
+"""Run with an isolated supported HA Python environment, without real devices."""
 import asyncio
 from copy import deepcopy
 import json
@@ -56,7 +56,7 @@ class IntegrationTests(unittest.IsolatedAsyncioTestCase):
         store=SessionStore(self.hass)
         await store.save(None)
         from homeassistant.util.file import WriteError
-        with patch.object(store.store,'_write_data',side_effect=WriteError('disk full')):
+        with patch('homeassistant.helpers.storage.Store._async_write_data',side_effect=WriteError('disk full')):
             with self.assertRaises(RuntimeError):await store.save(Session('session',None,'starting'))
         self.assertIsNone(await store.load())
     async def test_queue_and_browse_use_existing_ha_interfaces(self):
@@ -238,9 +238,13 @@ class IntegrationTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(emit('media_player','media_pause',{'entity_id':SOURCE}),{SOURCE+'#playback'})
         self.assertEqual(emit('input_text','set_value',{'entity_id':FOLLOW_SOURCE,'value':SOURCE}),{FOLLOW,GROUPS})
         self.assertEqual(emit('script','speaker_follow_motion',{'command':'disable'}),{FOLLOW,GROUPS})
-        await device_registry.async_get(self.hass).async_load()
-        areas=area_registry.async_get(self.hass);await areas.async_load();area=areas.async_create('Mood room')
-        registry=entity_registry.async_get(self.hass);await registry.async_load()
+        if hasattr(device_registry, 'async_setup'):
+            device_registry.async_setup(self.hass)
+        await device_registry.async_load(self.hass)
+        await area_registry.async_load(self.hass)
+        areas=area_registry.async_get(self.hass);area=areas.async_create('Mood room')
+        await entity_registry.async_load(self.hass)
+        registry=entity_registry.async_get(self.hass)
         entity=registry.async_get_or_create('light','test','strip',suggested_object_id=STRIP.split('.')[1])
         registry.async_update_entity(entity.entity_id,area_id=area.id)
         self.assertEqual(emit('light','turn_on',{'area_id':area.id}),{STRIP})

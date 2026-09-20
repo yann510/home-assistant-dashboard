@@ -6,11 +6,12 @@ from homeassistant.helpers.storage import Store
 from .model import Session
 
 class StrictStore(Store):
-    async def _async_write_data(self, path, data):
+    async def _async_write_data(self, *args):
         # HA 2025.5 Store normally logs WriteError and returns success. Journaling
         # cannot use that contract; wrap before Store's suppressing error handler.
         try:
-            await super()._async_write_data(path, data)
+            # HA 2025.5 passes (path, data); HA 2026.9 passes only (data,).
+            await super()._async_write_data(*args)
         except Exception as err:
             raise RuntimeError('Mood state could not be saved. No further commands were sent.') from err
 

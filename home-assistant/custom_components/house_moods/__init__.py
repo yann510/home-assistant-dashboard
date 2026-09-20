@@ -67,7 +67,6 @@ class Runtime:
 
     def service_called(self, event):
         from homeassistant.core import ServiceCall
-        from homeassistant.helpers.service import async_extract_referenced_entity_ids
         from .ha_adapter import DEVICE
         from .presets import NEON
         from .sonos import SPEAKERS, SOURCE, PLAYBACK_SOURCES, FOLLOW, FOLLOW_SOURCE, FOLLOW_SCRIPT, GROUPS
@@ -78,8 +77,15 @@ class Runtime:
             return
         # Lepro device_id is a native decimal identity, not an HA registry selector.
         target_data = {k: v for k, v in data.items() if k != 'device_id'} if domain == 'lepro_led' else data
-        call = ServiceCall(self.hass, domain, service, target_data, context=event.context)
-        selected = async_extract_referenced_entity_ids(self.hass, call)
+        try:
+            from homeassistant.helpers.target import TargetSelection, async_extract_referenced_entity_ids
+        except ImportError:
+            # Keep rollback to HA 2025.5 compatible.
+            from homeassistant.helpers.service import async_extract_referenced_entity_ids
+            call = ServiceCall(self.hass, domain, service, target_data, context=event.context)
+            selected = async_extract_referenced_entity_ids(self.hass, call)
+        else:
+            selected = async_extract_referenced_entity_ids(self.hass, TargetSelection(target_data))
         entities = selected.referenced | selected.indirectly_referenced
         targets = set()
         if domain == 'script' and (service == 'speaker_follow_motion' or FOLLOW_SCRIPT in entities):

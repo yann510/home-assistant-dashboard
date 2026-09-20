@@ -1,0 +1,3 @@
+# Offline compatibility tests for the production upgrade; use Python 3.14.
+homeassistant==2026.9.3
+RestrictedPython==8.5
