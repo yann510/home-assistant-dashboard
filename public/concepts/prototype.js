@@ -3,9 +3,9 @@ const concepts = {
   quiet: {
     name: 'Quiet Home',
     description: 'A home screen that feels like an exhale. The essentials, with room to breathe.',
-    idea: 'One mood, three shortcuts, and a compact house summary. Individual devices appear only when you ask for them.',
+    idea: 'Mood, outdoor weather, and music lead. Room-based lights and blinds stay within reach; occasional controls stay tucked away.',
     tradeoff: 'Adjusting a particular light takes an extra tap. Best if you usually repeat the same few actions.',
-    try: 'Change the mood, open Lights, then switch to Busy evening to see how a reminder fits in.',
+    try: 'Open the weather for an hourly and seven-day forecast, pause the music, or adjust lights and blinds by room.',
   },
   rooms: {
     name: 'Room by Room',
@@ -92,7 +92,7 @@ const roomData = () => state.rooms[room];
 const modeButton = () =>
   `<button class="mode" data-action="mode" aria-pressed="${state.night}">${icon(state.night ? 'moon' : 'sun')}${state.night ? 'Night' : 'Day'} mode</button>`;
 const header = () =>
-  `<header class="home-header"><div class="home-name">${icon('home')} Home <small>Monday, September 14</small></div><div class="header-right"><span>${state.night ? '☾ 16°' : '☀ 22°'} outside</span>${modeButton()}</div></header>`;
+  `<header class="home-header"><div class="home-name">${icon('home')} Home <small>Sunday, September 20</small></div><div class="header-right">${concept === 'quiet' ? '' : `<span>${state.night ? '☾ 16°' : '☀ 22°'} outside</span>`}${modeButton()}</div></header>`;
 const attention = () =>
   state.laundry
     ? `<div class="attention-banner">${icon('washer')}<div class="row-copy"><strong>The dryer is finished</strong><small>Your laundry is ready to put away.</small></div><button data-open="laundry">View</button></div>`
@@ -106,9 +106,46 @@ const row = (symbol, title, sub, target) =>
 const quick = (symbol, title, sub, target) =>
   `<button class="quick" data-open="${target}">${icon(symbol)}<span>${title}<small>${sub}</small></span></button>`;
 const musicStrip = () =>
-  `<div class="music-strip"><img class="album" src="./assets/unwind.jpg" alt=""/><div class="row-copy"><strong>Evening acoustic</strong><small>${state.musicRoom} · ${state.music ? 'Playing' : 'Paused'}</small></div><button class="icon-button" data-action="music" aria-label="${state.music ? 'Pause' : 'Play'} music">${icon(state.music ? 'pause' : 'play')}</button><button class="icon-button" data-open="music" aria-label="Music details">${icon('arrow')}</button></div>`;
+  `<section class="quiet-music" aria-label="Music"><div class="music-title"><span class="eyebrow">${state.music ? 'Now playing' : 'Ready when you are'}</span><button data-open="music">Open player ↗</button></div><div class="music-strip"><img class="album" src="./assets/unwind.jpg" alt=""/><div class="row-copy"><strong>Evening acoustic</strong><small>${state.musicRoom} · ${state.music ? 'Playing' : 'Paused'}</small></div><button class="icon-button" data-action="music" aria-label="${state.music ? 'Pause' : 'Play'} music">${icon(state.music ? 'pause' : 'play')}</button></div></section>`;
+function weatherSummary() {
+  return `<span class="weather-current"><span class="weather-degrees">${state.night ? '16' : '22'}<span>°C</span></span>${icon(state.night ? 'moon' : 'sun')}</span><span class="weather-condition">${state.night ? 'Clear tonight' : 'Sunny'} · Feels like ${state.night ? '15' : '23'}°</span><span class="weather-high-low">High 23° / Low 15° · Rain 10%</span>`;
+}
+function weatherCard() {
+  return `<button class="weather-card" data-open="weather" aria-label="Weather: ${state.night ? '16' : '22'} degrees Celsius outside. Open full forecast"><span class="eyebrow">Outside now</span>${weatherSummary()}<span class="forecast-link">Full forecast <span aria-hidden="true">↗</span></span></button>`;
+}
+function forecastPanel() {
+  const hours = state.night
+    ? [
+        ['Now', 16, 'moon'],
+        ['23:00', 16, 'moon'],
+        ['00:00', 15, 'moon'],
+        ['01:00', 15, 'moon'],
+        ['02:00', 15, 'moon'],
+        ['03:00', 15, 'moon'],
+      ]
+    : [
+        ['Now', 22, 'sun'],
+        ['16:00', 23, 'sun'],
+        ['17:00', 22, 'sun'],
+        ['18:00', 21, 'sun'],
+        ['19:00', 20, 'sun'],
+        ['20:00', 18, 'moon'],
+      ];
+  const days = [
+    ['Today', 'Sunny', 23, 15, 10],
+    ['Tomorrow', 'Partly cloudy', 22, 14, 20],
+    ['Tuesday', 'Showers', 19, 13, 80],
+    ['Wednesday', 'Cloudy', 20, 12, 25],
+    ['Thursday', 'Sunny', 23, 14, 5],
+    ['Friday', 'Partly cloudy', 21, 13, 15],
+    ['Saturday', 'Showers', 18, 12, 70],
+  ];
+  return `<div class="forecast-current">${weatherSummary()}</div><h3 class="forecast-heading">Next hours</h3><div class="hourly-forecast">${hours.map(([hour, temp, symbol]) => `<div><span>${hour}</span>${icon(symbol)}<strong>${temp}°</strong></div>`).join('')}</div><h3 class="forecast-heading">Seven-day forecast</h3><p class="subcopy">Daily high / low · Chance of rain</p><div class="daily-forecast">${days.map(([day, condition, high, low, rain]) => `<div class="forecast-day"><div><strong>${day}</strong><small>${condition}</small></div><span>${high}° <span class="forecast-low">/ ${low}°</span></span><span class="forecast-rain" aria-label="${rain}% chance of rain">${rain}%</span></div>`).join('')}</div>`;
+}
 function quietView() {
-  return `${header()}<div class="body-pad"><div class="welcome"><div><span class="eyebrow">${state.night ? 'Time to switch off' : 'Welcome back, Yann'}</span><h2>${state.night ? 'Let the house rest.' : 'Make yourself at home.'}</h2><p>${state.laundry ? 'One small thing needs you. Everything else is in hand.' : 'Everything is settled. Enjoy your space.'}</p></div></div>${attention()}<div class="quiet-layout"><div>${moodHero()}<div class="section-label">Within reach<button data-open="library">All controls ↗</button></div><div class="quick-grid">${quick('light', 'Lights', `${lightsCount()} rooms on`, 'lights')}${quick('blinds', 'Blinds', state.night ? 'All closed' : 'Adjust by room', 'blinds')}${quick('temperature', 'Comfort', '21° indoors', 'temperature')}</div></div><div class="quiet-right"><span class="eyebrow">Your home, at a glance</span><div class="list-panel">${row('light', 'A little light', `${lightsCount()} of 5 rooms lit`, 'lights')}${row('washer', state.washer ? 'Two cycles in progress' : 'Chores are taking a break', state.washer ? 'Washer · 24 min / Dishwasher · 42 min' : 'Washer, dryer & dishwasher idle', 'appliances')}${row('temperature', 'Just comfortable', 'Living Room 21° · Bedroom 20°', 'temperature')}</div>${musicStrip()}<div class="calm-note">${icon('check')} ${state.laundry ? '1 reminder waiting above' : 'Nothing needs your attention'}</div></div></div></div>`;
+  const blindRooms = ['Living Room', 'Bedroom', 'Gym'];
+  const closed = blindRooms.filter(name => state.rooms[name].blinds === 0).length;
+  return `${header()}<div class="body-pad quiet-v2"><div class="welcome"><div><span class="eyebrow">${state.night ? 'Time to switch off' : 'Welcome back, Yann'}</span><h2>${state.night ? 'Let the house rest.' : 'Make yourself at home.'}</h2></div></div>${attention()}<div class="quiet-layout"><div class="quiet-primary">${moodHero()}<div class="section-label">Your rooms<button data-open="library">All controls ↗</button></div><div class="quick-grid">${quick('light', 'Lights by room', `${lightsCount()} rooms on`, 'lights')}${quick('blinds', 'Blinds by room', closed === 3 ? 'All closed' : `${3 - closed} rooms open`, 'blinds')}</div></div><div class="quiet-right">${weatherCard()}${musicStrip()}</div></div>${state.washer || state.dishwasher ? `<div class="quiet-activity">${row('washer', 'In progress', 'Washer · 24 min / Dishwasher · 42 min', 'appliances')}</div>` : ''}</div>`;
 }
 const toggle = name =>
   `<button class="toggle" data-action="light" data-room="${name}" aria-label="${name} lights" aria-pressed="${state.rooms[name].lights}"></button>`;
@@ -159,6 +196,7 @@ function render() {
 }
 function drawerContent() {
   const headings = {
+    weather: ['Your forecast', 'Sample weather · Outdoor temperatures in °C. Illustrative data, not a live forecast.'],
     mood: ['Set the tone', 'One mood for the whole home. Try a different atmosphere.'],
     lights: ['A little light', 'Adjust one room without opening up the entire dashboard.'],
     blinds: ['Let the outside in', 'Open just enough. Every room has its own setting.'],
@@ -170,6 +208,7 @@ function drawerContent() {
   };
   const [title, description] = headings[detail] || headings.library;
   let content = '';
+  if (detail === 'weather') content = forecastPanel();
   if (detail === 'mood')
     content = `<div class="mood-choices">${moodNames.map(name => `<button class="mood-choice" data-mood="${name}" aria-pressed="${state.mood === name}"><img src="./assets/${name.toLowerCase()}.jpg" alt=""/>${name}${state.mood === name ? ' ✓' : ''}</button>`).join('')}</div><button class="full-button" data-mood="Off" ${state.mood === 'Off' ? 'disabled' : ''}>Turn mood off</button>`;
   if (detail === 'lights') content = `<div class="drawer-stack">${roomList.map(([name]) => lightControl(name, true)).join('')}</div>`;
@@ -193,9 +232,10 @@ function drawerContent() {
     content = `${attention()}<div class="library">${[
       ['light', 'Lights', 'lights'],
       ['blinds', 'Blinds', 'blinds'],
-      ['temperature', 'Comfort', 'temperature'],
+      ['temperature', 'Thermostat', 'temperature'],
       ['music', 'Music', 'music'],
       ['washer', 'Appliances', 'appliances'],
+      ['sun', 'Weather', 'weather'],
       ['home', 'House mood', 'mood'],
     ]
       .map(([symbol, label, target]) => `<button data-open="${target}">${icon(symbol)}${label}</button>`)

@@ -1288,3 +1288,214 @@ dialog .drawer-description {
   position: absolute;
   inset: -9px -3px;
 }
+
+/* Quiet Home, revision 2: everyday priorities without duplicate summaries. */
+.quiet-v2 .welcome {
+  margin-bottom: 24px;
+}
+.quiet-v2 .welcome h2 {
+  margin-bottom: 0;
+}
+.quiet-v2 .quiet-layout {
+  grid-template-columns: 1.35fr 1fr;
+  gap: 24px;
+}
+.quiet-v2 .mood-hero {
+  min-height: 290px;
+}
+.quiet-v2 .quick-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.quiet-v2 .quick {
+  flex-direction: row;
+  align-items: center;
+  gap: 14px;
+  min-height: 78px;
+}
+.quiet-v2 .section-label button {
+  min-height: 44px;
+}
+.quiet-v2 .section-label {
+  margin-top: 12px;
+  margin-bottom: 5px;
+}
+.quiet-right {
+  min-width: 0;
+}
+.weather-card {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  padding: 24px;
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.weather-current {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 22px;
+  margin: 12px 0;
+}
+.weather-card .weather-current {
+  width: 100%;
+}
+.weather-degrees {
+  font-size: 62px;
+  letter-spacing: -3px;
+  font-weight: 350;
+  line-height: 1.1;
+}
+.weather-degrees > span {
+  font-size: 25px;
+  letter-spacing: -1px;
+  vertical-align: top;
+  line-height: 1.7;
+  color: var(--muted);
+}
+.weather-current svg {
+  width: 48px;
+  height: 48px;
+  color: var(--warm);
+  stroke-width: 1;
+}
+.weather-condition {
+  display: block;
+  font-size: 13px;
+}
+.weather-high-low {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 8px;
+  line-height: 1.6;
+}
+.forecast-link {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  padding-top: 15px;
+  margin-top: 16px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--accent);
+}
+.quiet-music {
+  margin-top: 16px;
+  padding: 14px 18px 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.music-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.music-title button {
+  font-size: 11px;
+  background: transparent;
+  border: 0;
+  padding: 6px 0 6px 12px;
+}
+.quiet-music .music-strip {
+  margin: 4px 0 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.quiet-music .album {
+  height: 54px;
+  width: 54px;
+}
+.quiet-music .icon-button {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.quiet-activity {
+  margin-top: 22px;
+  border-top: 1px solid var(--border);
+}
+.quiet-activity .row {
+  padding-bottom: 0;
+}
+.forecast-heading {
+  font-size: 14px;
+  font-weight: 500;
+  margin: 28px 0 12px;
+}
+.hourly-forecast {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 5px;
+  padding: 16px 0;
+  border-block: 1px solid var(--border);
+}
+.hourly-forecast > div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  font-size: 11px;
+}
+.hourly-forecast > div > span {
+  color: var(--muted);
+}
+.hourly-forecast svg {
+  color: var(--warm);
+}
+.hourly-forecast strong {
+  font-size: 14px;
+  font-weight: 500;
+}
+.forecast-day {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 84px 40px;
+  gap: 10px;
+  align-items: center;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.forecast-day strong {
+  font-size: 12px;
+  font-weight: 500;
+}
+.forecast-day small {
+  display: block;
+  color: var(--muted);
+  font-size: 10px;
+  margin-top: 5px;
+}
+.forecast-low,
+.forecast-rain {
+  color: var(--muted);
+}
+.forecast-rain {
+  text-align: right;
+  font-size: 11px;
+}
+@media (max-width: 700px) {
+  .quiet-v2 .quiet-layout {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+  .quiet-v2 .mood-hero {
+    min-height: 235px;
+  }
+  .quiet-v2 .quick {
+    gap: 9px;
+    padding: 14px 11px;
+  }
+  .weather-card {
+    padding: 20px;
+  }
+  .weather-degrees {
+    font-size: 52px;
+  }
+  .quiet-music {
+    margin-top: 14px;
+  }
+}

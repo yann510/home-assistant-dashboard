@@ -14,7 +14,7 @@ Open `http://127.0.0.1:8768/concepts/`. The files also work directly from `index
 
 ## Directions
 
-1. **Quiet Home** (`#quiet`): a single active mood, three common shortcuts, summary rows, and details in a drawer. Calmer at first glance, at the cost of one more tap for device controls.
+1. **Quiet Home** (`#quiet`): a prominent active mood, current outdoor weather with a forecast drawer, a direct music player, and two room-based shortcuts for lights and blinds. Thermostat controls live under All controls; appliance activity appears only while running. Calmer at first glance, at the cost of one more tap for device controls.
 2. **Room by Room** (`#rooms`): stable room navigation with lighting, blinds, temperature, and music grouped by space. Easier local control, with more navigation for whole-house tasks.
 3. **Right Now** (`#now`): actionable reminders and active devices earn screen space. Idle devices live in All controls. Lowest passive clutter, with an overview that changes as activity changes.
 
@@ -25,3 +25,7 @@ All concepts share sample state when switching tabs. Selecting Quiet afternoon, 
 Browser checks cover three concepts × three scenarios × desktop (1440px), tablet (768px), and phone (390px), with no page overflow. Checked room navigation, mood selection, brightness and disabled state, blind position, temperature, player controls, clearing reminders, reset, keyboard focus containment, Escape dismissal, and unique element IDs with the drawer open. Desktop and mobile screenshots were visually inspected. JavaScript syntax and the existing TypeScript/Vite build were checked.
 
 These are design exploration assets. No production dashboard components, entity mappings, backend automations, or deployment configuration were changed.
+
+## Quiet Home refinement · September 20
+
+Priorities come from the user's stated preferences, not measured usage: mood, current weather and forecasts, music, then quick room-based lights and blinds. Thermostat controls remain available under All controls. Duplicate light and temperature summaries and idle appliance summaries were removed. Weather opens a clearly labeled sample forecast with six hourly entries and seven daily entries, temperatures in Celsius, high/low values, and rain probabilities. The other concepts remain available for comparison.
