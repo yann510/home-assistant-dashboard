@@ -89,9 +89,9 @@ export function QuietHome() {
             <QuietMoodCard {...mood} onOpen={() => open('mood')} />
           </div>
           <QuietWeather onOpen={() => open('weather')} />
-          <section className='quiet-room-shortcuts' aria-label='Room controls'>
+          <section className='quiet-room-shortcuts' aria-label='Lights & blinds'>
             <div className='quiet-section-heading'>
-              <h2>Your rooms</h2>
+              <h2>Lights &amp; blinds</h2>
               <button ref={allControls} type='button' className='quiet-button' onClick={() => open('library')}>
                 All controls
               </button>
