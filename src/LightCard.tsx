@@ -21,6 +21,7 @@ const mobileLightTitles: Partial<Record<LightEntityName, string>> = {
 
 interface Props {
   lightEntityName: LightEntityName;
+  compact?: boolean;
 }
 
 export const LightCard = (props: Props) => {
@@ -73,7 +74,7 @@ export const LightCard = (props: Props) => {
         icon='mdi:lightbulb-alert-outline'
         title={`${mobileLightTitles[props.lightEntityName] ?? 'Light'} · Unavailable`}
         disabled
-        layoutType={hasSmallScreen ? 'slim-vertical' : 'default'}
+        layoutType={props.compact ? 'slim' : hasSmallScreen ? 'slim-vertical' : 'default'}
         hideDetails
         hideLastUpdated
       />
@@ -85,11 +86,17 @@ export const LightCard = (props: Props) => {
       className='button-card light-card'
       icon={lightEntity?.state === 'on' ? 'mdi:lightbulb-on-outline' : 'mdi:lightbulb-outline'}
       onClick={onCardClick}
-      layoutType={hasSmallScreen ? 'slim-vertical' : 'default'}
-      hideDetails={hasSmallScreen}
-      hideLastUpdated={hasSmallScreen}
+      layoutType={props.compact ? 'slim' : hasSmallScreen ? 'slim-vertical' : 'default'}
+      hideDetails={props.compact || hasSmallScreen}
+      hideLastUpdated={props.compact || hasSmallScreen}
       entity={props.lightEntityName}
-      title={hasSmallScreen ? mobileLightTitles[props.lightEntityName] : undefined}
+      title={
+        props.compact
+          ? `${mobileLightTitles[props.lightEntityName]} · ${lightEntity.state === 'on' ? 'On' : lightEntity.state === 'off' ? 'Off' : 'Unavailable'}`
+          : hasSmallScreen
+            ? mobileLightTitles[props.lightEntityName]
+            : undefined
+      }
       disabled={isChangingState && stateAtClick === lightEntity?.state}
     />
   );

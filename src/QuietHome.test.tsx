@@ -69,6 +69,7 @@ it('keeps everyday controls visible and opens only the requested secondary panel
   expect(screen.queryByText('Appliance controls')).toBeNull();
   fireEvent.click(screen.getByRole('button', { name: /Lights by room/ }));
   expect(screen.getByText('lights room controls')).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Close details' }));
   fireEvent.click(screen.getByRole('button', { name: /Blinds by room/ }));
   expect(screen.queryByText('lights room controls')).toBeNull();
   expect(screen.getByText('blinds room controls')).toBeTruthy();
@@ -79,6 +80,7 @@ it('opens the full forecast and keeps thermostat under All controls', () => {
   render(<QuietHome />);
   fireEvent.click(screen.getByRole('button', { name: 'Outdoor weather' }));
   expect(screen.getByText('Live forecast')).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Close details' }));
   fireEvent.click(screen.getByRole('button', { name: 'All controls' }));
   fireEvent.click(screen.getByRole('button', { name: 'Thermostat' }));
   expect(screen.getByText('Thermostat controls')).toBeTruthy();
@@ -88,6 +90,7 @@ it('routes reminders and running devices into the corresponding hidden controls'
   fireEvent.click(screen.getByRole('button', { name: 'View heating reminder' }));
   expect(screen.getByText('Thermostat controls')).toBeTruthy();
   expect(screen.getByText('Heating needs attention')).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Close details' }));
   fireEvent.click(screen.getByRole('button', { name: 'Running washer' }));
   expect(screen.getByText('Appliance controls')).toBeTruthy();
   expect(screen.queryByText('Heating needs attention')).toBeNull();
@@ -111,4 +114,18 @@ it('defaults to Classic, opts into Quiet Home by URL, and offers the original vi
   const classic = screen.getByRole('link', { name: 'Classic' }).getAttribute('href');
   expect(classic).toContain('keep=1');
   expect(classic).not.toContain('view=quiet');
+});
+
+it('opens a focused sheet, blocks background interaction, and closes with Escape', () => {
+  render(<QuietHome />);
+  fireEvent.click(screen.getByRole('button', { name: 'Outdoor weather' }));
+  const sheet = screen.getByRole('dialog', { name: 'Full forecast' });
+  expect(document.activeElement).toBe(sheet);
+  expect(sheet.getAttribute('aria-modal')).toBe('true');
+  expect(screen.getByText('Music player').closest('[inert]')).toBeTruthy();
+  expect(document.body.style.overflow).toBe('hidden');
+  fireEvent.keyDown(sheet, { key: 'Escape' });
+  expect(screen.queryByRole('dialog')).toBeNull();
+  expect(document.body.style.overflow).toBe('');
+  expect(screen.getByText('Music player').closest('[inert]')).toBeNull();
 });

@@ -12,6 +12,7 @@ const ha = vi.hoisted(() => ({
 }));
 const connection = { connected: true, subscribeMessage: ha.subscribe };
 vi.mock('@hakit/core', () => ({
+  useIcon: () => null,
   useStore: (select: (s: unknown) => unknown) =>
     select({
       connection,

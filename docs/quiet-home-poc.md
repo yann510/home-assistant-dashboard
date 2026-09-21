@@ -27,13 +27,13 @@ Quiet Home reuses the current dashboard's HAKit theme, typography, blue accent, 
 - Weather reads `weather.forecast_home`; the full forecast subscribes to the provider's supported daily, hourly, or twice-daily types. It displays all returned entries, not a fixed or invented seven-day forecast. Loading, empty, unsupported, missing entity, disconnect, timeout, error, and retry states are handled. Subscription cleanup also covers closing the panel before the subscription resolves.
 - Music keeps the existing source/coordinator selection, transport, seek, room picker, grouped volume, favourites, and Follow me controls. Compact mode reduces artwork height and keeps idle favourites behind the existing picker.
 - Lights use the existing light cards, grouped into the existing rooms. Blinds use the current room-level Google Assistant Open/Stop/Close commands; they have no position feedback. No fake slider or estimated position is shown.
-- Details expand into one inline panel at a time. This deliberately preserves the existing light-detail overlays and native speaker dialogs; placing these controls inside a new native modal would interfere with HAKit's portalled overlays. Opening details scrolls and focuses the panel; closing returns focus to the originating shortcut.
+- Details open in one focused side sheet (bottom sheet on phones), with Escape, a close button, backdrop dismissal, keyboard focus containment, and focus restoration. A custom sheet preserves HAKit’s portalled light controls. The background is inert and page scrolling is locked while details are open.
 - Reminders and running activities route to the appropriate hidden panel. Local reminder explanations remain with the reminder component; speaker reminders focus the player.
 
 ## Verification
 
 - Baseline: 169 tests passed.
-- POC: 189 tests passed, including layout/navigation, Classic fallback, forecast lifecycle/reconnect/retry, zero-degree values, mood recovery, activity navigation, and compact idle favourites.
+- POC polish: 190 tests passed, including layout/navigation, Classic fallback, forecast lifecycle/reconnect/retry, zero-degree values, mood recovery, activity navigation, and compact idle favourites.
 - TypeScript and Vite production build pass. `npx eslint src` passes.
 - Repository-wide `npm run lint` also scans existing ignored `.local` scratch previews. It reports two pre-existing errors in `.local/attention-implementation.tsx` and `.local/mood-review.tsx`, plus warnings there. Those unrelated local files were preserved.
 - Real Home Assistant preview confirmed current weather, daily/hourly forecasts, mood status, music metadata, light count, reminders, and existing controls. Responsive layout was checked at 390, 768, and 1440px. Live verification used navigation and read-only state; device-changing actions were covered by tests, not sent to the house.
@@ -41,3 +41,7 @@ Quiet Home reuses the current dashboard's HAKit theme, typography, blue accent, 
 ## Adoption or rejection
 
 To keep the current dashboard, keep using the deployed dashboard or choose Classic. The POC can remain on its own branch with no production impact. If approved, review and merge the branch and separately decide whether Quiet Home should become the default before deploying. No Home Assistant configuration or automations were changed.
+
+## Independent review polish
+
+Compact Day/Night controls keep their labels readable on phones. Mood uses the existing photography even when idle, explicitly labelled “No mood active.” Weather is a compact temperature/condition summary. Music sits beside mood on desktop; room shortcuts precede music on phones so every everyday entry point is easy to reach. Completion reminders show their age concisely, while Classic retains the full explanation. Room shortcuts have disclosure cues, light names include On/Off status, and album artwork has a stronger text overlay.

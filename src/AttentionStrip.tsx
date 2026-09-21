@@ -94,6 +94,7 @@ export function AttentionTarget({
   );
 }
 export type AttentionStripProps = {
+  compact?: boolean;
   items: AttentionItem[];
   connected: boolean;
   ready: boolean;
@@ -108,6 +109,7 @@ export type AttentionStripProps = {
   onClose?: () => void;
 };
 export function AttentionStrip({
+  compact = false,
   items,
   connected,
   ready,
@@ -209,8 +211,8 @@ export function AttentionStrip({
                 <div className='attention-copy'>
                   <strong>{item.title}</strong>
                   <span>
-                    {item.kind === 'completion' ? `${attentionAge(item.occurred_at, now)} · ` : ''}
-                    {item.detail}
+                    {item.kind === 'completion' ? `${attentionAge(item.occurred_at, now)}${compact ? '' : ' · '}` : ''}
+                    {(!compact || item.kind !== 'completion') && item.detail}
                   </span>
                 </div>
                 <div className='attention-actions'>

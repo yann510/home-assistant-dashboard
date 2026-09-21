@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
+import { QuietDetailSheet } from './QuietDetailSheet';
 import { useStore } from '@hakit/core';
 import { VacuumCard } from '@hakit/components';
 import { AttentionPanel } from './AttentionPanel';
@@ -40,17 +41,10 @@ export function QuietHome() {
   const lights = useLightSummary();
   const connected = useStore(s => Boolean(s.connection?.connected && s.connectionStatus === 'connected'));
 
-  useEffect(() => {
-    if (!panel) return;
-    details.current?.scrollIntoView?.({ behavior: 'instant', block: 'start' });
-    details.current?.focus({ preventScroll: true });
-  }, [panel, selected]);
-
   function open(next: Panel) {
     const trigger = document.activeElement;
     if (trigger instanceof HTMLElement && !details.current?.contains(trigger)) returnFocus.current = trigger;
     if (next === panel) {
-      details.current?.scrollIntoView?.({ behavior: 'instant', block: 'start' });
       details.current?.focus({ preventScroll: true });
     }
     setSelected(null);
@@ -59,7 +53,9 @@ export function QuietHome() {
   function close() {
     setPanel(null);
     setSelected(null);
-    (returnFocus.current?.isConnected ? returnFocus.current : allControls.current)?.focus({ preventScroll: true });
+    requestAnimationFrame(() =>
+      (returnFocus.current?.isConnected ? returnFocus.current : allControls.current)?.focus({ preventScroll: true })
+    );
   }
   function viewReminder(item: AttentionItem) {
     if (item.target === 'details') {
@@ -79,53 +75,59 @@ export function QuietHome() {
   }
   return (
     <main className='quiet-home'>
-      <header className='quiet-heading'>
-        <div>
-          <h1>Home</h1>
-          <p>Your everyday essentials.</p>
-        </div>
-        <HomeModeControls />
-      </header>
-      <AttentionPanel selected={selected} onView={viewReminder} onClose={() => setSelected(null)} />
-      <div className='quiet-overview'>
-        <div className='quiet-mood-area'>
-          <QuietMoodCard {...mood} onOpen={() => open('mood')} />
-        </div>
-        <QuietWeather onOpen={() => open('weather')} />
-        <section className='quiet-room-shortcuts' aria-label='Room controls'>
-          <div className='quiet-section-heading'>
-            <h2>Your rooms</h2>
-            <button ref={allControls} type='button' className='quiet-button' onClick={() => open('library')}>
-              All controls
-            </button>
+      <div inert={panel !== null}>
+        <header className='quiet-heading'>
+          <div>
+            <h1>Home</h1>
+            <p>Your everyday essentials.</p>
           </div>
-          <div className='quiet-shortcuts'>
-            <button type='button' className='quiet-shortcut' aria-expanded={panel === 'lights'} onClick={() => open('lights')}>
-              <strong>Lights by room</strong>
-              <span>{lights}</span>
-            </button>
-            <button type='button' className='quiet-shortcut' aria-expanded={panel === 'blinds'} onClick={() => open('blinds')}>
-              <strong>Blinds by room</strong>
-              <span>Living Room · Bedroom · Gym</span>
-            </button>
+          <HomeModeControls compact disabled={!connected} />
+        </header>
+        <AttentionPanel compact selected={selected} onView={viewReminder} onClose={() => setSelected(null)} />
+        <div className='quiet-overview'>
+          <div className='quiet-mood-area'>
+            <QuietMoodCard {...mood} onOpen={() => open('mood')} />
           </div>
-        </section>
-        <section ref={music} tabIndex={-1} className='quiet-music-area' aria-label='Music'>
-          {selected?.target === 'speaker' && (
-            <div className='attention-context'>
-              <strong>{selected.title}</strong>
-              <p>{attentionExplanation(selected)}</p>
-              <button type='button' onClick={() => setSelected(null)}>
-                Close reminder
+          <QuietWeather onOpen={() => open('weather')} />
+          <section className='quiet-room-shortcuts' aria-label='Room controls'>
+            <div className='quiet-section-heading'>
+              <h2>Your rooms</h2>
+              <button ref={allControls} type='button' className='quiet-button' onClick={() => open('library')}>
+                All controls
               </button>
             </div>
-          )}
-          <SpeakerCard compact />
-        </section>
+            <div className='quiet-shortcuts'>
+              <button type='button' className='quiet-shortcut' aria-expanded={panel === 'lights'} onClick={() => open('lights')}>
+                <strong>
+                  <span aria-hidden='true'>☀</span> Lights by room <b aria-hidden='true'>›</b>
+                </strong>
+                <span>{lights}</span>
+              </button>
+              <button type='button' className='quiet-shortcut' aria-expanded={panel === 'blinds'} onClick={() => open('blinds')}>
+                <strong>
+                  <span aria-hidden='true'>▤</span> Blinds by room <b aria-hidden='true'>›</b>
+                </strong>
+                <span>3 rooms · Open or close</span>
+              </button>
+            </div>
+          </section>
+          <section ref={music} tabIndex={-1} className='quiet-music-area' aria-label='Music'>
+            {selected?.target === 'speaker' && (
+              <div className='attention-context'>
+                <strong>{selected.title}</strong>
+                <p>{attentionExplanation(selected)}</p>
+                <button type='button' onClick={() => setSelected(null)}>
+                  Close reminder
+                </button>
+              </div>
+            )}
+            <SpeakerCard compact />
+          </section>
+        </div>
+        <RunningPanel onNavigate={target => open(target === 'attention-target-vacuum' ? 'vacuum' : 'appliances')} />
       </div>
-      <RunningPanel onNavigate={target => open(target === 'attention-target-vacuum' ? 'vacuum' : 'appliances')} />
       {panel && (
-        <section ref={details} tabIndex={-1} className='quiet-detail-panel' aria-labelledby='quiet-details-title'>
+        <QuietDetailSheet detailsRef={details} onClose={close} panel={panel}>
           <div className='quiet-section-heading'>
             <h2 id='quiet-details-title'>{titles[panel]}</h2>
             <button type='button' className='quiet-button' aria-label='Close details' onClick={close}>
@@ -159,7 +161,7 @@ export function QuietHome() {
               )}
             </>
           )}
-        </section>
+        </QuietDetailSheet>
       )}
     </main>
   );

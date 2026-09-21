@@ -16,14 +16,24 @@ export function QuietMoodCard({ status, connected, available, onEnd, onRetry, on
             ? 'Restoration needs attention.'
             : status.activeMood
               ? 'Active across your home'
-              : 'Choose the atmosphere for your home.';
+              : 'No mood active. Find one for this moment.';
   return (
     <section className='house-mood-card quiet-mood-card' data-mood={current?.id} aria-label='House Mood'>
-      <h2>House Mood</h2>
+      <h2>
+        House Mood <span>{status.activeMood ? 'Active' : 'Your atmosphere'}</span>
+      </h2>
       <div className='quiet-mood-photo'>
-        {current && <img src={current.photo} alt='' />}
+        {current ? (
+          <img src={current.photo} alt='' />
+        ) : (
+          <div className='quiet-mood-gallery' aria-hidden='true'>
+            {moodPresets.slice(0, 3).map(mood => (
+              <img key={mood.id} src={mood.photo} alt='' />
+            ))}
+          </div>
+        )}
         <div className='quiet-mood-caption'>
-          <h3>{current?.name ?? (recovery ? 'Finish restoring' : 'Make yourself at home')}</h3>
+          <h3>{current?.name ?? (recovery ? 'Finish restoring' : 'Set the mood')}</h3>
           <p role='status'>{message}</p>
         </div>
       </div>

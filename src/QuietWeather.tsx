@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useIcon } from '@hakit/core';
 import { finite, useQuietWeather, useQuietForecast, type ForecastType } from './useQuietForecast';
 const labels: Record<ForecastType, string> = { daily: 'Daily', hourly: 'Hourly', twice_daily: 'Day / night' };
 const condition = (value?: string) =>
@@ -7,13 +8,26 @@ const condition = (value?: string) =>
     : 'Conditions unavailable';
 export function QuietWeather({ onOpen }: { onOpen: () => void }) {
   const { entity, connected, available } = useQuietWeather();
+  const weatherIcons: Record<string, string> = {
+    'clear-night': 'mdi:weather-night',
+    sunny: 'mdi:weather-sunny',
+    partlycloudy: 'mdi:weather-partly-cloudy',
+    rainy: 'mdi:weather-rainy',
+    pouring: 'mdi:weather-pouring',
+    snowy: 'mdi:weather-snowy',
+    fog: 'mdi:weather-fog',
+    windy: 'mdi:weather-windy',
+  };
+  const weatherIcon = useIcon(weatherIcons[entity?.state ?? ''] ?? 'mdi:weather-cloudy');
   const attributes = entity?.attributes;
   const temp = attributes?.temperature;
   const feels = attributes?.apparent_temperature;
   const live = connected && available;
   return (
     <button className='quiet-weather' type='button' onClick={onOpen}>
-      <span className='quiet-weather-title'>Outside now</span>
+      <span className='quiet-weather-title'>
+        <span aria-hidden='true'>{weatherIcon}</span>Outside now
+      </span>
       <span className='quiet-weather-temp'>
         <strong>{live && finite(temp) ? Number(temp.toFixed(1)) : '—'}</strong>
         <span>{attributes?.temperature_unit ?? ''}</span>

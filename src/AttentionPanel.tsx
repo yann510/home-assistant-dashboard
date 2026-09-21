@@ -3,10 +3,12 @@ import { AttentionStrip } from './AttentionStrip';
 import { useAttention } from './useAttention';
 import type { AttentionItem } from './attention';
 export function AttentionPanel({
+  compact = false,
   selected,
   onView,
   onClose,
 }: {
+  compact?: boolean;
   selected: AttentionItem | null;
   onView: (item: AttentionItem) => void;
   onClose: () => void;
@@ -22,5 +24,5 @@ export function AttentionPanel({
     )
       onClose();
   }, [selected, model.ready, model.items, model.now, onClose]);
-  return <AttentionStrip {...model} selected={selected} onView={onView} onClose={onClose} />;
+  return <AttentionStrip {...model} compact={compact} selected={selected} onView={onView} onClose={onClose} />;
 }
