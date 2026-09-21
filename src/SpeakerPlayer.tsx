@@ -12,7 +12,7 @@ function SpeakerIcon({ name }: { name: string }) {
   return useIcon(name);
 }
 
-export function SpeakerPlayer({ entityId, members }: { entityId: SpeakerId; members: SpeakerId[] }) {
+export function SpeakerPlayer({ entityId, members, compact = false }: { entityId: SpeakerId; members: SpeakerId[]; compact?: boolean }) {
   const entity = useEntity(entityId, { returnNullIfNotFound: true });
   const connection = useStore(state => state.connection);
   const connectionStatus = useStore(state => state.connectionStatus);
@@ -75,7 +75,7 @@ export function SpeakerPlayer({ entityId, members }: { entityId: SpeakerId; memb
             key={'favourites:' + entityId}
             entityId={entityId}
             destination={name + (targets.length > 1 ? ' +' + (targets.length - 1) : '')}
-            idle={idle}
+            idle={idle && !compact}
             onCount={setFavouritesCount}
             disabled={disabled}
             open={favouritesOpen}
@@ -125,7 +125,7 @@ export function SpeakerPlayer({ entityId, members }: { entityId: SpeakerId; memb
                   </button>
                 </>
               )}
-              {!(idle && !disabled && favouritesCount !== null && favouritesCount > 0 && favouritesCount <= 12) && (
+              {!(idle && !compact && !disabled && favouritesCount !== null && favouritesCount > 0 && favouritesCount <= 12) && (
                 <button
                   ref={favouritesTrigger}
                   type='button'

@@ -4,7 +4,7 @@ import { SpeakerPlayer } from './SpeakerPlayer';
 
 const speakerIds = ['media_player.living_room', 'media_player.bathroom', 'media_player.bedroom', 'media_player.gym'] as const;
 
-export function SpeakerCard() {
+export function SpeakerCard({ compact = false }: { compact?: boolean } = {}) {
   const speakers = [
     useEntity('media_player.living_room', { returnNullIfNotFound: true }),
     useEntity('media_player.bathroom', { returnNullIfNotFound: true }),
@@ -80,8 +80,9 @@ export function SpeakerCard() {
   }
 
   return (
-    <section className='speaker-card' aria-label='Speakers'>
+    <section className={`speaker-card${compact ? ' speaker-card--compact' : ''}`} aria-label='Speakers'>
       <SpeakerPlayer
+        compact={compact}
         key={coordinator?.entity_id ?? 'media_player.living_room'}
         entityId={speakerIds.find(id => id === coordinator?.entity_id) ?? 'media_player.living_room'}
         members={speakerIds.filter(id => members.includes(id))}

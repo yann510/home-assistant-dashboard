@@ -7,7 +7,7 @@ import './running.css';
 
 type ActivityItem = { id: string; name: string; status: string; target: string; icon: ReactNode };
 
-export function RunningPanel() {
+export function RunningPanel({ onNavigate }: { onNavigate?: (target: string) => void } = {}) {
   const nightMode = useEntity('input_boolean.night_mode', { returnNullIfNotFound: true });
   const night = nightMode?.state === 'on';
   const connected = useStore(state => Boolean(state.connection?.connected && state.connectionStatus === 'connected'));
@@ -28,11 +28,14 @@ export function RunningPanel() {
     { id: 'dishwasher', name: 'Dishwasher', machine: dishwasherMachine, job: dishwasherJob, completion: dishwasherCompletion },
   ] as const;
   const items: ActivityItem[] = appliances
-    .filter(appliance => ['run', 'pause'].includes(appliance.machine?.state ?? '') && !['finish', 'finished'].includes(appliance.job?.state ?? ''))
+    .filter(
+      appliance => ['run', 'pause'].includes(appliance.machine?.state ?? '') && !['finish', 'finished'].includes(appliance.job?.state ?? '')
+    )
     .map(appliance => ({
       id: appliance.id,
       name: appliance.name,
-      status: appliance.machine?.state === 'pause' ? 'Paused' : runningApplianceStatus(appliance.job?.state, appliance.completion?.state, now),
+      status:
+        appliance.machine?.state === 'pause' ? 'Paused' : runningApplianceStatus(appliance.job?.state, appliance.completion?.state, now),
       target: 'appliances-card',
       icon: <ApplianceIcon kind={appliance.id} state={appliance.machine?.state === 'pause' ? 'paused' : 'running'} />,
     }));
@@ -65,6 +68,11 @@ export function RunningPanel() {
               href={`#${item.target}`}
               aria-label={`${item.name} ${item.status}`}
               onClick={event => {
+                if (onNavigate) {
+                  event.preventDefault();
+                  onNavigate(item.target);
+                  return;
+                }
                 const target = document.getElementById(item.target);
                 if (!target) return;
                 event.preventDefault();
@@ -78,7 +86,9 @@ export function RunningPanel() {
                 <strong>{item.name}</strong>
                 <span>{item.status}</span>
               </span>
-              <span className='running-arrow' aria-hidden='true'>↗</span>
+              <span className='running-arrow' aria-hidden='true'>
+                ↗
+              </span>
             </a>
           </li>
         ))}

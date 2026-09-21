@@ -1,8 +1,4 @@
-import lovePhoto from './assets/moods/love.jpg';
-import unwindPhoto from './assets/moods/unwind.jpg';
-import dinnerPhoto from './assets/moods/dinner.jpg';
-import partyPhoto from './assets/moods/party.jpg';
-import gymPhoto from './assets/moods/gym.jpg';
+import { moodPresets as moods } from './moodPresets';
 
 export type MoodId = 'love' | 'unwind' | 'dinner' | 'party' | 'gym';
 export type MoodPhase = 'idle' | 'starting' | 'active' | 'restoring' | 'recovery_required';
@@ -20,13 +16,6 @@ export type HouseMoodCardProps = {
   onEnd: () => void;
   onRetry: () => void;
 };
-const moods = [
-  { id: 'love', name: 'Love', photo: lovePhoto },
-  { id: 'unwind', name: 'Unwind', photo: unwindPhoto },
-  { id: 'dinner', name: 'Dinner', photo: dinnerPhoto },
-  { id: 'party', name: 'Party', photo: partyPhoto },
-  { id: 'gym', name: 'Gym', photo: gymPhoto },
-] as const;
 
 export function HouseMoodCard({ status, connected, available, onActivate, onEnd, onRetry }: HouseMoodCardProps) {
   const pending = status.phase === 'starting' || status.phase === 'restoring';
@@ -74,12 +63,20 @@ export function HouseMoodCard({ status, connected, available, onActivate, onEnd,
             {status.phase === 'starting' && status.pendingMood === mood.id ? (
               <span className='house-mood-check house-mood-spinner' aria-hidden='true' />
             ) : (
-              status.activeMood === mood.id && <span className='house-mood-check' aria-hidden='true'>✓</span>
+              status.activeMood === mood.id && (
+                <span className='house-mood-check' aria-hidden='true'>
+                  ✓
+                </span>
+              )
             )}
           </button>
         ))}
       </div>
-      <span className={!connected || !available || recovering ? 'house-mood-notice' : 'house-mood-status-hidden'} role='status' aria-live='polite'>
+      <span
+        className={!connected || !available || recovering ? 'house-mood-notice' : 'house-mood-status-hidden'}
+        role='status'
+        aria-live='polite'
+      >
         {message}
       </span>
       {status.errors.length > 0 && (

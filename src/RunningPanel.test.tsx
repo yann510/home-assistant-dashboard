@@ -182,3 +182,10 @@ it('shows all four active devices together and removes only the device that stop
   expect(screen.getAllByRole('link')).toHaveLength(3);
   expect(screen.queryByRole('link', { name: /Roomba/ })).toBeNull();
 });
+it('opens a hidden appliance panel through the Quiet Home navigation callback', () => {
+  dryer();
+  const onNavigate = vi.fn();
+  render(<RunningPanel onNavigate={onNavigate} />);
+  fireEvent.click(screen.getByRole('link', { name: /Dryer/ }));
+  expect(onNavigate).toHaveBeenCalledExactlyOnceWith('appliances-card');
+});

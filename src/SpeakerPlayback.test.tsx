@@ -47,10 +47,10 @@ function updateEntity(id: string, patch: Partial<ReturnType<typeof speaker>>, at
   });
 }
 
-function mountCard() {
+function mountCard(compact = false) {
   return render(
     <HassContext.Provider value={context}>
-      <SpeakerCard />
+      <SpeakerCard compact={compact} />
     </HassContext.Provider>
   );
 }
@@ -763,6 +763,15 @@ describe('Speaker favourites', () => {
         : { children: items }
     );
   }
+  it('keeps idle favourites behind the picker in Quiet Home while preserving playback', async () => {
+    idle();
+    favourites();
+    mountCard(true);
+    expect(screen.queryByRole('button', { name: 'Play Playlist 1' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Favourites' }));
+    expect(await within(screen.getByRole('dialog', { name: 'Favourites' })).findByRole('button', { name: 'Play Playlist 1' })).toBeTruthy();
+    expect(sendMessagePromise).not.toHaveBeenCalled();
+  });
   it('shows favourites for a paused Spotify connection without track details', async () => {
     idle();
     favourites();

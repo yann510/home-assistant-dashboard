@@ -1,0 +1,395 @@
+.dashboard-view-switch {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 16px;
+  color: var(--ha-S200-contrast);
+}
+.dashboard-view-switch a,
+.quiet-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 8px 14px;
+  border: 1px solid var(--dashboard-card-border);
+  border-radius: 10px;
+  background: var(--dashboard-card-surface);
+  color: inherit;
+  font: inherit;
+  font-size: 0.85rem;
+  text-decoration: none;
+  cursor: pointer;
+}
+.dashboard-view-switch a[aria-current='page'] {
+  background: color-mix(in srgb, var(--ha-A400) 20%, var(--dashboard-card-surface));
+  border-color: color-mix(in srgb, var(--ha-A400) 48%, transparent);
+}
+.dashboard-view-switch > span {
+  margin-left: auto;
+  opacity: 0.6;
+  font-size: 0.75rem;
+}
+.quiet-home {
+  max-width: 1240px;
+  margin: 0 auto;
+  color: var(--ha-S200-contrast);
+}
+.quiet-home button {
+  touch-action: manipulation;
+}
+.quiet-home :is(button, a):focus-visible,
+.dashboard-view-switch a:focus-visible {
+  outline: 2px solid var(--ha-A400);
+  outline-offset: 3px;
+}
+.quiet-home button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.quiet-button:enabled:hover,
+.quiet-shortcut:hover,
+.quiet-weather:hover {
+  background: var(--dashboard-card-hover-surface);
+}
+.quiet-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  margin: 20px 0 24px;
+}
+.quiet-heading h1 {
+  font-size: 1.6rem;
+  margin: 0;
+  line-height: 1.2;
+}
+.quiet-heading p {
+  font-size: 0.85rem;
+  opacity: 0.65;
+  margin: 7px 0 0;
+}
+.quiet-heading .home-modes {
+  width: min(330px, 50%);
+  margin: 0;
+}
+.quiet-overview {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  grid-template-areas: 'mood weather' 'rooms music';
+  gap: 16px;
+  align-items: start;
+  margin-bottom: 16px;
+}
+.quiet-mood-area {
+  grid-area: mood;
+  min-width: 0;
+  height: 100%;
+}
+.quiet-room-shortcuts {
+  grid-area: rooms;
+  min-width: 0;
+}
+.quiet-music-area {
+  grid-area: music;
+  min-width: 0;
+}
+.quiet-mood-card {
+  margin: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.quiet-mood-card > h2 {
+  padding: 4px 0 14px;
+}
+.quiet-mood-photo {
+  position: relative;
+  isolation: isolate;
+  min-height: 155px;
+  flex: 1;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--dashboard-nested-card-surface);
+}
+.quiet-mood-photo img {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: -2;
+}
+.quiet-mood-photo:has(img)::after {
+  position: absolute;
+  content: '';
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(0deg, rgb(0 0 0 / 85%), rgb(0 0 0 / 15%));
+}
+.quiet-mood-photo:has(img) {
+  color: #fff;
+}
+.quiet-mood-caption {
+  padding: 22px 18px;
+  min-height: 155px;
+  display: flex;
+  flex-direction: column;
+  justify-content: end;
+}
+.quiet-mood-caption h3 {
+  font: inherit;
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0 0 10px;
+}
+.quiet-mood-caption p {
+  font-size: 0.85rem;
+  line-height: 1.5;
+  margin: 0;
+}
+.quiet-mood-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 12px;
+}
+.quiet-mood-actions > button:first-child {
+  flex: 1;
+  text-align: left;
+}
+.quiet-section-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.quiet-section-heading h2 {
+  font-size: 1rem;
+  margin: 0;
+  font-weight: 600;
+}
+.quiet-shortcuts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.quiet-shortcut {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 8px;
+  min-height: 86px;
+  padding: 16px;
+  border: 1px solid var(--dashboard-card-border);
+  border-radius: 16px;
+  background: var(--dashboard-card-surface);
+  color: inherit;
+  text-align: left;
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+.quiet-shortcut strong {
+  font-weight: 500;
+}
+.quiet-shortcut span {
+  font-size: 0.75rem;
+  opacity: 0.65;
+  line-height: 1.5;
+}
+.quiet-shortcut[aria-expanded='true'] {
+  border-color: var(--ha-A400);
+}
+.quiet-weather {
+  grid-area: weather;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  text-align: left;
+  min-width: 0;
+  width: 100%;
+  height: 100%;
+  padding: 20px;
+  border: 1px solid var(--dashboard-card-border);
+  border-radius: 16px;
+  background: var(--dashboard-card-surface);
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+}
+.quiet-weather-title {
+  font-size: 1rem;
+  font-weight: 600;
+}
+.quiet-weather-temp {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin: 20px 0 10px;
+}
+.quiet-weather-temp strong {
+  font-size: 3.5rem;
+  font-weight: 500;
+  line-height: 1;
+}
+.quiet-weather-temp span {
+  font-size: 1.2rem;
+  opacity: 0.65;
+}
+.quiet-weather-condition {
+  font-size: 0.95rem;
+}
+.quiet-weather-extra {
+  font-size: 0.8rem;
+  opacity: 0.65;
+  margin: 10px 0;
+}
+.quiet-weather-link {
+  display: block;
+  margin-top: auto;
+  padding-top: 16px;
+  color: var(--ha-A400);
+  font-size: 0.85rem;
+}
+.quiet-muted {
+  opacity: 0.65;
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+.quiet-detail-panel {
+  margin: 20px 0;
+  padding: 20px;
+  border: 1px solid var(--dashboard-card-border);
+  border-radius: 16px;
+  background: var(--dashboard-card-surface);
+  scroll-margin-top: 16px;
+}
+.quiet-detail-panel:focus {
+  outline: 2px solid var(--ha-A400);
+  outline-offset: 3px;
+}
+.quiet-detail-panel > .house-mood-card,
+.quiet-detail-panel > .appliances-card {
+  border: 0;
+  padding: 0;
+  margin-bottom: 0;
+}
+.quiet-library {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+}
+.quiet-library .quiet-shortcut {
+  background: var(--dashboard-nested-card-surface);
+}
+.quiet-light-rooms {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+.quiet-light-room {
+  min-width: 0;
+}
+.quiet-light-room h3 {
+  font-size: 0.9rem;
+  font-weight: 500;
+  margin: 0 0 10px;
+}
+.quiet-room-lights {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.quiet-blinds-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr));
+  gap: 12px;
+}
+.speaker-card--compact .speaker-player--with-art .speaker-player-controls {
+  min-height: 170px;
+  padding-top: 28px;
+}
+.speaker-card--compact .speaker-group-control {
+  padding: 10px 14px;
+}
+.speaker-card--compact .speaker-group-description > span:last-child {
+  font-size: 0.7rem;
+}
+.quiet-forecast-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.quiet-forecast-tabs button[aria-pressed='true'] {
+  border-color: var(--ha-A400);
+  background: color-mix(in srgb, var(--ha-A400) 20%, var(--dashboard-card-surface));
+}
+.quiet-forecast-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+.quiet-forecast-list li {
+  border: 1px solid var(--dashboard-nested-card-border);
+  border-radius: 12px;
+  background: var(--dashboard-nested-card-surface);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 0.85rem;
+}
+.quiet-forecast-list time {
+  font-weight: 600;
+}
+.quiet-forecast-list strong {
+  font-size: 1.3rem;
+  font-weight: 500;
+}
+.quiet-forecast-list small {
+  opacity: 0.7;
+}
+@media (max-width: 700px) {
+  .quiet-heading {
+    gap: 12px;
+    margin: 16px 0;
+  }
+  .quiet-heading p {
+    display: none;
+  }
+  .quiet-heading .home-modes {
+    width: 58%;
+  }
+  .quiet-overview {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: 'mood' 'weather' 'music' 'rooms';
+  }
+  .quiet-weather {
+    padding: 16px;
+  }
+  .quiet-weather-temp {
+    margin: 12px 0;
+  }
+  .quiet-weather-temp strong {
+    font-size: 2.8rem;
+  }
+  .quiet-detail-panel {
+    padding: 14px;
+  }
+  .quiet-light-rooms {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .quiet-forecast-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .quiet-shortcut {
+    padding: 14px 12px;
+  }
+}

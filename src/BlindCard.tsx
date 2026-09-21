@@ -1,7 +1,7 @@
 import { capitalize } from './utils.ts';
 import { Column, FabCard } from '@hakit/components';
 import { useService } from '@hakit/core';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import styled from '@emotion/styled';
 import { CardBase } from '@hakit/components';
 
@@ -71,6 +71,14 @@ export const BlindCard = ({ room }: Props) => {
   const shortTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  useEffect(
+    () => () => {
+      if (shortTimeout.current) clearTimeout(shortTimeout.current);
+      if (longTimeout.current) clearTimeout(longTimeout.current);
+    },
+    []
+  );
+
   const controlBedroomBlinds = (action: 'open' | 'close' | 'stop') => {
     if (shortTimeout.current) clearTimeout(shortTimeout.current);
     if (longTimeout.current) clearTimeout(longTimeout.current);
@@ -98,6 +106,7 @@ export const BlindCard = ({ room }: Props) => {
             <FabCard
               cssStyles={{ backgroundColor: 'var(--ha-S500)' }}
               icon={'mdi:curtains'}
+              aria-label={`Open ${room} blinds`}
               onClick={() => controlBedroomBlinds('open')}
               disabled={buttonStates.open.isDisabled}
               active={buttonStates.open.isActive}
@@ -108,6 +117,7 @@ export const BlindCard = ({ room }: Props) => {
             <FabCard
               cssStyles={{ backgroundColor: 'var(--ha-S500)' }}
               icon={'mdi:stop'}
+              aria-label={`Stop ${room} blinds`}
               onClick={() => controlBedroomBlinds('stop')}
               disabled={buttonStates.stop.isDisabled}
               active={buttonStates.stop.isActive}
@@ -118,6 +128,7 @@ export const BlindCard = ({ room }: Props) => {
             <FabCard
               cssStyles={{ backgroundColor: 'var(--ha-S500)' }}
               icon={'mdi:curtains-closed'}
+              aria-label={`Close ${room} blinds`}
               onClick={() => controlBedroomBlinds('close')}
               disabled={buttonStates.close.isDisabled}
               active={buttonStates.close.isActive}
