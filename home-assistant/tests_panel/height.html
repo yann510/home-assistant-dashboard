@@ -1,0 +1,14 @@
+<!doctype html>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Panel height regression</title>
+<style>
+html,body{margin:0} .ha-host{display:block;box-sizing:border-box;padding:24px 0 16px;--safe-area-inset-top:24px;--safe-area-inset-bottom:16px}output{position:fixed;top:0;left:0;background:white;color:black;z-index:2}
+</style>
+<div class="ha-host"><hakit-dashboard-panel></hakit-dashboard-panel></div>
+<output id="result">Checking</output>
+<script src="../www/hakit-panel.js"></script>
+<script>
+// This test checks frame geometry independently of dashboard data/authentication.
+document.querySelector("iframe").src = "about:blank";
+function check(){requestAnimationFrame(()=>{const p=document.querySelector('hakit-dashboard-panel');const f=p.querySelector('iframe');const box=f.getBoundingClientRect();const expected=innerHeight-40;const passed=Math.abs(box.height-expected)<2&&Math.abs(box.bottom-(innerHeight-16))<2&&p.querySelectorAll('iframe').length===1;document.querySelector('output').textContent=JSON.stringify({passed,viewport:innerHeight,height:box.height,expected,bottom:box.bottom});document.title=passed?'PASS panel height':'FAIL panel height';});}addEventListener('resize',check);check();
+</script>
