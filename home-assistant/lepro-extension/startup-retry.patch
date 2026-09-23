@@ -1,0 +1,137 @@
+--- a/light.py
++++ b/light.py
+@@ -1,4 +1,5 @@
+ import asyncio
++from contextlib import asynccontextmanager
+ import aiohttp
+ import logging
+ import time
+@@ -28,6 +29,7 @@
+ )
+ 
+ from homeassistant.helpers.entity_platform import AddEntitiesCallback
++from homeassistant.exceptions import PlatformNotReady
+ from homeassistant.config_entries import ConfigEntry
+ from homeassistant.core import HomeAssistant
+ 
+@@ -1121,6 +1123,16 @@
+     context.load_cert_chain(certfile=client_cert_path, keyfile=keyfile_path)
+     return context
+ 
++@asynccontextmanager
++async def async_startup_session():
++    """Let Home Assistant retry temporary cloud failures during platform setup."""
++    try:
++        async with aiohttp.ClientSession() as session:
++            yield session
++    except (aiohttp.ClientConnectionError, TimeoutError) as err:
++        raise PlatformNotReady("Lepro cloud is temporarily unreachable") from err
++
++
+ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback):
+     """Set up Lepro LED lights from config entry."""
+     config = hass.data["lepro_led"][entry.entry_id]
+@@ -1169,7 +1181,7 @@
+     client_cert_path = os.path.join(cert_dir, f"{entry.entry_id}_client_cert.pem")
+     keyfile_path = os.path.join(os.path.dirname(__file__), "client_key.pem")
+ 
+-    async with aiohttp.ClientSession() as session:
++    async with async_startup_session() as session:
+         # 1) Login and get bearer token
+         bearer_token = await async_login(session, account, password, mac, login_url, api_host, language, fcm_token)
+         if bearer_token is None:
+@@ -1213,6 +1225,8 @@
+         try:
+             await download_cert_file(session, mqtt_info["root"], root_ca_path, headers)
+             await download_cert_file(session, mqtt_info["cert"], client_cert_path, headers)
++        except (aiohttp.ClientConnectionError, TimeoutError):
++            raise
+         except Exception as e:
+             _LOGGER.error("Certificate download failed: %s", e)
+             return
+--- a/number.py
++++ b/number.py
+@@ -1,9 +1,9 @@
+ """Number platform for Lepro LED speed selectors."""
+ 
+ from __future__ import annotations
+-import asyncio
+ import logging
+ from homeassistant.core import HomeAssistant
++from homeassistant.exceptions import PlatformNotReady
+ from homeassistant.config_entries import ConfigEntry
+ from homeassistant.components.number import NumberEntity
+ from homeassistant.helpers.entity_platform import AddEntitiesCallback
+@@ -95,23 +95,10 @@
+             
+ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback):
+     """Set up number entities for Lepro LED speeds."""
+-    # Wait a short while for light platform to populate hass.data, but keep attempts limited.
+-    attempts = 6
+-    for attempt in range(attempts):
+-        data = hass.data.get(DOMAIN, {}).get(entry.entry_id)
+-        if data and "entities" in data:
+-            break
+-        await asyncio.sleep(0.5)
+-
+     data = hass.data.get(DOMAIN, {}).get(entry.entry_id)
+-    if not data:
+-        _LOGGER.error("Lepro LED: no data available in hass.data for entry %s — number platform setup aborted", entry.entry_id)
+-        return
+-
+-    lights = data.get("entities", [])
+-    if not lights:
+-        _LOGGER.warning("Lepro LED: no lights found for entry %s — no number entities created", entry.entry_id)
+-        return
++    if not data or "entities" not in data:
++        raise PlatformNotReady("Waiting for Lepro lights to finish setup")
++    lights = data["entities"]
+ 
+     numbers = []
+     for light in lights:
+--- a/switch.py
++++ b/switch.py
+@@ -2,10 +2,10 @@
+ 
+ from __future__ import annotations
+ 
+-import asyncio
+ import logging
+ 
+ from homeassistant.components.switch import SwitchEntity
++from homeassistant.exceptions import PlatformNotReady
+ from homeassistant.config_entries import ConfigEntry
+ from homeassistant.core import HomeAssistant
+ from homeassistant.helpers.entity_platform import AddEntitiesCallback
+@@ -58,28 +58,10 @@
+     async_add_entities: AddEntitiesCallback,
+ ):
+     """Set up power-only switch entities for Lepro devices."""
+-    attempts = 6
+-    for _ in range(attempts):
+-        data = hass.data.get(DOMAIN, {}).get(entry.entry_id)
+-        if data and "entities" in data:
+-            break
+-        await asyncio.sleep(0.5)
+-
+     data = hass.data.get(DOMAIN, {}).get(entry.entry_id)
+-    if not data:
+-        _LOGGER.error(
+-            "Lepro LED: no data available in hass.data for entry %s - switch platform setup aborted",
+-            entry.entry_id,
+-        )
+-        return
+-
+-    lights = data.get("entities", [])
+-    if not lights:
+-        _LOGGER.warning(
+-            "Lepro LED: no lights found for entry %s - no switch entities created",
+-            entry.entry_id,
+-        )
+-        return
++    if not data or "entities" not in data:
++        raise PlatformNotReady("Waiting for Lepro lights to finish setup")
++    lights = data["entities"]
+ 
+     switches = []
+     for light in lights:

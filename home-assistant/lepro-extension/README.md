@@ -115,3 +115,64 @@ Regression coverage: `python3 -m unittest discover -s home-assistant/tests_lepro
 The fake broker drops a connection and verifies a replacement subscription and
 incoming report without any user command; startup subscription retention,
 cancelled offline commands, and unload are covered separately.
+
+## September 22 startup DNS recovery
+
+A DNS failure during the September 22 17:42 EDT cloud login escaped platform
+setup before the MQTT reconnect loop existed. Home Assistant logged a generic
+platform error, retained an unavailable restored entity, and never retried.
+Reloading only Lepro at 22:33 EDT recovered fresh device reports. The installed
+light.py hash still matched the September 18 repair exactly.
+
+`startup-retry.patch` is a required second patch, applied **after**
+`integration.patch`. Before applying it, verify all three staged files against
+`startup-baseline-sha256.json`. This includes the installed `switch.py`, which
+must also be included in the private baseline used by the Lepro tests. Stop on
+any hash mismatch; never apply these patches blindly to an updated integration.
+
+```sh
+patch --dry-run -p1 -d /path/to/staged/lepro_led -i /absolute/path/to/startup-retry.patch
+patch -p1 -d /path/to/staged/lepro_led -i /absolute/path/to/startup-retry.patch
+```
+
+For an existing September 18 installation, apply only this second patch to a
+hash-verified staging copy. Back up the installed integration, deploy the three
+changed platform files, validate HA configuration, and restart Home Assistant to load the changed
+Python modules. Config-entry reload alone can retain cached modules. Rollback
+restores those three files and restarts Home Assistant again.
+Do not rerun the first-install House Moods installer on an existing installation.
+
+The startup cloud session translates connection errors (including DNS errors)
+and timeouts into `PlatformNotReady`. Home Assistant owns delayed retries and
+cancels them on unload; no independent retry task or delayed lighting command is
+created. Speed/sensitivity and power platforms also use `PlatformNotReady` while
+waiting for the light platform, so they recover after a delayed cloud login.
+Cancellation and programming errors are not translated into retry requests.
+HTTP rejection responses, authentication failures, and firmware/network issues
+inside the physical device remain outside this specific correction.
+
+`test_startup_retry.py` executes the patched setup/login functions: DNS failure
+followed by successful entity creation, timeouts and connection failures at all
+four cloud API stages, certificate download connection failure, dependent control
+recovery, and cancellation/programming-error propagation.
+
+### September 22 deployment verification
+
+- 18 Lepro regressions, 125 mood/backend tests, and 6 installer tests passed.
+  The original startup code failed the new DNS/timeout and dependent-platform
+  cases before the correction. Installer staging produced the exact three
+  corrected files and rejects an incorrect intermediate source hash.
+- Installed files were hash checked and backed up under
+  `/share/neon-startup-20260922/backup`; `ha core check` passed.
+- An isolated process in the actual HA 2026.9.3 container confirmed real aiohttp
+  `ClientConnectorDNSError` and `TimeoutError` become HA `PlatformNotReady`.
+  Network-failure injection was confined to tests, not the running household.
+- Full HA restart completed: light initialization at 22:44:57 EDT; fresh device
+  report at 22:44:59. Number and switch platforms requested HA-managed retries
+  while the light loaded and automatically set up at 22:45:04.
+- Fresh native readback after restart exactly matched the pre-deployment power,
+  mode, brightness, and opaque effect fields. Light, speed, sensitivity, and
+  power entities were available. No test lighting commands were issued.
+- Existing custom-wave parser diagnostics remain: the opaque palette is retained
+  correctly but the generic parser cannot name that effect. That separate display
+  limitation is not a startup-recovery failure.
