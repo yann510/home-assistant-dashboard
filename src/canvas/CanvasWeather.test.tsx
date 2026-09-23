@@ -169,3 +169,102 @@ it('shows both actual offsets when fall DST repeats a local hour', () => {
   expect(screen.getByText(/1:00 AM GMT-4/)).toBeTruthy();
   expect(screen.getByText(/1:00 AM GMT-5/)).toBeTruthy();
 });
+
+it('shows the forecast feels-like and wind with provider units, including zero', () => {
+  ha.weather!.attributes.wind_speed_unit = 'mph';
+  ha.weather!.attributes.temperature_unit = '°F';
+  ha.weather!.attributes.apparent_temperature = 99;
+  render(<CanvasWeather />);
+  act(() =>
+    receive({
+      forecast: [
+        { datetime: '2026-09-23T13:00:00Z', temperature: 8, apparent_temperature: 0, wind_speed: 0, precipitation_probability: 0 },
+        { datetime: '2026-09-23T14:00:00Z', temperature: 9, apparent_temperature: 7.5, wind_speed: 12.4, precipitation_probability: 35 },
+      ],
+    })
+  );
+  const rows = screen.getAllByRole('listitem');
+  expect(within(rows[0]).getByText('Feels like 0°F')).toBeTruthy();
+  expect(within(rows[0]).getByText('Wind 0 mph')).toBeTruthy();
+  expect(within(rows[0]).getByLabelText('Precipitation chance: 0%')).toBeTruthy();
+  expect(within(rows[1]).getByText('Feels like 7.5°F')).toBeTruthy();
+  expect(within(rows[1]).getByText('Wind 12.4 mph')).toBeTruthy();
+  expect(within(rows[1]).getByLabelText('Precipitation chance: 35%')).toBeTruthy();
+  expect(screen.queryByText(/99°F/)).toBeNull();
+});
+
+it('omits invalid optional readings and never converts precipitation amount into chance', () => {
+  ha.weather!.attributes.apparent_temperature = 99;
+  ha.weather!.attributes.wind_speed_unit = 'km/h';
+  ha.weather!.attributes.precipitation_unit = 'mm';
+  render(<CanvasWeather />);
+  act(() =>
+    receive({
+      forecast: [
+        { datetime: '2026-09-23T13:00:00Z', temperature: 8, precipitation: 0, apparent_temperature: null, wind_speed: '12' },
+        { datetime: '2026-09-23T14:00:00Z', temperature: 9, precipitation: 4, apparent_temperature: NaN, wind_speed: Infinity },
+      ],
+    })
+  );
+  expect(screen.queryByText(/Feels like/)).toBeNull();
+  expect(screen.queryByText(/^Wind /)).toBeNull();
+  expect(screen.queryByText('0%')).toBeNull();
+  expect(screen.getByLabelText('Precipitation amount: 0 mm')).toBeTruthy();
+  expect(screen.getByLabelText('Precipitation amount: 4 mm')).toBeTruthy();
+  expect(screen.getByText(/[Pp]recipitation chance.*unavailable/)).toBeTruthy();
+});
+
+it('keeps wind unavailable without a provider unit and uses the configured temperature unit', () => {
+  delete ha.weather!.attributes.temperature_unit;
+  render(<CanvasWeather />);
+  act(() =>
+    receive({
+      forecast: [
+        { datetime: '2026-09-23T13:00:00Z', temperature: 8, apparent_temperature: 6, wind_speed: 12, precipitation_probability: 25 },
+      ],
+    })
+  );
+  expect(screen.getByText('Feels like 6°C')).toBeTruthy();
+  expect(screen.queryByText(/^Wind /)).toBeNull();
+  expect(screen.queryByText(/[Pp]recipitation chance.*unavailable/)).toBeNull();
+});
+
+it('shows actual provider wind and precipitation amount with their own units', () => {
+  ha.weather!.attributes.wind_speed_unit = 'km/h';
+  ha.weather!.attributes.precipitation_unit = 'mm';
+  render(<CanvasWeather />);
+  act(() =>
+    receive({
+      forecast: [
+        {
+          datetime: '2026-09-23T13:00:00Z',
+          condition: 'cloudy',
+          temperature: 18.4,
+          wind_speed: 11.5,
+          precipitation: 0,
+          humidity: 43,
+          wind_bearing: 38.1,
+        },
+      ],
+    })
+  );
+  expect(screen.getByText('Wind 11.5 km/h')).toBeTruthy();
+  expect(screen.getByLabelText('Precipitation amount: 0 mm')).toBeTruthy();
+  expect(screen.queryByText(/^Feels like /)).toBeNull();
+  expect(screen.queryByText('0%')).toBeNull();
+});
+
+it('prefers reported chance over amount and never assumes a missing precipitation unit', () => {
+  render(<CanvasWeather />);
+  act(() =>
+    receive({
+      forecast: [
+        { datetime: '2026-09-23T13:00:00Z', precipitation: 4 },
+        { datetime: '2026-09-23T14:00:00Z', precipitation: 4, precipitation_probability: 0 },
+      ],
+    })
+  );
+  expect(screen.getByLabelText('Precipitation unavailable')).toBeTruthy();
+  expect(screen.getByLabelText('Precipitation chance: 0%')).toBeTruthy();
+  expect(screen.queryByLabelText(/Precipitation amount/)).toBeNull();
+});

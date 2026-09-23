@@ -110,6 +110,8 @@ function ForecastRow({
   timeZone,
   unit,
   repeated,
+  windUnit,
+  precipitationUnit,
   dateHeading,
 }: {
   entry: ForecastEntry;
@@ -117,9 +119,15 @@ function ForecastRow({
   timeZone: string;
   unit: string;
   repeated: boolean;
+  windUnit: string;
+  precipitationUnit: string;
   dateHeading?: string;
 }) {
   const date = new Date(entry.datetime);
+  const chance = finite(entry.precipitation_probability);
+  const amount = finite(entry.precipitation) && Boolean(precipitationUnit);
+  const precipitation = chance ? `${entry.precipitation_probability}%` : amount ? `${entry.precipitation} ${precipitationUnit}` : '—';
+  const showHourlyDetails = type === 'hourly' && (finite(entry.apparent_temperature) || (finite(entry.wind_speed) && windUnit));
   const label =
     type === 'hourly'
       ? forecastHourLabel(entry.datetime, timeZone, repeated)
@@ -139,9 +147,29 @@ function ForecastRow({
         <strong>{temperature(entry.temperature, unit)}</strong>
         {finite(entry.templow) && <small>Low {temperature(entry.templow, unit)}</small>}
       </span>
-      <span className='forecast-row__precipitation'>
-        {finite(entry.precipitation_probability) ? `${entry.precipitation_probability}%` : '—'}
+      <span
+        className='forecast-row__precipitation'
+        aria-label={
+          chance
+            ? `Precipitation chance: ${precipitation}`
+            : amount
+              ? `Precipitation amount: ${precipitation}`
+              : 'Precipitation unavailable'
+        }
+      >
+        <span>{precipitation}</span>
+        {(chance || amount) && <small>{chance ? 'chance' : 'amount'}</small>}
       </span>
+      {showHourlyDetails && (
+        <div className='forecast-row__details'>
+          {finite(entry.apparent_temperature) && <span>Feels like {temperature(entry.apparent_temperature, unit)}</span>}
+          {finite(entry.wind_speed) && windUnit && (
+            <span>
+              Wind {Number(entry.wind_speed.toFixed(1))} {windUnit}
+            </span>
+          )}
+        </div>
+      )}
     </li>
   );
 }
@@ -154,6 +182,8 @@ export function CanvasWeather() {
   const config = useStore(state => state.config);
   const timeZone = config?.time_zone;
   const unit = entity?.attributes.temperature_unit ?? config?.unit_system.temperature ?? '';
+  const windUnit = typeof entity?.attributes.wind_speed_unit === 'string' ? entity.attributes.wind_speed_unit.trim() : '';
+  const precipitationUnit = typeof entity?.attributes.precipitation_unit === 'string' ? entity.attributes.precipitation_unit.trim() : '';
   if (!forecast.connected) return <p role='status'>Reconnecting to Home Assistant… Forecast updates are paused.</p>;
   if (!forecast.available) return <p role='status'>Weather unavailable. The forecast will return when the provider reconnects.</p>;
   if (!timeZone) return <p role='status'>Waiting for Home Assistant weather configuration…</p>;
@@ -172,6 +202,15 @@ export function CanvasWeather() {
             return forecastDateKey(entry.datetime, timeZone) >= forecastDateKey(now.toISOString(), timeZone);
           })
           .sort((a, b) => Date.parse(a.datetime) - Date.parse(b.datetime)));
+  const missingDetails =
+    forecast.type === 'hourly' && entries
+      ? [
+          ...(!entries.some(entry => finite(entry.apparent_temperature)) ? ['Feels-like'] : []),
+          ...(!entries.some(entry => finite(entry.precipitation_probability)) ? ['precipitation chance'] : []),
+        ]
+      : [];
+  const showAmounts =
+    missingDetails.includes('precipitation chance') && precipitationUnit && entries?.some(entry => finite(entry.precipitation));
   const repeatedHours = new Set<string>();
   if (entries && forecast.type === 'hourly') {
     const seen = new Set<string>();
@@ -236,6 +275,11 @@ export function CanvasWeather() {
         <p role='status'>No upcoming forecast entries are available yet.</p>
       ) : (
         <>
+          {missingDetails.length > 0 && (
+            <p className='canvas-weather__availability'>
+              {missingDetails.join(' and ')} unavailable{showAmounts ? '; showing amounts' : ''}.
+            </p>
+          )}
           <div className='canvas-weather__column-head' aria-hidden='true'>
             <span>Time</span>
             <span>Conditions</span>
@@ -260,6 +304,8 @@ export function CanvasWeather() {
                   type={forecast.type!}
                   timeZone={timeZone}
                   unit={unit}
+                  windUnit={windUnit}
+                  precipitationUnit={precipitationUnit}
                   repeated={repeated}
                   dateHeading={dateHeading}
                 />

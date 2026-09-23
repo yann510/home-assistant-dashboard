@@ -63,7 +63,13 @@ publish('sensor.house_mood', scene === 'busy' ? 'recovery_required' : 'active', 
   active_mood: 'unwind',
   errors: scene === 'busy' ? [{ target: 'Living room', message: 'One light could not be restored.' }] : [],
 });
-publish('weather.forecast_home', 'sunny', { temperature: 18, temperature_unit: '°C', supported_features: 3 });
+publish('weather.forecast_home', 'sunny', {
+  temperature: 18,
+  temperature_unit: '°C',
+  wind_speed_unit: 'km/h',
+  precipitation_unit: 'mm',
+  supported_features: 3,
+});
 for (const kind of ['washer', 'dryer', 'dishwasher']) {
   publish(
     `sensor.${kind}_${kind}_machine_state`,
@@ -175,8 +181,11 @@ const connection = {
         forecast: Array.from({ length: daily ? 7 : 25 }, (_, i) => ({
           datetime: new Date(Date.now() + i * (daily ? 86400000 : 3600000)).toISOString(),
           temperature: 18 + (i % 4),
-          templow: 8,
-          precipitation_probability: i % 2 ? 35 : 0,
+          templow: daily ? 8 : undefined,
+          apparent_temperature: params.has('weather-details') && !daily ? 16 + (i % 4) : undefined,
+          wind_speed: i % 3 ? 11.5 : 0,
+          precipitation: i % 2 ? 0.4 : 0,
+          precipitation_probability: params.has('weather-details') || daily ? (i % 2 ? 35 : 0) : undefined,
           condition: ['sunny', 'partlycloudy', 'rainy', 'snowy', 'fog', 'windy', 'lightning'][i % 7],
         })),
       })

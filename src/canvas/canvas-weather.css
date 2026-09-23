@@ -16,7 +16,12 @@
 .canvas-dialog .forecast-row__condition .canvas-weather__icon { width: 30px; height: 30px; flex: none; color: #f1aa8e; }
 .canvas-dialog .forecast-row__temperature { display: flex; flex-direction: column; }
 .canvas-dialog .forecast-row__temperature small { color: #b6b0bb; white-space: nowrap; }
-.canvas-dialog .forecast-row__precipitation { text-align: right; }
+.canvas-dialog .forecast-row__precipitation { text-align: right; display: flex; flex-direction: column; }
+.canvas-dialog .forecast-row__precipitation small { color: #b6b0bb; font-size: .7rem; }
+.canvas-dialog .forecast-row__details { grid-column: 2 / -1; display: flex; flex-wrap: wrap; gap: var(--canvas-space-2) var(--canvas-space-4); color: #b6b0bb; font-size: .8rem; }
+.canvas-dialog .forecast-row__details span { white-space: nowrap; }
+.canvas-dialog .canvas-weather__availability { color: #b6b0bb; font-size: .8rem; line-height: 1.5; margin: 0; }
+.canvas-dialog .canvas-weather__column-head span:last-child { text-align: right; overflow-wrap: anywhere; }
 @media (max-width: 480px) {
   .canvas-dialog .canvas-weather__tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .canvas-dialog .canvas-weather__tabs button { padding-inline: var(--canvas-space-2); font-size: .875rem; overflow-wrap: anywhere; }

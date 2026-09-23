@@ -8,6 +8,9 @@ export type ForecastEntry = {
   condition?: string;
   temperature?: number;
   templow?: number;
+  apparent_temperature?: number;
+  wind_speed?: number;
+  precipitation?: number;
   precipitation_probability?: number;
   is_daytime?: boolean;
 };
@@ -29,6 +32,9 @@ function parseForecast(value: unknown): ForecastEntry[] {
         condition: typeof entry.condition === 'string' ? entry.condition : undefined,
         temperature: finite(entry.temperature) ? entry.temperature : undefined,
         templow: finite(entry.templow) ? entry.templow : undefined,
+        apparent_temperature: finite(entry.apparent_temperature) ? entry.apparent_temperature : undefined,
+        wind_speed: finite(entry.wind_speed) ? entry.wind_speed : undefined,
+        precipitation: finite(entry.precipitation) ? entry.precipitation : undefined,
         precipitation_probability: finite(entry.precipitation_probability) ? entry.precipitation_probability : undefined,
         is_daytime: typeof entry.is_daytime === 'boolean' ? entry.is_daytime : undefined,
       },
