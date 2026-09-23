@@ -30,7 +30,7 @@ export function deviceEntries(state) {
               subtitle: r.lastBlindCommand ? `${r.lastBlindCommand} command sent` : 'Open, stop or close',
               category: 'Blinds',
               room: r.id,
-              kind: 'room',
+              kind: 'blind-room',
               target: r.id,
               symbol: 'blinds',
             },
@@ -74,6 +74,11 @@ export function renderDetails(state, route, query = '') {
   const room = state.rooms.find(r => r.id === route.id),
     track = tracks[state.music.trackIndex];
   switch (route.kind) {
+    case 'blind-room':
+      return {
+        title: `${room.name} blinds`,
+        html: `<p class="sheet-intro">Control all the blinds in this room.</p><section class="detail-card">${blindControls(room)}<p class="fine-print">${room.lastBlindCommand ? `Last command: ${room.lastBlindCommand}. ` : ''}Current position isn’t reported.</p></section>`,
+      };
     case 'room':
       return {
         title: room.name,
@@ -155,8 +160,43 @@ export function renderDetails(state, route, query = '') {
     case 'devices':
       return {
         title: 'All devices',
-        html: `<p class="sheet-intro">Everything has its place. Find a room, light, or device.</p><label class="field">Search devices<input type="search" id="device-search" class="search-input" placeholder="Try “bedroom” or “blinds”" data-focus-key="device-search" autocomplete="off"></label><div class="detail-row"><label class="field" style="flex:1">Category<select data-action="category" data-focus-key="category">${['All', 'Lights', 'Blinds', 'Music', 'Climate', 'Appliances', 'Cleaning'].map(c => `<option ${c === (route.category || 'All') ? 'selected' : ''}>${c}</option>`).join('')}</select></label><label class="field" style="flex:1">Room<select data-action="room-filter" data-focus-key="room-filter"><option value="All">All</option>${state.rooms.map(r => `<option value="${r.id}" ${r.id === route.room ? 'selected' : ''}>${r.name}</option>`).join('')}</select></label></div><div id="device-results">${renderDeviceList(state, query, route.category, route.room)}</div>`,
+        html: `<p class="sheet-intro">What would you like to control?</p><div class="device-categories">${[
+          ['Lights', 'bulb', 'Power, brightness & colour'],
+          ['Blinds', 'blinds', 'Open & close by room'],
+          ['Music', 'speaker', 'Speakers, sources & favourites'],
+          ['Climate', 'sun', 'Temperature & comfort'],
+          ['Appliances', 'grid', 'Laundry & cleaning'],
+        ]
+          .map(
+            ([name, symbol, desc]) =>
+              `<button class="category-tile" data-action="open" data-kind="${name === 'Music' ? 'music' : name === 'Climate' ? 'thermostat' : 'device-category'}" data-id="${name}" data-focus-key="category-${name}">${icon(symbol)}<span><strong>${name}</strong><small>${desc}</small></span>${icon('arrow')}</button>`
+          )
+          .join(
+            ''
+          )}</div><label class="field">Or search for a device<input type="search" id="device-search" class="search-input" placeholder="Find a light, room, or device" data-focus-key="device-search" autocomplete="off"></label><div id="device-results">${query ? renderDeviceList(state, query) : ''}</div>`,
       };
+    case 'device-category': {
+      if (route.id === 'Lights' || route.id === 'Blinds') {
+        const rooms = state.rooms.filter(r => route.id === 'Lights' || r.blinds);
+        return {
+          title: route.id,
+          html: `<p class="sheet-intro">Choose a room.</p><div class="device-list">${rooms.map(r => `<button class="device-item" ${open(route.id === 'Blinds' ? 'blind-room' : 'room', r.id)} data-focus-key="category-room-${r.id}">${icon(r.symbol)}<span><strong>${r.name}</strong><small>${route.id === 'Lights' ? `${roomSummary(r).on} lights on${roomSummary(r).unavailable ? ' · 1 offline' : ''}` : 'Open, stop & close'}</small></span>${icon('arrow')}</button>`).join('')}</div>`,
+        };
+      }
+      const destinations =
+        route.id === 'Music'
+          ? [['music', 'Music & speakers', 'speaker']]
+          : route.id === 'Climate'
+            ? [['thermostat', 'Thermostat', 'sun']]
+            : [
+                ['appliances', 'Washer & dryer', 'grid'],
+                ['vacuum', 'Roomba', 'sparkle'],
+              ];
+      return {
+        title: route.id,
+        html: `<div class="device-list">${destinations.map(([kind, title, symbol]) => `<button class="device-item" ${open(kind)} data-focus-key="category-device-${kind}">${icon(symbol)}<span><strong>${title}</strong><small>View controls ${icon('arrow')}</small></span></button>`).join('')}</div>`,
+      };
+    }
     case 'thermostat':
       return {
         title: 'A comfortable temperature',

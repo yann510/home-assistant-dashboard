@@ -103,7 +103,7 @@ function actionFor(el) {
   };
 }
 function refreshSearch() {
-  dialog.querySelector('#device-results').innerHTML = renderDeviceList(state, query, route.category, route.room);
+  dialog.querySelector('#device-results').innerHTML = query.trim() ? renderDeviceList(state, query) : '';
 }
 document.addEventListener('click', event => {
   const el = event.target.closest('button[data-action]');

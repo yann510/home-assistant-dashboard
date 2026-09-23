@@ -17,16 +17,16 @@ The **Prototype** button opens Everyday, Busy evening, and Nighttime demo scenes
 ## Try it
 
 - Select Day/Night and any of the five moods; end a mood to see the neutral state.
-- Toggle room lights directly, or tap a room for individual brightness, power, and supported colour choices.
+- Choose a room in the Lights panel to toggle power or adjust room brightness. Individual lights opens detailed power, brightness, and colour controls.
 - Open/stop/close blinds in Living room, Bedroom, and Gym. Buttons acknowledge the last command; they do not fabricate measured blind positions.
 - Play/pause, skip, adjust volume, choose a room/source, or select a favourite in the music sheet.
 - Tap weather for sample hourly/daily forecasts.
 - Read or dismiss reminders. Busy evening also demonstrates running laundry and an unavailable Office light.
-- Search and filter All devices; inspect climate, appliances, and simulated vacuum controls. Back preserves directory query, filters, scroll, and focus.
+- Browse All devices by category, then room. Music and Climate open directly; Appliances includes laundry and vacuum. Optional search remains available. Back preserves search, scroll, and focus.
 
 ## Layout and verification
 
-- The overview fits without page scrolling at **960 × 600** and **1280 × 800 CSS pixels**, including the busy scene. All seven rooms, mood choices, Day/Night, music, weather, and attention access are visible.
+- The overview fits without page scrolling at **960 × 600** and **1280 × 800 CSS pixels**, including the busy scene. Room selectors and direct controls, mood choices, Day/Night, music, weather, and attention access are visible.
 - Phone layouts checked at **375 × 812**, **393 × 852**, and **440 × 956**; no horizontal page overflow. A fixed compact player provides music access while the page scrolls.
 - Visible overview button targets measured at least **44 × 44 CSS pixels** in the smallest phone and tablet checks. Supporting text is intentionally small; check comfort at the actual mounting distance before adoption.
 - Verified grouped/individual light changes, zero brightness/volume, colour choice, blind commands, all mood choices/end, Day/Night independence, speaker/source/favourites, forecast tabs, empty search, directory back/filter preservation, reminders/empty state, unavailable light behavior, thermostat and vacuum.
@@ -41,3 +41,11 @@ The purchased device is a Fire HD 10; its generation and actual kiosk CSS viewpo
 `state.js` owns fixtures and local commands. `overview.js` renders the overview, `details.js` renders secondary controls and search results, `art.js` provides local SVG artwork/icons, and `app.js` handles events and modal navigation. `style.css` contains responsive styling. Existing dashboard and earlier concept files remain unchanged.
 
 No deployment or production adoption is included. This work stays on `codex/quiet-home-poc` until the user chooses a direction.
+
+## September 23 revision
+
+Replaced the seven-room grid with compact Lights and Blinds panels. Both have room selectors; Lights exposes grouped brightness and power, while Blinds exposes labelled Open/Stop/Close commands. Offline lights are excluded from grouped changes. Power-on after zero brightness restores a usable brightness.
+
+Attention now appears in a contrasting banner immediately under the header, with a direct View action and access to all updates. It disappears when all reminders are dismissed. All devices now starts with five categories and room-based navigation, with search as a secondary option. Blinds open their own focused sheet.
+
+Revision verified in the browser at 960×600 and 1280×800 (no scrolling) and 393×852 (no horizontal overflow). Checked room selection, grouped zero/full brightness, power restoration, unavailable lights, blind room commands, category/back navigation, optional search/empty results, and attention dismissal. JavaScript syntax and diff checks pass; earlier regression-suite results above belong to the initial prototype.

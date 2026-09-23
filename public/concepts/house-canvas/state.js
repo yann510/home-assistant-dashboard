@@ -30,6 +30,8 @@ export function createState(scenario = 'everyday') {
     night = scenario === 'nighttime';
   return {
     scenario,
+    lightRoom: 'living',
+    blindRoom: 'living',
     mode: night ? 'night' : 'day',
     mood: night ? 'love' : 'unwind',
     rooms: inventory.map(([id, name, symbol, blinds, names], i) => ({
@@ -105,13 +107,31 @@ export function applyAction(state, a) {
     case 'room-power': {
       const available = room.lights.filter(l => l.available);
       const on = !available.some(l => l.on);
-      available.forEach(l => (l.on = on));
+      available.forEach(l => {
+        l.on = on;
+        if (on && l.brightness === 0) l.brightness = 65;
+      });
       return `${room.name} lights ${on ? 'on' : 'off'}`;
     }
     case 'light-power':
       if (!light?.available) return 'Light unavailable';
       light.on = !light.on;
+      if (light.on && light.brightness === 0) light.brightness = 65;
       return `${light.name} ${light.on ? 'on' : 'off'}`;
+    case 'light-room':
+      state.lightRoom = a.value;
+      return '';
+    case 'blind-room':
+      state.blindRoom = a.value;
+      return '';
+    case 'room-brightness':
+      room.lights
+        .filter(l => l.available)
+        .forEach(l => {
+          l.brightness = clamp(a.value, 0, 100);
+          l.on = l.brightness > 0;
+        });
+      return 'Room brightness updated';
     case 'brightness':
       if (light?.available) {
         light.brightness = clamp(a.value, 0, 100);
