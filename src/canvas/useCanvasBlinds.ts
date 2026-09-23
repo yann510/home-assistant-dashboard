@@ -9,10 +9,10 @@ export const blindRooms: readonly BlindRoom[] = ['living room', 'bedroom', 'gym'
 const emptyResults = (): Record<BlindAction, CommandResult | null> => ({ open: null, stop: null, close: null });
 const emptyFailures = (): Record<BlindAction, readonly BlindRoom[]> => ({ open: [], stop: [], close: [] });
 
-export function useCanvasBlinds() {
+export function useCanvasBlinds(initialRoom?: BlindRoom) {
   const connected = useStore(state => Boolean(state.connection?.connected && state.connectionStatus === 'connected'));
-  const [selection, setSelection] = useState<readonly BlindRoom[]>(blindRooms);
-  const selectionRef = useRef<readonly BlindRoom[]>(blindRooms);
+  const [selection, setSelection] = useState<readonly BlindRoom[]>(() => initialRoom ? [initialRoom] : blindRooms);
+  const selectionRef = useRef<readonly BlindRoom[]>(initialRoom ? [initialRoom] : blindRooms);
   const [results, setResults] = useState(emptyResults);
   const resultsRef = useRef(emptyResults());
   const [failedRooms, setFailedRooms] = useState(emptyFailures);

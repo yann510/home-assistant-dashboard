@@ -11,8 +11,8 @@ function feedback(result: TargetResult) {
   return `${label(result.target as BlindRoom)} · ${result.message ?? 'Command failed. Try again.'}`;
 }
 
-export function CanvasBlinds() {
-  const { selection, toggleRoom, run, retryFailed, failedRooms, results, pending, movingRooms, connected } = useCanvasBlinds();
+export function CanvasBlinds({ initialRoom }: { initialRoom?: BlindRoom } = {}) {
+  const { selection, toggleRoom, run, retryFailed, failedRooms, results, pending, movingRooms, connected } = useCanvasBlinds(initialRoom);
   return <section className='canvas-blinds' aria-label='Blinds'>
     <div className='canvas-blinds__heading'><div><span className='canvas__eyebrow'>Blinds</span><h2>Let the light in.</h2></div><span className='canvas-blinds__caption'>Choose rooms</span></div>
     <div className='canvas-blinds__rooms' role='group' aria-label='Rooms to control blinds'>
