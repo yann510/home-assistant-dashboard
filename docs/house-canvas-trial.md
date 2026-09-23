@@ -8,7 +8,7 @@ The originally shared folder URL (`/local/canvas-trial/?view=canvas`) returns **
 
 Immediate existing-dashboard fallback: **http://homeassistant.local:8123/local/dashboard/index.html**.
 
-Deployed source commit and release ID: `f840c3976828df2835fe755bf3e098ed2dc8cae3` on `codex/quiet-home-poc`. Previous release `cdcf153588d965dfb40b9a13bede8fda91c2f16a` is retained for rollback. Source publication to `origin/main` is separate from deployment. Canvas remains optional; adopting it as the default remains a later decision.
+Deployed source commit and release ID: `287c1bc5c5521b64b58282cd35540fb2f05275e1` on `codex/quiet-home-poc`. Previous release `f840c3976828df2835fe755bf3e098ed2dc8cae3` is retained for rollback. Source publication to `origin/main` is separate from deployment. Canvas remains optional; adopting it as the default remains a later decision.
 
 ## Build and release
 
@@ -32,12 +32,12 @@ Rollback stages the previous release, retains current assets for already-open cl
 
 ## Deployment evidence
 
-Verified at **2026-09-23T19:17:29.424Z**. The reviewed spacing polish build passed **340 tests**, project type checking, changed-file ESLint and the trial build; see [UX polish verification](house-canvas-ux-polish.md).
+Verified at **2026-09-23T19:24:13.195Z**. The reviewed three-line header-height CSS correction passed project type checking and an explicit trial-base build. The preceding full suite passed **340 tests**; it was not rerun for this CSS-only correction. See [UX polish verification](house-canvas-ux-polish.md).
 
-- `npm run deploy:canvas-trial -- f840c3976828df2835fe755bf3e098ed2dc8cae3` exited 0 after its secret scan, staged SHA-256 verification and promotion. Remote release-info reports that exact source/release ID.
-- All **78 manifest files** match their remote SHA-256 hashes and LAN HTTP responses (HTTP 200). All **73 current build files** match local `dist`; **4 previous hashed assets** remain available and verified, alongside generated release metadata.
+- `npm run deploy:canvas-trial -- 287c1bc5c5521b64b58282cd35540fb2f05275e1` exited 0 after its secret scan, staged SHA-256 verification and promotion. Remote release-info reports that exact source/release ID.
+- All **80 manifest files** match their remote SHA-256 hashes and LAN HTTP responses (HTTP 200). All **73 current build files** match local `dist`; **6 previous hashed assets** remain available and verified, alongside generated release metadata.
 - Exact user entry `/local/canvas-trial/index.html?view=canvas` returns **HTTP 200** and the expected index hash. Both directly linked JS/CSS assets were verified.
-- Previous release `cdcf153588d965dfb40b9a13bede8fda91c2f16a` is preserved in `/homeassistant/www/canvas-trial-previous`; all **76 previous manifest files** were re-read and verified. `npm run rollback:canvas-trial` can restore it while retaining the new hashed assets for open clients. Rollback was not executed during this verification.
+- Previous release `f840c3976828df2835fe755bf3e098ed2dc8cae3` is preserved in `/homeassistant/www/canvas-trial-previous`; all **78 previous manifest files** were re-read and verified. `npm run rollback:canvas-trial` can restore it while retaining the new hashed assets for open clients. Rollback was not executed during this verification.
 - The existing dashboard HTML and its two baseline JS/CSS files still return HTTP 200 with unchanged byte counts and SHA-256 values.
 - [Deployment hash evidence](canvas-qa/trial-deployment-verification.json) records every verified file, exact entry status and previous release. The original local dashboard baseline remains untouched.
 - **Login-screen reachability confirmed:** the controller opened the corrected explicit index URL and reached Home Assistant's normal authorization screen with Username, Password and Log in. No credentials were entered. This supersedes the earlier wrong-folder/browser-tool access failure; it does not establish authenticated live state updates.

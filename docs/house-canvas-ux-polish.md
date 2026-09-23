@@ -49,3 +49,7 @@ The root agent inspected the controlled preview through CUA:
 - At 375 px, weather tabs share y=119.2, each measuring 50 × 102.66 px with 8 px gaps. Header/body content align at x=20; body client and scroll widths both measure 336 px, with no horizontal overflow.
 
 Screenshots were inspected in CUA; no new screenshot files were saved. Authenticated live updates and physical Fire tablet/iPhone checks remain pending. No real-home commands were issued.
+
+## Header control height follow-up
+
+Reviewed source `287c1bc5c5521b64b58282cd35540fb2f05275e1` sets a 52 px minimum outer height on the two direct Canvas header buttons and the Day/Night group. Day/Night buttons retain their 44 px touch targets. The root agent measured all three outer controls at 52 px at both 960 px and 375 px widths; the tablet document still fits 960 × 600, and phone wrapping remains intact. Type checking and an explicit `npm run build:canvas-trial` passed; independent review approved the three-line CSS change. The last full suite remains the preceding 340-test run; it was not rerun for this CSS-only correction. Authenticated live and physical-device checks remain pending.
