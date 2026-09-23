@@ -13,6 +13,7 @@ type HaState = {
 /** Controlled HAKit store substitute; never opens a Home Assistant connection. */
 export function createHaFixture() {
   const calls: unknown[] = [];
+  let responder: (message: unknown) => Promise<unknown> = () => Promise.resolve({});
   const makeConnection = (connected: boolean): HaState['connection'] => ({
     connected,
     sendMessage(message) {
@@ -20,7 +21,7 @@ export function createHaFixture() {
     },
     async sendMessagePromise<T>(message: unknown): Promise<T> {
       calls.push(message);
-      return {} as T;
+      return (await responder(message)) as T;
     },
   });
   let snapshot: HaState = { connection: makeConnection(true), connectionStatus: 'connected', entities: {} };
@@ -39,6 +40,19 @@ export function createHaFixture() {
       return snapshot.connection;
     },
     calls,
+    getState: getSnapshot,
+    subscribe,
+    get listenerCount() {
+      return listeners.size;
+    },
+    respondWith(response: (message: unknown) => Promise<unknown>) {
+      responder = response;
+    },
+    reset() {
+      calls.length = 0;
+      responder = () => Promise.resolve({});
+      publishSnapshot({ connection: makeConnection(true), connectionStatus: 'connected', entities: {} });
+    },
     publish(entityId: string, state: string, attributes: Record<string, unknown> = {}) {
       publishSnapshot({ ...snapshot, entities: { ...snapshot.entities, [entityId]: { entity_id: entityId, state, attributes } } });
     },
@@ -52,4 +66,14 @@ export function createHaFixture() {
       return select(useSyncExternalStore(subscribe, getSnapshot, getSnapshot));
     },
   };
+}
+
+export function deferred<T = unknown>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, resolve, reject };
 }

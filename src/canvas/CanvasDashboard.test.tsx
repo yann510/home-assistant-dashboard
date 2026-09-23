@@ -14,7 +14,7 @@ fixtureRef.current = fixture;
 
 afterEach(() => {
   cleanup();
-  fixture.reconnect();
+  fixture.reset();
 });
 
 it('routes Classic by default, Quiet and Canvas by URL, and unknown views to Classic', () => {
