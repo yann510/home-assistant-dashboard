@@ -1,4 +1,4 @@
-import { speakers, tracks, roomSummary, escapeHtml as esc } from './state.js';
+import { runningAppliances, speakers, tracks, roomSummary, escapeHtml as esc } from './state.js';
 import { icon, albumArt } from './art.js';
 import { button, blindControls } from './overview.js';
 const open = (kind, id = '') => `data-action="open" data-kind="${kind}" data-id="${id}"`;
@@ -49,7 +49,7 @@ export function deviceEntries(state) {
     },
     {
       id: 'appliances',
-      title: 'Washer & dryer',
+      title: 'Appliances',
       subtitle: state.appliances.dryer,
       category: 'Appliances',
       room: 'entry',
@@ -184,6 +184,18 @@ export function renderDetails(state, route, query = '') {
           .join('')}</div>`,
       };
     }
+    case 'activity':
+      return {
+        title: 'House pulse',
+        html: `<p class="sheet-intro">What's happening around your home.</p><div class="device-list">${runningAppliances(state)
+          .map(
+            a =>
+              `<button class="device-item pulse-running ${a.paused ? 'is-paused' : ''}" ${open(a.kind, a.id)} data-focus-key="pulse-${a.id}">${icon(a.symbol)}<span><strong>${a.name}</strong><small>${a.status}</small></span>${icon('arrow')}</button>`
+          )
+          .join(
+            ''
+          )}</div>${state.notices.length ? `<button class="chip" ${open('attention')} data-focus-key="pulse-attention">${state.notices.length} need attention ${icon('arrow')}</button>` : '<p class="fine-print">Nothing needs your attention.</p>'}`,
+      };
     case 'attention':
       return {
         title: 'A little heads-up',
@@ -223,7 +235,7 @@ export function renderDetails(state, route, query = '') {
           : route.id === 'Climate'
             ? [['thermostat', 'Thermostat', 'sun']]
             : [
-                ['appliances', 'Washer & dryer', 'grid'],
+                ['appliances', 'Laundry & dishwasher', 'grid'],
                 ['vacuum', 'Roomba', 'sparkle'],
               ];
       return {
@@ -243,14 +255,16 @@ export function renderDetails(state, route, query = '') {
       };
     case 'appliances':
       return {
-        title: 'The everyday helpers',
-        html: `<p class="sheet-intro">A quick check on the laundry.</p>${[
+        title: route.id && state.appliances[route.id] ? route.id.charAt(0).toUpperCase() + route.id.slice(1) : 'The everyday helpers',
+        html: `<p class="sheet-intro">Laundry, dishes and the everyday essentials.</p>${[
           ['Washer', state.appliances.washer],
           ['Dryer', state.appliances.dryer],
+          ['Dishwasher', state.appliances.dishwasher],
         ]
+          .filter(([name]) => !state.appliances[route.id] || name.toLowerCase() === route.id)
           .map(
             ([name, status]) =>
-              `<section class="detail-card"><div class="detail-row"><h3>${name}</h3>${icon('grid')}</div><p>${status}</p>${name === 'Washer' && state.scenario === 'busy' ? '<progress value="80" max="100" aria-label="Wash cycle progress" style="width:100%;accent-color:var(--lilac)"></progress>' : ''}</section>`
+              `<section class="detail-card"><div class="detail-row"><h3>${name}</h3><span class="${status.startsWith('Running') ? 'pulse-running' : ''}">${icon(name.toLowerCase())}</span></div><p>${status}</p>${name === 'Washer' && state.scenario === 'busy' ? '<progress value="80" max="100" aria-label="Wash cycle progress" style="width:100%;accent-color:var(--lilac)"></progress>' : ''}</section>`
           )
           .join('')}<p class="fine-print">Sample cycle information. Appliance power controls are not part of this concept.</p>`,
       };

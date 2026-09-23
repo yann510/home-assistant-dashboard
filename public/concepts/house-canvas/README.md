@@ -85,3 +85,11 @@ All lights now uses a wide, centred overlay with three room columns on landscape
 Music has Player and Speakers views. Tablet Player places favourites beside transport; Speakers places grouping options beside room volumes. Both fit at 960×600, including all four joined speakers. Per-speaker sliders measure approximately 212px at that size. The active Follow me colour pair now uses charcoal/yellow rather than pale text on a pale background.
 
 Verified in the browser: light details/back on tablet and phone, state retained between music views, Follow/manual switching, group and individual volume, no horizontal overflow at 393×852 and no console errors. Four existing prototype action checks passed. No live dashboard behaviour changed.
+
+### House pulse — appliance activity
+
+The attention bar now combines sage activity tiles with amber reminders. Washer, dryer and dishwasher running states show sample remaining time; Roomba shows Cleaning or Paused and disappears when docked. Each appliance opens its own detail view. House pulse opens the combined activity list; reminders remain separately reviewable/dismissible.
+
+Local SVG drum, wash and vacuum animations run only for active states and are disabled by prefers-reduced-motion. Everyday includes a running dishwasher and a finished-dryer reminder; Busy evening shows all four appliances running alongside the offline-light reminder; Nighttime starts quiet. These are sample states, not a connection to appliance sensors.
+
+Verified: all four active at 960×600 without page scroll; 393×852 without horizontal overflow; dishwasher detail routing; pause/dock/start transitions; activity shown with no reminders; quiet state hides the bar; animation styles present for running appliances. Four prototype action checks passed. Existing production dashboard unchanged.

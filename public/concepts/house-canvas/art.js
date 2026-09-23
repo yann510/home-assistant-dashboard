@@ -1,5 +1,13 @@
 export function icon(name) {
   const paths = {
+    washer:
+      '<rect x="4" y="2" width="16" height="20" rx="3"/><path d="M7 5h3"/><circle cx="12" cy="14" r="5"/><g class="appliance-spin"><path d="M8 14q2-4 4 0t4 0"/></g>',
+    dryer:
+      '<rect x="4" y="2" width="16" height="20" rx="3"/><path d="M7 5h3"/><circle cx="12" cy="14" r="5"/><g class="appliance-spin"><path d="M12 10v2m4 2h-2m-2 4v-2m-4-2h2"/></g>',
+    dishwasher:
+      '<rect x="3" y="2" width="18" height="20" rx="3"/><path d="M3 7h18M7 5h2M7 17v2h10v-2"/><g class="appliance-wash"><path d="M8 10v3m4-2v3m4-4v3"/></g>',
+    roomba:
+      '<g class="appliance-roam"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="10" r="2"/><path d="M7 16h10M4 18l-2 2m18-2l2 2"/></g>',
     sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/>',
     moon: '<path d="M20 15.5A9 9 0 018.5 4a8.5 8.5 0 1011.5 11.5z"/>',
     arrow: '<path d="M5 12h14m-5-5l5 5-5 5"/>',

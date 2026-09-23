@@ -65,39 +65,53 @@ export function createState(scenario = 'everyday') {
     },
     notices: night
       ? []
-      : [
-          {
-            id: 'dryer',
-            title: 'Laundry, ready when you are.',
-            short: 'Dryer finished',
-            detail: 'The dryer has finished. Your laundry is ready to put away.',
-            category: 'appliances',
-          },
-          ...(busy
-            ? [
-                {
-                  id: 'washer',
-                  title: 'The wash is almost done.',
-                  short: 'Washer · 12 min left',
-                  detail: 'A sample wash is running with 12 minutes remaining.',
-                  category: 'appliances',
-                },
-                {
-                  id: 'light',
-                  title: 'Office neon is unavailable.',
-                  short: 'Office light unavailable',
-                  detail: 'The neon light is offline in this demo. Other lights still work.',
-                  category: 'room',
-                  roomId: 'office',
-                },
-              ]
-            : []),
-        ],
-    appliances: { washer: busy ? 'Running · 12 min left' : 'Ready for the next load', dryer: night ? 'Idle' : 'Cycle finished' },
-    vacuum: 'docked',
+      : busy
+        ? [
+            {
+              id: 'light',
+              title: 'Office neon is unavailable.',
+              short: 'Office light offline',
+              detail: 'The neon light is offline in this demo. Other lights still work.',
+              category: 'room',
+              roomId: 'office',
+            },
+          ]
+        : [
+            {
+              id: 'dryer',
+              title: 'Laundry, ready when you are.',
+              short: 'Dryer finished',
+              detail: 'The dryer has finished. Your laundry is ready to put away.',
+              category: 'appliances',
+            },
+          ],
+    appliances: {
+      washer: busy ? 'Running · 12 min left' : 'Ready for the next load',
+      dryer: busy ? 'Running · 28 min left' : night ? 'Idle' : 'Cycle finished',
+      dishwasher: night ? 'Idle' : 'Running · 42 min left',
+    },
+    vacuum: busy ? 'cleaning' : 'docked',
     thermostat: 21,
     temperatures: { Office: 21, Gym: 20, Bedroom: 19 },
   };
+}
+export function runningAppliances(state) {
+  return [
+    ...Object.entries(state.appliances)
+      .filter(([, status]) => status.startsWith('Running'))
+      .map(([id, status]) => ({
+        id,
+        name: id.charAt(0).toUpperCase() + id.slice(1),
+        status: status.replace('Running · ', ''),
+        kind: 'appliances',
+        symbol: id,
+      })),
+    ...(state.vacuum === 'cleaning'
+      ? [{ id: 'vacuum', name: 'Roomba', status: 'Cleaning', kind: 'vacuum', symbol: 'roomba' }]
+      : state.vacuum === 'paused'
+        ? [{ id: 'vacuum', name: 'Roomba', status: 'Paused', kind: 'vacuum', symbol: 'roomba', paused: true }]
+        : []),
+  ];
 }
 export function roomSummary(room) {
   return {

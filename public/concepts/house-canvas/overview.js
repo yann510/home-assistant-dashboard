@@ -1,4 +1,4 @@
-import { moods, tracks, roomSummary, escapeHtml as esc } from './state.js';
+import { runningAppliances, moods, tracks, roomSummary, escapeHtml as esc } from './state.js';
 import { icon, moodArt, albumArt } from './art.js';
 export function button(label, action, content, extra = '') {
   return `<button type="button" aria-label="${esc(label)}" data-action="${action}" ${extra}>${content}</button>`;
@@ -32,9 +32,12 @@ function quickControls(state) {
   <p class="quick-caption">${blindRoom.lastBlindCommand ? `Last command: ${blindRoom.lastBlindCommand}` : blindRoom.id === 'all' ? 'Control blinds across the whole home' : 'Open, pause, or close this room’s blinds'}</p></article></section>`;
 }
 function attentionBanner(state) {
-  if (!state.notices.length) return '';
-  const notice = state.notices[0];
-  return `<section class="attention-banner" aria-label="Needs your attention"><span class="attention-symbol">${icon('check')}</span><div class="attention-copy"><span class="eyebrow">NEEDS YOUR ATTENTION</span><strong>${esc(notice.short)}</strong><span>${esc(notice.title)}</span></div><div class="attention-actions"><button class="attention-view" data-action="open" data-kind="${notice.category}" data-id="${notice.roomId || ''}" data-focus-key="attention-view">View ${icon('arrow')}</button><button class="attention-more" data-action="open" data-kind="attention" data-focus-key="attention">${state.notices.length > 1 ? `All ${state.notices.length} updates` : 'Review'} ${icon('arrow')}</button></div></section>`;
+  const running = runningAppliances(state),
+    notice = state.notices[0];
+  if (!notice && !running.length) return '';
+  return `<section class="house-pulse" aria-label="Home activity and attention"><button class="pulse-heading" data-action="open" data-kind="activity" data-focus-key="activity"><span class="eyebrow">HOUSE PULSE</span><span>${running.length ? `${running.length} active` : 'A little heads-up'} ${icon('arrow')}</span></button>
+  ${notice ? `<button class="pulse-item pulse-attention" data-action="open" data-kind="attention" data-focus-key="attention">${icon('check')}<span><small>Needs attention${state.notices.length > 1 ? ` · ${state.notices.length}` : ''}</small><strong>${esc(notice.short)}</strong></span></button>` : ''}
+  ${running.map(a => `<button class="pulse-item pulse-running ${a.paused ? 'is-paused' : ''}" data-action="open" data-kind="${a.kind}" data-id="${a.id}" data-focus-key="activity-${a.id}">${icon(a.symbol)}<span><strong>${esc(a.name)}</strong><small>${esc(a.status)}</small></span></button>`).join('')}</section>`;
 }
 export function renderOverview(state) {
   const mood = moods.find(m => m.id === state.mood),
