@@ -1,4 +1,4 @@
-import { createState, applyAction, escapeHtml } from './state.js';
+import { createState, applyAction, escapeHtml, formatTime } from './state.js';
 import { renderOverview } from './overview.js';
 import { renderDetails, renderDeviceList } from './details.js';
 import { icon } from './art.js';
@@ -256,7 +256,12 @@ document.addEventListener('input', event => {
   }
   if (!el.matches('input[type="range"][data-action]')) return;
   const output = el.parentElement.querySelector('output');
-  if (output) output.textContent = el.value + (el.dataset.action === 'thermostat' ? '°' : '%');
+  if (output)
+    output.textContent =
+      el.dataset.action === 'seek'
+        ? `${formatTime(el.value)} / ${formatTime(el.max)}`
+        : el.value + (el.dataset.action === 'thermostat' ? '°' : '%');
+  if (el.dataset.action === 'seek') el.setAttribute('aria-valuetext', `${formatTime(el.value)} of ${formatTime(el.max)}`);
 });
 document.addEventListener('change', event => {
   const el = event.target;

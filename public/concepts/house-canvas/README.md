@@ -113,3 +113,9 @@ Verification: direct speaker/player entry, pending state remains uncommitted, fa
 Speakers now leads with Follow me and four checked room choices, followed by one wide group-volume control. Individual volumes and Advanced settings expand on demand and retain their open state across command feedback. Main-speaker changes and All rooms/Only main speaker remain under Advanced. The main room is explicitly labelled and cannot be removed; Follow me locks manual choices with a direct Choose rooms manually action that retains the group.
 
 Verified tablet and phone layouts, room selection, individual volume persistence, Follow lock/manual handoff preserving the group, and Advanced access. Six prototype state checks passed. All speaker commands remain simulated.
+
+### Player and saved favourites
+
+Player now contains track/transport, elapsed time and duration, and the seven real saved favourites read from Home Assistant's media browse API on September 23. Only playlist titles were copied; no credentials or media identifiers are included. Choosing one updates the simulated playlist selection. Source selection and volume/mute were removed from Player; group/individual volumes remain in Speakers and the overview retains quick volume controls.
+
+Track progress uses seconds and m:ss labels, including accessible value text. Durations and playback remain sample data. Verified all seven selections, seek formatting/bounds, 960×600 dialog fit, 393×852 horizontal containment, no Source select or volume slider in Player, and no console errors. Six existing prototype checks passed.

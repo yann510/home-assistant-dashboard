@@ -1,4 +1,4 @@
-import { runningAppliances, speakers, tracks, roomSummary, escapeHtml as esc } from './state.js';
+import { favouritePlaylists, formatTime, runningAppliances, speakers, tracks, roomSummary, escapeHtml as esc } from './state.js';
 import { icon, albumArt } from './art.js';
 import { button, blindControls } from './overview.js';
 const open = (kind, id = '') => `data-action="open" data-kind="${kind}" data-id="${id}"`;
@@ -151,11 +151,9 @@ export function renderDetails(state, route, query = '') {
  <p class="fine-print speaker-demo-note">Demo only. No real audio or motion detection.</p></div>`
             : `<div class="player-layout"><section class="player-main"><div class="full-track"><div class="album">${albumArt()}</div><div><h3>${esc(track.title)}</h3><p>${esc(track.artist)}</p><p>${state.music.playing ? 'Playing' : 'Paused'} · ${state.music.room}</p></div></div>
  <div class="transport large-transport">${button('Previous track', 'skip', icon('prev'), 'class="icon-button" data-value="-1" data-focus-key="sheet-prev"')}${button(state.music.playing ? 'Pause music' : 'Play music', 'play', icon(state.music.playing ? 'pause' : 'play'), 'class="play-button" data-focus-key="sheet-play"')}${button('Next track', 'skip', icon('next'), 'class="icon-button" data-value="1" data-focus-key="sheet-next"')}</div>
- <label class="range-row">Volume<input aria-label="Speaker volume" type="range" min="0" max="100" value="${state.music.volume}" data-action="volume" data-focus-key="sheet-volume"><output>${state.music.volume}%</output></label>
- ${chip(state.music.muted ? 'Unmute speakers' : 'Mute speakers', 'mute', '', state.music.muted)}
- <label class="range-row">Track position<input aria-label="Track position" type="range" min="0" max="100" value="${state.music.position}" data-action="seek" data-focus-key="seek"><output>${state.music.position}%</output></label>
-</section><section class="player-library"> <label class="field">Source<select data-action="source" data-focus-key="source">${['Favourites', 'Spotify', 'Radio'].map(r => `<option ${r === state.music.source ? 'selected' : ''}>${r}</option>`).join('')}</select></label>
- <h3 class="detail-title">Something for the moment</h3><div class="device-list">${tracks.map((t, i) => button(t.title, 'favourite', `${icon('play')}<span><strong>${esc(t.title)}</strong><small>${esc(t.artist)}</small></span>`, `class="device-item" data-value="${i}" data-focus-key="favourite-${i}"`)).join('')}</div><p class="fine-print">Sample player · no audio or real speakers are controlled.</p></section></div>`
+ <div class="track-timeline"><label for="track-progress">Track progress <small>Sample track</small></label><input id="track-progress" aria-label="Track progress" aria-valuetext="${formatTime(state.music.position)} of ${formatTime(track.duration)}" type="range" min="0" max="${track.duration}" value="${state.music.position}" data-action="seek" data-focus-key="seek"><output>${formatTime(state.music.position)} / ${formatTime(track.duration)}</output></div>
+ <p class="fine-print">${state.music.playlist ? `Selected playlist: ${esc(state.music.playlist)} · demo` : 'Choose a favourite playlist to set the mood.'}</p>
+</section><section class="player-library"><h3 class="detail-title">Your favourite playlists</h3><div class="device-list favourite-playlists">${favouritePlaylists.map((title, i) => button(title, 'favourite', `${icon(state.music.playlist === title ? 'check' : 'play')}<span><strong>${esc(title)}</strong></span>`, `class="device-item" data-value="${i}" data-focus-key="favourite-${i}" aria-pressed="${state.music.playlist === title}"`)).join('')}</div><p class="fine-print">Your saved favourites · captured from Home Assistant. Playback and track times are simulated.</p></section></div>`
         }`,
       };
     }

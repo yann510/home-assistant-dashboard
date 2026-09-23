@@ -1,3 +1,16 @@
+export const favouritePlaylists = [
+  'Bangers Workout Mix',
+  'Chill House Mix',
+  'Cozy Dinner Mix',
+  'Crush Radio',
+  'Discover Weekly',
+  'Electro House Mix',
+  'Modern Jazz Mix',
+];
+export function formatTime(seconds) {
+  const value = Math.max(0, Math.floor(Number(seconds) || 0));
+  return `${Math.floor(value / 60)}:${String(value % 60).padStart(2, '0')}`;
+}
 export const speakers = ['Living room', 'Bathroom', 'Bedroom', 'Gym'];
 export const moods = [
   { id: 'love', name: 'Love', colour: '#efa5a5', caption: 'A little closer.' },
@@ -7,10 +20,11 @@ export const moods = [
   { id: 'gym', name: 'Gym', colour: '#9ccfd1', caption: 'Find your rhythm.' },
 ];
 export const tracks = [
-  { title: 'All In A Dream', artist: 'LP Giobbi · DJ Tennis · Joseph Ashworth', album: 'Light Places', colour: '#ea9a71' },
-  { title: 'Tadow', artist: 'Masego · FKJ', album: 'French Kiwi Juice', colour: '#a8c5a4' },
-  { title: 'A Walk', artist: 'Tycho', album: 'Dive', colour: '#c6b1eb' },
+  { duration: 234, title: 'All In A Dream', artist: 'LP Giobbi · DJ Tennis · Joseph Ashworth', album: 'Light Places', colour: '#ea9a71' },
+  { duration: 302, title: 'Tadow', artist: 'Masego · FKJ', album: 'French Kiwi Juice', colour: '#a8c5a4' },
+  { duration: 318, title: 'A Walk', artist: 'Tycho', album: 'Dive', colour: '#c6b1eb' },
   {
+    duration: 245,
     title: 'An exceptionally long song title for a slow evening at home',
     artist: 'House Canvas · Sample artist with a long name',
     album: 'Long-title demo',
@@ -54,7 +68,8 @@ export function createState(scenario = 'everyday') {
     music: {
       follow: false,
       muted: false,
-      position: 24,
+      position: 56,
+      playlist: null,
       members: ['Living room'],
       volumes: Object.fromEntries(speakers.map(r => [r, night ? 18 : 32])),
       playing: !night,
@@ -217,7 +232,7 @@ export function applyAction(state, a) {
       state.music.muted = !state.music.muted;
       return state.music.muted ? 'Speakers muted' : 'Speakers unmuted';
     case 'seek':
-      state.music.position = clamp(a.value, 0, 100);
+      state.music.position = clamp(a.value, 0, tracks[state.music.trackIndex].duration);
       return 'Track position updated';
     case 'follow':
       state.music.follow = !state.music.follow;
@@ -249,9 +264,11 @@ export function applyAction(state, a) {
       return `${a.value} selected`;
     case 'favourite':
       state.music.source = 'Favourites';
-      state.music.trackIndex = Number(a.value);
+      if (!favouritePlaylists[Number(a.value)]) return '';
+      state.music.playlist = favouritePlaylists[Number(a.value)];
       state.music.playing = true;
-      return tracks[state.music.trackIndex].title;
+      state.music.position = 0;
+      return `${state.music.playlist} selected`;
     case 'dismiss':
       state.notices = state.notices.filter(n => n.id !== a.id);
       return 'Reminder dismissed';
