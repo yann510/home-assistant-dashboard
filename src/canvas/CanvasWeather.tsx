@@ -159,16 +159,18 @@ export function CanvasWeather() {
   if (!timeZone) return <p role='status'>Waiting for Home Assistant weather configuration…</p>;
   if (!forecast.type) return <p role='status'>This weather provider does not provide forecasts.</p>;
   const unsupportedHourly = !forecast.types.includes('hourly');
+  const now = new Date();
   const entries =
     forecast.entries &&
     (forecast.type === 'hourly'
       ? upcomingHours(forecast.entries, hourCount)
       : forecast.entries
-          .filter(
-            entry =>
-              Number.isFinite(Date.parse(entry.datetime)) &&
-              forecastDateKey(entry.datetime, timeZone) >= forecastDateKey(new Date().toISOString(), timeZone)
-          )
+          .filter(entry => {
+            const timestamp = Date.parse(entry.datetime);
+            if (!Number.isFinite(timestamp)) return false;
+            if (forecast.type === 'twice_daily') return timestamp >= now.getTime();
+            return forecastDateKey(entry.datetime, timeZone) >= forecastDateKey(now.toISOString(), timeZone);
+          })
           .sort((a, b) => Date.parse(a.datetime) - Date.parse(b.datetime)));
   const repeatedHours = new Set<string>();
   if (entries && forecast.type === 'hourly') {

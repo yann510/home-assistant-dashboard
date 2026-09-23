@@ -91,6 +91,33 @@ it('explains unsupported hourly and retains the available daily view', () => {
   expect(ha.subscribe.mock.calls[0][1].forecast_type).toBe('daily');
 });
 
+it('falls back to twice daily and omits an elapsed morning segment from the same local date', () => {
+  vi.setSystemTime(new Date('2026-09-23T16:00:00Z'));
+  ha.weather!.attributes.supported_features = 4;
+  render(<CanvasWeather />);
+  expect(screen.getByText(/Hourly forecasts are unavailable/)).toBeTruthy();
+  expect(ha.subscribe.mock.calls[0][1].forecast_type).toBe('twice_daily');
+  act(() =>
+    receive({
+      forecast: [
+        { datetime: '2026-09-23T12:00:00Z', temperature: 9, is_daytime: true },
+        { datetime: '2026-09-23T22:00:00Z', temperature: 5, is_daytime: false },
+      ],
+    })
+  );
+  expect(screen.queryByText('9°C')).toBeNull();
+  expect(screen.getByText('5°C')).toBeTruthy();
+  expect(screen.getAllByRole('listitem')).toHaveLength(1);
+});
+
+it('keeps a whole-day forecast for the current local date', () => {
+  vi.setSystemTime(new Date('2026-09-23T16:00:00Z'));
+  ha.weather!.attributes.supported_features = 1;
+  render(<CanvasWeather />);
+  act(() => receive({ forecast: [{ datetime: '2026-09-23T12:00:00Z', temperature: 9 }] }));
+  expect(screen.getByText('9°C')).toBeTruthy();
+});
+
 it('keeps missing readings unavailable, then retries a failed subscription', async () => {
   ha.subscribe.mockRejectedValueOnce(new Error('Provider unavailable'));
   render(<CanvasWeather />);
