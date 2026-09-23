@@ -21,7 +21,7 @@ function quickControls(state) {
   <article class="quick-panel"><div class="quick-title"><h2>${icon('bulb')} Lights</h2><button class="text-button" data-action="open" data-kind="lights" data-id="${lightRoom.id}" data-focus-key="light-details">All lights ${icon('arrow')}</button></div>
   <div class="quick-control-row">${picker('light-room', state.rooms, state.lightRoom)}${button(`Turn ${lightRoom.name} lights ${summary.on ? 'off' : 'on'}`, 'room-power', '<span></span>', `class="switch" data-room-id="${lightRoom.id}" data-focus-key="quick-power" aria-pressed="${summary.on > 0}" ${available.length ? '' : 'disabled'}`)}</div>
   <label class="range-row quick-brightness"><span>Brightness</span><input type="range" min="0" max="100" value="${level}" aria-label="Room brightness" data-action="room-brightness" data-room-id="${lightRoom.id}" data-focus-key="room-brightness" ${available.length ? '' : 'disabled'}><output>${level}%</output></label>
-  <div class="quick-footer"><p class="quick-caption">${summary.on} of ${summary.available} available lights on${summary.unavailable ? ` · ${summary.unavailable} offline` : ''}</p><button class="text-button" data-action="all-lights-off" data-focus-key="all-off">All lights off</button></div></article>
+  <div class="quick-footer"><p class="quick-caption">${summary.on} of ${summary.available} available lights on${summary.unavailable ? ` · ${summary.unavailable} offline` : ''}</p></div></article>
   <article class="quick-panel"><div class="quick-title"><h2>${icon('blinds')} Blinds</h2><span class="quick-caption">By room</span></div>
   <div class="quick-control-row">${picker(
     'blind-room',
