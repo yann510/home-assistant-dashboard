@@ -21,6 +21,7 @@
 .canvas-dialog .forecast-row--hourly,
 .canvas-dialog .canvas-weather__column-head--hourly { grid-template-columns: 4.5rem minmax(0, 1fr) 6rem 4rem 4.5rem; }
 .canvas-dialog .canvas-weather__column-head small { display: block; font: inherit; }
+.canvas-dialog .canvas-weather__sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 .canvas-dialog .forecast-row__wind { font-variant-numeric: tabular-nums; }
 .canvas-dialog .forecast-row__temperature .forecast-row__feels-like { white-space: normal; font-size: .75rem; }
 .canvas-dialog .canvas-weather__availability { color: #b6b0bb; font-size: .8rem; line-height: 1.5; margin: 0; }

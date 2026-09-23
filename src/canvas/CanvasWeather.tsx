@@ -151,8 +151,9 @@ function ForecastRow({
         )}
       </span>
       {type === 'hourly' && (
-        <span className='forecast-row__wind' aria-label={wind === null ? 'Wind unavailable' : `Wind ${wind} ${windUnit}`}>
-          {wind ?? '—'}
+        <span className='forecast-row__wind'>
+          <span aria-hidden='true'>{wind ?? '—'}</span>
+          <span className='canvas-weather__sr-only'>{wind === null ? 'Wind unavailable' : `Wind ${wind} ${windUnit}`}</span>
         </span>
       )}
       <span
