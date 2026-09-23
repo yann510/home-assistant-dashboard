@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { createContext, useContext, useRef, useState, type ReactNode } from 'react';
 import { useStore } from '@hakit/core';
 import { useDeviceCommand } from './useDeviceCommand';
 
@@ -8,17 +8,47 @@ const entityId = 'vacuum.roomba';
 const activeStates = ['cleaning', 'on', 'auto', 'spot', 'edge', 'single_room', 'mowing', 'edgecut'];
 const label = (state: string) => state.replace(/_/g, ' ').replace(/^./, letter => letter.toUpperCase());
 
-export function CanvasVacuum() {
+function useCanvasVacuumController() {
   const entity = useStore(state => state.entities[entityId]);
   const connected = useStore(state => Boolean(state.connection?.connected && state.connectionStatus === 'connected'));
   const { send, pending, result } = useDeviceCommand();
   const busy = useRef(false);
   const [draftFan, setDraftFan] = useState<string | null>(null);
+  const available = connected && entity && !['unknown', 'unavailable'].includes(entity.state);
+
+  async function command(service: string, data?: Record<string, unknown>, observe?: (state: string) => boolean) {
+    if (!available || busy.current) return;
+    busy.current = true;
+    try {
+      const outcome = await send(
+        { domain: 'vacuum', service, targets: [entityId], data },
+        observe ? id => observe(useStore.getState().entities[id]?.state ?? '') : undefined
+      );
+      if (service === 'set_fan_speed' && outcome.results[0]?.phase === 'observed') setDraftFan(null);
+    } finally {
+      busy.current = false;
+    }
+  }
+
+  return { entity, connected, available, pending, result, draftFan, setDraftFan, command };
+}
+
+type Controller = ReturnType<typeof useCanvasVacuumController>;
+const VacuumContext = createContext<Controller | null>(null);
+
+export function CanvasVacuumProvider({ children }: { children: ReactNode }) {
+  const controller = useCanvasVacuumController();
+  return <VacuumContext.Provider value={controller}>{children}</VacuumContext.Provider>;
+}
+
+export function CanvasVacuum() {
+  const controller = useContext(VacuumContext);
+  if (!controller) throw new Error('CanvasVacuumProvider is required.');
+  const { entity, connected, available, pending, result, draftFan, setDraftFan, command } = controller;
   const state = entity?.state ?? 'unavailable';
   const attrs = entity?.attributes;
   const supported = typeof attrs?.supported_features === 'number' ? attrs.supported_features : 0;
-  const available = connected && entity && !['unknown', 'unavailable'].includes(state);
-  const can = (flag: number) => Boolean(available && (supported & flag));
+  const can = (flag: number) => Boolean(available && supported & flag);
   const fanList = Array.isArray(attrs?.fan_speed_list)
     ? attrs.fan_speed_list.filter((item): item is string => typeof item === 'string')
     : [];
@@ -55,20 +85,6 @@ export function CanvasVacuum() {
     },
     { name: 'Locate Roomba', service: 'locate', flag: feature.locate, show: true },
   ];
-
-  async function command(service: string, data?: Record<string, unknown>, observe?: (state: string) => boolean) {
-    if (!available || busy.current) return;
-    busy.current = true;
-    try {
-      const outcome = await send(
-        { domain: 'vacuum', service, targets: [entityId], data },
-        observe ? id => observe(useStore.getState().entities[id]?.state ?? '') : undefined
-      );
-      if (service === 'set_fan_speed' && outcome.results[0]?.phase === 'observed') setDraftFan(null);
-    } finally {
-      busy.current = false;
-    }
-  }
 
   const feedback = result?.results[0];
   return (

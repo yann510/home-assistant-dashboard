@@ -20,7 +20,7 @@ import { useAttention } from '../useAttention';
 import { attentionExplanation, type AttentionItem } from '../attention';
 import { TemperatureCard } from '../TemperatureCard';
 import { AppliancesCard } from '../AppliancesCard';
-import { CanvasVacuum } from './CanvasVacuum';
+import { CanvasVacuum, CanvasVacuumProvider } from './CanvasVacuum';
 import './canvas.css';
 import './canvas-music.css';
 import './canvas-secondary.css';
@@ -171,9 +171,11 @@ export function CanvasDashboard(): React.JSX.Element {
   return (
     <CanvasLightsProvider>
       <CanvasBlindsProvider>
-        <CanvasMusicProvider>
-          <CanvasDashboardContent />
-        </CanvasMusicProvider>
+        <CanvasVacuumProvider>
+          <CanvasMusicProvider>
+            <CanvasDashboardContent />
+          </CanvasMusicProvider>
+        </CanvasVacuumProvider>
       </CanvasBlindsProvider>
     </CanvasLightsProvider>
   );

@@ -306,6 +306,41 @@ it('sends one Roomba command while pending and waits for the reported state', as
   expect(screen.getByText('Roomba reported the requested state.')).toBeTruthy();
 });
 
+it('retains a pending Roomba command and its later rejection after closing and reopening details', async () => {
+  const starting = deferred();
+  ref.current!.publish('vacuum.roomba', 'docked', { supported_features: 8192 });
+  ref.current!.respondWith(() => starting.promise);
+  render(<CanvasDashboard />);
+  fireEvent.click(screen.getByRole('button', { name: 'All devices' }));
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Roomba' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Start cleaning' }));
+  expect(ref.current!.calls).toHaveLength(1);
+  fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Roomba' }));
+  expect(screen.getByRole('button', { name: 'Start cleaning' }).hasAttribute('disabled')).toBe(true);
+  fireEvent.click(screen.getByRole('button', { name: 'Start cleaning' }));
+  expect(ref.current!.calls).toHaveLength(1);
+  await act(async () => starting.reject(new Error('Vacuum rejected')));
+  expect(within(screen.getByRole('dialog')).getByRole('alert').textContent).toContain('Vacuum rejected');
+});
+
+it('retains Roomba observation after reopening a pending detail', async () => {
+  const starting = deferred();
+  ref.current!.publish('vacuum.roomba', 'docked', { supported_features: 8192 });
+  ref.current!.respondWith(() => starting.promise);
+  render(<CanvasDashboard />);
+  fireEvent.click(screen.getByRole('button', { name: 'All devices' }));
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Roomba' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Start cleaning' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Roomba' }));
+  await act(async () => starting.resolve({}));
+  expect(screen.getByText(/Service accepted; device response is not yet verified/)).toBeTruthy();
+  act(() => ref.current!.publish('vacuum.roomba', 'cleaning', { supported_features: 8192 }));
+  expect(screen.getByText('Roomba reported the requested state.')).toBeTruthy();
+  expect(ref.current!.calls).toHaveLength(1);
+});
+
 it('keeps thermostat capability limits and reports a rejected command', async () => {
   ref.current!.publish('climate.thermostat_office', 'heat', {
     temperature: 20,
