@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useStore } from '@hakit/core';
 import { speakerIds } from '../useSpeakerSession';
 import { useCanvasLights } from './useCanvasLights';
@@ -69,10 +68,17 @@ const categoryEntries: Entry[] = [
 const blindRooms = ['Living room', 'Bedroom', 'Gym'];
 const thermostats = ['Office', 'Gym', 'Bedroom'];
 
-export function CanvasDevices({ onOpen }: { onOpen(route: CanvasRoute): void }) {
+export function CanvasDevices({
+  onOpen,
+  query,
+  onQueryChange,
+}: {
+  onOpen(route: CanvasRoute): void;
+  query: string;
+  onQueryChange(query: string): void;
+}) {
   const { rooms } = useCanvasLights();
   const entities = useStore(state => state.entities);
-  const [query, setQuery] = useState('');
   const entries: Entry[] = [
     ...categoryEntries,
     ...rooms.flatMap(room =>
@@ -138,7 +144,7 @@ export function CanvasDevices({ onOpen }: { onOpen(route: CanvasRoute): void }) 
         <input
           type='search'
           value={query}
-          onChange={event => setQuery(event.target.value)}
+          onChange={event => onQueryChange(event.target.value)}
           aria-label='Find a device or room'
           placeholder='Search devices and rooms'
           autoComplete='off'
@@ -162,7 +168,7 @@ export function CanvasDevices({ onOpen }: { onOpen(route: CanvasRoute): void }) 
       ) : (
         <div role='status'>
           <p>No devices found. Try another room or shorter name.</p>
-          <button type='button' onClick={() => setQuery('')}>
+          <button type='button' onClick={() => onQueryChange('')}>
             Clear search
           </button>
         </div>

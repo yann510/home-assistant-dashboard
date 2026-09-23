@@ -29,3 +29,30 @@
 :is(.canvas, .canvas-dialog) .canvas-speakers .speaker-volume-row input { min-height: 44px; }
 :is(.canvas, .canvas-dialog) .canvas-speakers [role='alert'], :is(.canvas, .canvas-dialog) .canvas-player [role='alert'] { padding: .75rem; border: 1px solid currentColor; border-radius: 12px; }
 @media (max-width: 600px) { :is(.canvas, .canvas-dialog) .canvas-speakers__rooms { grid-template-columns: repeat(2, 1fr); } }
+
+.canvas .canvas__music { min-height: 218px; padding: 16px 20px 12px; background: #e6dcbc; color: #302c26; display: flex; flex-direction: column; justify-content: space-between; gap: 8px; }
+.canvas .canvas-music button { background: transparent; border-color: #51473455; color: inherit; }
+.canvas .canvas-music p { color: #514b3e; margin: 4px 0 0; font-size: .75rem; }
+.canvas .canvas-music__top, .canvas .canvas-music__bottom { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.canvas .canvas-music__top button { font-size: .85rem; border: 0; padding: 4px; }
+.canvas .canvas-music__track { display: grid; grid-template-columns: 85px minmax(0, 1fr); gap: 14px; align-items: center; }
+.canvas .canvas-music__cover { aspect-ratio: 1; border-radius: 12px; overflow: hidden; display: grid; place-items: center; background: #c39478; font: 3.5rem Georgia, serif; }
+.canvas .canvas-music__cover img { width: 100%; height: 100%; object-fit: cover; }
+.canvas .canvas-music__title { max-width: 100%; font-size: clamp(1.4rem, 2.2vw, 2rem); padding: 4px 0; border: 0; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.canvas .canvas-music__transport button { border: 0; padding: 6px; }
+.canvas .canvas-music__transport button:nth-child(2) { border-radius: 50%; background: #302c26; color: #e6dcbc; }
+.canvas .canvas-music__bottom > button { border-radius: 28px; font-size: .8rem; }
+:is(.canvas, .canvas-dialog) .canvas-speakers .speaker-volume-row { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; width: 100%; }
+:is(.canvas, .canvas-dialog) .canvas-speakers .speaker-volume-row input { width: 100%; }
+:is(.canvas, .canvas-dialog) .canvas-speakers__rooms label { padding: .65rem; }
+:is(.canvas, .canvas-dialog) .canvas-speakers__rooms input:checked::after { content: '✓'; display: block; text-align: center; font-size: 14px; color: #fff; }
+@media (max-width: 700px) {
+ .canvas .canvas__music { min-height: 240px; }
+ .canvas .canvas-music__track { grid-template-columns: 72px minmax(0, 1fr); gap: 10px; }
+}
+:is(.canvas, .canvas-dialog) :is(.speaker-volume, .speaker-seek) { --ha-A400: #cbb5ed; --ha-S400: #56505e; }
+:is(.canvas, .canvas-dialog) .speaker-control { background: transparent; }
+.canvas .speaker-volume-shortcuts { display: flex; align-items: center; border: 1px solid #51473488; border-radius: 28px; }
+.canvas .speaker-volume-shortcuts button { padding: 4px; border: 0; min-width: 44px; }
+.canvas .speaker-volume-shortcuts button:nth-child(2) { font-size: .85rem; font-weight: 700; }
+.canvas .speaker-volume-shortcuts [role='alert'] { position: absolute; bottom: 52px; right: 0; max-width: 100%; background: #e6dcbc; padding: 8px; border-radius: 8px; }

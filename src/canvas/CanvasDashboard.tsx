@@ -29,7 +29,9 @@ import './canvas-secondary.css';
 function CanvasDashboardContent(): React.JSX.Element {
   const connected = useStore(state => Boolean(state.connection?.connected && state.connectionStatus === 'connected'));
   const [route, setRoute] = useState<CanvasRoute>({ kind: 'overview' });
-  const [routeHistory, setRouteHistory] = useState<CanvasRoute[]>([]);
+  const [routeHistory, setRouteHistory] = useState<{ route: CanvasRoute; trigger: string | null }[]>([]);
+  const backFocus = useRef<string | null>(null);
+  const [deviceQuery, setDeviceQuery] = useState('');
   const returnFocus = useRef<HTMLElement | null>(null);
   const mood = useHouseMood();
   const attention = useAttention();
@@ -37,15 +39,26 @@ function CanvasDashboardContent(): React.JSX.Element {
   const activeAttention = selectedAttention ? (attention.items.find(item => item.id === selectedAttention.id) ?? null) : null;
 
   useEffect(() => {
+    if (backFocus.current) {
+      const name = backFocus.current;
+      document.querySelectorAll<HTMLElement>('.canvas-dialog button').forEach(button => {
+        if ((button.dataset.canvasFocusKey || button.getAttribute('aria-label') || button.textContent) === name)
+          button.focus({ preventScroll: true });
+      });
+      backFocus.current = null;
+    }
     if (route.kind === 'overview' && returnFocus.current) {
       if (returnFocus.current.isConnected) returnFocus.current.focus({ preventScroll: true });
       returnFocus.current = null;
     }
   }, [route]);
 
-  function open(next: CanvasRoute, trigger?: HTMLElement) {
+  function open(next: CanvasRoute, trigger = document.activeElement instanceof HTMLElement ? document.activeElement : undefined) {
     if (route.kind === 'overview' && trigger) returnFocus.current = trigger;
-    setRouteHistory(previous => [...previous, route]);
+    setRouteHistory(previous => [
+      ...previous,
+      { route, trigger: trigger?.dataset.canvasFocusKey || trigger?.getAttribute('aria-label') || trigger?.textContent || null },
+    ]);
     setRoute(next);
   }
   function close() {
@@ -55,12 +68,13 @@ function CanvasDashboardContent(): React.JSX.Element {
   }
   function back() {
     const previous = routeHistory[routeHistory.length - 1];
-    if (!previous || previous.kind === 'overview') {
+    if (!previous || previous.route.kind === 'overview') {
       close();
       return;
     }
     setRouteHistory(routeHistory.slice(0, -1));
-    setRoute(previous);
+    backFocus.current = previous.trigger;
+    setRoute(previous.route);
   }
 
   return (
@@ -112,9 +126,6 @@ function CanvasDashboardContent(): React.JSX.Element {
             }
           />
           <CanvasBlinds />
-          <button type='button' onClick={event => open({ kind: 'all-devices' }, event.currentTarget)}>
-            Browse devices
-          </button>
         </section>
       </div>
       {route.kind !== 'overview' && (
@@ -129,6 +140,14 @@ function CanvasDashboardContent(): React.JSX.Element {
               <strong>{activeAttention.title}</strong>
               <p>{activeAttention.detail}</p>
               <p>{attentionExplanation(activeAttention)}</p>
+              <button
+                type='button'
+                disabled={!attention.connected || attention.busy || !attention.ready}
+                aria-label={`${activeAttention.kind === 'completion' ? 'Done' : 'Snooze'}: ${activeAttention.title}`}
+                onClick={() => void attention.onAction(activeAttention.kind === 'completion' ? 'dismiss' : 'snooze', activeAttention)}
+              >
+                {activeAttention.kind === 'completion' ? 'Done' : 'Snooze'}
+              </button>
               <button type='button' onClick={close}>
                 Back to House pulse
               </button>
@@ -136,6 +155,8 @@ function CanvasDashboardContent(): React.JSX.Element {
           )}
           {route.kind === 'all-devices' ? (
             <CanvasDevices
+              query={deviceQuery}
+              onQueryChange={setDeviceQuery}
               onOpen={next => {
                 setSelectedAttention(null);
                 open(next);

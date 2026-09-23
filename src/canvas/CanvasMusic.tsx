@@ -1,3 +1,6 @@
+import { SpeakerVolume } from '../SpeakerVolume';
+import { useHass } from '@hakit/core';
+import { useState } from 'react';
 import { useCanvasMusic } from './CanvasMusicProvider';
 
 export function CanvasFollow() {
@@ -65,28 +68,48 @@ export function CanvasTransport() {
   );
 }
 export function CanvasMusic({ onOpenPlayer, onOpenSpeakers }: { onOpenPlayer(): void; onOpenSpeakers(): void }) {
-  const { session, title, attributes, idle, rooms } = useCanvasMusic();
+  const { session, title, attributes, idle, rooms, disabled } = useCanvasMusic();
+  const { joinHassUrl } = useHass();
+  const [failedArtwork, setFailedArtwork] = useState<string>();
+  const picture = !idle ? attributes?.entity_picture : undefined;
   function openSpeakers() {
     if (!rooms.busy) rooms.begin();
     onOpenSpeakers();
   }
   return (
     <section className='canvas__music canvas-music' aria-label='Music'>
-      <span className='canvas__eyebrow'>Music, for this moment</span>
-      <button className='canvas-music__title' aria-label='Open player' onClick={onOpenPlayer}>
-        {title}
-      </button>
-      {!idle && attributes?.media_artist && <p>{attributes.media_artist}</p>}
-      <button className='canvas-music__room' aria-label='Open speakers' onClick={openSpeakers}>
-        {attributes?.friendly_name ?? 'Speakers'}
-        {session.targets.length > 1 ? ` +${session.targets.length - 1}` : ''} ↗
-      </button>
-      <CanvasTransport />
-      <div className='canvas-music__shortcuts'>
+      <div className='canvas-music__top'>
         <CanvasFollow />
-        <button aria-label='Open speaker volume' onClick={openSpeakers}>
-          Volume {Number.isFinite(attributes?.volume_level) ? `${Math.round(attributes!.volume_level! * 100)}%` : '—'}
+        <button className='canvas-music__room' aria-label='Open speakers' onClick={openSpeakers}>
+          {attributes?.friendly_name ?? 'Speakers'}
+          {session.targets.length > 1 ? ` +${session.targets.length - 1}` : ''} →
         </button>
+      </div>
+      <div className='canvas-music__track'>
+        <div className='canvas-music__cover' aria-hidden='true'>
+          {picture && failedArtwork !== picture ? (
+            <img src={joinHassUrl(picture)} alt='' onError={() => setFailedArtwork(picture)} />
+          ) : (
+            <span>♪</span>
+          )}
+        </div>
+        <div>
+          <span className='canvas__eyebrow'>Music, for this moment</span>
+          <button className='canvas-music__title' aria-label='Open player' onClick={onOpenPlayer}>
+            {title}
+          </button>
+          {!idle && attributes?.media_artist && <p>{attributes.media_artist}</p>}
+        </div>
+      </div>
+      <div className='canvas-music__bottom'>
+        <CanvasTransport />
+        <SpeakerVolume
+          key={session.targets.join(',')}
+          entityId={session.entityId}
+          targets={session.targets}
+          disabled={disabled}
+          onOpenSettings={openSpeakers}
+        />
       </div>
       <svg className='canvas-music__art' viewBox='0 0 200 160' aria-hidden='true'>
         <circle cx='140' cy='80' r='70' />

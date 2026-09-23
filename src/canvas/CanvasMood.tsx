@@ -74,7 +74,7 @@ export function CanvasMood({
         <div className='canvas-mood__status' role='status'>
           <span aria-hidden='true'>●</span> {message}
         </div>
-        {status.errors.length > 0 && (
+        {status.errors.length > 0 && (detail || !onExplore) && (
           <div role='alert' className='canvas-mood__error'>
             {status.errors.map((error, index) => (
               <p key={`${error.target}-${index}`}>{error.message}</p>
@@ -111,6 +111,7 @@ export function CanvasMood({
             disabled={locked || status.activeMood === mood.id}
             onClick={() => onActivate(mood.id)}
           >
+            {status.activeMood === mood.id ? '✓ ' : ''}
             {mood.name}
           </button>
         ))}

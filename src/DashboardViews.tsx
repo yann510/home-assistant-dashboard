@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import Dashboard from './Dashboard';
 import { QuietHome } from './QuietHome';
 import { CanvasDashboard } from './canvas/CanvasDashboard';
@@ -8,6 +9,11 @@ export function DashboardViews() {
   const view = url.searchParams.get('view');
   const quiet = view === 'quiet';
   const canvas = view === 'canvas';
+  useEffect(() => {
+    const root = document.getElementById('root');
+    if (canvas) root?.classList.add('canvas-view');
+    return () => root?.classList.remove('canvas-view');
+  }, [canvas]);
   const href = (view: 'classic' | 'quiet' | 'canvas') => {
     const target = new URL(url);
     if (view !== 'classic') target.searchParams.set('view', view);

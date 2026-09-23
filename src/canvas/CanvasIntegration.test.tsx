@@ -1,0 +1,249 @@
+// @vitest-environment jsdom
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { afterEach, expect, it, vi } from 'vitest';
+import { CanvasDashboard } from './CanvasDashboard';
+import { createHaFixture } from './testing/haFixture';
+
+const fixtureRef = vi.hoisted(() => ({ current: null as ReturnType<typeof createHaFixture> | null }));
+vi.mock('@hakit/core', () => ({
+  useStore: Object.assign((select: (state: unknown) => unknown) => fixtureRef.current!.useStore(select), {
+    getState: () => fixtureRef.current!.getState(),
+    subscribe: (listener: (state: unknown) => void) => fixtureRef.current!.subscribe(() => listener(fixtureRef.current!.getState())),
+  }),
+  useEntity: (id: string) => fixtureRef.current!.useStore(state => state.entities[id] ?? null),
+  useHass: () => ({ joinHassUrl: (path: string) => path }),
+  useIcon: () => null,
+}));
+vi.mock('../Dashboard', () => ({ default: () => <div>Classic dashboard</div> }));
+vi.mock('../QuietHome', () => ({ QuietHome: () => <div>Quiet dashboard</div> }));
+const fixture = createHaFixture();
+fixtureRef.current = fixture;
+
+afterEach(() => {
+  cleanup();
+  fixture.reset();
+});
+
+it('restores the directory trigger on Back, traps keyboard focus, and restores overview focus on Escape', () => {
+  render(<CanvasDashboard />);
+  const overview = screen.getByRole('button', { name: 'All devices' });
+  overview.focus();
+  fireEvent.click(overview);
+  const trigger = screen.getByRole('button', { name: 'Weather' });
+  trigger.focus();
+  fireEvent.click(trigger);
+  fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+  expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Weather' }));
+  const dialog = screen.getByRole('dialog');
+  const close = screen.getByRole('button', { name: 'Close details' });
+  close.focus();
+  fireEvent.keyDown(close, { key: 'Tab', shiftKey: true });
+  expect(dialog.contains(document.activeElement)).toBe(true);
+  expect(document.activeElement).not.toBe(close);
+  fireEvent.keyDown(dialog, { key: 'Escape' });
+  expect(document.activeElement).toBe(overview);
+});
+
+function speaker() {
+  fixture.publish('media_player.living_room', 'playing', {
+    friendly_name: 'Living room',
+    volume_level: 0.32,
+    supported_features: 4127295,
+    media_title: 'A real track',
+    media_artist: 'An artist',
+    media_duration: 200,
+    media_position: 20,
+    group_members: ['media_player.living_room'],
+  });
+}
+
+it('opens every directory destination with one modal owner and returns to the searched trigger', async () => {
+  render(<CanvasDashboard />);
+  fireEvent.click(screen.getByRole('button', { name: 'All devices' }));
+  for (const name of ['All lights', 'Blinds', 'Player', 'Speakers', 'Weather', 'House Mood', 'Thermostats', 'Appliances', 'Roomba']) {
+    const button = within(screen.getByRole('dialog')).getByRole('button', { name });
+    button.focus();
+    fireEvent.click(button);
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
+    expect(screen.getByRole('dialog', { name })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect(document.activeElement).toBe(within(screen.getByRole('dialog')).getByRole('button', { name }));
+  }
+  fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'Office thermostat' } });
+  const thermostat = screen.getByRole('button', { name: 'Office thermostat' });
+  thermostat.focus();
+  fireEvent.click(thermostat);
+  fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+  expect((screen.getByRole('searchbox') as HTMLInputElement).value).toBe('Office thermostat');
+  expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Office thermostat' }));
+  await act(async () => {});
+  expect(fixture.calls.filter(call => (call as { type: string }).type === 'call_service')).toHaveLength(0);
+});
+
+it('retains speaker slider identity and focus across entity updates and Player/Speakers roundtrips', async () => {
+  speaker();
+  render(<CanvasDashboard />);
+  fireEvent.click(screen.getByRole('button', { name: 'Open speakers' }));
+  const slider = screen.getByRole('slider', { name: 'Group volume' });
+  slider.focus();
+  act(() =>
+    fixture.publish('media_player.living_room', 'playing', {
+      ...fixture.getState().entities['media_player.living_room'].attributes,
+      volume_level: 0.4,
+    })
+  );
+  expect(document.activeElement).toBe(slider);
+  expect(screen.getByRole('slider', { name: 'Group volume' })).toBe(slider);
+  fireEvent.click(screen.getByRole('button', { name: 'Close details' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Open player' }));
+  expect(screen.getByRole('dialog', { name: 'Player' })).toBeTruthy();
+  expect(within(screen.getByRole('dialog')).queryByRole('slider', { name: /volume/i })).toBeNull();
+  await act(async () => {});
+  fireEvent.click(screen.getByRole('button', { name: 'Close details' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Open speakers' }));
+  expect((screen.getByRole('slider', { name: 'Group volume' }) as HTMLInputElement).value).toBe('40');
+});
+
+it('keeps offline detail access, disables commands, and never replays writes on reconnect', () => {
+  speaker();
+  fixture.disconnect();
+  render(<CanvasDashboard />);
+  fireEvent.click(screen.getByRole('button', { name: 'Open player' }));
+  expect((within(screen.getByRole('dialog')).getByRole('button', { name: 'Pause' }) as HTMLButtonElement).disabled).toBe(true);
+  act(() => fixture.reconnect());
+  expect(fixture.calls.filter(call => (call as { type: string }).type === 'call_service')).toHaveLength(0);
+});
+
+it('recovers forecast failure through retry without replacing the dialog', async () => {
+  fixture.publish('weather.forecast_home', 'sunny', { temperature: 18, supported_features: 3 });
+  fixture.respondWith(async () => {
+    throw new Error('Forecast unavailable');
+  });
+  render(<CanvasDashboard />);
+  fireEvent.click(screen.getByRole('button', { name: /Weather.*18/ }));
+  const dialog = screen.getByRole('dialog');
+  await act(async () => {});
+  expect(within(dialog).getByRole('alert')).toBeTruthy();
+  fixture.respondWith(async () => ({
+    forecast: [{ datetime: new Date(Date.now() + 3600000).toISOString(), temperature: 19, condition: 'rainy' }],
+  }));
+  fireEvent.click(within(dialog).getByRole('button', { name: /Retry/ }));
+  await act(async () => {});
+  expect(screen.getByRole('dialog')).toBe(dialog);
+  expect(within(dialog).getByText('19°C')).toBeTruthy();
+});
+
+it('shows partial all-light failure by friendly name and opens individual details without losing outcomes', async () => {
+  fixture.publish('light.light_living_room_bulbs', 'on', { friendly_name: 'Living bulbs' });
+  fixture.publish('light.living_room_led_strip', 'on', { friendly_name: 'Sofa strip' });
+  fixture.respondWith(async message => {
+    const id = (message as { target: { entity_id: string[] } }).target.entity_id[0];
+    if (id === 'light.living_room_led_strip') throw new Error('Light did not respond');
+    fixture.publish(id, 'off', { friendly_name: 'Living bulbs' });
+    return {};
+  });
+  render(<CanvasDashboard />);
+  fireEvent.click(screen.getByRole('button', { name: 'All lights' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Turn off all lights' }));
+  await act(async () => {});
+  expect(within(screen.getByRole('dialog')).getByRole('alert').textContent).toContain('Sofa strip:');
+  expect(within(screen.getByRole('dialog')).getByRole('alert').textContent).not.toContain('light.living_room');
+  const lightTrigger = screen.getByRole('button', { name: 'Sofa strip' });
+  lightTrigger.focus();
+  fireEvent.click(lightTrigger);
+  act(() => fixture.publish('light.living_room_led_strip', 'off', { friendly_name: 'Sofa strip' }));
+  expect(screen.getByRole('dialog', { name: 'Light' })).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+  expect(within(screen.getByRole('dialog')).getByRole('alert').textContent).toContain('Sofa strip:');
+  expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Sofa strip' }));
+});
+
+it('captures selected blinds and retries only the failed room after a detail roundtrip', async () => {
+  fixture.respondWith(async message => {
+    if ((message as { service_data: { command: string } }).service_data.command.includes('bedroom')) throw new Error('Bedroom unavailable');
+    return {};
+  });
+  render(<CanvasDashboard />);
+  fireEvent.click(screen.getByRole('button', { name: 'Gym blinds' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Open selected blinds' }));
+  await act(async () => {});
+  expect(fixture.calls).toHaveLength(2);
+  fireEvent.click(screen.getByRole('button', { name: 'All devices' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Blinds' }));
+  fixture.respondWith(async () => ({}));
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Retry Open for failed rooms' }));
+  await act(async () => {});
+  expect(fixture.calls).toHaveLength(3);
+  expect(fixture.calls[2]).toMatchObject({ service_data: { command: 'open all the blinds bedroom' } });
+});
+
+it('retains mood recovery and attention context across navigation, then reflects fresh recovery state', async () => {
+  fixture.publish('sensor.house_mood', 'recovery_required', {
+    active_mood: 'unwind',
+    errors: [{ target: 'Living room', message: 'Restoration failed' }],
+  });
+  fixture.publish('sensor.dashboard_attention', '1', {
+    ready: true,
+    items: [
+      {
+        id: 'mood',
+        episode: 'mood-1',
+        title: 'Restore your home',
+        detail: 'Mood needs recovery',
+        tone: 'amber',
+        icon: 'mood',
+        target: 'mood',
+        kind: 'condition',
+        occurred_at: new Date().toISOString(),
+        snoozed_until: null,
+        snooze_seconds: 3600,
+      },
+    ],
+  });
+  fixture.respondWith(async () => ({ response: { success: true, phase: 'idle' } }));
+  render(<CanvasDashboard />);
+  fireEvent.click(screen.getByRole('button', { name: 'View: Restore your home' }));
+  const dialog = screen.getByRole('dialog', { name: 'House Mood' });
+  expect(within(dialog).getByText('Mood needs recovery')).toBeTruthy();
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Retry restoration' }));
+  await act(async () => {});
+  expect(within(dialog).getByText('No mood active')).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Close details' }));
+  expect(screen.getByText('No mood active')).toBeTruthy();
+});
+
+it('loads artwork-only favourites and surfaces a playback rejection in Player', async () => {
+  speaker();
+  fixture.respondWith(async message => {
+    if ((message as { type: string }).type === 'media_player/browse_media')
+      return { children: [{ title: 'Morning calm', can_play: true, media_content_id: 'calm', media_content_type: 'playlist' }] };
+    throw new Error('Playback rejected');
+  });
+  render(<CanvasDashboard />);
+  fireEvent.click(screen.getByRole('button', { name: 'Open player' }));
+  await act(async () => {});
+  const playlist = screen.getByRole('button', { name: 'Play Morning calm' });
+  expect(playlist.textContent).not.toContain('Morning calm');
+  fireEvent.click(playlist);
+  await act(async () => {});
+  expect(within(screen.getByRole('dialog')).getByRole('alert').textContent).toMatch(/Could not|Playback rejected/);
+});
+
+it('adjusts overview volume through the shared speaker control without opening a modal', async () => {
+  speaker();
+  fixture.respondWith(async () => {
+    fixture.publish('media_player.living_room', 'playing', {
+      ...fixture.getState().entities['media_player.living_room'].attributes,
+      volume_level: 0.34,
+    });
+    return {};
+  });
+  render(<CanvasDashboard />);
+  fireEvent.click(screen.getByRole('button', { name: 'Raise volume' }));
+  await act(async () => {});
+  expect(screen.queryByRole('dialog')).toBeNull();
+  expect(fixture.calls).toContainEqual(
+    expect.objectContaining({ domain: 'media_player', service: 'volume_set', service_data: { volume_level: 0.34 } })
+  );
+  expect(screen.getByRole('button', { name: 'Open speaker volume' }).textContent).toBe('34%');
+});

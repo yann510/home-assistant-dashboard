@@ -10,12 +10,16 @@ export function SpeakerVolume({
   targets,
   disabled,
   room,
+  accessibleLabel,
+  onOpenSettings,
   children,
 }: {
   entityId: SpeakerId;
   targets: string[];
   disabled: boolean;
   room?: string;
+  accessibleLabel?: string;
+  onOpenSettings?: () => void;
   children?: ReactNode;
 }) {
   const entity = useEntity(entityId, { returnNullIfNotFound: true });
@@ -49,7 +53,7 @@ export function SpeakerVolume({
   const plus = useIcon('mdi:plus');
   const muteIcon = useIcon(muted ? 'mdi:volume-off' : 'mdi:volume-high');
   const level = draft ?? reported;
-  const label = room ? `${room} volume` : 'Volume';
+  const label = accessibleLabel ?? (room ? `${room} volume` : 'Volume');
   const heading = room ?? (targets.length > 1 ? 'Group volume' : `${attributes?.friendly_name ?? 'Speaker'} volume`);
 
   function captureBalance() {
@@ -305,6 +309,32 @@ export function SpeakerVolume({
       )}
     </>
   );
+
+  if (onOpenSettings)
+    return (
+      <div className='speaker-volume-shortcuts'>
+        <button
+          type='button'
+          aria-label='Lower volume'
+          disabled={cannotSetVolume || level <= 0}
+          onClick={() => void commit((latest.current ?? reported) - 2)}
+        >
+          −
+        </button>
+        <button type='button' aria-label='Open speaker volume' onClick={onOpenSettings}>
+          {Number.isFinite(attributes?.volume_level) ? `${level}%` : 'Volume'}
+        </button>
+        <button
+          type='button'
+          aria-label='Raise volume'
+          disabled={cannotSetVolume || level >= 100}
+          onClick={() => void commit((latest.current ?? reported) + 2)}
+        >
+          +
+        </button>
+        {error && <p role='alert'>{error}</p>}
+      </div>
+    );
 
   return (
     <div className='speaker-volume'>

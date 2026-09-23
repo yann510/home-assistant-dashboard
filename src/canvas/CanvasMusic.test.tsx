@@ -219,7 +219,7 @@ describe('Canvas music', () => {
     expect(main.checked).toBe(true);
     expect(main.disabled).toBe(true);
     await userEvent.click(screen.getByRole('checkbox', { name: /bathroom/ }));
-    await userEvent.click(screen.getByRole('button', { name: 'Apply' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Apply rooms' }));
     expect(sendMessagePromise).not.toHaveBeenCalled();
     expect(screen.getByRole('alert').textContent).toContain('Other music');
     updateEntity('media_player.bathroom', {}, { media_title: 'Changed music' });
@@ -385,7 +385,7 @@ describe('Canvas music', () => {
       await userEvent.click(screen.getByRole('checkbox', { name: /bathroom/ }));
       if (operation === 'join') await userEvent.click(screen.getByRole('checkbox', { name: /bedroom/ }));
       else await userEvent.click(screen.getByRole('checkbox', { name: /Gym/ }));
-      await userEvent.click(screen.getByRole('button', { name: 'Apply' }));
+      await userEvent.click(screen.getByRole('button', { name: 'Apply rooms' }));
       expect(sendMessagePromise).toHaveBeenCalledTimes(1);
       expect(sendMessagePromise).toHaveBeenLastCalledWith(expect.objectContaining({ service: operation }));
       await act(async () => {

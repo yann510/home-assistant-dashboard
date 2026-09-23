@@ -1,10 +1,12 @@
 import { useSyncExternalStore } from 'react';
 
 type HaState = {
+  config: { time_zone: string; unit_system: { temperature: string } };
   connection: {
     connected: boolean;
     addEventListener(event: 'disconnected' | 'ready', listener: () => void): void;
     removeEventListener(event: 'disconnected' | 'ready', listener: () => void): void;
+    subscribeMessage(callback: (event: unknown) => void, message: unknown): Promise<() => Promise<void>>;
     sendMessage(message: unknown): void;
     sendMessagePromise<T = unknown>(message: unknown): Promise<T>;
   };
@@ -26,6 +28,12 @@ export function createHaFixture() {
     removeEventListener(event, listener) {
       socketListeners.get(event)?.delete(listener);
     },
+    async subscribeMessage(callback, message) {
+      calls.push(message);
+      const response = await responder(message);
+      callback(response);
+      return async () => {};
+    },
     sendMessage(message) {
       calls.push(message);
     },
@@ -34,7 +42,12 @@ export function createHaFixture() {
       return (await responder(message)) as T;
     },
   });
-  let snapshot: HaState = { connection: makeConnection(true), connectionStatus: 'connected', entities: {} };
+  let snapshot: HaState = {
+    connection: makeConnection(true),
+    connectionStatus: 'connected',
+    entities: {},
+    config: { time_zone: 'America/Toronto', unit_system: { temperature: '°C' } },
+  };
   const listeners = new Set<() => void>();
   const publishSnapshot = (next: HaState) => {
     snapshot = next;
@@ -72,7 +85,12 @@ export function createHaFixture() {
     reset() {
       calls.length = 0;
       responder = () => Promise.resolve({});
-      publishSnapshot({ connection: makeConnection(true), connectionStatus: 'connected', entities: {} });
+      publishSnapshot({
+        connection: makeConnection(true),
+        connectionStatus: 'connected',
+        entities: {},
+        config: { time_zone: 'America/Toronto', unit_system: { temperature: '°C' } },
+      });
     },
     publish(entityId: string, state: string, attributes: Record<string, unknown> = {}) {
       publishSnapshot({ ...snapshot, entities: { ...snapshot.entities, [entityId]: { entity_id: entityId, state, attributes } } });

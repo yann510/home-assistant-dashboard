@@ -77,11 +77,11 @@ it('never treats missing activity sensors as an all-clear and keeps reminder epi
   };
   ref.current!.publish('sensor.dashboard_attention', '1', { ready: true, items: [item] });
   render(<CanvasDashboard />);
+  fireEvent.click(screen.getByRole('button', { name: 'View: Gateway offline' }));
   fireEvent.click(screen.getByRole('button', { name: 'Snooze: Gateway offline' }));
   expect(ref.current!.calls).toContainEqual(
     expect.objectContaining({ domain: 'dashboard_attention', service: 'snooze', service_data: { id: 'hilo', episode: 'hilo-1' } })
   );
-  fireEvent.click(screen.getByRole('button', { name: 'View: Gateway offline' }));
   expect(screen.getByRole('dialog', { name: 'Thermostats' })).toBeTruthy();
   act(() =>
     ref.current!.publish('sensor.dashboard_attention', '2', {
@@ -128,6 +128,7 @@ it('sends completion dismissal with the exact episode while retaining live activ
   });
   render(<CanvasDashboard />);
   expect(screen.getByRole('button', { name: /Dishwasher.*Washing/ })).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'View: Dishwasher finished' }));
   fireEvent.click(screen.getByRole('button', { name: 'Done: Dishwasher finished' }));
   expect(ref.current!.calls).toContainEqual(
     expect.objectContaining({

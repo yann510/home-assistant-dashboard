@@ -1,0 +1,584 @@
+[
+  {
+    "width": 375,
+    "name": "All lights",
+    "client": 375,
+    "contentHeight": 1815,
+    "height": 812,
+    "scroll": 375,
+    "small": [],
+    "title": "All lights"
+  },
+  {
+    "width": 375,
+    "name": "Blinds",
+    "client": 375,
+    "contentHeight": 338,
+    "height": 338,
+    "scroll": 375,
+    "small": [],
+    "title": "Blinds"
+  },
+  {
+    "width": 375,
+    "name": "Player",
+    "client": 375,
+    "contentHeight": 558,
+    "height": 558,
+    "scroll": 375,
+    "small": [],
+    "title": "Player"
+  },
+  {
+    "width": 375,
+    "name": "Speakers",
+    "client": 375,
+    "contentHeight": 774,
+    "height": 774,
+    "scroll": 375,
+    "small": [],
+    "title": "Speakers"
+  },
+  {
+    "width": 375,
+    "name": "Weather",
+    "client": 375,
+    "contentHeight": 1119,
+    "height": 812,
+    "scroll": 375,
+    "small": [],
+    "title": "Weather"
+  },
+  {
+    "width": 375,
+    "name": "House Mood",
+    "client": 375,
+    "contentHeight": 409,
+    "height": 409,
+    "scroll": 375,
+    "small": [],
+    "title": "House Mood"
+  },
+  {
+    "width": 375,
+    "name": "Thermostats",
+    "client": 375,
+    "contentHeight": 496,
+    "height": 496,
+    "scroll": 375,
+    "small": [],
+    "title": "Thermostats"
+  },
+  {
+    "width": 375,
+    "name": "Appliances",
+    "client": 375,
+    "contentHeight": 352,
+    "height": 352,
+    "scroll": 375,
+    "small": [],
+    "title": "Appliances"
+  },
+  {
+    "width": 375,
+    "name": "Roomba",
+    "client": 375,
+    "contentHeight": 245,
+    "height": 245,
+    "scroll": 375,
+    "small": [],
+    "title": "Roomba"
+  },
+  {
+    "width": 375,
+    "name": "Living Room · light living room bulbs",
+    "client": 375,
+    "contentHeight": 394,
+    "height": 394,
+    "scroll": 375,
+    "small": [],
+    "title": "Light"
+  },
+  {
+    "viewport": {
+      "width": 960,
+      "height": 600
+    },
+    "overview": {
+      "bottom": 540.5,
+      "dpr": 1,
+      "height": 600,
+      "scrollHeight": 600,
+      "scrollWidth": 960,
+      "small": [],
+      "width": 960
+    }
+  },
+  {
+    "width": 960,
+    "name": "All lights",
+    "client": 860,
+    "contentHeight": 954,
+    "height": 568,
+    "scroll": 860,
+    "small": []
+  },
+  {
+    "width": 960,
+    "name": "Blinds",
+    "client": 860,
+    "contentHeight": 329,
+    "height": 329,
+    "scroll": 860,
+    "small": []
+  },
+  {
+    "width": 960,
+    "name": "Player",
+    "client": 860,
+    "contentHeight": 567,
+    "height": 567,
+    "scroll": 860,
+    "small": []
+  },
+  {
+    "width": 960,
+    "name": "Speakers",
+    "client": 860,
+    "contentHeight": 699,
+    "height": 568,
+    "scroll": 860,
+    "small": []
+  },
+  {
+    "width": 960,
+    "name": "Weather",
+    "client": 860,
+    "contentHeight": 1095,
+    "height": 568,
+    "scroll": 860,
+    "small": []
+  },
+  {
+    "width": 960,
+    "name": "House Mood",
+    "client": 860,
+    "contentHeight": 377,
+    "height": 377,
+    "scroll": 860,
+    "small": []
+  },
+  {
+    "width": 960,
+    "name": "Thermostats",
+    "client": 860,
+    "contentHeight": 496,
+    "height": 496,
+    "scroll": 860,
+    "small": []
+  },
+  {
+    "width": 960,
+    "name": "Appliances",
+    "client": 860,
+    "contentHeight": 352,
+    "height": 352,
+    "scroll": 860,
+    "small": []
+  },
+  {
+    "width": 960,
+    "name": "Roomba",
+    "client": 860,
+    "contentHeight": 245,
+    "height": 245,
+    "scroll": 860,
+    "small": []
+  },
+  {
+    "width": 960,
+    "name": "Living Room · light living room bulbs",
+    "client": 860,
+    "contentHeight": 366,
+    "height": 366,
+    "scroll": 860,
+    "small": []
+  },
+  {
+    "viewport": {
+      "width": 1280,
+      "height": 800
+    },
+    "overview": {
+      "bottom": 540.5,
+      "dpr": 1,
+      "height": 800,
+      "scrollHeight": 800,
+      "scrollWidth": 1280,
+      "small": [],
+      "width": 1280
+    }
+  },
+  {
+    "width": 1280,
+    "name": "All lights",
+    "client": 860,
+    "contentHeight": 954,
+    "height": 768,
+    "scroll": 860,
+    "small": []
+  },
+  {
+    "width": 1280,
+    "name": "Blinds",
+    "client": 860,
+    "contentHeight": 329,
+    "height": 329,
+    "scroll": 860,
+    "small": []
+  },
+  {
+    "width": 1280,
+    "name": "Player",
+    "client": 860,
+    "contentHeight": 578,
+    "height": 578,
+    "scroll": 860,
+    "small": []
+  },
+  {
+    "width": 1280,
+    "name": "Speakers",
+    "client": 860,
+    "contentHeight": 699,
+    "height": 699,
+    "scroll": 860,
+    "small": []
+  },
+  {
+    "width": 1280,
+    "name": "Weather",
+    "client": 860,
+    "contentHeight": 1095,
+    "height": 768,
+    "scroll": 860,
+    "small": []
+  },
+  {
+    "width": 1280,
+    "name": "House Mood",
+    "client": 860,
+    "contentHeight": 377,
+    "height": 377,
+    "scroll": 860,
+    "small": []
+  },
+  {
+    "width": 1280,
+    "name": "Thermostats",
+    "client": 860,
+    "contentHeight": 496,
+    "height": 496,
+    "scroll": 860,
+    "small": []
+  },
+  {
+    "width": 1280,
+    "name": "Appliances",
+    "client": 860,
+    "contentHeight": 352,
+    "height": 352,
+    "scroll": 860,
+    "small": []
+  },
+  {
+    "width": 1280,
+    "name": "Roomba",
+    "client": 860,
+    "contentHeight": 245,
+    "height": 245,
+    "scroll": 860,
+    "small": []
+  },
+  {
+    "width": 1280,
+    "name": "Living Room · light living room bulbs",
+    "client": 860,
+    "contentHeight": 366,
+    "height": 366,
+    "scroll": 860,
+    "small": []
+  },
+  {
+    "viewport": {
+      "width": 393,
+      "height": 852
+    },
+    "overview": {
+      "bottom": 1173.359375,
+      "dpr": 1,
+      "height": 852,
+      "scrollHeight": 1229,
+      "scrollWidth": 393,
+      "small": [],
+      "width": 393
+    }
+  },
+  {
+    "width": 393,
+    "name": "All lights",
+    "client": 393,
+    "contentHeight": 1815,
+    "height": 852,
+    "scroll": 393,
+    "small": []
+  },
+  {
+    "width": 393,
+    "name": "Blinds",
+    "client": 393,
+    "contentHeight": 338,
+    "height": 338,
+    "scroll": 393,
+    "small": []
+  },
+  {
+    "width": 393,
+    "name": "Player",
+    "client": 393,
+    "contentHeight": 564,
+    "height": 564,
+    "scroll": 393,
+    "small": []
+  },
+  {
+    "width": 393,
+    "name": "Speakers",
+    "client": 393,
+    "contentHeight": 774,
+    "height": 774,
+    "scroll": 393,
+    "small": []
+  },
+  {
+    "width": 393,
+    "name": "Weather",
+    "client": 393,
+    "contentHeight": 1067,
+    "height": 852,
+    "scroll": 393,
+    "small": []
+  },
+  {
+    "width": 393,
+    "name": "House Mood",
+    "client": 393,
+    "contentHeight": 409,
+    "height": 409,
+    "scroll": 393,
+    "small": []
+  },
+  {
+    "width": 393,
+    "name": "Thermostats",
+    "client": 393,
+    "contentHeight": 496,
+    "height": 496,
+    "scroll": 393,
+    "small": []
+  },
+  {
+    "width": 393,
+    "name": "Appliances",
+    "client": 393,
+    "contentHeight": 352,
+    "height": 352,
+    "scroll": 393,
+    "small": []
+  },
+  {
+    "width": 393,
+    "name": "Roomba",
+    "client": 393,
+    "contentHeight": 245,
+    "height": 245,
+    "scroll": 393,
+    "small": []
+  },
+  {
+    "width": 393,
+    "name": "Living Room · light living room bulbs",
+    "client": 393,
+    "contentHeight": 394,
+    "height": 394,
+    "scroll": 393,
+    "small": []
+  },
+  {
+    "scene": "offline",
+    "width": 393,
+    "enabledCommands": [],
+    "scrollWidth": 393,
+    "status": "House pulseLive activity unavailable while disconnected.",
+    "viewport": 393
+  },
+  {
+    "scene": "empty",
+    "width": 393,
+    "enabledCommands": [
+      "Open selected blinds",
+      "Stop selected blinds",
+      "Close selected blinds"
+    ],
+    "scrollWidth": 393,
+    "status": "House pulseReminder status unavailable.Attention reminders are unavailable.",
+    "viewport": 393
+  },
+  {
+    "bottom": 553.5,
+    "height": 600,
+    "pulse": 62,
+    "scene": "busy-command-failure",
+    "scrollHeight": 600,
+    "scrollWidth": 960,
+    "width": 960
+  },
+  {
+    "final": true,
+    "viewport": {
+      "width": 960,
+      "height": 600
+    },
+    "dpr": 1,
+    "essentialsBottom": 535.5,
+    "innerHeight": 600,
+    "innerWidth": 960,
+    "pulseHeight": 62,
+    "scrollHeight": 600,
+    "scrollWidth": 960,
+    "small": []
+  },
+  {
+    "final": true,
+    "viewport": {
+      "width": 1280,
+      "height": 800
+    },
+    "dpr": 1,
+    "essentialsBottom": 541.5,
+    "innerHeight": 800,
+    "innerWidth": 1280,
+    "pulseHeight": 62,
+    "scrollHeight": 800,
+    "scrollWidth": 1280,
+    "small": []
+  },
+  {
+    "final": true,
+    "viewport": {
+      "width": 375,
+      "height": 812
+    },
+    "dpr": 1,
+    "essentialsBottom": 1173.359375,
+    "innerHeight": 812,
+    "innerWidth": 375,
+    "pulseHeight": 74,
+    "scrollHeight": 1229,
+    "scrollWidth": 375,
+    "small": []
+  },
+  {
+    "final": true,
+    "viewport": {
+      "width": 393,
+      "height": 852
+    },
+    "dpr": 1,
+    "essentialsBottom": 1173.359375,
+    "innerHeight": 852,
+    "innerWidth": 393,
+    "pulseHeight": 74,
+    "scrollHeight": 1229,
+    "scrollWidth": 393,
+    "small": []
+  },
+  {
+    "finalPulse": true,
+    "scroll": [
+      960,
+      600
+    ],
+    "targets": [
+      {
+        "bounds": {
+          "bottom": 125,
+          "height": 44,
+          "left": 331.828125,
+          "right": 473.6171875,
+          "top": 81,
+          "width": 141.7890625,
+          "x": 331.828125,
+          "y": 81
+        },
+        "name": "Washer Washing"
+      },
+      {
+        "bounds": {
+          "bottom": 125,
+          "height": 44,
+          "left": 481.6171875,
+          "right": 623.4140625,
+          "top": 81,
+          "width": 141.796875,
+          "x": 481.6171875,
+          "y": 81
+        },
+        "name": "Dryer Washing"
+      },
+      {
+        "bounds": {
+          "bottom": 125,
+          "height": 44,
+          "left": 631.4140625,
+          "right": 773.203125,
+          "top": 81,
+          "width": 141.7890625,
+          "x": 631.4140625,
+          "y": 81
+        },
+        "name": "Dishwasher Washing"
+      },
+      {
+        "bounds": {
+          "bottom": 125,
+          "height": 44,
+          "left": 781.203125,
+          "right": 923,
+          "top": 81,
+          "width": 141.796875,
+          "x": 781.203125,
+          "y": 81
+        },
+        "name": "Roomba Returning to dock"
+      },
+      {
+        "bounds": {
+          "bottom": 125,
+          "height": 44,
+          "left": 138.828125,
+          "right": 323.828125,
+          "top": 81,
+          "width": 185,
+          "x": 138.828125,
+          "y": 81
+        },
+        "name": "View: Empty Roomba bin"
+      }
+    ],
+    "viewport": [
+      960,
+      600
+    ]
+  }
+]

@@ -58,15 +58,20 @@ export function CanvasSpeakers() {
         </div>
       )}
       {r.error && <p role='alert'>{r.error}</p>}
-      <p role='status'>
-        {r.status || (r.changed ? 'Room changes take effect when you apply.' : 'Volume changes take effect immediately.')}
-      </p>
+      <p role='status'>{r.status || (r.changed ? 'Room changes take effect when you apply.' : 'Choose rooms for this group.')}</p>
       <button disabled={r.locked || (!r.changed && !r.error)} onClick={() => void r.perform()}>
-        {r.busy ? 'Updating…' : r.error ? 'Retry' : 'Apply'}
+        {r.busy ? 'Updating…' : r.error ? 'Retry rooms' : 'Apply rooms'}
       </button>
       <section aria-label='Group volume'>
         <h3>Group volume</h3>
-        <SpeakerVolume key={s.targets.join(',')} entityId={s.entityId} targets={s.targets} disabled={disabled} />
+        <p>Volume changes take effect immediately.</p>
+        <SpeakerVolume
+          accessibleLabel='Group volume'
+          key={s.targets.join(',')}
+          entityId={s.entityId}
+          targets={s.targets}
+          disabled={disabled}
+        />
       </section>
       <details>
         <summary>Individual speakers</summary>

@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react';
 
 const focusable =
-  'a[href], button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])';
+  'summary, a[href], button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])';
 
 export function CanvasDialog({ title, children, onClose }: { title: string; children: ReactNode; onClose(): void }): React.JSX.Element {
   const titleId = useId();
@@ -9,11 +9,15 @@ export function CanvasDialog({ title, children, onClose }: { title: string; chil
 
   useEffect(() => {
     const restoreTo = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const navigation = document.querySelector<HTMLElement>('.dashboard-view-switch');
+    const previousInert = navigation?.inert ?? false;
+    if (navigation) navigation.inert = true;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     panel.current?.focus({ preventScroll: true });
     return () => {
       document.body.style.overflow = previousOverflow;
+      if (navigation) navigation.inert = previousInert;
       if (restoreTo?.isConnected) restoreTo.focus({ preventScroll: true });
     };
   }, []);
@@ -43,7 +47,10 @@ export function CanvasDialog({ title, children, onClose }: { title: string; chil
           }
           if (event.key !== 'Tab') return;
           const controls = Array.from(event.currentTarget.querySelectorAll<HTMLElement>(focusable)).filter(
-            element => !element.closest('[inert]') && element.getAttribute('aria-hidden') !== 'true'
+            element =>
+              !element.closest('[inert]') &&
+              element.getAttribute('aria-hidden') !== 'true' &&
+              !element.closest('details:not([open]) > :not(summary)')
           );
           if (controls.length === 0) {
             event.preventDefault();

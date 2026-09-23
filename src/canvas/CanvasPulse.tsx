@@ -60,7 +60,9 @@ export function CanvasPulse({
 
   return (
     <section className='canvas-pulse' aria-label='House pulse'>
-      <span className='canvas__eyebrow canvas-pulse__heading'>House pulse</span>
+      <span className='canvas__eyebrow canvas-pulse__heading'>
+        House pulse{shownActivities.length > 0 && <small>{shownActivities.length} devices →</small>}
+      </span>
       {!attention.connected ? (
         <p role='status'>Live activity unavailable while disconnected.</p>
       ) : (
@@ -98,41 +100,23 @@ export function CanvasPulse({
               </p>
             )}
             {visible.map(item => (
-              <div key={item.episode} className='canvas-pulse__notice' data-tone={item.tone}>
-                <strong>{item.title}</strong>
-                <small>{item.detail}</small>
-                {item.kind === 'completion' ? (
-                  <button
-                    type='button'
-                    disabled={!attention.connected || attention.busy || !attention.ready}
-                    aria-label={`Done: ${item.title}`}
-                    onClick={() => void attention.onAction('dismiss', item)}
-                  >
-                    Done
-                  </button>
-                ) : (
-                  <>
-                    <button
-                      type='button'
-                      aria-label={`View: ${item.title}`}
-                      onClick={() => {
-                        onSelect(item);
-                        onOpen(routeForAttention(item));
-                      }}
-                    >
-                      View
-                    </button>
-                    <button
-                      type='button'
-                      disabled={!attention.connected || attention.busy || !attention.ready}
-                      aria-label={`Snooze: ${item.title}`}
-                      onClick={() => void attention.onAction('snooze', item)}
-                    >
-                      Snooze
-                    </button>
-                  </>
-                )}
-              </div>
+              <button
+                key={item.episode}
+                type='button'
+                className='canvas-pulse__notice'
+                data-tone={item.tone}
+                aria-label={`View: ${item.title}`}
+                onClick={() => {
+                  onSelect(item);
+                  onOpen(routeForAttention(item));
+                }}
+              >
+                <span>
+                  <strong>{item.title}</strong>
+                  <small>{item.detail}</small>
+                </span>
+                <span aria-hidden='true'>→</span>
+              </button>
             ))}
           </div>
           {snoozed.length > 0 && (
