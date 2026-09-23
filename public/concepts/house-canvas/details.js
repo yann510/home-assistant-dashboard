@@ -169,7 +169,7 @@ export function renderDetails(state, route, query = '') {
     }
     case 'weather': {
       const daily = route.period === 'daily',
-        hours = route.period === '12' ? 12 : 24;
+        hours = route.period === '24' ? 24 : 12;
       const forecast = sampleWeather(state.scenario),
         current = forecast.hours[0];
       return {
@@ -177,11 +177,11 @@ export function renderDetails(state, route, query = '') {
         html: `<div class="weather-summary"><div class="forecast-header"><div><strong>${current.temperature}°</strong><p>${current.condition}</p></div>${icon(current.symbol)}</div><p class="fine-print">Sample forecast · not live weather<br>Rain percentages show the chance of precipitation.</p></div><div class="chip-list">${chip('Next 12 hours', 'forecast', '12', !daily && hours === 12)}${chip('Next 24 hours', 'forecast', '24', !daily && hours === 24)}${chip('Daily', 'forecast', 'daily', daily)}</div>${
           daily
             ? `<div>${forecast.days.map(d => `<div class="forecast-row"><strong>${d.label}</strong><span class="daily-condition">${icon(d.symbol)}<small>${d.condition}</small></span><span>${d.high}° / ${d.low}°</span><small>${d.rain}% rain</small></div>`).join('')}</div>`
-            : `<div class="hourly-forecast" aria-label="Next ${hours} hours">${forecast.hours
+            : `<div class="hourly-list" aria-label="Next ${hours} hours"><div class="hourly-list-heading" aria-hidden="true"><span>Time</span><span>Conditions</span><span>Temp.</span><span>Rain</span></div><h3 class="forecast-day">Today</h3>${forecast.hours
                 .slice(0, hours)
                 .map(
-                  h =>
-                    `<article class="forecast-hour" aria-label="${esc(h.label)}, ${h.condition}, ${h.temperature} degrees, ${h.rain} percent chance of rain"><time datetime="${h.date.toISOString()}">${h.label}</time>${icon(h.symbol)}<strong>${h.temperature}°</strong><span>${h.condition}</span><small>${h.rain}% rain</small></article>`
+                  (h, i) =>
+                    `${i > 0 && h.date.toDateString() !== forecast.hours[i - 1].date.toDateString() ? '<h3 class="forecast-day">Tomorrow</h3>' : ''}<article class="hourly-list-row" aria-label="${esc(h.label)}, ${h.condition}, ${h.temperature} degrees, ${h.rain} percent chance of rain"><time datetime="${h.date.toISOString()}">${h.label}</time><span class="hourly-condition">${icon(h.symbol)}<span>${h.condition}</span></span><strong>${h.temperature}°</strong><small>${h.rain}%</small></article>`
                 )
                 .join('')}</div>`
         }`,

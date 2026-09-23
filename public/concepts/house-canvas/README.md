@@ -133,3 +133,5 @@ Favourite tiles are now artwork-only: no repeated titles, subtitles or visible s
 Forecast now offers Next 12 hours, Next 24 hours (default), and Daily. Consecutive timestamped sample hours start at the current hour and cross midnight correctly. Condition-specific sun/cloud/partly-cloudy/rain/night icons accompany written conditions, temperature and precipitation chance; the overview matches the current sample condition. Nighttime scene starts at 9pm. These remain generated examples, not a real forecast.
 
 Verified 24 consecutive hourly timestamps, rain/cloud/night icon mappings, 12/24 switching, daily view, 960×600 full 24-hour fit and phone horizontal containment.
+
+Hourly weather now reads top-to-bottom in one chronological list, with time, condition/icon, temperature and rain chance aligned in columns. The default is 12 hours; 24-hour and Daily options remain. A Tomorrow divider marks the date rollover. Verified default/expanded row counts, date divider and phone horizontal containment. The detail list intentionally scrolls for readability.

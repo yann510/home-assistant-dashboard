@@ -3152,3 +3152,83 @@ select,
     grid-template-columns: repeat(8, minmax(0, 1fr));
   }
 }
+/* Hourly weather reads in one chronological column on every screen. */
+.hourly-list {
+  display: flex;
+  flex-direction: column;
+}
+.hourly-list-heading,
+.hourly-list-row {
+  display: grid;
+  grid-template-columns: 80px minmax(0, 1fr) 70px 70px;
+  gap: 16px;
+  align-items: center;
+}
+.hourly-list-heading {
+  color: var(--muted);
+  font-size: 11px;
+  padding: 0 12px 8px;
+}
+.hourly-list-heading > :nth-last-child(-n + 2),
+.hourly-list-row > :nth-last-child(-n + 2) {
+  text-align: right;
+}
+.hourly-list-row {
+  padding: 12px;
+  min-height: 54px;
+  border-bottom: 1px solid var(--line);
+  font-size: 14px;
+}
+.hourly-list-row time {
+  font-weight: 600;
+}
+.hourly-condition {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.hourly-condition svg {
+  width: 26px;
+  height: 26px;
+  color: var(--yellow);
+  flex-shrink: 0;
+}
+.hourly-list-row small {
+  font-size: 13px;
+  color: var(--muted);
+}
+.forecast-day {
+  padding: 12px;
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--lilac);
+  background: var(--surface);
+  border-radius: 8px;
+}
+@media (min-width: 701px) {
+  dialog[data-kind='weather'] {
+    width: min(760px, calc(100vw - 32px));
+  }
+}
+@media (max-width: 700px) {
+  .hourly-list-heading,
+  .hourly-list-row {
+    grid-template-columns: 48px minmax(0, 1fr) 40px 38px;
+    gap: 8px;
+    padding-left: 0;
+    padding-right: 0;
+  }
+  .hourly-list-row {
+    font-size: 12px;
+  }
+  .hourly-condition {
+    gap: 6px;
+  }
+  .hourly-condition svg {
+    width: 22px;
+    height: 22px;
+  }
+  .hourly-list-row small {
+    font-size: 12px;
+  }
+}
