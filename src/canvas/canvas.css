@@ -116,7 +116,8 @@
 .canvas .canvas__header h1 { font-size: clamp(1.45rem, 2.1vw, 2rem); margin-top: 5px; }
 .canvas .canvas__header em { color: inherit; }
 .canvas .canvas__eyebrow { font-size: .6rem; letter-spacing: .18em; }
-.canvas .canvas__header-actions { flex-wrap: nowrap; gap: var(--canvas-space-2); }
+.canvas .canvas__header-actions { --canvas-header-control-height: 52px; flex-wrap: nowrap; gap: var(--canvas-space-2); }
+.canvas .canvas__header-actions > button { min-height: var(--canvas-header-control-height); }
 .canvas .canvas__connection { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 .canvas .canvas__connection:has(+ *) { pointer-events: none; }
 .canvas .canvas__shortcuts { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: var(--canvas-space-4); }
@@ -129,6 +130,7 @@
 .canvas .canvas-blinds__rooms button, .canvas .canvas-blinds__actions button { padding: 6px; font-size: .75rem; }
 .canvas .canvas-lights__muted { font-size: .7rem; }
 .canvas .canvas-modes { border: 1px solid var(--canvas-line); border-radius: 30px; padding: 3px; flex-wrap: nowrap; }
+.canvas .canvas__header-actions .canvas-modes { min-height: var(--canvas-header-control-height); }
 .canvas .canvas-modes button { border-radius: 24px; font-size: .8rem; padding: 8px 12px; border-color: transparent; background: transparent; }
 .canvas .canvas-modes button[aria-pressed='true'] { background: #e7dba3; color: #302c26; }
 .canvas button:disabled, .canvas-dialog button:disabled { cursor: not-allowed; }
