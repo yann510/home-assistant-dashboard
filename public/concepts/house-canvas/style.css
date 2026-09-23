@@ -991,7 +991,7 @@ select,
 }
 .forecast-row {
   display: grid;
-  grid-template-columns: 1.5fr 40px 1fr 1fr;
+  grid-template-columns: 70px minmax(0, 1fr) 90px 70px;
   align-items: center;
   gap: 12px;
   padding: 12px 0;
@@ -3230,5 +3230,38 @@ select,
   }
   .hourly-list-row small {
     font-size: 12px;
+  }
+}
+
+/* The condition column contains an icon and a label, not just a 40px icon. */
+.forecast-row .daily-condition {
+  min-width: 0;
+  flex-direction: row;
+}
+.forecast-row .daily-condition small {
+  text-align: left;
+  overflow-wrap: break-word;
+}
+.forecast-row .daily-condition svg {
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+}
+.forecast-row > span:nth-child(3) {
+  white-space: nowrap;
+  text-align: right;
+}
+@media (max-width: 700px) {
+  .forecast-row {
+    grid-template-columns: 48px minmax(0, 1fr) 70px 50px;
+    gap: 8px;
+    font-size: 12px;
+  }
+  .forecast-row .daily-condition {
+    gap: 6px;
+  }
+  .forecast-row .daily-condition svg {
+    width: 22px;
+    height: 22px;
   }
 }
