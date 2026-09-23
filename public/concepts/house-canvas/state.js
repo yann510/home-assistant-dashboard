@@ -1,3 +1,4 @@
+export const speakers = ['Living room', 'Bathroom', 'Bedroom', 'Gym'];
 export const moods = [
   { id: 'love', name: 'Love', colour: '#efa5a5', caption: 'A little closer.' },
   { id: 'unwind', name: 'Unwind', colour: '#cbb5ed', caption: 'Let the day drift away.' },
@@ -31,7 +32,7 @@ export function createState(scenario = 'everyday') {
   return {
     scenario,
     lightRoom: 'living',
-    blindRoom: 'living',
+    blindRoom: 'all',
     mode: night ? 'night' : 'day',
     mood: night ? 'love' : 'unwind',
     rooms: inventory.map(([id, name, symbol, blinds, names], i) => ({
@@ -50,7 +51,18 @@ export function createState(scenario = 'everyday') {
         colourCapable: ['living', 'bedroom', 'office', 'gym'].includes(id) && name !== 'Closet',
       })),
     })),
-    music: { playing: !night, trackIndex: busy ? 3 : 0, volume: night ? 18 : 32, room: 'Living room', source: 'Favourites' },
+    music: {
+      follow: false,
+      muted: false,
+      position: 24,
+      members: ['Living room'],
+      volumes: Object.fromEntries(speakers.map(r => [r, night ? 18 : 32])),
+      playing: !night,
+      trackIndex: busy ? 3 : 0,
+      volume: night ? 18 : 32,
+      room: 'Living room',
+      source: 'Favourites',
+    },
     notices: night
       ? []
       : [
@@ -84,6 +96,7 @@ export function createState(scenario = 'everyday') {
     appliances: { washer: busy ? 'Running · 12 min left' : 'Ready for the next load', dryer: night ? 'Idle' : 'Cycle finished' },
     vacuum: 'docked',
     thermostat: 21,
+    temperatures: { Office: 21, Gym: 20, Bedroom: 19 },
   };
 }
 export function roomSummary(room) {
@@ -104,6 +117,14 @@ export function applyAction(state, a) {
     case 'mood':
       state.mood = a.value || null;
       return state.mood ? `${moods.find(m => m.id === a.value).name} mood selected` : 'Mood ended';
+    case 'all-lights-off':
+      state.rooms
+        .flatMap(r => r.lights)
+        .filter(l => l.available)
+        .forEach(l => {
+          l.on = false;
+        });
+      return 'All available lights off';
     case 'room-power': {
       const available = room.lights.filter(l => l.available);
       const on = !available.some(l => l.on);
@@ -142,19 +163,65 @@ export function applyAction(state, a) {
       if (light?.available && light.colourCapable) light.colour = a.value;
       return 'Light colour updated';
     case 'blind':
-      room.lastBlindCommand = a.value;
-      return `${room.name}: ${a.value} command sent (demo)`;
+      state.rooms
+        .filter(r => r.blinds && (a.roomId === 'all' || r.id === a.roomId))
+        .forEach(r => {
+          r.lastBlindCommand = a.value;
+        });
+      return `${a.roomId === 'all' ? 'All rooms' : room.name}: ${a.value} command sent (demo)`;
     case 'play':
       state.music.playing = !state.music.playing;
       return state.music.playing ? 'Music playing' : 'Music paused';
     case 'skip':
+      state.music.position = 0;
       state.music.trackIndex = (state.music.trackIndex + Number(a.value) + tracks.length) % tracks.length;
       return tracks[state.music.trackIndex].title;
-    case 'volume':
-      state.music.volume = clamp(a.value, 0, 100);
+    case 'volume-step':
+      return applyAction(state, { type: 'volume', value: state.music.volume + Number(a.value) });
+    case 'volume': {
+      const next = clamp(a.value, 0, 100),
+        delta = next - state.music.volume;
+      state.music.members.forEach(r => {
+        state.music.volumes[r] = clamp(state.music.volumes[r] + delta, 0, 100);
+      });
+      state.music.volume = next;
+      state.music.muted = false;
       return 'Volume updated';
+    }
+    case 'speaker-volume':
+      state.music.volumes[a.id] = clamp(a.value, 0, 100);
+      if (a.id === state.music.room) state.music.volume = state.music.volumes[a.id];
+      return 'Speaker volume updated';
+    case 'mute':
+      state.music.muted = !state.music.muted;
+      return state.music.muted ? 'Speakers muted' : 'Speakers unmuted';
+    case 'seek':
+      state.music.position = clamp(a.value, 0, 100);
+      return 'Track position updated';
+    case 'follow':
+      state.music.follow = !state.music.follow;
+      if (!state.music.follow) state.music.members = [state.music.room];
+      return state.music.follow ? 'Follow me enabled (demo)' : 'Follow me off; original speaker retained';
+    case 'manual':
+      state.music.follow = false;
+      return 'Manual grouping enabled; current group retained';
+    case 'group-all':
+      if (!state.music.follow) state.music.members = [...speakers];
+      return '';
+    case 'group-source':
+      if (!state.music.follow) state.music.members = [state.music.room];
+      return '';
+    case 'group-toggle':
+      if (state.music.follow || a.value === state.music.room) return '';
+      state.music.members = state.music.members.includes(a.value)
+        ? state.music.members.filter(r => r !== a.value)
+        : [...state.music.members, a.value];
+      return 'Speaker group updated';
     case 'speaker':
+      if (state.music.follow) return '';
       state.music.room = a.value;
+      state.music.members = [a.value];
+      state.music.volume = state.music.volumes[a.value];
       return `Playing in ${a.value}`;
     case 'source':
       state.music.source = a.value;
@@ -167,6 +234,9 @@ export function applyAction(state, a) {
     case 'dismiss':
       state.notices = state.notices.filter(n => n.id !== a.id);
       return 'Reminder dismissed';
+    case 'temperature-step':
+      state.temperatures[a.id] = clamp(state.temperatures[a.id] + Number(a.value), 16, 28);
+      return `${a.id} target updated`;
     case 'thermostat':
       state.thermostat = clamp(a.value, 16, 28);
       return `Temperature set to ${state.thermostat} degrees`;

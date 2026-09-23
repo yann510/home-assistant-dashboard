@@ -1,4 +1,4 @@
-import { tracks, roomSummary, escapeHtml as esc } from './state.js';
+import { speakers, tracks, roomSummary, escapeHtml as esc } from './state.js';
 import { icon, albumArt } from './art.js';
 import { button, blindControls } from './overview.js';
 const open = (kind, id = '') => `data-action="open" data-kind="${kind}" data-id="${id}"`;
@@ -18,8 +18,8 @@ export function deviceEntries(state) {
         subtitle: l.available ? (l.on ? `On · ${l.brightness}%` : 'Off') : 'Unavailable',
         category: 'Lights',
         room: r.id,
-        kind: 'room',
-        target: r.id,
+        kind: 'light',
+        target: l.id,
         symbol: 'bulb',
       })),
       ...(r.blinds
@@ -41,7 +41,7 @@ export function deviceEntries(state) {
     {
       id: 'thermostat',
       title: 'Thermostat',
-      subtitle: `Set to ${state.thermostat}°C`,
+      subtitle: 'Office · Gym · Bedroom',
       category: 'Climate',
       room: '',
       kind: 'thermostat',
@@ -74,6 +74,28 @@ export function renderDetails(state, route, query = '') {
   const room = state.rooms.find(r => r.id === route.id),
     track = tracks[state.music.trackIndex];
   switch (route.kind) {
+    case 'lights': {
+      const ordered = [...state.rooms].sort((a, b) => Number(b.id === route.id) - Number(a.id === route.id));
+      return {
+        title: 'All lights',
+        html: `<div class="lights-toolbar"><p class="fine-print">Switch here. Tap a light for brightness & colour.</p><button class="chip" data-action="all-lights-off" data-focus-key="sheet-all-off">All lights off</button></div><nav class="room-jumps" aria-label="Jump to room">${ordered.map(r => `<button class="chip" data-action="jump-room" data-id="${r.id}">${r.name}</button>`).join('')}</nav>${ordered.map(r => `<section class="light-group" id="lights-${r.id}"><div class="detail-row"><h3>${r.name}</h3>${button(`Turn ${r.name} lights ${roomSummary(r).on ? 'off' : 'on'}`, 'room-power', roomSummary(r).on ? 'Room off' : 'Room on', `class="chip" data-room-id="${r.id}" data-focus-key="group-${r.id}"`)}</div>${r.lights.map(l => `<div class="compact-light"><button class="light-name" ${open('light', l.id)} data-focus-key="detail-${l.id}">${icon('bulb')}<span><strong>${esc(l.name)}</strong><small>${!l.available ? 'Unavailable' : l.on ? `On · ${l.brightness}%` : 'Off'}</small></span>${icon('arrow')}</button>${button(`${r.name} ${l.name} power`, 'light-power', '<span></span>', `class="switch" data-room-id="${r.id}" data-id="${l.id}" data-focus-key="power-${l.id}" aria-pressed="${l.available && l.on}" ${l.available ? '' : 'disabled'}`)}</div>`).join('')}</section>`).join('')}`,
+      };
+    }
+    case 'light': {
+      const parent = state.rooms.find(r => r.lights.some(l => l.id === route.id));
+      const l = parent.lights.find(l => l.id === route.id);
+      // Share the existing capability-aware light controls, scoped to this light.
+      const content = renderDetails(
+        { ...state, rooms: [{ ...parent, lights: [l], blinds: false }] },
+        { kind: 'room', id: parent.id, singleLight: true }
+      );
+      return { title: `${parent.name} · ${l.name}`, html: content.html };
+    }
+    case 'volume':
+      return {
+        title: 'Volume',
+        html: `<p class="sheet-intro">${state.music.members.join(' · ')}</p><label class="range-row">Volume<input aria-label="Speaker volume" type="range" min="0" max="100" value="${state.music.volume}" data-action="volume" data-focus-key="sheet-volume"><output>${state.music.volume}%</output></label>${chip(state.music.muted ? 'Unmute speakers' : 'Mute speakers', 'mute', '', state.music.muted)}<p class="fine-print">Group adjustments preserve differences between speakers, up to their volume limits.</p>`,
+      };
     case 'blind-room':
       return {
         title: `${room.name} blinds`,
@@ -83,7 +105,7 @@ export function renderDetails(state, route, query = '') {
       return {
         title: room.name,
         html: `<p class="sheet-intro">Make this room feel just right.</p>
- <div class="detail-row"><h3>Lights</h3>${button(`Toggle ${room.name} lights`, 'room-power', `${icon('bulb')} ${roomSummary(room).on ? 'Turn all off' : 'Turn all on'}`, `class="chip" data-room-id="${room.id}" data-focus-key="sheet-room-power"`)}</div>
+ ${route.singleLight ? '' : `<div class="detail-row"><h3>Lights</h3>${button(`Toggle ${room.name} lights`, 'room-power', `${icon('bulb')} ${roomSummary(room).on ? 'Turn all off' : 'Turn all on'}`, `class="chip" data-room-id="${room.id}" data-focus-key="sheet-room-power"`)}</div>`}
  ${room.lights
    .map(
      l => `<section class="detail-card"><div class="detail-row"><div><h3>${esc(l.name)}</h3><small>${!l.available ? 'Unavailable' : l.on ? 'On' : 'Off'}</small></div>${button(`${l.name} light power`, 'light-power', '<span></span>', `class="switch" data-room-id="${room.id}" data-id="${l.id}" data-focus-key="light-${l.id}" aria-pressed="${l.on && l.available}" ${l.available ? '' : 'disabled'}`)}</div>
@@ -118,7 +140,13 @@ export function renderDetails(state, route, query = '') {
         html: `<div class="full-track"><div class="album">${albumArt()}</div><div><h3>${esc(track.title)}</h3><p>${esc(track.artist)}</p><p>${state.music.playing ? 'Playing' : 'Paused'} · ${state.music.room}</p></div></div>
  <div class="transport large-transport">${button('Previous track', 'skip', icon('prev'), 'class="icon-button" data-value="-1" data-focus-key="sheet-prev"')}${button(state.music.playing ? 'Pause music' : 'Play music', 'play', icon(state.music.playing ? 'pause' : 'play'), 'class="play-button" data-focus-key="sheet-play"')}${button('Next track', 'skip', icon('next'), 'class="icon-button" data-value="1" data-focus-key="sheet-next"')}</div>
  <label class="range-row">Volume<input aria-label="Speaker volume" type="range" min="0" max="100" value="${state.music.volume}" data-action="volume" data-focus-key="sheet-volume"><output>${state.music.volume}%</output></label>
- <label class="field">Play in<select data-action="speaker" data-focus-key="speaker">${['Living room', 'Bedroom', 'Office', 'Kitchen', 'Everywhere'].map(r => `<option ${r === state.music.room ? 'selected' : ''}>${r}</option>`).join('')}</select></label>
+ ${chip(state.music.muted ? 'Unmute speakers' : 'Mute speakers', 'mute', '', state.music.muted)}
+ <label class="range-row">Track position<input aria-label="Track position" type="range" min="0" max="100" value="${state.music.position}" data-action="seek" data-focus-key="seek"><output>${state.music.position}%</output></label>
+ <section class="detail-card"><div class="detail-row"><h3>Follow me</h3>${chip(state.music.follow ? 'Turn Follow me off' : 'Turn Follow me on', 'follow', '', state.music.follow)}</div><p class="fine-print">Rooms join when motion is detected. Turning off keeps the original speaker. This prototype does not detect motion.</p>${state.music.follow ? chip('Switch to manual grouping', 'manual', '') : ''}</section>
+ <label class="field">Source speaker<select data-action="speaker" data-focus-key="speaker" ${state.music.follow ? 'disabled' : ''}>${speakers.map(r => `<option ${r === state.music.room ? 'selected' : ''}>${r}</option>`).join('')}</select></label>
+ <h3 class="detail-title">Speakers</h3><p class="fine-print">${state.music.follow ? 'Follow me manages your rooms. Switch to manual grouping to choose them yourself.' : 'Tap a room to join or leave. Changes apply immediately in this demo.'}</p>
+ ${!state.music.follow ? `<div class="chip-list">${chip('All rooms', 'group-all', '')}${chip('Only source', 'group-source', '')}</div>` : ''}
+ ${speakers.map(r => `<section class="speaker-row"><div class="detail-row"><strong>${r}${r === state.music.room ? ' · Source' : ''}</strong>${button(`Toggle ${r} speaker`, 'group-toggle', state.music.members.includes(r) ? 'Joined' : 'Join', `class="chip" data-value="${r}" data-focus-key="speaker-${r}" aria-pressed="${state.music.members.includes(r)}" ${state.music.follow || r === state.music.room ? 'disabled' : ''}`)}</div>${state.music.members.includes(r) ? `<label class="range-row">Volume<input aria-label="${r} volume" type="range" min="0" max="100" value="${state.music.volumes[r]}" data-action="speaker-volume" data-id="${r}" data-focus-key="speaker-volume-${r}"><output>${state.music.volumes[r]}%</output></label>` : ''}</section>`).join('')}
  <label class="field">Source<select data-action="source" data-focus-key="source">${['Favourites', 'Spotify', 'Radio'].map(r => `<option ${r === state.music.source ? 'selected' : ''}>${r}</option>`).join('')}</select></label>
  <h3 class="detail-title">Something for the moment</h3><div class="device-list">${tracks.map((t, i) => button(t.title, 'favourite', `${icon('play')}<span><strong>${esc(t.title)}</strong><small>${esc(t.artist)}</small></span>`, `class="device-item" data-value="${i}" data-focus-key="favourite-${i}"`)).join('')}</div><p class="fine-print">Sample player · no audio or real speakers are controlled.</p>`,
       };
@@ -169,7 +197,7 @@ export function renderDetails(state, route, query = '') {
         ]
           .map(
             ([name, symbol, desc]) =>
-              `<button class="category-tile" data-action="open" data-kind="${name === 'Music' ? 'music' : name === 'Climate' ? 'thermostat' : 'device-category'}" data-id="${name}" data-focus-key="category-${name}">${icon(symbol)}<span><strong>${name}</strong><small>${desc}</small></span>${icon('arrow')}</button>`
+              `<button class="category-tile" data-action="open" data-kind="${name === 'Lights' ? 'lights' : name === 'Music' ? 'music' : name === 'Climate' ? 'thermostat' : 'device-category'}" data-id="${name}" data-focus-key="category-${name}">${icon(symbol)}<span><strong>${name}</strong><small>${desc}</small></span>${icon('arrow')}</button>`
           )
           .join(
             ''
@@ -200,7 +228,12 @@ export function renderDetails(state, route, query = '') {
     case 'thermostat':
       return {
         title: 'A comfortable temperature',
-        html: `<p class="sheet-intro">Whole-home temperature · demo controls</p><div class="thermostat-value">${state.thermostat}°</div><label class="range-row">Target<input aria-label="Target temperature" type="range" min="16" max="28" step=".5" value="${state.thermostat}" data-action="thermostat" data-focus-key="thermostat"><output>${state.thermostat}°</output></label><p class="fine-print">Current room temperature: 20.5°C (sample).</p>`,
+        html: `<p class="sheet-intro">Temperature by room · sample readings</p>${Object.entries(state.temperatures)
+          .map(
+            ([name, target]) =>
+              `<section class="detail-card"><div class="detail-row"><div><h3>${name}</h3><small>Currently 20.5°C · Sample</small></div><div class="volume-stepper">${button(`Lower ${name} target`, 'temperature-step', '−', `data-id="${name}" data-value="-0.5" data-focus-key="temp-down-${name}" ${target <= 16 ? 'disabled' : ''}`)}<output aria-label="${name} target">${target}°</output>${button(`Raise ${name} target`, 'temperature-step', '+', `data-id="${name}" data-value="0.5" data-focus-key="temp-up-${name}" ${target >= 28 ? 'disabled' : ''}`)}</div></div></section>`
+          )
+          .join('')}`,
       };
     case 'appliances':
       return {

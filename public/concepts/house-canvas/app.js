@@ -113,6 +113,12 @@ document.addEventListener('click', event => {
     openDetails({ kind: el.dataset.kind, id: el.dataset.id, category: 'All', room: 'All' }, el);
     return;
   }
+  if (a.type === 'jump-room') {
+    const target = dialog.querySelector('#lights-' + a.id);
+    target?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    target?.querySelector('button')?.focus({ preventScroll: true });
+    return;
+  }
   if (a.type === 'close') {
     closeDetails();
     return;

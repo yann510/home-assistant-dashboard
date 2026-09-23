@@ -2208,3 +2208,151 @@ select,
 .quick-title {
   min-height: 44px;
 }
+
+/* Fast controls: keep power immediate and expose detail on demand. */
+.quick-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.quick-footer .quick-caption {
+  margin: 0;
+}
+.quick-footer .text-button {
+  white-space: nowrap;
+  min-height: 44px;
+}
+.volume-stepper {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  padding: 2px;
+}
+.volume-stepper button {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 7px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 17px;
+}
+.volume-stepper button:nth-child(2) {
+  font-size: 14px;
+  min-width: 54px;
+  font-weight: 700;
+}
+.follow-button {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 44px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  padding: 0 8px;
+  border-radius: 22px;
+}
+.follow-button[aria-pressed='true'] {
+  background: var(--ink, #272622);
+  color: var(--cream, #fff4de);
+}
+.follow-button span {
+  opacity: 0.7;
+  font-size: 12px;
+}
+.music-card .player-controls {
+  justify-content: space-between;
+  gap: 8px;
+}
+.lights-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.lights-toolbar .chip {
+  white-space: nowrap;
+}
+.room-jumps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 16px 0;
+}
+.light-group {
+  scroll-margin-top: 90px;
+  margin: 22px 0;
+}
+.compact-light {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid var(--line, #ffffff20);
+  padding: 5px 0;
+}
+.light-name {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  align-items: center;
+  gap: 12px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  padding: 10px 0;
+  min-height: 58px;
+}
+.light-name span {
+  flex: 1;
+  display: grid;
+  gap: 4px;
+}
+.light-name small {
+  opacity: 0.65;
+}
+.light-name svg {
+  width: 22px;
+  flex-shrink: 0;
+}
+.speaker-row {
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line, #ffffff20);
+}
+@media (max-width: 1100px) and (min-width: 701px) {
+  .music-card .transport {
+    gap: 0;
+  }
+  .music-card .icon-button {
+    width: 44px;
+    min-width: 44px;
+  }
+  .music-card .volume-stepper button {
+    min-width: 44px;
+  }
+}
+@media (max-width: 700px) {
+  .quick-footer .quick-caption {
+    font-size: 12px;
+  }
+  .lights-toolbar {
+    align-items: flex-start;
+  }
+}
+@media (min-width: 701px) and (max-height: 620px) {
+  .home {
+    gap: 6px;
+    padding-top: 8px;
+    padding-bottom: 4px;
+  }
+}
+.quick-title .text-button {
+  font-size: 12px;
+}
+.music-top .text-button {
+  min-height: 44px;
+}

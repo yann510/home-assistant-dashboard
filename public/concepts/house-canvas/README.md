@@ -49,3 +49,31 @@ Replaced the seven-room grid with compact Lights and Blinds panels. Both have ro
 Attention now appears in a contrasting banner immediately under the header, with a direct View action and access to all updates. It disappears when all reminders are dismissed. All devices now starts with five categories and room-based navigation, with search as a secondary option. Blinds open their own focused sheet.
 
 Revision verified in the browser at 960×600 and 1280×800 (no scrolling) and 393×852 (no horizontal overflow). Checked room selection, grouped zero/full brightness, power restoration, unavailable lights, blind room commands, category/back navigation, optional search/empty results, and attention dismissal. JavaScript syntax and diff checks pass; earlier regression-suite results above belong to the initial prototype.
+
+### Quick-access revision — September 23
+
+- Home: All lights off; room power/brightness; All rooms blinds; Follow me; 44px volume −/percentage/+ controls.
+- All lights: every room in one list, selected room first, jump buttons, room power and individual power without navigating. Light names open focused brightness/colour controls. Back restores list position.
+- Player: Follow me, manual room grouping, actual speaker room names, individual speaker volume, group mute, seeking, sources and favourites. Follow locks manual grouping; disabling retains source; switching to manual preserves the current group.
+- Climate: Office, Gym and Bedroom targets instead of a fictional whole-house thermostat.
+
+#### Feature preservation checklist
+
+| Existing area | Prototype access | Live integration still required |
+| --- | --- | --- |
+| Day/night, mood selection/end | Overview | Automation feedback, mood recovery/retry and persisted state |
+| Weather | Header → forecast | Live current conditions and dated forecasts |
+| Room/individual light power | Overview → All lights | Real capability-dependent colour/temperature/effects, command pending/error feedback |
+| Brightness/colour | Light name → settings | Entity capability mapping; prototype offers sample colour presets |
+| Blinds open/stop/close | Overview, room or All rooms | Confirmed service outcomes; no position is invented |
+| Speaker transport/favourites/seek | Music → player | Audio, live duration/position, capability checks |
+| Follow me and manual grouping | Overview / player | Motion automation, cleanup retry, unavailable speakers and conflicts |
+| Group and individual volumes | Percentage / player | Real group coordinator, device mute states, individual mute and pending updates |
+| Room temperature | All devices → Climate | Reported targets, capabilities, heating state and confirmation/errors |
+| Appliance/attention/vacuum | Attention or All devices | Real cycle/energy details, reminder rules, vacuum capability/state mapping |
+
+This remains a simulated design prototype, not a feature-complete production replacement. Existing live dashboard code is unchanged. The checklist is a migration gate before adopting this design.
+
+Verification: `node --test scripts/check-house-canvas.mjs` covers global light off with an unavailable device, all-room blinds, Follow/manual grouping constraints and bounded relative volume changes. Browser interaction checks cover power versus detail navigation, brightness, global off, grouping, individual volume, seek and mute. Tablet overview fits at 960×600; phone checked at 393×852.
+
+The existing application suite also passed: 190 tests across 16 files. Final browser checks found no console errors and confirmed no overview scroll at 960×600 and 1280×800. These checks do not verify physical Fire tablet/iPhone behaviour or Home Assistant integration.
