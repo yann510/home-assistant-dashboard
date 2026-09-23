@@ -53,3 +53,9 @@ Screenshots were inspected in CUA; no new screenshot files were saved. Authentic
 ## Header control height follow-up
 
 Reviewed source `287c1bc5c5521b64b58282cd35540fb2f05275e1` sets a 52 px minimum outer height on the two direct Canvas header buttons and the Day/Night group. Day/Night buttons retain their 44 px touch targets. The root agent measured all three outer controls at 52 px at both 960 px and 375 px widths; the tablet document still fits 960 × 600, and phone wrapping remains intact. Type checking and an explicit `npm run build:canvas-trial` passed; independent review approved the three-line CSS change. The last full suite remains the preceding 340-test run; it was not rerun for this CSS-only correction. Authenticated live and physical-device checks remain pending.
+
+## Player status follow-up
+
+Reviewed source `b23b6578d7bab9162815a5e2d8eba425e15d28c4` distinguishes media titles from playback status. Idle speakers show “Nothing playing” and “Choose a favourite to start”; untitled active playback shows “Audio playing”; unavailable speakers hide stale metadata and show “Speaker unavailable”. Named paused media retain the title, Paused label and Resume control. Overview status uses compact typography. Transport capabilities, command guards, authentication and favourite activation are unchanged.
+
+Verification: 20 focused music tests and **344 full-suite tests** passed, as did changed-file ESLint, whitespace checks and the explicit trial build/typecheck. Global lint remains blocked by unrelated existing `.local` preview files. Independent review approved the fix. The root inspected controlled idle and paused scenarios at 960 × 600 and untitled playback at 375 px. No physical commands were sent; authenticated live updates and device acceptance remain pending.
