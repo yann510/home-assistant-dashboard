@@ -8,7 +8,7 @@ The originally shared folder URL (`/local/canvas-trial/?view=canvas`) returns **
 
 Immediate existing-dashboard fallback: **http://homeassistant.local:8123/local/dashboard/index.html**.
 
-Deployed source commit and release ID: `8ba04ae1f704c122f70db19dfdf9dd3e4bcc053e` on `codex/quiet-home-poc`. Previous release `bb788a1df49d8ef0ac10ca5d3e4cce3d9af1b6aa` is retained for rollback. Source publication to `origin/main` is separate from deployment. Canvas remains optional; adopting it as the default remains a later decision.
+Deployed source commit and release ID: `0e3526157c5f878b520b3f6e4f24568f87b58ec7` on `codex/quiet-home-poc`. Previous release `8ba04ae1f704c122f70db19dfdf9dd3e4bcc053e` is retained for rollback. Source publication to `origin/main` is separate from deployment. Canvas remains optional; adopting it as the default remains a later decision.
 
 ## Build and release
 
@@ -32,12 +32,12 @@ Rollback stages the previous release, retains current assets for already-open cl
 
 ## Deployment evidence
 
-Verified at **2026-09-23T20:05:00.251Z**. The independently reviewed weather details change passed **349 full-suite tests**, scoped ESLint, project type checking and an explicit trial-base build. The active met provider supplies forecast wind and precipitation amounts but not feels-like or probability; missing fields remain explicitly unavailable. See [UX polish verification](house-canvas-ux-polish.md).
+Verified at **2026-09-23T20:13:34.051Z**. The independently reviewed compact wind layout and accessibility correction passed **14 focused weather tests**, scoped ESLint, project type checking and the final explicit trial-base build. The preceding full-suite result remains 349 tests; it was not rerun for this follow-up. The active met provider supplies forecast wind and precipitation amounts but not feels-like or probability; missing fields remain explicitly unavailable. See [UX polish verification](house-canvas-ux-polish.md).
 
-- `npm run deploy:canvas-trial -- 8ba04ae1f704c122f70db19dfdf9dd3e4bcc053e` exited 0 after its secret scan, staged SHA-256 verification and promotion. Remote release-info reports that exact source/release ID.
-- All **86 manifest files** match their remote SHA-256 hashes and LAN HTTP responses (HTTP 200). All **73 current build files** match local `dist`; **12 previous hashed assets** remain available and verified, alongside generated release metadata.
+- `npm run deploy:canvas-trial -- 0e3526157c5f878b520b3f6e4f24568f87b58ec7` exited 0 after its secret scan, staged SHA-256 verification and promotion. Remote release-info reports that exact source/release ID.
+- All **88 manifest files** match their remote SHA-256 hashes and LAN HTTP responses (HTTP 200). All **73 current build files** match local `dist`; **14 previous hashed assets** remain available and verified, alongside generated release metadata.
 - Exact user entry `/local/canvas-trial/index.html?view=canvas` returns **HTTP 200** and the expected index hash. Both directly linked JS/CSS assets were verified.
-- Previous release `bb788a1df49d8ef0ac10ca5d3e4cce3d9af1b6aa` is preserved in `/homeassistant/www/canvas-trial-previous`; all **84 previous manifest files** were re-read and verified. `npm run rollback:canvas-trial` can restore it while retaining the new hashed assets for open clients. Rollback was not executed during this verification.
+- Previous release `8ba04ae1f704c122f70db19dfdf9dd3e4bcc053e` is preserved in `/homeassistant/www/canvas-trial-previous`; all **86 previous manifest files** were re-read and verified. `npm run rollback:canvas-trial` can restore it while retaining the new hashed assets for open clients. Rollback was not executed during this verification.
 - The existing dashboard HTML and its two baseline JS/CSS files still return HTTP 200 with unchanged byte counts and SHA-256 values.
 - [Deployment hash evidence](canvas-qa/trial-deployment-verification.json) records every verified file, exact entry status and previous release. The original local dashboard baseline remains untouched.
 - **Login-screen reachability confirmed:** the controller opened the corrected explicit index URL and reached Home Assistant's normal authorization screen with Username, Password and Log in. No credentials were entered. This supersedes the earlier wrong-folder/browser-tool access failure; it does not establish authenticated live state updates.

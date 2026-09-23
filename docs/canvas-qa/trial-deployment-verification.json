@@ -1,18 +1,18 @@
 {
-  "verifiedAt": "2026-09-23T20:05:00.251Z",
-  "sourceCommit": "8ba04ae1f704c122f70db19dfdf9dd3e4bcc053e",
-  "releaseId": "8ba04ae1f704c122f70db19dfdf9dd3e4bcc053e",
+  "verifiedAt": "2026-09-23T20:13:34.051Z",
+  "sourceCommit": "0e3526157c5f878b520b3f6e4f24568f87b58ec7",
+  "releaseId": "0e3526157c5f878b520b3f6e4f24568f87b58ec7",
   "url": "http://homeassistant.local:8123/local/canvas-trial/index.html?view=canvas",
   "entryStatus": 200,
-  "previousRelease": "bb788a1df49d8ef0ac10ca5d3e4cce3d9af1b6aa",
-  "previousManifestFiles": 84,
+  "previousRelease": "8ba04ae1f704c122f70db19dfdf9dd3e4bcc053e",
+  "previousManifestFiles": 86,
   "currentBuildFiles": 73,
-  "retainedAssetFiles": 12,
+  "retainedAssetFiles": 14,
   "remoteRoot": "/homeassistant/www/canvas-trial",
-  "manifestFiles": 86,
+  "manifestFiles": 88,
   "linkedAssets": [
-    "/local/canvas-trial/assets/index-CFL2bwnb.js",
-    "/local/canvas-trial/assets/index-b4S0SuJs.css"
+    "/local/canvas-trial/assets/index-BuCNakCb.js",
+    "/local/canvas-trial/assets/index-DlQzOo4f.css"
   ],
   "files": [
     {
@@ -220,16 +220,16 @@
       "sha256": "b44addb52e2f17e891a6922a3c39deab881fe6dbcb85530c98864c76c6ea42ce"
     },
     {
-      "path": "assets/index-CFL2bwnb.js",
+      "path": "assets/index-BuCNakCb.js",
       "status": 200,
-      "bytes": 1046287,
-      "sha256": "6c8a06d91c8d40562293a0016627bae00776f27f51461b3ef8d9e20494e5dd6e"
+      "bytes": 1046686,
+      "sha256": "2ed8c38450a421be99e12e5ffb82aae2fc4120a2db000a9bb3fecf01e6f547c4"
     },
     {
-      "path": "assets/index-b4S0SuJs.css",
+      "path": "assets/index-DlQzOo4f.css",
       "status": 200,
-      "bytes": 76437,
-      "sha256": "31c7e5b7b67a4348dd4c94f4984f55585f1386df078f69081dc107e156ea0bbc"
+      "bytes": 77172,
+      "sha256": "1e8fe0e5db6e1ddc19b88ee0109fd026b9d436913d2f2bdae61c7465b595a10c"
     },
     {
       "path": "assets/is-CMCH3DFk.js",
@@ -451,19 +451,25 @@
       "path": "index.html",
       "status": 200,
       "bytes": 495,
-      "sha256": "d1bcde786f5fca9eda2cf32c802c46ec5bf48745fd0a4b3f75f8e7ba8c974300"
+      "sha256": "1c14a5f9b3a7907e59d261ae9d83559a25adcdc2d91b1d94b2e79281be1477e3"
     },
     {
       "path": "release-info.json",
       "status": 200,
       "bytes": 56,
-      "sha256": "d276e4a980b2a27a6f38d5c5935b4a3f6cbe35c55222c2374748faec2b0a36c0"
+      "sha256": "9f1caa05883199b1f0b1ae1902e0e9684db69fc789068a3885303f81d9257018"
     },
     {
       "path": "assets/index-CpwYSRpd.css",
       "status": 200,
       "bytes": 75899,
       "sha256": "e842d4faf72fd664ca38ec9d50bcd83fdba438e1e3f97b2911996fe61ee3d1d5"
+    },
+    {
+      "path": "assets/index-b4S0SuJs.css",
+      "status": 200,
+      "bytes": 76437,
+      "sha256": "31c7e5b7b67a4348dd4c94f4984f55585f1386df078f69081dc107e156ea0bbc"
     },
     {
       "path": "assets/index-BQr8dt7R.js",
@@ -494,6 +500,12 @@
       "status": 200,
       "bytes": 1044892,
       "sha256": "5cc1d76f2793ae9fbc00792e0cc23bdfbaf1f7206a67693830765bb63c9826d4"
+    },
+    {
+      "path": "assets/index-CFL2bwnb.js",
+      "status": 200,
+      "bytes": 1046287,
+      "sha256": "6c8a06d91c8d40562293a0016627bae00776f27f51461b3ef8d9e20494e5dd6e"
     },
     {
       "path": "assets/index-B0yJSnOW.js",
