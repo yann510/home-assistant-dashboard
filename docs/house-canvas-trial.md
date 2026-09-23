@@ -5,7 +5,7 @@ Status: dedicated trial deployed and verified over SSH and LAN HTTP. Supported b
 Live trial URL: **http://homeassistant.local:8123/local/canvas-trial/?view=canvas**.
 Immediate existing-dashboard fallback: **http://homeassistant.local:8123/local/dashboard/index.html**.
 
-Deployed source commit and release ID: `4e29b770bff3c56fcd61c9a788e6d682c80bbe74` on `codex/quiet-home-poc`. Source publication to `origin/main` follows the user's latest repository instructions and is separate from deployment. Canvas remains optional; adopting it as the default remains a later decision.
+Deployed source commit and release ID: `4e29b770bff3c56fcd61c9a788e6d682c80bbe74` on `codex/quiet-home-poc`. The source and deployment handoff were published to `origin/main` at `1dbee1e` by a verified fast-forward; source publication is separate from deployment. Canvas remains optional; adopting it as the default remains a later decision.
 
 ## Build and release
 
@@ -39,7 +39,9 @@ Verified at **2026-09-23T18:34:57.651Z**. The reviewed final build passed 333 te
 - Full per-file evidence is retained in the local workspace at `.superpowers/sdd/2026-09-23-house-canvas-production/trial-deployment-verification.json`, compared against `existing-dashboard-baseline.json` in that directory.
 - This is the first trial release: no earlier trial existed to roll back to. `npm run rollback:canvas-trial` becomes useful after a later release has retained this one; today the immediate fallback is the existing dashboard URL.
 - **Browser verification blocked:** the controller attempted the actual trial URL in both the Codex in-app browser and regular Chrome through browser tooling. Both failed with `net::ERR_BLOCKED_BY_CLIENT` before the page opened. This is separate from the successful direct HTTP/SSH checks. Supported Home Assistant login and live read-only entity updates require the user to open the trial link; neither is claimed verified. No credentials were injected or browser restrictions bypassed.
-- **Pending:** physical checks below and controller's verified fast-forward source push to `origin/main`.
+- Source push verified: remote `refs/heads/main` matched local `1dbee1e1c2723c9513abcb2272bc933b3b985785` after the fast-forward. The final documentation-only record follows that commit.
+- [Deployment hash evidence](canvas-qa/trial-deployment-verification.json) records the successful LAN responses and hashes.
+- **Pending:** supported browser login, live UI updates and the physical checks below.
 
 ## Physical hardware checklist
 
