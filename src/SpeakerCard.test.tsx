@@ -17,7 +17,7 @@ const ha = vi.hoisted(() => ({
 
 vi.mock('@hakit/core', () => ({
   useEntity: (entity: string) => ha.entities[entity] ?? null,
-  useStore: (selector: (state: typeof ha) => unknown) => selector(ha),
+  useStore: Object.assign((selector: (state: typeof ha) => unknown) => selector(ha), { subscribe: () => () => {}, getState: () => ha }),
 }));
 vi.mock('@hakit/components', () => ({
   MediaPlayerCard: ({ entity, groupMembers }: { entity: string; groupMembers?: string[] }) => (

@@ -1,16 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
-import { useHass, useIcon, useStore } from '@hakit/core';
-import { useSpeakerCommand } from './useSpeakerCommand';
-
-type Item = {
-  title: string;
-  media_content_id: string;
-  media_content_type: string;
-  can_play?: boolean;
-  can_expand?: boolean;
-  thumbnail?: string;
-  children?: Item[];
-};
+import { useEffect, useRef } from 'react';
+import { useHass, useIcon } from '@hakit/core';
+import { useSpeakerFavourites } from './useSpeakerFavourites';
+import { useSpeakerFavouritePlayback } from './useSpeakerFavouritePlayback';
 
 export function SpeakerFavourites({
   entityId,
@@ -31,146 +22,17 @@ export function SpeakerFavourites({
   onOpen: () => void;
   onCount: (count: number | null) => void;
 }) {
-  const connection = useStore(state => state.connection);
   const { joinHassUrl } = useHass();
   const closeIcon = useIcon('mdi:close');
-  const { send, error: commandError } = useSpeakerCommand();
-  const [items, setItems] = useState<Item[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState(false);
-  const [attempt, setAttempt] = useState(0);
-  const [pending, setPending] = useState<Item | null>(null);
-  const [playError, setPlayError] = useState('');
   const dialog = useRef<HTMLDialogElement>(null);
-  const inFlight = useRef(false);
-  const cancelWait = useRef<(() => void) | null>(null);
-  const mounted = useRef(true);
-  const closeRef = useRef(onClose);
-  useEffect(() => {
-    closeRef.current = onClose;
-  }, [onClose]);
-  useEffect(() => {
-    mounted.current = true;
-    return () => {
-      mounted.current = false;
-      cancelWait.current?.();
-    };
-  }, []);
-
-  useEffect(() => {
-    if ((!idle && !open) || disabled || !connection) return;
-    let cancelled = false;
-    const timers = new Set<ReturnType<typeof setTimeout>>();
-    async function read(type: string, id: string): Promise<Item> {
-      let timer: ReturnType<typeof setTimeout> | undefined;
-      try {
-        return await Promise.race([
-          connection!.sendMessagePromise<Item>({
-            type: 'media_player/browse_media',
-            entity_id: entityId,
-            media_content_type: type,
-            media_content_id: id,
-          }),
-          new Promise<never>((_, reject) => {
-            timer = setTimeout(() => reject(new Error('Library timed out')), 15000);
-            timers.add(timer);
-          }),
-        ]);
-      } finally {
-        clearTimeout(timer);
-        if (timer) timers.delete(timer);
-      }
-    }
-    async function load() {
-      setLoading(true);
-      onCount(null);
-      setLoadError(false);
-      try {
-        const found = new Map<string, Item>();
-        const visited = new Set<string>();
-        async function visit(type: string, id: string, depth = 0) {
-          const key = type + ':' + id;
-          if (visited.has(key)) return;
-          if (depth > 5 || visited.size >= 50) throw new Error('Too many favourite folders');
-          visited.add(key);
-          const result = await read(type, id);
-          for (const item of result.children ?? []) {
-            if (cancelled) return;
-            if (item.can_play) found.set(item.media_content_type + ':' + item.media_content_id, item);
-            else if (item.can_expand) await visit(item.media_content_type, item.media_content_id, depth + 1);
-          }
-        }
-        await visit('favorites', '');
-        if (!cancelled) {
-          setItems([...found.values()]);
-          onCount(found.size);
-        }
-      } catch {
-        if (!cancelled) setLoadError(true);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-    void load();
-    return () => {
-      cancelled = true;
-      timers.forEach(clearTimeout);
-    };
-  }, [idle, open, disabled, connection, entityId, attempt, onCount]);
-
+  const { items, loading, error: loadError, retry } = useSpeakerFavourites(entityId, (idle || open) && !disabled, onCount);
+  const { play, pending, playError, commandError } = useSpeakerFavouritePlayback(entityId, disabled, onClose);
   useEffect(() => {
     const panel = dialog.current;
     if (!panel) return;
     if (open && !panel.open) panel.showModal();
     else if (!open && panel.open) panel.close();
   }, [open]);
-
-  async function play(item: Item) {
-    if (disabled || inFlight.current) return;
-    inFlight.current = true;
-    setPending(item);
-    setPlayError('');
-    const before = useStore.getState().entities[entityId];
-    let stop = () => {};
-    const confirmation = new Promise<boolean>(resolve => {
-      let done = false;
-      const finish = (result: boolean) => {
-        if (done) return;
-        done = true;
-        clearTimeout(timer);
-        unsubscribe();
-        resolve(result);
-      };
-      const unsubscribe = useStore.subscribe(state => {
-        const next = state.entities[entityId];
-        if (next?.state !== 'playing') return;
-        const a = next.attributes;
-        if (
-          before?.state !== 'playing' ||
-          a.media_content_id !== before?.attributes.media_content_id ||
-          a.media_title !== before?.attributes.media_title ||
-          a.media_playlist !== before?.attributes.media_playlist
-        )
-          finish(true);
-      });
-      const timer = setTimeout(() => finish(false), 20000);
-      stop = () => finish(false);
-      cancelWait.current = stop;
-    });
-    const sent = await send('play_media', [entityId], 'start ' + item.title, {
-      media_content_id: item.media_content_id,
-      media_content_type: item.media_content_type,
-    });
-    if (!sent) stop();
-    const confirmed = await confirmation;
-    if (mounted.current) {
-      if (sent && confirmed) closeRef.current();
-      else if (sent) setPlayError('Playback could not be confirmed. Tap a favourite to try again.');
-      setPending(null);
-    }
-    cancelWait.current = null;
-    inFlight.current = false;
-  }
 
   function collection(all: boolean) {
     return (
@@ -180,7 +42,7 @@ export function SpeakerFavourites({
         ) : loadError ? (
           <p>
             Could not load favourites.{' '}
-            <button className='speaker-favourites-more' onClick={() => setAttempt(x => x + 1)}>
+            <button className='speaker-favourites-more' onClick={retry}>
               Retry favourites
             </button>
           </p>

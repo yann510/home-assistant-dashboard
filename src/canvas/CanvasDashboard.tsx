@@ -7,7 +7,12 @@ import { CanvasLightDetails } from './CanvasLightDetails';
 import { CanvasLightsProvider } from './useCanvasLights';
 import { CanvasModes } from './CanvasModes';
 import { CanvasBlinds } from './CanvasBlinds';
+import { CanvasMusicProvider } from './CanvasMusicProvider';
+import { CanvasMusic } from './CanvasMusic';
+import { CanvasPlayer } from './CanvasPlayer';
+import { CanvasSpeakers } from './CanvasSpeakers';
 import './canvas.css';
+import './canvas-music.css';
 
 const directory: { label: string; route: CanvasRoute }[] = [
   { label: 'All lights', route: { kind: 'all-lights' } },
@@ -101,22 +106,21 @@ function CanvasDashboardContent(): React.JSX.Element {
             </div>
             <MoodArt />
           </section>
-          <section className='canvas__music'>
-            <span className='canvas__eyebrow'>Music</span>
-            <h2>Music at home</h2>
-            <p>Playback information is unavailable.</p>
-            <div className='canvas__actions'>
-              <button type='button' onClick={event => open({ kind: 'player' }, event.currentTarget)}>
-                Open Player
-              </button>
-              <button type='button' onClick={event => open({ kind: 'speakers' }, event.currentTarget)}>
-                Open Speakers
-              </button>
-            </div>
-          </section>
+          <CanvasMusic
+            onOpenPlayer={() =>
+              open({ kind: 'player' }, document.activeElement instanceof HTMLElement ? document.activeElement : undefined)
+            }
+            onOpenSpeakers={() =>
+              open({ kind: 'speakers' }, document.activeElement instanceof HTMLElement ? document.activeElement : undefined)
+            }
+          />
         </div>
         <section className='canvas__shortcuts' aria-label='Home controls'>
-          <CanvasLights onOpenAll={() => open({ kind: 'all-lights' }, document.activeElement instanceof HTMLElement ? document.activeElement : undefined)} />
+          <CanvasLights
+            onOpenAll={() =>
+              open({ kind: 'all-lights' }, document.activeElement instanceof HTMLElement ? document.activeElement : undefined)
+            }
+          />
           <CanvasBlinds />
           <button type='button' onClick={event => open({ kind: 'all-devices' }, event.currentTarget)}>
             Browse devices
@@ -139,6 +143,10 @@ function CanvasDashboardContent(): React.JSX.Element {
                 </button>
               ))}
             </nav>
+          ) : route.kind === 'player' ? (
+            <CanvasPlayer />
+          ) : route.kind === 'speakers' ? (
+            <CanvasSpeakers />
           ) : route.kind === 'all-lights' ? (
             <CanvasAllLights onOpenLight={entityId => open({ kind: 'light', entityId })} />
           ) : route.kind === 'light' ? (
@@ -153,5 +161,11 @@ function CanvasDashboardContent(): React.JSX.Element {
 }
 
 export function CanvasDashboard(): React.JSX.Element {
-  return <CanvasLightsProvider><CanvasDashboardContent /></CanvasLightsProvider>;
+  return (
+    <CanvasLightsProvider>
+      <CanvasMusicProvider>
+        <CanvasDashboardContent />
+      </CanvasMusicProvider>
+    </CanvasLightsProvider>
+  );
 }

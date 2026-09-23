@@ -1,168 +1,48 @@
 import { useEffect, useRef, useState } from 'react';
-import { useIcon, useStore, type EntityName, type FilterByDomain } from '@hakit/core';
+import { useIcon, type EntityName, type FilterByDomain } from '@hakit/core';
+import { useSpeakerRooms } from './useSpeakerRooms';
 import { SpeakerVolume } from './SpeakerVolume';
 
 type SpeakerId = FilterByDomain<EntityName, 'media_player'>;
 const rooms: SpeakerId[] = ['media_player.living_room', 'media_player.bathroom', 'media_player.bedroom', 'media_player.gym'];
-const membersOf = (source: string) =>
-  [...new Set([source, ...(useStore.getState().entities[source]?.attributes.group_members ?? [])])].sort();
-const signature = (ids: string[]) => [...ids].sort().join(',');
-
-function waitForState(check: () => boolean, signal: AbortSignal) {
-  return new Promise<void>((resolve, reject) => {
-    let unsubscribe = () => {};
-    function finish(error?: Error) {
-      clearTimeout(timer);
-      unsubscribe();
-      signal.removeEventListener('abort', abort);
-      if (error) reject(error);
-      else resolve();
-    }
-    const abort = () => finish(new Error('Cancelled.'));
-    const inspect = () => {
-      if (signal.aborted) return abort();
-      const state = useStore.getState();
-      if (!state.connection?.connected || state.connectionStatus !== 'connected')
-        return finish(new Error('Reconnecting to Home Assistant.'));
-      if (check()) finish();
-    };
-    const timer = setTimeout(() => finish(new Error('The speaker did not confirm the change. Please retry.')), 15000);
-    unsubscribe = useStore.subscribe(inspect);
-    signal.addEventListener('abort', abort, { once: true });
-    inspect();
-  });
-}
-
-async function service(domain: string, name: string, targets: string[], data: Record<string, unknown> | undefined, signal: AbortSignal) {
-  const state = useStore.getState();
-  if (signal.aborted) throw new Error('Cancelled.');
-  if (!state.connection?.connected || state.connectionStatus !== 'connected') throw new Error('Reconnecting to Home Assistant.');
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  try {
-    await Promise.race([
-      state.connection.sendMessagePromise({
-        type: 'call_service',
-        domain,
-        service: name,
-        target: { entity_id: targets },
-        ...(data ? { service_data: data } : {}),
-      }),
-      new Promise<never>((_, reject) => {
-        timer = setTimeout(() => reject(new Error('Home Assistant did not respond. Please retry.')), 15000);
-      }),
-    ]);
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
 export function SpeakerRooms({ source, members, disabled }: { source: SpeakerId; members: SpeakerId[]; disabled: boolean }) {
-  const entities = useStore(state => state.entities);
-  const following = entities['input_boolean.speaker_follow_motion']?.state === 'on';
-  const cleanupPending =
-    !following &&
-    Boolean(entities['input_text.speaker_follow_source']?.state && entities['input_text.speaker_follow_source']?.state !== 'unknown');
-  const scriptBusy = entities['script.speaker_follow_motion']?.state === 'on';
-  const name = entities[source]?.attributes.friendly_name ?? 'Speaker';
+  const {
+    entities,
+    following,
+    cleanupPending,
+    name,
+    selected,
+    setSelected,
+    busy,
+    error,
+    status,
+    setStatus,
+    current,
+    locked,
+    changed,
+    begin: resetRooms,
+    perform,
+    pending,
+    conflict,
+  } = useSpeakerRooms({ source, members, disabled });
   const [open, setOpen] = useState(false);
-  const [selected, setSelected] = useState<string[]>([]);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [status, setStatus] = useState('');
-  const original = useRef('');
-  const pending = useRef(false);
-  const active = useRef<AbortController | null>(null);
   const dialog = useRef<HTMLDialogElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
   const speakerIcon = useIcon('mdi:speaker');
   const chevron = useIcon('mdi:chevron-down');
   const closeIcon = useIcon('mdi:close');
-  const current = [...new Set([source, ...members])];
-  const locked = disabled || busy || following || cleanupPending || scriptBusy;
-  const changed = signature(selected) !== signature(current);
-
-  useEffect(() => () => active.current?.abort(), []);
   useEffect(() => {
     if (open) dialog.current?.showModal();
     else if (dialog.current?.open) dialog.current.close();
   }, [open]);
-
   function begin() {
-    setSelected(membersOf(source));
-    original.current = signature(membersOf(source));
-    setError(null);
-    setStatus('');
+    resetRooms();
     setOpen(true);
   }
   function close() {
     if (pending.current) return;
     setOpen(false);
     trigger.current?.focus({ preventScroll: true });
-  }
-
-  async function perform(manual = false) {
-    if (pending.current || disabled || (!manual && locked)) return;
-    pending.current = true;
-    setBusy(true);
-    setError(null);
-    const controller = new AbortController();
-    active.current = controller;
-    let action = 'update rooms';
-    try {
-      if (manual) {
-        action = 'switch to manual grouping';
-        setStatus('Switching to manual grouping…');
-        // Stop new motion joins, then let any already running join finish.
-        // Unlike the existing disable script, this leaves the group intact.
-        await service('input_boolean', 'turn_off', ['input_boolean.speaker_follow_motion'], undefined, controller.signal);
-        await waitForState(
-          () =>
-            useStore.getState().entities['input_boolean.speaker_follow_motion']?.state === 'off' &&
-            useStore.getState().entities['script.speaker_follow_motion']?.state === 'off',
-          controller.signal
-        );
-        await service('input_text', 'set_value', ['input_text.speaker_follow_source'], { value: '' }, controller.signal);
-        await waitForState(() => useStore.getState().entities['input_text.speaker_follow_source']?.state === '', controller.signal);
-        setSelected(membersOf(source));
-        setStatus('Manual grouping is on. Your rooms are unchanged.');
-      } else {
-        if (!error && original.current !== signature(membersOf(source)))
-          throw new Error('The group changed elsewhere. Close and reopen Play in to use the latest rooms.');
-        const desired = [...new Set([source, ...selected])];
-        const before = membersOf(source);
-        const remove = before.filter(id => id !== source && !desired.includes(id));
-        const add = desired.filter(id => !before.includes(id));
-        for (const id of [...remove, ...add]) {
-          if (controller.signal.aborted) return;
-          const removing = remove.includes(id);
-          const roomName = useStore.getState().entities[id]?.attributes.friendly_name ?? id;
-          action = `${removing ? 'disconnect' : 'connect'} ${roomName}`;
-          setStatus(`${removing ? 'Disconnecting' : 'Connecting'} ${roomName}…`);
-          const entity = useStore.getState().entities[id];
-          if (!entity || ['unknown', 'unavailable'].includes(entity.state)) throw new Error('This speaker is unavailable.');
-          await service(
-            'media_player',
-            removing ? 'unjoin' : 'join',
-            removing ? [id] : [source],
-            removing ? undefined : { group_members: [id] },
-            controller.signal
-          );
-          await waitForState(() => membersOf(source).includes(id) !== removing, controller.signal);
-        }
-        if (signature(membersOf(source)) !== signature(desired)) throw new Error('The group changed while applying. Please retry.');
-        setStatus('Rooms updated.');
-      }
-      original.current = signature(membersOf(source));
-    } catch (cause) {
-      if (!controller.signal.aborted) {
-        const detail = cause && typeof cause === 'object' && 'message' in cause ? String(cause.message) : 'Please retry.';
-        setError(`Could not ${action}. ${detail}`);
-        setStatus('');
-      }
-    } finally {
-      pending.current = false;
-      if (!controller.signal.aborted) setBusy(false);
-    }
   }
 
   return (
@@ -283,6 +163,14 @@ export function SpeakerRooms({ source, members, disabled }: { source: SpeakerId;
               })}
             </div>
             <div className='speaker-rooms-footer'>
+              {conflict && (
+                <div role='alert'>
+                  <p>{conflict.message}</p>
+                  <button type='button' onClick={() => void perform(false, conflict.signature)}>
+                    Replace audio and apply
+                  </button>
+                </div>
+              )}
               {error && (
                 <p role='alert' className='speaker-command-error'>
                   {error}

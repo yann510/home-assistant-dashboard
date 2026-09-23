@@ -4,7 +4,7 @@ import { SpeakerFavourites } from './SpeakerFavourites';
 import { SpeakerRooms } from './SpeakerRooms';
 import { SpeakerVolume } from './SpeakerVolume';
 import { SpeakerSeek } from './SpeakerSeek';
-import { useSpeakerCommand, type SpeakerService } from './useSpeakerCommand';
+import { useSpeakerTransport } from './useSpeakerTransport';
 
 type SpeakerId = FilterByDomain<EntityName, 'media_player'>;
 
@@ -17,12 +17,9 @@ export function SpeakerPlayer({ entityId, members, compact = false }: { entityId
   const connection = useStore(state => state.connection);
   const connectionStatus = useStore(state => state.connectionStatus);
   const { joinHassUrl } = useHass();
-  const { send, error } = useSpeakerCommand();
   const [favouritesCount, setFavouritesCount] = useState<number | null>(null);
   const [favouritesOpen, setFavouritesOpen] = useState(false);
   const favouritesTrigger = useRef<HTMLButtonElement>(null);
-  const [busy, setBusy] = useState(false);
-  const inFlight = useRef(false);
   const attributes = entity?.attributes;
   const name = attributes?.friendly_name ?? 'Speaker';
   const unavailable = !entity || ['unknown', 'unavailable'].includes(entity.state);
@@ -37,16 +34,7 @@ export function SpeakerPlayer({ entityId, members, compact = false }: { entityId
   const picture = !idle ? attributes?.entity_picture : undefined;
   const artwork = picture?.startsWith('/') ? joinHassUrl(picture) : picture;
 
-  async function transport(service: SpeakerService, description: string) {
-    if (inFlight.current || disabled) return;
-    inFlight.current = true;
-    setBusy(true);
-    // Sonos followers forward transport to the coordinator. Targeting every
-    // member repeats skips and can repeat slow/failed pause requests.
-    await send(service, [entityId], description);
-    inFlight.current = false;
-    setBusy(false);
-  }
+  const { transport, busy, error } = useSpeakerTransport(entityId, disabled);
 
   return (
     <>

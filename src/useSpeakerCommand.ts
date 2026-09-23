@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useStore } from '@hakit/core';
+import { onSpeakerDisconnect } from './speakerConnection';
 
 export type SpeakerService =
   | 'play_media'
@@ -16,9 +17,14 @@ export type SpeakerService =
 export function useSpeakerCommand() {
   const [error, setError] = useState<string | null>(null);
   const mounted = useRef(true);
+  const active = useRef(new Set<AbortController>());
   useEffect(() => {
     mounted.current = true;
+    const requests = active.current;
+    const unsubscribe = onSpeakerDisconnect(() => requests.forEach(controller => controller.abort()));
     return () => {
+      unsubscribe();
+      requests.forEach(controller => controller.abort());
       mounted.current = false;
     };
   }, []);
@@ -27,6 +33,8 @@ export function useSpeakerCommand() {
     async (service: SpeakerService, targets: string[], description: string, data?: Record<string, string | number | boolean>) => {
       if (!mounted.current) return false;
       setError(null);
+      const controller = new AbortController();
+      active.current.add(controller);
       let timeout: ReturnType<typeof setTimeout> | undefined;
       try {
         // A queued volume change may outlive a disconnect/reconnect. Read the
@@ -37,6 +45,13 @@ export function useSpeakerCommand() {
         // The component library's service helper swallows rejections. Await the
         // authenticated socket directly so failed device commands reach the UI.
         await Promise.race([
+          new Promise<never>((_, reject) =>
+            controller.signal.addEventListener(
+              'abort',
+              () => reject(new Error('Reconnecting to Home Assistant. Check the current speaker state before retrying.')),
+              { once: true }
+            )
+          ),
           connection.sendMessagePromise({
             type: 'call_service',
             domain: 'media_player',
@@ -55,6 +70,7 @@ export function useSpeakerCommand() {
         return false;
       } finally {
         clearTimeout(timeout);
+        active.current.delete(controller);
       }
     },
     []

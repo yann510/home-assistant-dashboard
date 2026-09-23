@@ -6,7 +6,15 @@ import { createHaFixture } from './testing/haFixture';
 import { DashboardViews } from '../DashboardViews';
 
 const fixtureRef = vi.hoisted(() => ({ current: null as ReturnType<typeof createHaFixture> | null }));
-vi.mock('@hakit/core', () => ({ useStore: (select: (state: unknown) => unknown) => fixtureRef.current!.useStore(select) }));
+vi.mock('@hakit/core', () => ({
+  useStore: Object.assign((select: (state: unknown) => unknown) => fixtureRef.current!.useStore(select), {
+    getState: () => fixtureRef.current!.getState(),
+    subscribe: (listener: (state: unknown) => void) => fixtureRef.current!.subscribe(() => listener(fixtureRef.current!.getState())),
+  }),
+  useEntity: (id: string) => fixtureRef.current!.useStore(state => state.entities[id] ?? null),
+  useHass: () => ({ joinHassUrl: (path: string) => path }),
+  useIcon: () => null,
+}));
 vi.mock('../Dashboard', () => ({ default: () => <div>Classic dashboard</div> }));
 vi.mock('../QuietHome', () => ({ QuietHome: () => <div>Quiet dashboard</div> }));
 const fixture = createHaFixture();

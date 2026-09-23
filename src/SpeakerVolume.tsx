@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { useEntity, useIcon, useStore, type EntityName, type FilterByDomain } from '@hakit/core';
 import { useSpeakerCommand } from './useSpeakerCommand';
+import { onSpeakerDisconnect } from './speakerConnection';
 
 type SpeakerId = FilterByDomain<EntityName, 'media_player'>;
 
@@ -101,7 +102,17 @@ export function SpeakerVolume({
 
   useEffect(() => {
     mounted.current = true;
+    const unsubscribe = onSpeakerDisconnect(() => {
+      queued.current = null;
+      latest.current = null;
+      baseline.current = null;
+      dragging.current = false;
+      dirty.current = false;
+      clearTimeout(settle.current);
+      setDraft(null);
+    });
     return () => {
+      unsubscribe();
       mounted.current = false;
       queued.current = null;
       clearTimeout(settle.current);
@@ -139,6 +150,14 @@ export function SpeakerVolume({
       const balance = baseline.current!;
       const batches = new Map<number, string[]>();
       for (const target of targets) {
+        const targetEntity = useStore.getState().entities[target];
+        if (
+          !targetEntity ||
+          ['unknown', 'unavailable'].includes(targetEntity.state) ||
+          !((targetEntity.attributes.supported_features ?? 0) & 4) ||
+          !Number.isFinite(targetEntity.attributes.volume_level)
+        )
+          continue;
         const level = Math.max(0, Math.min(100, balance.levels[target] + next - balance.anchor));
         batches.set(level, [...(batches.get(level) ?? []), target]);
       }
@@ -183,7 +202,15 @@ export function SpeakerVolume({
     if (muteInFlight.current) return;
     muteInFlight.current = true;
     setMuteBusy(true);
-    await sendMute('volume_mute', targets, muted ? 'unmute speakers' : 'mute speakers', { is_volume_muted: !muted });
+    await sendMute(
+      'volume_mute',
+      targets.filter(id => {
+        const entity = useStore.getState().entities[id];
+        return entity && !['unknown', 'unavailable'].includes(entity.state) && Boolean((entity.attributes.supported_features ?? 0) & 8);
+      }),
+      muted ? 'unmute speakers' : 'mute speakers',
+      { is_volume_muted: !muted }
+    );
     muteInFlight.current = false;
     if (mounted.current) setMuteBusy(false);
   }
