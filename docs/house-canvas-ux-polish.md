@@ -65,3 +65,11 @@ Verification: 20 focused music tests and **344 full-suite tests** passed, as did
 Reviewed source `bb788a1df49d8ef0ac10ca5d3e4cce3d9af1b6aa` removes the flex growth that made a single appliance fill the pulse row. Chips retain content sizing, a 120 px minimum width and 44 px touch height; long text is capped and ellipsized while the complete accessible name remains. Icons do not shrink. Appliance state, navigation and notice order are unchanged.
 
 Trial build/typecheck, scoped ESLint and whitespace checks passed; independent review approved the CSS and local fixture change. No new tests were added or full-suite rerun for this CSS-only production correction; the preceding full suite passed 344 tests. The root measured a single Washer at 120 × 44 px in a 960 × 600 viewport, long busy chips at 230 × 44 px, and a 375 px phone page with overflow contained in the 241 px pulse scrollport. Physical device and authenticated live checks remain pending; no real-home commands were sent.
+
+## Hourly weather details
+
+Reviewed source `8ba04ae1f704c122f70db19dfdf9dd3e4bcc053e` adds available forecast feels-like and wind details. Reported precipitation probability takes precedence, including zero; otherwise an actual precipitation amount is explicitly labelled with its reported unit. Missing values are not estimated. Forecast feels-like never substitutes the current weather reading, and wind/amount never assume missing units.
+
+The root's read-only live API check confirmed that the active met provider supplies hourly wind and precipitation amount, but does not supply forecast feels-like or precipitation probability. Canvas therefore shows wind/amount and a compact availability note; optional feels-like/chance appear only when the provider supplies them. No additional weather provider or calculated estimate was introduced.
+
+Validation: **349 tests across 30 files**, changed-file ESLint, trial build/typecheck and whitespace checks passed; independent review approved. New tests cover zero/invalid/missing metrics, units, actual met data and amount-versus-chance semantics. The root checked the controlled met-shaped layout at 960 × 600 and 375 px, plus optional data and daily layouts on phone. Authenticated live UI and physical hardware acceptance remain pending. No physical commands were issued.
