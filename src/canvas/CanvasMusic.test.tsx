@@ -5,7 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { HassContext, useStore, type HassContextProps } from '@hakit/core';
 import type { Connection, HassEntities } from 'home-assistant-js-websocket';
-import { CanvasMusicProvider } from './CanvasMusicProvider';
+import { CanvasMusicProvider, useCanvasMusic } from './CanvasMusicProvider';
 import { CanvasMusic } from './CanvasMusic';
 import { CanvasPlayer } from './CanvasPlayer';
 import { CanvasSpeakers } from './CanvasSpeakers';
@@ -51,10 +51,15 @@ function updateEntity(id: string, patch: Partial<ReturnType<typeof speaker>>, at
   });
 }
 
+function CleanupProbe() {
+  const { session } = useCanvasMusic();
+  return <button onClick={() => void session.updateFollowing('disable')}>Request cleanup directly</button>;
+}
 function Surface() {
   const [panel, setPanel] = useState('overview');
   return (
     <CanvasMusicProvider>
+      <CleanupProbe />
       <button onClick={() => setPanel('overview')}>Close detail</button>
       {panel === 'overview' ? (
         <CanvasMusic onOpenPlayer={() => setPanel('player')} onOpenSpeakers={() => setPanel('speakers')} />
@@ -353,4 +358,50 @@ describe('Canvas music', () => {
     view.unmount();
     expect([...events.values()].every(listeners => listeners.size === 0)).toBe(true);
   });
+  it('blocks cleanup retry and its shared action while manual handoff is clearing the saved source', async () => {
+    updateEntity('input_boolean.speaker_follow_motion', { state: 'on' });
+    updateEntity('input_text.speaker_follow_source', { state: 'media_player.living_room' });
+    sendMessagePromise.mockImplementation(async (message: { service: string }) => {
+      if (message.service === 'turn_off') updateEntity('input_boolean.speaker_follow_motion', { state: 'off' });
+      if (message.service === 'set_value') return new Promise(() => {});
+      return { response: { success: true } };
+    });
+    mount();
+    await userEvent.click(screen.getByRole('button', { name: 'Open speakers' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Switch to manual grouping' }));
+    expect(sendMessagePromise).toHaveBeenCalledTimes(2);
+    await userEvent.click(screen.getByRole('button', { name: 'Request cleanup directly' }));
+    expect(sendMessagePromise).toHaveBeenCalledTimes(2);
+    const retry = screen.getByRole('button', { name: 'Retry ungrouping' }) as HTMLButtonElement;
+    expect(retry.disabled).toBe(true);
+    await userEvent.click(retry);
+    expect(sendMessagePromise).toHaveBeenCalledTimes(2);
+  });
+  it.each(['join', 'unjoin'])(
+    'stops subsequent grouping writes when unrelated membership changes during %s confirmation',
+    async operation => {
+      mount();
+      await userEvent.click(screen.getByRole('button', { name: 'Open speakers' }));
+      await userEvent.click(screen.getByRole('checkbox', { name: /bathroom/ }));
+      if (operation === 'join') await userEvent.click(screen.getByRole('checkbox', { name: /bedroom/ }));
+      else await userEvent.click(screen.getByRole('checkbox', { name: /Gym/ }));
+      await userEvent.click(screen.getByRole('button', { name: 'Apply' }));
+      expect(sendMessagePromise).toHaveBeenCalledTimes(1);
+      expect(sendMessagePromise).toHaveBeenLastCalledWith(expect.objectContaining({ service: operation }));
+      await act(async () => {
+        updateEntity(
+          'media_player.living_room',
+          {},
+          {
+            group_members:
+              operation === 'join'
+                ? ['media_player.living_room', 'media_player.bathroom']
+                : ['media_player.living_room', 'media_player.bedroom'],
+          }
+        );
+      });
+      expect(sendMessagePromise).toHaveBeenCalledTimes(1);
+      expect(screen.getByRole('alert').textContent).toContain('group changed');
+    }
+  );
 });

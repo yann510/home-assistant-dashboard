@@ -22,7 +22,25 @@ function useCanvasMusicController() {
     : idle
       ? 'Ready to play'
       : attributes?.media_title || attributes?.media_playlist || 'Audio playing';
-  return { session, rooms, playback, favourites, favouritePlayback, setLibraryOpen, disabled, playing, idle, title, attributes };
+  // The ref is acquired synchronously by grouping, before React renders its busy state.
+  // Guard the shared action itself so a retained callback cannot race manual handoff.
+  async function updateFollowing(command: 'enable' | 'disable') {
+    if (rooms.pending.current) return;
+    await session.updateFollowing(command);
+  }
+  return {
+    session: { ...session, updateFollowing },
+    rooms,
+    playback,
+    favourites,
+    favouritePlayback,
+    setLibraryOpen,
+    disabled,
+    playing,
+    idle,
+    title,
+    attributes,
+  };
 }
 const MusicContext = createContext<ReturnType<typeof useCanvasMusicController> | null>(null);
 export function CanvasMusicProvider({ children }: { children: ReactNode }) {

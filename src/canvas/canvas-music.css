@@ -3,7 +3,7 @@
 :is(.canvas, .canvas-dialog) .canvas-music__title { display: block; padding-inline: 0; text-align: left; font: inherit; font-size: clamp(1.5rem, 2.6vw, 2.5rem); line-height: 1.12; max-width: 85%; background: transparent; border: 0; }
 :is(.canvas, .canvas-dialog) .canvas-music__room { background: transparent; padding-inline: 0; }
 :is(.canvas, .canvas-dialog) .canvas-music__art { position: absolute; width: 45%; right: -8%; bottom: -10%; fill: none; stroke: currentColor; stroke-width: 5; opacity: .12; z-index: 0; }
-:is(.canvas, .canvas-dialog) .canvas-music__transport, .canvas-music__shortcuts { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
+:is(.canvas, .canvas-dialog) .canvas-music__transport, :is(.canvas, .canvas-dialog) .canvas-music__shortcuts { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
 :is(.canvas, .canvas-dialog) .canvas-music__follow > button { display: flex; gap: 1rem; justify-content: space-between; }
 :is(.canvas, .canvas-dialog) .canvas-music__follow p { font-size: .85rem; }
 :is(.canvas, .canvas-dialog) .canvas-player { max-width: 800px; margin: auto; }

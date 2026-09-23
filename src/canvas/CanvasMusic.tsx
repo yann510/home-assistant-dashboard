@@ -24,7 +24,7 @@ export function CanvasFollow() {
       {s.canRetryCleanup && (
         <>
           <p>Motion following is off. Return audio to the original speaker.</p>
-          <button disabled={!s.connected || !s.configured} onClick={() => void s.updateFollowing('disable')}>
+          <button disabled={rooms.busy || !s.connected || !s.configured} onClick={() => void s.updateFollowing('disable')}>
             Retry ungrouping
           </button>
         </>

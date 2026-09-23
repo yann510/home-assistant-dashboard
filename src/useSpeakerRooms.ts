@@ -33,7 +33,11 @@ function waitForState(check: () => boolean, signal: AbortSignal) {
       const state = useStore.getState();
       if (!state.connection?.connected || state.connectionStatus !== 'connected')
         return finish(new Error('Reconnecting to Home Assistant.'));
-      if (check()) finish();
+      try {
+        if (check()) finish();
+      } catch (cause) {
+        finish(cause instanceof Error ? cause : new Error('The group changed while applying. Please retry.'));
+      }
     };
     const timer = setTimeout(() => finish(new Error('The speaker did not confirm the change. Please retry.')), 15000);
     unsubscribe = useStore.subscribe(inspect);
@@ -176,6 +180,7 @@ export function useSpeakerRooms({ source, members, disabled }: { source: Speaker
         const before = membersOf(source);
         const remove = before.filter(id => id !== source && !desired.includes(id));
         const add = desired.filter(id => !before.includes(id));
+        let expectedMembers = before;
         const approvedAudio = new Map(add.map(id => [id, audioSignature(id)]));
         for (const id of [...remove, ...add]) {
           if (controller.signal.aborted) return;
@@ -196,8 +201,16 @@ export function useSpeakerRooms({ source, members, disabled }: { source: Speaker
             removing ? undefined : { group_members: [id] },
             controller.signal
           );
-          await waitForState(() => membersOf(source).includes(id) !== removing, controller.signal);
-          original.current = signature(membersOf(source));
+          const unaffected = signature(expectedMembers.filter(member => member !== id));
+          await waitForState(() => {
+            const observed = membersOf(source);
+            if (signature(observed.filter(member => member !== id)) !== unaffected)
+              throw new Error('The group changed elsewhere while applying. Reload current rooms before retrying.');
+            return observed.includes(id) !== removing;
+          }, controller.signal);
+          // Advance only by this operation, never adopt unrelated observed mutations.
+          expectedMembers = removing ? expectedMembers.filter(member => member !== id) : [...expectedMembers, id];
+          original.current = signature(expectedMembers);
         }
         if (signature(membersOf(source)) !== signature(desired)) throw new Error('The group changed while applying. Please retry.');
         setStatus('Rooms updated.');
