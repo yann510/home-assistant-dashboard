@@ -1,13 +1,16 @@
 import Dashboard from './Dashboard';
 import { QuietHome } from './QuietHome';
+import { CanvasDashboard } from './canvas/CanvasDashboard';
 import './quiet-home.css';
 
 export function DashboardViews() {
   const url = new URL(window.location.href);
-  const quiet = url.searchParams.get('view') === 'quiet';
-  const href = (view: 'classic' | 'quiet') => {
+  const view = url.searchParams.get('view');
+  const quiet = view === 'quiet';
+  const canvas = view === 'canvas';
+  const href = (view: 'classic' | 'quiet' | 'canvas') => {
     const target = new URL(url);
-    if (view === 'quiet') target.searchParams.set('view', 'quiet');
+    if (view !== 'classic') target.searchParams.set('view', view);
     else target.searchParams.delete('view');
     target.hash = '';
     return target.pathname + target.search;
@@ -15,15 +18,17 @@ export function DashboardViews() {
   return (
     <>
       <nav className='dashboard-view-switch' aria-label='Dashboard view'>
-        <a href={href('classic')} aria-current={!quiet ? 'page' : undefined}>
+        <a href={href('classic')} aria-current={!quiet && !canvas ? 'page' : undefined}>
           Classic
         </a>
         <a href={href('quiet')} aria-current={quiet ? 'page' : undefined}>
           Quiet Home
         </a>
-        <span>Proof of concept</span>
+        <a href={href('canvas')} aria-current={canvas ? 'page' : undefined}>
+          Canvas
+        </a>
       </nav>
-      {quiet ? <QuietHome /> : <Dashboard />}
+      {quiet ? <QuietHome /> : canvas ? <CanvasDashboard /> : <Dashboard />}
     </>
   );
 }
