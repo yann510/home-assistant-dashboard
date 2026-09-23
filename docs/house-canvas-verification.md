@@ -63,3 +63,7 @@ Fresh Canvas runs across everyday, offline, empty and busy scenes produced no co
 Classic and Quiet were checked at 393 px with root class empty, root padding `8px 8px 48px`, no Canvas root, no horizontal overflow, and their original dark-blue palette. Canvas selectors are rooted to Canvas/its dialog; the Canvas root class is removed on view cleanup.
 
 This verifies desktop browser emulation only. Fire tablet and iPhone hardware acceptance remains pending: actual viewport/browser version, fullscreen fit, reading distance, touch accuracy, safe areas, artwork loading, appliance animations, keyboard/focus, sleep/background recovery and Wi-Fi loss. No live-home command was sent during QA. Trial deployment and the actual LAN URL are handled separately.
+
+## Review follow-up: activation focus
+
+Pointer/touch navigation now passes each button's actual activation element instead of inferring it from keyboard focus. Back uses stable destination keys even when light names/state change. Regression tests intentionally click without pre-focusing buttons, including when search retains focus. The focused integration/dialog/affected-component run passes **77 tests across 7 suites** (17 integration cases); typecheck and full changed-file scoped lint also pass. The original full-suite result above records the composition acceptance run before this focused follow-up.

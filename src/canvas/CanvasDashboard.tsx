@@ -53,7 +53,7 @@ function CanvasDashboardContent(): React.JSX.Element {
     }
   }, [route]);
 
-  function open(next: CanvasRoute, trigger = document.activeElement instanceof HTMLElement ? document.activeElement : undefined) {
+  function open(next: CanvasRoute, trigger: HTMLElement) {
     if (route.kind === 'overview' && trigger) returnFocus.current = trigger;
     setRouteHistory(previous => [
       ...previous,
@@ -92,39 +92,22 @@ function CanvasDashboardContent(): React.JSX.Element {
             <span className='canvas__connection' role='status'>
               {connected ? 'Connected' : 'Disconnected'}
             </span>
-            <CanvasWeatherNow
-              onOpen={() => open({ kind: 'weather' }, document.activeElement instanceof HTMLElement ? document.activeElement : undefined)}
-            />
+            <CanvasWeatherNow onOpen={trigger => open({ kind: 'weather' }, trigger)} />
             <button type='button' onClick={event => open({ kind: 'all-devices' }, event.currentTarget)}>
               All devices
             </button>
           </div>
         </header>
-        <CanvasPulse
-          onOpen={next => open(next, document.activeElement instanceof HTMLElement ? document.activeElement : undefined)}
-          attention={attention}
-          onSelect={setSelectedAttention}
-        />
+        <CanvasPulse onOpen={open} attention={attention} onSelect={setSelectedAttention} />
         <div className='canvas__feature-band'>
-          <CanvasMood
-            controller={mood}
-            onExplore={() => open({ kind: 'moods' }, document.activeElement instanceof HTMLElement ? document.activeElement : undefined)}
-          />
+          <CanvasMood controller={mood} onExplore={trigger => open({ kind: 'moods' }, trigger)} />
           <CanvasMusic
-            onOpenPlayer={() =>
-              open({ kind: 'player' }, document.activeElement instanceof HTMLElement ? document.activeElement : undefined)
-            }
-            onOpenSpeakers={() =>
-              open({ kind: 'speakers' }, document.activeElement instanceof HTMLElement ? document.activeElement : undefined)
-            }
+            onOpenPlayer={trigger => open({ kind: 'player' }, trigger)}
+            onOpenSpeakers={trigger => open({ kind: 'speakers' }, trigger)}
           />
         </div>
         <section className='canvas__shortcuts' aria-label='Home controls'>
-          <CanvasLights
-            onOpenAll={() =>
-              open({ kind: 'all-lights' }, document.activeElement instanceof HTMLElement ? document.activeElement : undefined)
-            }
-          />
+          <CanvasLights onOpenAll={trigger => open({ kind: 'all-lights' }, trigger)} />
           <CanvasBlinds />
         </section>
       </div>
@@ -157,9 +140,9 @@ function CanvasDashboardContent(): React.JSX.Element {
             <CanvasDevices
               query={deviceQuery}
               onQueryChange={setDeviceQuery}
-              onOpen={next => {
+              onOpen={(next, trigger) => {
                 setSelectedAttention(null);
-                open(next);
+                open(next, trigger);
               }}
             />
           ) : route.kind === 'player' ? (
@@ -167,7 +150,7 @@ function CanvasDashboardContent(): React.JSX.Element {
           ) : route.kind === 'speakers' ? (
             <CanvasSpeakers />
           ) : route.kind === 'all-lights' ? (
-            <CanvasAllLights onOpenLight={entityId => open({ kind: 'light', entityId })} />
+            <CanvasAllLights onOpenLight={(entityId, trigger) => open({ kind: 'light', entityId }, trigger)} />
           ) : route.kind === 'light' ? (
             <CanvasLightDetails key={route.entityId} entityId={route.entityId} />
           ) : route.kind === 'blinds' ? (

@@ -97,14 +97,14 @@ function RoomBrightness({ room }: { room: CanvasRoom }) {
   );
 }
 
-export function CanvasLights({ onOpenAll }: { onOpenAll(): void }) {
+export function CanvasLights({ onOpenAll }: { onOpenAll(trigger: HTMLElement): void }) {
   const { rooms, selectedRoom, setSelectedRoom } = useCanvasLights();
   const room = rooms.find(item => item.name === selectedRoom) ?? rooms[0];
   return (
     <section className='canvas-lights canvas-lights--compact' aria-label='Lights'>
       <div className='canvas-lights__heading'>
         <h2>Lights</h2>
-        <button type='button' onClick={onOpenAll}>
+        <button type='button' onClick={event => onOpenAll(event.currentTarget)}>
           All lights
         </button>
       </div>
@@ -128,7 +128,7 @@ export function CanvasLights({ onOpenAll }: { onOpenAll(): void }) {
   );
 }
 
-export function CanvasAllLights({ onOpenLight }: { onOpenLight(entityId: string): void }) {
+export function CanvasAllLights({ onOpenLight }: { onOpenLight(entityId: string, trigger: HTMLElement): void }) {
   const { rooms, power, busy, connected } = useCanvasLights();
   const all = rooms.flatMap(room => room.lights);
   return (
@@ -166,7 +166,7 @@ export function CanvasAllLights({ onOpenLight }: { onOpenLight(entityId: string)
                   className='canvas-lights__detail'
                   data-canvas-focus-key={`light:${light.id}`}
                   aria-label={light.name}
-                  onClick={() => onOpenLight(light.id)}
+                  onClick={event => onOpenLight(light.id, event.currentTarget)}
                 >
                   <span>{light.name}</span>
                   <small>{light.state === 'unavailable' ? 'Unavailable' : light.state === 'on' ? 'On' : 'Off'}</small>

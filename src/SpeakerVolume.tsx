@@ -19,7 +19,7 @@ export function SpeakerVolume({
   disabled: boolean;
   room?: string;
   accessibleLabel?: string;
-  onOpenSettings?: () => void;
+  onOpenSettings?: (trigger: HTMLElement) => void;
   children?: ReactNode;
 }) {
   const entity = useEntity(entityId, { returnNullIfNotFound: true });
@@ -321,7 +321,7 @@ export function SpeakerVolume({
         >
           −
         </button>
-        <button type='button' aria-label='Open speaker volume' onClick={onOpenSettings}>
+        <button type='button' aria-label='Open speaker volume' onClick={event => onOpenSettings(event.currentTarget)}>
           {Number.isFinite(attributes?.volume_level) ? `${level}%` : 'Volume'}
         </button>
         <button

@@ -88,14 +88,14 @@ function temperature(value: unknown, unit: string): string {
   return finite(value) ? `${Number(value.toFixed(1))}${unit}` : '—';
 }
 
-export function CanvasWeatherNow({ onOpen }: { onOpen(): void }) {
+export function CanvasWeatherNow({ onOpen }: { onOpen(trigger: HTMLElement): void }) {
   const { entity, connected, available } = useQuietWeather();
   const configUnit = useStore(state => state.config?.unit_system.temperature ?? '');
   const live = connected && available;
   const unit = entity?.attributes.temperature_unit ?? configUnit;
   const condition = live ? conditionLabel(entity?.state) : connected ? 'Weather unavailable' : 'Reconnecting';
   return (
-    <button type='button' className='canvas-weather-now' onClick={onOpen}>
+    <button type='button' className='canvas-weather-now' onClick={event => onOpen(event.currentTarget)}>
       <WeatherGlyph condition={live ? entity?.state : undefined} />
       <span className='canvas-weather-now__label'>Weather</span>
       <strong>{live ? temperature(entity?.attributes.temperature, unit) : '—'}</strong>

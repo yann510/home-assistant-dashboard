@@ -73,7 +73,7 @@ export function CanvasDevices({
   query,
   onQueryChange,
 }: {
-  onOpen(route: CanvasRoute): void;
+  onOpen(route: CanvasRoute, trigger: HTMLElement): void;
   query: string;
   onQueryChange(query: string): void;
 }) {
@@ -156,7 +156,13 @@ export function CanvasDevices({
       {matches.length ? (
         <nav aria-label='Device directory' className='canvas-devices__list'>
           {matches.map((entry, index) => (
-            <button key={`${entry.name}-${index}`} type='button' aria-label={entry.name} onClick={() => onOpen(entry.route)}>
+            <button
+              key={`${entry.name}-${index}`}
+              type='button'
+              aria-label={entry.name}
+              data-canvas-focus-key={`${JSON.stringify(entry.route)}:${entry.category}:${entry.room}`}
+              onClick={event => onOpen(entry.route, event.currentTarget)}
+            >
               <span>
                 <strong>{entry.name}</strong>
                 <small>{entry.detail}</small>

@@ -40,7 +40,7 @@ export function CanvasMood({
   detail = false,
 }: {
   controller: HouseMoodCardProps;
-  onExplore?: () => void;
+  onExplore?: (trigger: HTMLElement) => void;
   detail?: boolean;
 }) {
   const { status, connected, available, onActivate, onEnd, onRetry } = controller;
@@ -83,7 +83,7 @@ export function CanvasMood({
         )}
         <div className='canvas-mood__actions'>
           {onExplore && (
-            <button type='button' onClick={onExplore}>
+            <button type='button' onClick={event => onExplore(event.currentTarget)}>
               Explore moods
             </button>
           )}

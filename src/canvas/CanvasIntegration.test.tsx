@@ -27,10 +27,8 @@ afterEach(() => {
 it('restores the directory trigger on Back, traps keyboard focus, and restores overview focus on Escape', () => {
   render(<CanvasDashboard />);
   const overview = screen.getByRole('button', { name: 'All devices' });
-  overview.focus();
   fireEvent.click(overview);
   const trigger = screen.getByRole('button', { name: 'Weather' });
-  trigger.focus();
   fireEvent.click(trigger);
   fireEvent.click(screen.getByRole('button', { name: 'Back' }));
   expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Weather' }));
@@ -62,7 +60,6 @@ it('opens every directory destination with one modal owner and returns to the se
   fireEvent.click(screen.getByRole('button', { name: 'All devices' }));
   for (const name of ['All lights', 'Blinds', 'Player', 'Speakers', 'Weather', 'House Mood', 'Thermostats', 'Appliances', 'Roomba']) {
     const button = within(screen.getByRole('dialog')).getByRole('button', { name });
-    button.focus();
     fireEvent.click(button);
     expect(screen.getAllByRole('dialog')).toHaveLength(1);
     expect(screen.getByRole('dialog', { name })).toBeTruthy();
@@ -71,7 +68,7 @@ it('opens every directory destination with one modal owner and returns to the se
   }
   fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'Office thermostat' } });
   const thermostat = screen.getByRole('button', { name: 'Office thermostat' });
-  thermostat.focus();
+  screen.getByRole('searchbox').focus();
   fireEvent.click(thermostat);
   fireEvent.click(screen.getByRole('button', { name: 'Back' }));
   expect((screen.getByRole('searchbox') as HTMLInputElement).value).toBe('Office thermostat');
@@ -149,7 +146,6 @@ it('shows partial all-light failure by friendly name and opens individual detail
   expect(within(screen.getByRole('dialog')).getByRole('alert').textContent).toContain('Sofa strip:');
   expect(within(screen.getByRole('dialog')).getByRole('alert').textContent).not.toContain('light.living_room');
   const lightTrigger = screen.getByRole('button', { name: 'Sofa strip' });
-  lightTrigger.focus();
   fireEvent.click(lightTrigger);
   act(() => fixture.publish('light.living_room_led_strip', 'off', { friendly_name: 'Sofa strip' }));
   expect(screen.getByRole('dialog', { name: 'Light' })).toBeTruthy();
@@ -246,4 +242,68 @@ it('adjusts overview volume through the shared speaker control without opening a
     expect.objectContaining({ domain: 'media_player', service: 'volume_set', service_data: { volume_level: 0.34 } })
   );
   expect(screen.getByRole('button', { name: 'Open speaker volume' }).textContent).toBe('34%');
+});
+
+it.each(['Explore moods', 'Open player', 'Open speakers', 'Open speaker volume', 'All lights'])(
+  'restores the actual %s pointer trigger without pre-focusing it',
+  async name => {
+    speaker();
+    render(<CanvasDashboard />);
+    const trigger = screen.getByRole('button', { name });
+    expect(document.activeElement).not.toBe(trigger);
+    fireEvent.click(trigger);
+    expect(screen.getByRole('dialog')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Close details' }));
+    expect(document.activeElement).toBe(trigger);
+    await act(async () => {});
+  }
+);
+
+it('restores an unfocused weather trigger and an attention chip after updated labels', async () => {
+  fixture.publish('weather.forecast_home', 'sunny', { temperature: 18, supported_features: 3 });
+  fixture.publish('sensor.dashboard_attention', '1', {
+    ready: true,
+    items: [
+      {
+        id: 'bin',
+        episode: 'bin-1',
+        title: 'Empty bin',
+        detail: 'Bin full',
+        tone: 'amber',
+        icon: 'bin',
+        target: 'vacuum',
+        kind: 'condition',
+        occurred_at: new Date().toISOString(),
+        snoozed_until: null,
+        snooze_seconds: 3600,
+      },
+    ],
+  });
+  render(<CanvasDashboard />);
+  const weather = screen.getByRole('button', { name: /Weather.*18/ });
+  fireEvent.click(weather);
+  act(() => fixture.publish('weather.forecast_home', 'rainy', { temperature: 19, supported_features: 3 }));
+  fireEvent.click(screen.getByRole('button', { name: 'Close details' }));
+  expect(document.activeElement).toBe(weather);
+  const chip = screen.getByRole('button', { name: 'View: Empty bin' });
+  fireEvent.click(chip);
+  fireEvent.click(screen.getByRole('button', { name: 'Close details' }));
+  expect(document.activeElement).toBe(chip);
+  await act(async () => {});
+});
+
+it('restores an activity trigger without relying on focus and keeps directory identity across renamed telemetry', () => {
+  fixture.publish('sensor.washer_washer_machine_state', 'run');
+  fixture.publish('sensor.washer_washer_job_state', 'wash');
+  fixture.publish('light.light_living_room_bulbs', 'on', { friendly_name: 'First name' });
+  render(<CanvasDashboard />);
+  const activity = screen.getByRole('button', { name: /Washer.*Washing/ });
+  fireEvent.click(activity);
+  fireEvent.click(screen.getByRole('button', { name: 'Close details' }));
+  expect(document.activeElement).toBe(activity);
+  fireEvent.click(screen.getByRole('button', { name: 'All devices' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Living Room · First name' }));
+  act(() => fixture.publish('light.light_living_room_bulbs', 'off', { friendly_name: 'Renamed light' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+  expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Living Room · Renamed light' }));
 });

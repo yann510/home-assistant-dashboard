@@ -14,7 +14,7 @@ export function CanvasPulse({
   attention,
   onSelect,
 }: {
-  onOpen(route: CanvasRoute): void;
+  onOpen(route: CanvasRoute, trigger: HTMLElement): void;
   attention: AttentionController;
   onSelect(item: AttentionItem | null): void;
 }) {
@@ -74,9 +74,9 @@ export function CanvasPulse({
                 type='button'
                 className={`canvas-pulse__activity${item.active ? ' appliance-animation' : ''}`}
                 aria-label={`${item.name} ${item.status}`}
-                onClick={() => {
+                onClick={event => {
                   onSelect(null);
-                  onOpen(item.route);
+                  onOpen(item.route, event.currentTarget);
                 }}
               >
                 {item.id === 'roomba' ? (
@@ -106,9 +106,9 @@ export function CanvasPulse({
                 className='canvas-pulse__notice'
                 data-tone={item.tone}
                 aria-label={`View: ${item.title}`}
-                onClick={() => {
+                onClick={event => {
                   onSelect(item);
-                  onOpen(routeForAttention(item));
+                  onOpen(routeForAttention(item), event.currentTarget);
                 }}
               >
                 <span>

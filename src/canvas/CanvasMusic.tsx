@@ -67,20 +67,26 @@ export function CanvasTransport() {
     </div>
   );
 }
-export function CanvasMusic({ onOpenPlayer, onOpenSpeakers }: { onOpenPlayer(): void; onOpenSpeakers(): void }) {
+export function CanvasMusic({
+  onOpenPlayer,
+  onOpenSpeakers,
+}: {
+  onOpenPlayer(trigger: HTMLElement): void;
+  onOpenSpeakers(trigger: HTMLElement): void;
+}) {
   const { session, title, attributes, idle, rooms, disabled } = useCanvasMusic();
   const { joinHassUrl } = useHass();
   const [failedArtwork, setFailedArtwork] = useState<string>();
   const picture = !idle ? attributes?.entity_picture : undefined;
-  function openSpeakers() {
+  function openSpeakers(trigger: HTMLElement) {
     if (!rooms.busy) rooms.begin();
-    onOpenSpeakers();
+    onOpenSpeakers(trigger);
   }
   return (
     <section className='canvas__music canvas-music' aria-label='Music'>
       <div className='canvas-music__top'>
         <CanvasFollow />
-        <button className='canvas-music__room' aria-label='Open speakers' onClick={openSpeakers}>
+        <button className='canvas-music__room' aria-label='Open speakers' onClick={event => openSpeakers(event.currentTarget)}>
           {attributes?.friendly_name ?? 'Speakers'}
           {session.targets.length > 1 ? ` +${session.targets.length - 1}` : ''} →
         </button>
@@ -95,7 +101,7 @@ export function CanvasMusic({ onOpenPlayer, onOpenSpeakers }: { onOpenPlayer(): 
         </div>
         <div>
           <span className='canvas__eyebrow'>Music, for this moment</span>
-          <button className='canvas-music__title' aria-label='Open player' onClick={onOpenPlayer}>
+          <button className='canvas-music__title' aria-label='Open player' onClick={event => onOpenPlayer(event.currentTarget)}>
             {title}
           </button>
           {!idle && attributes?.media_artist && <p>{attributes.media_artist}</p>}
