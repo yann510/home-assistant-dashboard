@@ -3,7 +3,7 @@ import { act, cleanup, fireEvent, render, screen, within } from '@testing-librar
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { CanvasDashboard } from './CanvasDashboard';
 import { classifyAppliance, classifyVacuum } from './activity';
-import { createHaFixture } from './testing/haFixture';
+import { createHaFixture, deferred } from './testing/haFixture';
 
 const ref = vi.hoisted(() => ({ current: null as ReturnType<typeof createHaFixture> | null }));
 vi.mock('@hakit/core', () => ({
@@ -15,7 +15,6 @@ vi.mock('@hakit/core', () => ({
   useHass: () => ({ joinHassUrl: (path: string) => path }),
   useIcon: () => null,
 }));
-vi.mock('@hakit/components', () => ({ VacuumControls: () => <div>Roomba controls</div> }));
 
 beforeEach(() => {
   ref.current = createHaFixture();
@@ -94,6 +93,16 @@ it('never treats missing activity sensors as an all-clear and keeps reminder epi
   fireEvent.click(screen.getByRole('button', { name: 'Close details' }));
   act(() => ref.current!.publish('sensor.dashboard_attention', '3', { ready: true, items: [] }));
   expect(screen.getByText('Activity status unavailable for some devices.')).toBeTruthy();
+});
+
+it('with all appliances idle, does not claim all clear while attention is unavailable', () => {
+  for (const prefix of ['washer_washer', 'dryer_dryer', 'dishwasher_dishwasher'])
+    ref.current!.publish(`sensor.${prefix}_machine_state`, 'stop');
+  ref.current!.publish('vacuum.roomba', 'docked');
+  ref.current!.publish('sensor.dashboard_attention', 'unavailable');
+  render(<CanvasDashboard />);
+  expect(screen.queryByText('All quiet at home.')).toBeNull();
+  expect(screen.getByText('Attention reminders are unavailable.')).toBeTruthy();
 });
 
 it('sends completion dismissal with the exact episode while retaining live activity', () => {
@@ -197,6 +206,104 @@ it('opens a searched blind room with only that room selected for commands', () =
   expect(within(controls).getByRole('button', { name: 'Bedroom blinds' }).getAttribute('aria-pressed')).toBe('true');
   expect(within(controls).getByRole('button', { name: 'Living room blinds' }).getAttribute('aria-pressed')).toBe('false');
   expect(within(controls).getByRole('button', { name: 'Gym blinds' }).getAttribute('aria-pressed')).toBe('false');
+});
+
+it('keeps pending blind targets and Stop after navigating from Bedroom to Gym', async () => {
+  const opening = deferred();
+  ref.current!.respondWith(message =>
+    String((message as { service_data: { command: string } }).service_data.command).startsWith('open')
+      ? opening.promise
+      : Promise.resolve({})
+  );
+  render(<CanvasDashboard />);
+  fireEvent.click(screen.getByRole('button', { name: 'All devices' }));
+  const search = within(screen.getByRole('dialog')).getByRole('searchbox', { name: 'Find a device or room' });
+  fireEvent.change(search, { target: { value: 'Bedroom blinds' } });
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Bedroom blinds' }));
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Open selected blinds' }));
+  expect(ref.current!.calls).toHaveLength(1);
+  fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+  fireEvent.change(within(screen.getByRole('dialog')).getByRole('searchbox', { name: 'Find a device or room' }), {
+    target: { value: 'Gym blinds' },
+  });
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Gym blinds' }));
+  const gym = screen.getByRole('dialog', { name: 'Gym blinds' });
+  expect(within(gym).getByRole('button', { name: 'Open selected blinds' }).hasAttribute('disabled')).toBe(true);
+  fireEvent.click(within(gym).getByRole('button', { name: 'Stop moving blinds in Bedroom' }));
+  expect(ref.current!.calls).toHaveLength(2);
+  expect((ref.current!.calls[1] as { service_data: { command: string } }).service_data.command).toBe('stop all the blinds bedroom');
+  await act(async () => opening.resolve({}));
+});
+
+it('searches actual speaker friendly names and routes to live speaker controls', () => {
+  ref.current!.publish('media_player.bathroom', 'idle', { friendly_name: 'Bath Sonos', supported_features: 12, volume_level: 0.3 });
+  render(<CanvasDashboard />);
+  fireEvent.click(screen.getByRole('button', { name: 'All devices' }));
+  fireEvent.change(within(screen.getByRole('dialog')).getByRole('searchbox', { name: 'Find a device or room' }), {
+    target: { value: 'Bath Sonos' },
+  });
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Bath Sonos' }));
+  expect(screen.getByRole('dialog', { name: 'Speakers' })).toBeTruthy();
+  expect(ref.current!.calls).toHaveLength(0);
+});
+
+it('mounts and reconnects Roomba detail without sending a command, filtering unsupported controls', () => {
+  ref.current!.publish('vacuum.roomba', 'docked', {
+    supported_features: 8192 | 512,
+    battery_level: 67,
+    fan_speed: 'Standard',
+    fan_speed_list: ['Quiet', 'Standard'],
+  });
+  render(<CanvasDashboard />);
+  fireEvent.click(screen.getByRole('button', { name: 'All devices' }));
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Roomba' }));
+  const detail = screen.getByRole('dialog', { name: 'Roomba' });
+  expect(within(detail).getByRole('button', { name: 'Start cleaning' })).toBeTruthy();
+  expect(within(detail).getByRole('button', { name: 'Locate Roomba' })).toBeTruthy();
+  expect(within(detail).queryByRole('button', { name: 'Return to dock' })).toBeNull();
+  expect(within(detail).queryByRole('button', { name: 'Set fan speed' })).toBeNull();
+  expect(ref.current!.calls).toHaveLength(0);
+  act(() => ref.current!.disconnect());
+  act(() => ref.current!.reconnect());
+  expect(ref.current!.calls).toHaveLength(0);
+});
+
+it('reports a rejected Roomba command and requires an explicit fan-speed apply', async () => {
+  ref.current!.publish('vacuum.roomba', 'cleaning', {
+    supported_features: 4 | 8 | 16 | 32,
+    fan_speed: 'Standard',
+    fan_speed_list: ['Quiet', 'Standard'],
+  });
+  ref.current!.respondWith(() => Promise.reject(new Error('Vacuum denied')));
+  render(<CanvasDashboard />);
+  fireEvent.click(screen.getByRole('button', { name: 'All devices' }));
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Roomba' }));
+  expect(ref.current!.calls).toHaveLength(0);
+  fireEvent.change(screen.getByRole('combobox', { name: 'Roomba fan speed' }), { target: { value: 'Quiet' } });
+  expect(ref.current!.calls).toHaveLength(0);
+  fireEvent.click(screen.getByRole('button', { name: 'Set fan speed' }));
+  expect(ref.current!.calls).toContainEqual(
+    expect.objectContaining({ domain: 'vacuum', service: 'set_fan_speed', service_data: { fan_speed: 'Quiet' } })
+  );
+  await act(async () => {});
+  expect(screen.getByRole('alert').textContent).toContain('Vacuum denied');
+});
+
+it('sends one Roomba command while pending and waits for the reported state', async () => {
+  const starting = deferred();
+  ref.current!.publish('vacuum.roomba', 'docked', { supported_features: 8192 });
+  ref.current!.respondWith(() => starting.promise);
+  render(<CanvasDashboard />);
+  fireEvent.click(screen.getByRole('button', { name: 'All devices' }));
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Roomba' }));
+  const start = screen.getByRole('button', { name: 'Start cleaning' });
+  fireEvent.click(start);
+  fireEvent.click(start);
+  expect(ref.current!.calls).toHaveLength(1);
+  await act(async () => starting.resolve({}));
+  expect(screen.getByText(/Service accepted; device response is not yet verified/)).toBeTruthy();
+  act(() => ref.current!.publish('vacuum.roomba', 'cleaning', { supported_features: 8192 }));
+  expect(screen.getByText('Roomba reported the requested state.')).toBeTruthy();
 });
 
 it('keeps thermostat capability limits and reports a rejected command', async () => {

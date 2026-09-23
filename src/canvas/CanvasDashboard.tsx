@@ -7,6 +7,7 @@ import { CanvasLightDetails } from './CanvasLightDetails';
 import { CanvasLightsProvider } from './useCanvasLights';
 import { CanvasModes } from './CanvasModes';
 import { CanvasBlinds } from './CanvasBlinds';
+import { CanvasBlindsProvider } from './useCanvasBlinds';
 import { CanvasMusicProvider } from './CanvasMusicProvider';
 import { CanvasMusic } from './CanvasMusic';
 import { CanvasPlayer } from './CanvasPlayer';
@@ -19,7 +20,7 @@ import { useAttention } from '../useAttention';
 import { attentionExplanation, type AttentionItem } from '../attention';
 import { TemperatureCard } from '../TemperatureCard';
 import { AppliancesCard } from '../AppliancesCard';
-import { VacuumControls } from '@hakit/components';
+import { CanvasVacuum } from './CanvasVacuum';
 import './canvas.css';
 import './canvas-music.css';
 import './canvas-secondary.css';
@@ -156,11 +157,7 @@ function CanvasDashboardContent(): React.JSX.Element {
           ) : route.kind === 'appliances' ? (
             <AppliancesCard />
           ) : route.kind === 'vacuum' ? (
-            connected ? (
-              <VacuumControls entity='vacuum.roomba' />
-            ) : (
-              <p role='status'>Reconnect to control Roomba.</p>
-            )
+            <CanvasVacuum />
           ) : (
             <p className='canvas__empty'>Live {canvasRouteTitle(route).toLowerCase()} controls will appear here.</p>
           )}
@@ -173,9 +170,11 @@ function CanvasDashboardContent(): React.JSX.Element {
 export function CanvasDashboard(): React.JSX.Element {
   return (
     <CanvasLightsProvider>
-      <CanvasMusicProvider>
-        <CanvasDashboardContent />
-      </CanvasMusicProvider>
+      <CanvasBlindsProvider>
+        <CanvasMusicProvider>
+          <CanvasDashboardContent />
+        </CanvasMusicProvider>
+      </CanvasBlindsProvider>
     </CanvasLightsProvider>
   );
 }

@@ -89,7 +89,13 @@ export function CanvasPulse({
               </button>
             ))}
             {!shownActivities.length && !visible.length && (
-              <p>{missingStatus ? 'Activity status unavailable for some devices.' : 'All quiet at home.'}</p>
+              <p>
+                {!attention.ready
+                  ? 'Reminder status unavailable.'
+                  : missingStatus
+                    ? 'Activity status unavailable for some devices.'
+                    : 'All quiet at home.'}
+              </p>
             )}
             {visible.map(item => (
               <div key={item.episode} className='canvas-pulse__notice' data-tone={item.tone}>

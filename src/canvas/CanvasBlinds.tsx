@@ -1,4 +1,4 @@
-import { blindRooms, useCanvasBlinds, type BlindAction, type BlindRoom } from './useCanvasBlinds';
+import { blindRooms, CanvasBlindsProvider, useCanvasBlinds, useCanvasBlindsProviderPresent, type BlindAction, type BlindRoom } from './useCanvasBlinds';
 import type { TargetResult } from './commands';
 
 const label = (room: BlindRoom) => room === 'living room' ? 'Living room' : room === 'bedroom' ? 'Bedroom' : 'Gym';
@@ -12,6 +12,12 @@ function feedback(result: TargetResult) {
 }
 
 export function CanvasBlinds({ initialRoom }: { initialRoom?: BlindRoom } = {}) {
+  const hasProvider = useCanvasBlindsProviderPresent();
+  if (!hasProvider) return <CanvasBlindsProvider><CanvasBlindsView initialRoom={initialRoom} /></CanvasBlindsProvider>;
+  return <CanvasBlindsView initialRoom={initialRoom} />;
+}
+
+function CanvasBlindsView({ initialRoom }: { initialRoom?: BlindRoom }) {
   const { selection, toggleRoom, run, retryFailed, failedRooms, results, pending, movingRooms, connected } = useCanvasBlinds(initialRoom);
   return <section className='canvas-blinds' aria-label='Blinds'>
     <div className='canvas-blinds__heading'><div><span className='canvas__eyebrow'>Blinds</span><h2>Let the light in.</h2></div><span className='canvas-blinds__caption'>Choose rooms</span></div>

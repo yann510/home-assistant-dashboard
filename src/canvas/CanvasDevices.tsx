@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { useStore } from '@hakit/core';
+import { speakerIds } from '../useSpeakerSession';
 import { useCanvasLights } from './useCanvasLights';
 import type { CanvasRoute } from './routes';
 import type { BlindRoom } from './useCanvasBlinds';
@@ -69,6 +71,7 @@ const thermostats = ['Office', 'Gym', 'Bedroom'];
 
 export function CanvasDevices({ onOpen }: { onOpen(route: CanvasRoute): void }) {
   const { rooms } = useCanvasLights();
+  const entities = useStore(state => state.entities);
   const [query, setQuery] = useState('');
   const entries: Entry[] = [
     ...categoryEntries,
@@ -90,6 +93,22 @@ export function CanvasDevices({ onOpen }: { onOpen(route: CanvasRoute): void }) 
       search: `${room} blinds shades`,
       route: { kind: 'blinds', room: room.toLowerCase() as BlindRoom } as CanvasRoute,
     })),
+    ...speakerIds.map(id => {
+      const room = id.replace('media_player.', '').replace(/_/g, ' ');
+      const entity = entities[id];
+      const name = entity?.attributes.friendly_name?.trim() || `${room[0].toUpperCase()}${room.slice(1)} speaker`;
+      const available = entity && !['unknown', 'unavailable'].includes(entity.state);
+      const features = entity?.attributes.supported_features ?? 0;
+      const capabilities = [features & 4 ? 'volume' : '', features & 8 ? 'mute' : ''].filter(Boolean).join(', ');
+      return {
+        name,
+        detail: available ? `Speaker · ${room}${capabilities ? ` · ${capabilities}` : ''}` : `Speaker · ${room} · unavailable`,
+        category: 'Music',
+        room,
+        search: `${room} ${name} speaker music ${capabilities}`,
+        route: { kind: 'speakers' } as CanvasRoute,
+      };
+    }),
     ...thermostats.map(room => ({
       name: `${room} thermostat`,
       detail: 'Temperature controls',

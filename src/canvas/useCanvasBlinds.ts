@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { createContext, createElement, useCallback, useContext, useRef, useState, type ReactNode } from 'react';
 import { useStore } from '@hakit/core';
 import { useDeviceCommand } from './useDeviceCommand';
 import type { CommandResult, TargetResult } from './commands';
@@ -9,10 +9,8 @@ export const blindRooms: readonly BlindRoom[] = ['living room', 'bedroom', 'gym'
 const emptyResults = (): Record<BlindAction, CommandResult | null> => ({ open: null, stop: null, close: null });
 const emptyFailures = (): Record<BlindAction, readonly BlindRoom[]> => ({ open: [], stop: [], close: [] });
 
-export function useCanvasBlinds(initialRoom?: BlindRoom) {
+function useCanvasBlindsController() {
   const connected = useStore(state => Boolean(state.connection?.connected && state.connectionStatus === 'connected'));
-  const [selection, setSelection] = useState<readonly BlindRoom[]>(() => initialRoom ? [initialRoom] : blindRooms);
-  const selectionRef = useRef<readonly BlindRoom[]>(initialRoom ? [initialRoom] : blindRooms);
   const [results, setResults] = useState(emptyResults);
   const resultsRef = useRef(emptyResults());
   const [failedRooms, setFailedRooms] = useState(emptyFailures);
@@ -23,14 +21,6 @@ export function useCanvasBlinds(initialRoom?: BlindRoom) {
   const busyRef = useRef<Record<BlindAction, boolean>>({ open: false, stop: false, close: false });
   const { send: sendMovement } = useDeviceCommand();
   const { send: sendStop } = useDeviceCommand();
-
-  const toggleRoom = useCallback((room: BlindRoom) => {
-    const next = selectionRef.current.includes(room)
-      ? selectionRef.current.filter(item => item !== room)
-      : blindRooms.filter(item => selectionRef.current.includes(item) || item === room);
-    selectionRef.current = next;
-    setSelection(next);
-  }, []);
 
   const publishResults = useCallback((action: BlindAction, outcome: CommandResult) => {
     resultsRef.current = { ...resultsRef.current, [action]: outcome };
@@ -86,8 +76,36 @@ export function useCanvasBlinds(initialRoom?: BlindRoom) {
     }
   }, [connected, publishResults, sendMovement, sendStop]);
 
-  const run = useCallback((action: BlindAction) => dispatch(action,
-    action === 'stop' && movingRef.current.length ? movingRef.current : selectionRef.current), [dispatch]);
+  const run = useCallback((action: BlindAction, selected: readonly BlindRoom[]) => dispatch(action,
+    action === 'stop' && movingRef.current.length ? movingRef.current : selected), [dispatch]);
   const retryFailed = useCallback((action: BlindAction) => dispatch(action, failedRef.current[action], true), [dispatch]);
-  return { selection, toggleRoom, run, retryFailed, failedRooms, results, pending, movingRooms, connected };
+  return { run, retryFailed, failedRooms, results, pending, movingRooms, connected };
+}
+
+type Controller = ReturnType<typeof useCanvasBlindsController>;
+const BlindsContext = createContext<Controller | null>(null);
+
+export function CanvasBlindsProvider({ children }: { children: ReactNode }) {
+  const value = useCanvasBlindsController();
+  return createElement(BlindsContext.Provider, { value }, children);
+}
+
+export function useCanvasBlindsProviderPresent() {
+  return useContext(BlindsContext) !== null;
+}
+
+export function useCanvasBlinds(initialRoom?: BlindRoom) {
+  const controller = useContext(BlindsContext);
+  if (!controller) throw new Error('CanvasBlindsProvider is required.');
+  const [selection, setSelection] = useState<readonly BlindRoom[]>(() => initialRoom ? [initialRoom] : blindRooms);
+  const selectionRef = useRef<readonly BlindRoom[]>(initialRoom ? [initialRoom] : blindRooms);
+  const toggleRoom = useCallback((room: BlindRoom) => {
+    const next = selectionRef.current.includes(room)
+      ? selectionRef.current.filter(item => item !== room)
+      : blindRooms.filter(item => selectionRef.current.includes(item) || item === room);
+    selectionRef.current = next;
+    setSelection(next);
+  }, []);
+  const run = useCallback((action: BlindAction) => controller.run(action, selectionRef.current), [controller]);
+  return { ...controller, selection, toggleRoom, run };
 }

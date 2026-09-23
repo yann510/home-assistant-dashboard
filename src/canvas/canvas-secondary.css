@@ -208,6 +208,43 @@
 .canvas-dialog .appliances-card {
   color: #f6f0e6;
 }
+.canvas-dialog .canvas-vacuum {
+  display: grid;
+  gap: 16px;
+  color: #f6f0e6;
+}
+.canvas-dialog .canvas-vacuum__summary,
+.canvas-dialog .canvas-vacuum__actions,
+.canvas-dialog .canvas-vacuum__fan {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.canvas-dialog .canvas-vacuum__summary strong {
+  font-size: 1.4rem;
+}
+.canvas-dialog .canvas-vacuum__summary span {
+  color: #c0bac4;
+}
+.canvas-dialog .canvas-vacuum__fan select {
+  display: block;
+  min-height: 44px;
+  min-width: 150px;
+  margin-top: 5px;
+  padding: 8px;
+  border: 1px solid #77717b;
+  border-radius: 10px;
+  color: #fff;
+  background: #38353e;
+}
+.canvas-dialog .canvas-vacuum button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.canvas-dialog .canvas-vacuum [role='alert'] {
+  color: #ffc8bd;
+}
 .canvas .appliance-animation .appliance-drum {
   animation: canvas-drum 3s linear infinite;
   transform-origin: 16px 19px;
