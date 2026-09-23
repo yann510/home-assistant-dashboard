@@ -18,8 +18,11 @@
 .canvas-dialog .forecast-row__temperature small { color: #b6b0bb; white-space: nowrap; }
 .canvas-dialog .forecast-row__precipitation { text-align: right; display: flex; flex-direction: column; }
 .canvas-dialog .forecast-row__precipitation small { color: #b6b0bb; font-size: .7rem; }
-.canvas-dialog .forecast-row__details { grid-column: 2 / -1; display: flex; flex-wrap: wrap; gap: var(--canvas-space-2) var(--canvas-space-4); color: #b6b0bb; font-size: .8rem; }
-.canvas-dialog .forecast-row__details span { white-space: nowrap; }
+.canvas-dialog .forecast-row--hourly,
+.canvas-dialog .canvas-weather__column-head--hourly { grid-template-columns: 4.5rem minmax(0, 1fr) 6rem 4rem 4.5rem; }
+.canvas-dialog .canvas-weather__column-head small { display: block; font: inherit; }
+.canvas-dialog .forecast-row__wind { font-variant-numeric: tabular-nums; }
+.canvas-dialog .forecast-row__temperature .forecast-row__feels-like { white-space: normal; font-size: .75rem; }
 .canvas-dialog .canvas-weather__availability { color: #b6b0bb; font-size: .8rem; line-height: 1.5; margin: 0; }
 .canvas-dialog .canvas-weather__column-head span:last-child { text-align: right; overflow-wrap: anywhere; }
 @media (max-width: 480px) {
@@ -30,4 +33,8 @@
   .canvas-dialog .forecast-row__condition .canvas-weather__icon { width: 22px; height: 22px; }
   .canvas-dialog .forecast-row__condition { gap: var(--canvas-space-1); }
   .canvas-dialog .canvas-weather__column-head { font-size: .64rem; }
+  .canvas-dialog .forecast-row--hourly,
+  .canvas-dialog .canvas-weather__column-head--hourly { grid-template-columns: minmax(3.5rem, 1fr) 22px minmax(3.4rem, 1fr) minmax(2.8rem, .8fr) minmax(2.8rem, .8fr); }
+  .canvas-dialog .canvas-weather__column-head--hourly .canvas-weather__condition-heading { visibility: hidden; }
+  .canvas-dialog .forecast-row--hourly .forecast-row__condition-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 }

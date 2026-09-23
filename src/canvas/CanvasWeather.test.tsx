@@ -127,7 +127,8 @@ it('keeps missing readings unavailable, then retries a failed subscription', asy
   expect(ha.subscribe).toHaveBeenCalledTimes(2);
   act(() => receive({ forecast: [{ datetime: '2026-09-23T13:00:00Z', condition: 'fog' }] }));
   const row = screen.getByRole('listitem');
-  expect(within(row).getAllByText('—')).toHaveLength(2);
+  expect(within(row).getAllByText('—')).toHaveLength(3);
+  expect(within(row).getByLabelText('Wind unavailable')).toBeTruthy();
   expect(within(row).queryByText('0°C')).toBeNull();
 });
 
@@ -184,11 +185,11 @@ it('shows the forecast feels-like and wind with provider units, including zero',
     })
   );
   const rows = screen.getAllByRole('listitem');
-  expect(within(rows[0]).getByText('Feels like 0°F')).toBeTruthy();
-  expect(within(rows[0]).getByText('Wind 0 mph')).toBeTruthy();
+  expect(within(rows[0]).getByText('Feels like 0°F').parentElement?.className).toBe('forecast-row__temperature');
+  expect(within(rows[0]).getByLabelText('Wind 0 mph')).toBeTruthy();
   expect(within(rows[0]).getByLabelText('Precipitation chance: 0%')).toBeTruthy();
   expect(within(rows[1]).getByText('Feels like 7.5°F')).toBeTruthy();
-  expect(within(rows[1]).getByText('Wind 12.4 mph')).toBeTruthy();
+  expect(within(rows[1]).getByLabelText('Wind 12.4 mph')).toBeTruthy();
   expect(within(rows[1]).getByLabelText('Precipitation chance: 35%')).toBeTruthy();
   expect(screen.queryByText(/99°F/)).toBeNull();
 });
@@ -207,7 +208,7 @@ it('omits invalid optional readings and never converts precipitation amount into
     })
   );
   expect(screen.queryByText(/Feels like/)).toBeNull();
-  expect(screen.queryByText(/^Wind /)).toBeNull();
+  expect(screen.queryByLabelText(/^Wind \d/)).toBeNull();
   expect(screen.queryByText('0%')).toBeNull();
   expect(screen.getByLabelText('Precipitation amount: 0 mm')).toBeTruthy();
   expect(screen.getByLabelText('Precipitation amount: 4 mm')).toBeTruthy();
@@ -225,7 +226,7 @@ it('keeps wind unavailable without a provider unit and uses the configured tempe
     })
   );
   expect(screen.getByText('Feels like 6°C')).toBeTruthy();
-  expect(screen.queryByText(/^Wind /)).toBeNull();
+  expect(screen.queryByLabelText(/^Wind \d/)).toBeNull();
   expect(screen.queryByText(/[Pp]recipitation chance.*unavailable/)).toBeNull();
 });
 
@@ -248,7 +249,9 @@ it('shows actual provider wind and precipitation amount with their own units', (
       ],
     })
   );
-  expect(screen.getByText('Wind 11.5 km/h')).toBeTruthy();
+  const row = screen.getByRole('listitem');
+  expect(screen.getByLabelText('Wind 11.5 km/h').parentElement).toBe(row);
+  expect(row.querySelector('.forecast-row__details')).toBeNull();
   expect(screen.getByLabelText('Precipitation amount: 0 mm')).toBeTruthy();
   expect(screen.queryByText(/^Feels like /)).toBeNull();
   expect(screen.queryByText('0%')).toBeNull();

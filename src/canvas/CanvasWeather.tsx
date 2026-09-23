@@ -127,7 +127,7 @@ function ForecastRow({
   const chance = finite(entry.precipitation_probability);
   const amount = finite(entry.precipitation) && Boolean(precipitationUnit);
   const precipitation = chance ? `${entry.precipitation_probability}%` : amount ? `${entry.precipitation} ${precipitationUnit}` : '—';
-  const showHourlyDetails = type === 'hourly' && (finite(entry.apparent_temperature) || (finite(entry.wind_speed) && windUnit));
+  const wind = finite(entry.wind_speed) && windUnit ? Number(entry.wind_speed.toFixed(1)) : null;
   const label =
     type === 'hourly'
       ? forecastHourLabel(entry.datetime, timeZone, repeated)
@@ -140,13 +140,21 @@ function ForecastRow({
       </time>
       <span className='forecast-row__condition'>
         <WeatherGlyph condition={entry.condition} isDaytime={entry.is_daytime} />
-        {conditionLabel(entry.condition)}
+        <span className='forecast-row__condition-label'>{conditionLabel(entry.condition)}</span>
         {type === 'twice_daily' && typeof entry.is_daytime === 'boolean' ? ` · ${entry.is_daytime ? 'Day' : 'Night'}` : ''}
       </span>
       <span className='forecast-row__temperature'>
         <strong>{temperature(entry.temperature, unit)}</strong>
         {finite(entry.templow) && <small>Low {temperature(entry.templow, unit)}</small>}
+        {type === 'hourly' && finite(entry.apparent_temperature) && (
+          <small className='forecast-row__feels-like'>Feels like {temperature(entry.apparent_temperature, unit)}</small>
+        )}
       </span>
+      {type === 'hourly' && (
+        <span className='forecast-row__wind' aria-label={wind === null ? 'Wind unavailable' : `Wind ${wind} ${windUnit}`}>
+          {wind ?? '—'}
+        </span>
+      )}
       <span
         className='forecast-row__precipitation'
         aria-label={
@@ -160,16 +168,6 @@ function ForecastRow({
         <span>{precipitation}</span>
         {(chance || amount) && <small>{chance ? 'chance' : 'amount'}</small>}
       </span>
-      {showHourlyDetails && (
-        <div className='forecast-row__details'>
-          {finite(entry.apparent_temperature) && <span>Feels like {temperature(entry.apparent_temperature, unit)}</span>}
-          {finite(entry.wind_speed) && windUnit && (
-            <span>
-              Wind {Number(entry.wind_speed.toFixed(1))} {windUnit}
-            </span>
-          )}
-        </div>
-      )}
     </li>
   );
 }
@@ -280,10 +278,11 @@ export function CanvasWeather() {
               {missingDetails.join(' and ')} unavailable{showAmounts ? '; showing amounts' : ''}.
             </p>
           )}
-          <div className='canvas-weather__column-head' aria-hidden='true'>
+          <div className={`canvas-weather__column-head canvas-weather__column-head--${forecast.type}`} aria-hidden='true'>
             <span>Time</span>
-            <span>Conditions</span>
-            <span>Temperature</span>
+            <span className='canvas-weather__condition-heading'>Conditions</span>
+            <span>{forecast.type === 'hourly' ? 'Temp.' : 'Temperature'}</span>
+            {forecast.type === 'hourly' && <span>Wind{windUnit && <small>{windUnit}</small>}</span>}
             <span>Precip.</span>
           </div>
           <ul className='canvas-weather__list'>
