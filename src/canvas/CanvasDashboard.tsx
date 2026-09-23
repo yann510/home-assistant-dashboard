@@ -6,6 +6,7 @@ import { CanvasLights, CanvasAllLights } from './CanvasLights';
 import { CanvasLightDetails } from './CanvasLightDetails';
 import { CanvasLightsProvider } from './useCanvasLights';
 import { CanvasModes } from './CanvasModes';
+import { CanvasBlinds } from './CanvasBlinds';
 import './canvas.css';
 
 const directory: { label: string; route: CanvasRoute }[] = [
@@ -116,6 +117,7 @@ function CanvasDashboardContent(): React.JSX.Element {
         </div>
         <section className='canvas__shortcuts' aria-label='Home controls'>
           <CanvasLights onOpenAll={() => open({ kind: 'all-lights' }, document.activeElement instanceof HTMLElement ? document.activeElement : undefined)} />
+          <CanvasBlinds />
           <button type='button' onClick={event => open({ kind: 'all-devices' }, event.currentTarget)}>
             Browse devices
           </button>

@@ -81,3 +81,15 @@
   .canvas-dialog { place-items: end stretch; padding: 0; }
   .canvas-dialog .canvas-dialog__panel { width: 100%; max-height: calc(100svh - env(safe-area-inset-top)); border-radius: 24px 24px 0 0; padding: 24px max(20px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left)); }
 }
+.canvas-blinds { flex: 1 1 340px; max-width: 520px; min-width: 0; border: 1px solid var(--canvas-line); border-radius: 20px; padding: 18px 20px; background: var(--canvas-surface); }
+.canvas-blinds__heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.canvas-blinds__heading h2 { margin: 4px 0; font-size: 1.5rem; }
+.canvas-blinds__caption { color: var(--canvas-muted); font-size: .8rem; margin: 8px 0; }
+.canvas-blinds__rooms, .canvas-blinds__actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.canvas-blinds__rooms button { flex: 1 1 115px; }
+.canvas-blinds__rooms button[aria-pressed='true'] { background: var(--canvas-lilac); color: #26212d; border-color: var(--canvas-lilac); }
+.canvas-blinds__actions button { flex: 1 1 90px; }
+.canvas-blinds button:disabled { opacity: .5; cursor: not-allowed; }
+.canvas-blinds__results { border-top: 1px solid var(--canvas-line); margin-top: 12px; padding-top: 10px; font-size: .82rem; }
+.canvas-blinds__results p { margin: 6px 0; }
+.canvas-blinds__error { color: #ffc8bd; }
