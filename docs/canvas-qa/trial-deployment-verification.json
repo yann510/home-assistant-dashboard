@@ -2,7 +2,7 @@
   "verifiedAt": "2026-09-23T18:34:57.651Z",
   "sourceCommit": "4e29b770bff3c56fcd61c9a788e6d682c80bbe74",
   "releaseId": "4e29b770bff3c56fcd61c9a788e6d682c80bbe74",
-  "url": "http://homeassistant.local:8123/local/canvas-trial/?view=canvas",
+  "url": "http://homeassistant.local:8123/local/canvas-trial/index.html?view=canvas",
   "remoteRoot": "/homeassistant/www/canvas-trial",
   "manifestFiles": 74,
   "linkedAssets": [
@@ -479,5 +479,27 @@
     }
   ],
   "browserLogin": "pending",
-  "physicalDevices": "pending"
+  "physicalDevices": "pending",
+  "entryUrlCorrection": {
+    "verifiedAt": "2026-09-23T18:52:18.588964+00:00",
+    "reason": "The originally shared folder URL returns HTTP 403. Use the explicit index.html entry. Original per-file deployment evidence remains unchanged.",
+    "checks": [
+      {
+        "url": "http://homeassistant.local:8123/local/canvas-trial/?view=canvas",
+        "status": 403
+      },
+      {
+        "url": "http://homeassistant.local:8123/local/canvas-trial/index.html?view=canvas",
+        "status": 200,
+        "bytes": 495,
+        "sha256": "6f703f41da290dae15ebb21427b581071a750b0382967207821eeec768b19279"
+      },
+      {
+        "url": "http://homeassistant.local:8123/local/dashboard/index.html",
+        "status": 200,
+        "bytes": 496,
+        "sha256": "b23b93f86849fadcef39a462ea2b9c9314c337ef1870d3c04c55b54c4811c8c5"
+      }
+    ]
+  }
 }
