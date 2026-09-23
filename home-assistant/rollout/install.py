@@ -98,11 +98,18 @@ def stage(config_root,bundle,dist):
     staged=bundle/'staged';staged.mkdir(mode=0o700)
     extension=staged/'custom_components/lepro_led'
     shutil.copytree(lepro,extension,ignore=shutil.ignore_patterns('__pycache__','*.pyc'))
-    patch=REPO/'home-assistant/lepro-extension/integration.patch'
-    for dry in (True,False):
-        command=['patch','--batch','-p1','-d',str(extension),'-i',str(patch)]
-        if dry:command.append('--dry-run')
-        subprocess.run(command,check=True,capture_output=True,text=True)
+    extension_source=REPO/'home-assistant/lepro-extension'
+    for patch_name in ('integration.patch','startup-retry.patch'):
+        patch=extension_source/patch_name
+        if patch_name=='startup-retry.patch':
+            startup_hashes=json.loads((extension_source/'startup-baseline-sha256.json').read_text())
+            for name,expected in startup_hashes.items():
+                if not (extension/name).is_file() or digest(extension/name)!=expected:
+                    raise ValueError(f'Lepro startup patch baseline drifted: {name}')
+        for dry in (True,False):
+            command=['patch','--batch','-p1','-d',str(extension),'-i',str(patch)]
+            if dry:command.append('--dry-run')
+            subprocess.run(command,check=True,capture_output=True,text=True)
     for name in ('native_state.py','native_services.py'):shutil.copy2(patch.parent/name,extension/name)
     component=REPO/'home-assistant/custom_components/house_moods'
     if not (component/'manifest.json').is_file():raise ValueError('House Moods integration is incomplete.')

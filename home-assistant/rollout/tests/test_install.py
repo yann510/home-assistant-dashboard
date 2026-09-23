@@ -1,5 +1,6 @@
 """Full local-copy installation exercise; requires PyYAML like the installer."""
 import importlib.util
+import hashlib
 import json
 from pathlib import Path
 import tempfile
@@ -19,9 +20,13 @@ class InstallTests(unittest.TestCase):
         (self.config/'scripts.yaml').write_text(yaml.safe_dump({'speaker_follow_motion':original,'unrelated':{'alias':'Keep'}}))
         (self.config/'www/dashboard').mkdir(parents=True);(self.config/'www/dashboard/index.html').write_text('old')
         extension=self.repo/'home-assistant/lepro-extension';extension.mkdir(parents=True)
-        for name in ('light.py','number.py','__init__.py','manifest.json','services.yaml'):(lepro/name).write_text('original\n')
+        for name in ('light.py','number.py','switch.py','__init__.py','manifest.json','services.yaml'):(lepro/name).write_text('original\n')
         (extension/'baseline-sha256.json').write_text(json.dumps({p.name:r.digest(p) for p in lepro.iterdir()}))
         (extension/'integration.patch').write_text('--- a/light.py\n+++ b/light.py\n@@ -1 +1,2 @@\n original\n+patched\n')
+        startup_hashes={name:r.digest(lepro/name) for name in ('light.py','number.py','switch.py')}
+        startup_hashes['light.py']=hashlib.sha256(b'original\npatched\n').hexdigest()
+        (extension/'startup-baseline-sha256.json').write_text(json.dumps(startup_hashes))
+        (extension/'startup-retry.patch').write_text('--- a/light.py\n+++ b/light.py\n@@ -1,2 +1,3 @@\n original\n patched\n+startup retry\n')
         for name in ('native_state.py','native_services.py'):(extension/name).write_text('# native\n')
         (self.repo/'home-assistant/rollout').mkdir();(self.repo/'home-assistant/rollout/speaker-follow-baseline.json').write_text(json.dumps({'script':{'config':original}}))
         updated={**original,'description':'Mood owned join'}
@@ -34,6 +39,7 @@ class InstallTests(unittest.TestCase):
         before=r.fingerprint(self.config,r.PATHS)
         r.stage(self.config,self.bundle,self.dist)
         self.assertEqual(before,r.fingerprint(self.config,r.PATHS))
+        self.assertEqual((self.bundle/'staged/custom_components/lepro_led/light.py').read_text(),'original\npatched\nstartup retry\n')
         self.assertEqual(r.apply(self.bundle)['status'],'installed')
         self.assertEqual(r.fingerprint(self.bundle/'backup',r.PATHS),before)
         self.assertEqual((self.config/'www/dashboard/index.html').read_text(),'new html')
@@ -71,3 +77,11 @@ class InstallTests(unittest.TestCase):
         self.assertFalse((self.bundle/'backup').exists())
         self.assertEqual(json.loads((self.bundle/'manifest.json').read_text())['status'],'staged')
         self.assertEqual(r.apply(self.bundle)['status'],'installed')
+    def test_startup_baseline_drift_refuses_without_changing_live_files(self):
+        before=r.fingerprint(self.config,r.PATHS)
+        manifest=self.repo/'home-assistant/lepro-extension/startup-baseline-sha256.json'
+        hashes=json.loads(manifest.read_text());hashes['switch.py']='wrong'
+        manifest.write_text(json.dumps(hashes))
+        with self.assertRaisesRegex(ValueError,'startup patch baseline drifted: switch.py'):
+            r.stage(self.config,self.bundle,self.dist)
+        self.assertEqual(r.fingerprint(self.config,r.PATHS),before)
