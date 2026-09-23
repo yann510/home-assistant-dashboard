@@ -92,25 +92,27 @@ export function CanvasSpeakers() {
           </select>
         </label>
         <p>The main speaker stays selected. Choosing another group uses its current audio.</p>
-        <button
-          disabled={r.locked}
-          onClick={() =>
-            r.setSelected([
-              ...new Set([
-                s.entityId,
-                ...speakerIds.filter(id => r.entities[id] && !['unknown', 'unavailable'].includes(r.entities[id].state)),
-              ]),
-            ])
-          }
-        >
-          All rooms
-        </button>
-        <button disabled={r.locked} onClick={() => r.setSelected([s.entityId])}>
-          Only {r.name}
-        </button>
-        <button disabled={r.busy} onClick={r.begin}>
-          Reload current rooms
-        </button>
+        <div className='canvas-speakers__advanced-actions'>
+          <button
+            disabled={r.locked}
+            onClick={() =>
+              r.setSelected([
+                ...new Set([
+                  s.entityId,
+                  ...speakerIds.filter(id => r.entities[id] && !['unknown', 'unavailable'].includes(r.entities[id].state)),
+                ]),
+              ])
+            }
+          >
+            All rooms
+          </button>
+          <button disabled={r.locked} onClick={() => r.setSelected([s.entityId])}>
+            Only {r.name}
+          </button>
+          <button disabled={r.busy} onClick={r.begin}>
+            Reload current rooms
+          </button>
+        </div>
       </details>
     </div>
   );
