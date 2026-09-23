@@ -307,3 +307,16 @@ it('restores an activity trigger without relying on focus and keeps directory id
   fireEvent.click(screen.getByRole('button', { name: 'Back' }));
   expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Living Room · Renamed light' }));
 });
+
+it.each(['Washer', 'Dryer'])('restores the distinct %s directory trigger while both laundry destinations are visible', name => {
+  render(<CanvasDashboard />);
+  fireEvent.click(screen.getByRole('button', { name: 'All devices' }));
+  const directory = within(screen.getByRole('dialog'));
+  expect(directory.getByRole('button', { name: 'Washer' })).toBeTruthy();
+  expect(directory.getByRole('button', { name: 'Dryer' })).toBeTruthy();
+  const trigger = directory.getByRole('button', { name });
+  expect(document.activeElement).not.toBe(trigger);
+  fireEvent.click(trigger);
+  fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+  expect(document.activeElement).toBe(within(screen.getByRole('dialog')).getByRole('button', { name }));
+});

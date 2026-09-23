@@ -4,8 +4,8 @@ import { useCanvasLights } from './useCanvasLights';
 import type { CanvasRoute } from './routes';
 import type { BlindRoom } from './useCanvasBlinds';
 
-type Entry = { name: string; detail: string; category: string; room: string; search: string; route: CanvasRoute };
-const categoryEntries: Entry[] = [
+type Entry = { id: string; name: string; detail: string; category: string; room: string; search: string; route: CanvasRoute };
+const categoryEntries: Omit<Entry, 'id'>[] = [
   {
     name: 'All lights',
     detail: 'Power, brightness and colour',
@@ -80,9 +80,10 @@ export function CanvasDevices({
   const { rooms } = useCanvasLights();
   const entities = useStore(state => state.entities);
   const entries: Entry[] = [
-    ...categoryEntries,
+    ...categoryEntries.map(entry => ({ ...entry, id: `category:${entry.route.kind}` })),
     ...rooms.flatMap(room =>
       room.lights.map(light => ({
+        id: light.id,
         name: `${room.name} · ${light.name}`,
         detail: `${light.state === 'unavailable' ? 'Unavailable' : light.state === 'on' ? 'On' : 'Off'} · Power, brightness and colour when supported`,
         category: 'Lights',
@@ -92,6 +93,7 @@ export function CanvasDevices({
       }))
     ),
     ...blindRooms.map(room => ({
+      id: `blinds:${room}`,
       name: `${room} blinds`,
       detail: 'Open, stop or close · position unavailable',
       category: 'Blinds',
@@ -107,6 +109,7 @@ export function CanvasDevices({
       const features = entity?.attributes.supported_features ?? 0;
       const capabilities = [features & 4 ? 'volume' : '', features & 8 ? 'mute' : ''].filter(Boolean).join(', ');
       return {
+        id,
         name,
         detail: available ? `Speaker · ${room}${capabilities ? ` · ${capabilities}` : ''}` : `Speaker · ${room} · unavailable`,
         category: 'Music',
@@ -116,6 +119,7 @@ export function CanvasDevices({
       };
     }),
     ...thermostats.map(room => ({
+      id: `climate.thermostat_${room.toLowerCase()}`,
       name: `${room} thermostat`,
       detail: 'Temperature controls',
       category: 'Climate',
@@ -124,6 +128,7 @@ export function CanvasDevices({
       route: { kind: 'thermostats' } as CanvasRoute,
     })),
     ...(['Washer', 'Dryer', 'Dishwasher'] as const).map(name => ({
+      id: `sensor.${name.toLowerCase()}_${name.toLowerCase()}_machine_state`,
       name,
       detail: 'Cycle status',
       category: 'Appliances',
@@ -155,12 +160,12 @@ export function CanvasDevices({
       </p>
       {matches.length ? (
         <nav aria-label='Device directory' className='canvas-devices__list'>
-          {matches.map((entry, index) => (
+          {matches.map(entry => (
             <button
-              key={`${entry.name}-${index}`}
+              key={entry.id}
               type='button'
               aria-label={entry.name}
-              data-canvas-focus-key={`${JSON.stringify(entry.route)}:${entry.category}:${entry.room}`}
+              data-canvas-focus-key={entry.id}
               onClick={event => onOpen(entry.route, event.currentTarget)}
             >
               <span>
