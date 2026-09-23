@@ -12,7 +12,10 @@
     "prettier": "prettier --write .",
     "sync": "npx tsx ./sync-types.ts",
     "prebuild": "npm run prettier",
-    "deploy": "npx tsx scripts/deploy.ts"
+    "deploy": "npx tsx scripts/deploy.ts",
+    "build:canvas-trial": "tsc -b && VITE_FOLDER_NAME=canvas-trial vite build",
+    "deploy:canvas-trial": "npx tsx scripts/deploy-canvas.ts publish",
+    "rollback:canvas-trial": "npx tsx scripts/deploy-canvas.ts rollback"
   },
   "dependencies": {
     "@hakit/components": "^5.1.6",
