@@ -2,6 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import { useStore } from '@hakit/core';
 import { CanvasDialog } from './CanvasDialog';
 import { canvasRouteTitle, type CanvasRoute } from './routes';
+import { CanvasLights, CanvasAllLights } from './CanvasLights';
+import { CanvasLightDetails } from './CanvasLightDetails';
+import { CanvasLightsProvider } from './useCanvasLights';
+import { CanvasModes } from './CanvasModes';
 import './canvas.css';
 
 const directory: { label: string; route: CanvasRoute }[] = [
@@ -25,7 +29,7 @@ function MoodArt() {
   );
 }
 
-export function CanvasDashboard(): React.JSX.Element {
+function CanvasDashboardContent(): React.JSX.Element {
   const connected = useStore(state => Boolean(state.connection?.connected && state.connectionStatus === 'connected'));
   const [route, setRoute] = useState<CanvasRoute>({ kind: 'overview' });
   const [routeHistory, setRouteHistory] = useState<CanvasRoute[]>([]);
@@ -68,6 +72,7 @@ export function CanvasDashboard(): React.JSX.Element {
             </h1>
           </div>
           <div className='canvas__header-actions'>
+            <CanvasModes />
             <span className='canvas__connection' role='status'>
               {connected ? 'Connected' : 'Disconnected'}
             </span>
@@ -110,9 +115,7 @@ export function CanvasDashboard(): React.JSX.Element {
           </section>
         </div>
         <section className='canvas__shortcuts' aria-label='Home controls'>
-          <button type='button' onClick={event => open({ kind: 'all-lights' }, event.currentTarget)}>
-            All lights
-          </button>
+          <CanvasLights onOpenAll={() => open({ kind: 'all-lights' }, document.activeElement instanceof HTMLElement ? document.activeElement : undefined)} />
           <button type='button' onClick={event => open({ kind: 'all-devices' }, event.currentTarget)}>
             Browse devices
           </button>
@@ -134,6 +137,10 @@ export function CanvasDashboard(): React.JSX.Element {
                 </button>
               ))}
             </nav>
+          ) : route.kind === 'all-lights' ? (
+            <CanvasAllLights onOpenLight={entityId => open({ kind: 'light', entityId })} />
+          ) : route.kind === 'light' ? (
+            <CanvasLightDetails key={route.entityId} entityId={route.entityId} />
           ) : (
             <p className='canvas__empty'>Live {canvasRouteTitle(route).toLowerCase()} controls will appear here.</p>
           )}
@@ -141,4 +148,8 @@ export function CanvasDashboard(): React.JSX.Element {
       )}
     </main>
   );
+}
+
+export function CanvasDashboard(): React.JSX.Element {
+  return <CanvasLightsProvider><CanvasDashboardContent /></CanvasLightsProvider>;
 }

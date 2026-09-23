@@ -1,0 +1,102 @@
+import { useState } from 'react';
+import { useStore, type LightEntity } from '@hakit/core';
+import { lightSupportsBrightness, useCanvasLights } from './useCanvasLights';
+
+function numeric(value: unknown): number | undefined { return typeof value === 'number' && Number.isFinite(value) ? value : undefined; }
+function rgbFromHex(hex: string): [number, number, number] { return [1, 3, 5].map(index => parseInt(hex.slice(index, index + 2), 16)) as [number, number, number]; }
+function hexFromRgb(rgb?: [number, number, number]): string {
+  return rgb?.length === 3 ? `#${rgb.map(value => Math.max(0, Math.min(255, value)).toString(16).padStart(2, '0')).join('')}` : '#ffffff';
+}
+
+export function CanvasLightDetails({ entityId }: { entityId: string }) {
+  const { rooms, power, send, busy, connected, result } = useCanvasLights();
+  const light = rooms.flatMap(room => room.lights).find(item => item.id === entityId);
+  const entity = light?.entity;
+  const attrs = entity?.attributes;
+  const available = Boolean(connected && light && light.state !== 'unavailable');
+  const working = busy.has(entityId);
+  const modes = attrs?.supported_color_modes ?? [];
+  const colour = modes.some(mode => ['hs', 'xy', 'rgb', 'rgbw', 'rgbww'].includes(mode));
+  const effects = attrs?.effect_list?.filter(Boolean) ?? [];
+  const kelvinMin = numeric(attrs?.min_color_temp_kelvin);
+  const kelvinMax = numeric(attrs?.max_color_temp_kelvin);
+  const miredMin = numeric(attrs?.min_mireds);
+  const miredMax = numeric(attrs?.max_mireds);
+  const temperature = modes.includes('color_temp') && (kelvinMin !== undefined && kelvinMax !== undefined
+    ? { min: kelvinMin, max: kelvinMax, value: numeric(attrs?.color_temp_kelvin), key: 'color_temp_kelvin', unit: 'K' }
+    : miredMin !== undefined && miredMax !== undefined
+      ? { min: miredMin, max: miredMax, value: numeric(attrs?.color_temp), key: 'color_temp', unit: 'mired' }
+      : null);
+  const [brightnessDraft, setBrightnessDraft] = useState<number | null>(null);
+  const [temperatureDraft, setTemperatureDraft] = useState<number | null>(null);
+  const [colourDraft, setColourDraft] = useState<string | null>(null);
+  const [effectDraft, setEffectDraft] = useState<string | null>(null);
+  const [committing, setCommitting] = useState(false);
+  if (!light) return <p role='status'>This light is not in the current inventory.</p>;
+  const sendValue = async (data: Record<string, unknown>, observe: (next: LightEntity) => boolean, clear: () => void) => {
+    if (!available || working || committing) return;
+    setCommitting(true);
+    try {
+      const outcome = await send({ domain: 'light', service: 'turn_on', targets: [entityId], data },
+        id => { const next = useStore.getState().entities[id] as LightEntity | undefined; return Boolean(next && observe(next)); });
+      if (outcome?.results.every(item => item.phase === 'observed')) clear();
+    } finally { setCommitting(false); }
+  };
+  const brightness = numeric(attrs?.brightness);
+  const brightnessPercent = brightness === undefined ? undefined : Math.round(brightness / 255 * 100);
+  const commitBrightness = () => {
+    if (brightnessDraft === null) return;
+    const value = Math.round(brightnessDraft / 100 * 255);
+    void sendValue({ brightness: value }, next => Math.abs(Number(next.attributes.brightness) - value) <= 1, () => setBrightnessDraft(null));
+  };
+  const commitTemperature = () => {
+    if (!temperature || temperatureDraft === null) return;
+    const value = temperatureDraft;
+    void sendValue({ [temperature.key]: value }, next => numeric(next.attributes[temperature.key as keyof LightEntity['attributes']]) === value,
+      () => setTemperatureDraft(null));
+  };
+  const commitColour = () => {
+    if (colourDraft === null) return;
+    const rgb = rgbFromHex(colourDraft);
+    void sendValue({ rgb_color: rgb }, next => next.attributes.rgb_color?.every((value, index) => Math.abs(value - rgb[index]) <= 1) === true,
+      () => setColourDraft(null));
+  };
+  const commitEffect = () => {
+    if (effectDraft === null) return;
+    const effect = effectDraft;
+    void sendValue({ effect }, next => next.attributes.effect === effect, () => setEffectDraft(null));
+  };
+  const failed = result?.results.find(item => item.target === entityId && (item.phase === 'failed' || item.phase === 'unconfirmed'));
+  const phase = result?.results.find(item => item.target === entityId)?.phase;
+  return <section className='canvas-lights canvas-lights--detail' aria-label={`${light.name} controls`}>
+    <div className='canvas-lights__heading'><div><h3>{light.name}</h3><p className='canvas-lights__muted'>{light.state === 'unavailable' ? 'Unavailable' : light.state === 'on' ? 'On' : 'Off'}</p></div>
+      <button type='button' aria-label={`Turn ${light.state === 'on' ? 'off' : 'on'} ${light.name}`}
+        disabled={!available || working || committing} onClick={() => void power([entityId], light.state === 'on' ? 'off' : 'on')}>
+        {light.state === 'on' ? 'Turn off' : 'Turn on'}
+      </button></div>
+    {lightSupportsBrightness(entity) && <label className='canvas-lights__slider'>Brightness
+      <input aria-label='Light brightness' type='range' min='1' max='100' value={brightnessDraft ?? brightnessPercent ?? 50}
+        disabled={!available || working || committing} onChange={event => setBrightnessDraft(Number(event.target.value))}
+        onPointerUp={commitBrightness} onKeyUp={commitBrightness} onBlur={commitBrightness} />
+      <output>{brightnessDraft ?? brightnessPercent ?? '—'}%</output></label>}
+    {colour && <label className='canvas-lights__field'>Colour
+      <input aria-label='Light colour' type='color' value={colourDraft ?? hexFromRgb(attrs?.rgb_color)}
+        disabled={!available || working || committing} onChange={event => setColourDraft(event.target.value)} onBlur={commitColour} />
+      <button type='button' disabled={!available || working || committing || colourDraft === null} onClick={commitColour}>Apply colour</button></label>}
+    {temperature && <label className='canvas-lights__slider'>Colour temperature
+      <input aria-label='Light colour temperature' type='range' min={temperature.min} max={temperature.max}
+        value={temperatureDraft ?? temperature.value ?? Math.round((temperature.min + temperature.max) / 2)}
+        disabled={!available || working || committing} onChange={event => setTemperatureDraft(Number(event.target.value))}
+        onPointerUp={commitTemperature} onKeyUp={commitTemperature} onBlur={commitTemperature} />
+      <output>{temperatureDraft ?? temperature.value ?? '—'} {temperature.unit}</output></label>}
+    {effects.length > 0 && <label className='canvas-lights__field'>Effect
+      <select aria-label='Light effect' value={effectDraft ?? attrs?.effect ?? ''} disabled={!available || working || committing}
+        onChange={event => setEffectDraft(event.target.value)}><option value=''>Choose effect</option>
+        {effects.map(effect => <option key={effect}>{effect}</option>)}</select>
+      <button type='button' disabled={!available || working || committing || effectDraft === null} onClick={commitEffect}>Apply effect</button></label>}
+    {failed && <p className='canvas-lights__error' role='alert'>{failed.message}</p>}
+    {!failed && phase && <p className='canvas-lights__muted' role='status'>
+      {phase === 'pending' ? 'Sending command…' : phase === 'accepted' ? 'Service accepted; waiting for reported state.' : 'Reported state updated.'}
+    </p>}
+  </section>;
+}
