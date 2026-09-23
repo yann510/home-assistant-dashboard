@@ -30,15 +30,26 @@
   display: flex;
   align-items: center;
   gap: var(--canvas-space-2);
-  min-width: 150px;
+  min-width: 120px;
+  max-width: min(240px, 100%);
+  padding: 6px 8px;
+  font-size: .8rem;
   text-align: left;
   border-color: #7b987e;
   background: #35443e;
 }
 .canvas .canvas-pulse__activity svg {
+  flex-shrink: 0;
   width: 26px;
   height: 26px;
   color: #bdd8b2;
+}
+.canvas .canvas-pulse__activity > span:last-child { min-width: 0; }
+.canvas .canvas-pulse__activity :is(strong, small) {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .canvas .canvas-pulse__activity small,
 .canvas .canvas-pulse__notice small {
@@ -323,7 +334,6 @@
 .canvas .canvas-mood__picker button { white-space: nowrap; font-size: .75rem; }
 .canvas .canvas-pulse__heading small { display: block; margin-top: 5px; font-weight: 400; letter-spacing: 0; text-transform: none; }
 .canvas .canvas-pulse__items { flex: 1; }
-.canvas .canvas-pulse__activity { min-width: 120px; flex: 1 0 120px; padding: 6px 8px; font-size: .8rem; }
 .canvas .canvas-pulse__notice { min-width: 150px; flex: 0 1 185px; text-align: left; justify-content: space-between; padding: 6px 8px; font-size: .8rem; }
 .canvas .canvas-pulse__notice > span:first-child { min-width: 0; }
 .canvas .canvas-pulse__notice small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

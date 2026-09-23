@@ -65,8 +65,12 @@ publish('sensor.house_mood', scene === 'busy' ? 'recovery_required' : 'active', 
 });
 publish('weather.forecast_home', 'sunny', { temperature: 18, temperature_unit: '°C', supported_features: 3 });
 for (const kind of ['washer', 'dryer', 'dishwasher']) {
-  publish(`sensor.${kind}_${kind}_machine_state`, scene === 'busy' ? 'run' : 'stop');
-  publish(`sensor.${kind}_${kind}_job_state`, 'wash');
+  publish(
+    `sensor.${kind}_${kind}_machine_state`,
+    scene === 'pulse-single' && kind === 'washer' ? 'unavailable' : scene === 'busy' ? 'run' : 'stop'
+  );
+  publish(`sensor.${kind}_${kind}_job_state`, params.has('long') ? 'wrinkle_prevent' : 'wash');
+  if (params.has('long')) publish(`sensor.${kind}_${kind}_completion_time`, new Date(Date.now() + 7200000).toISOString());
 }
 publish('vacuum.roomba', scene === 'busy' ? 'returning' : 'docked', {
   battery_level: 84,
