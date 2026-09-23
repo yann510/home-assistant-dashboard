@@ -2257,8 +2257,8 @@ select,
   border-radius: 22px;
 }
 .follow-button[aria-pressed='true'] {
-  background: var(--ink, #272622);
-  color: var(--cream, #fff4de);
+  background: var(--canvas);
+  color: var(--yellow);
 }
 .follow-button span {
   opacity: 0.7;
@@ -2355,4 +2355,208 @@ select,
 }
 .music-top .text-button {
   min-height: 44px;
+}
+
+/* Tablet detail views use the landscape canvas; phones retain a sheet. */
+.music-tabs {
+  display: flex;
+  gap: 8px;
+  position: sticky;
+  top: 81px;
+  z-index: 2;
+  background: #29262e;
+  padding: 4px 0;
+}
+.music-tabs .chip {
+  flex: 1;
+}
+.player-main,
+.player-library,
+.speaker-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+.player-layout {
+  display: grid;
+  gap: 24px;
+}
+.follow-button {
+  border: 1px solid transparent;
+}
+.follow-button[aria-pressed='true'] {
+  border-color: var(--canvas);
+}
+.follow-button[aria-pressed='true'] span {
+  opacity: 1;
+  font-weight: 700;
+}
+@media (min-width: 701px) {
+  dialog[data-kind='lights'],
+  dialog[data-kind='music'] {
+    width: min(1120px, calc(100vw - 32px));
+    height: auto;
+    max-height: calc(100dvh - 32px);
+    margin: auto;
+    border-radius: 24px;
+  }
+  dialog[data-kind='light'],
+  dialog[data-kind='volume'] {
+    width: min(560px, calc(100vw - 64px));
+    height: auto;
+    max-height: calc(100dvh - 48px);
+    margin: auto;
+    border-radius: 24px;
+  }
+  dialog[data-kind='lights'] .sheet-header,
+  dialog[data-kind='music'] .sheet-header {
+    padding: 10px 18px;
+  }
+  dialog[data-kind='lights'] .sheet-body {
+    padding: 12px 16px 16px;
+    gap: 12px;
+  }
+  dialog[data-kind='lights'] .lights-toolbar {
+    position: sticky;
+    top: 65px;
+    z-index: 2;
+    background: #29262e;
+    padding: 4px 0;
+  }
+  dialog[data-kind='lights'] .room-jumps {
+    display: none;
+  }
+  .lights-grid {
+    columns: 3;
+    column-gap: 12px;
+  }
+  .lights-grid .light-group {
+    break-inside: avoid;
+    margin: 0 0 12px;
+    padding: 8px 12px;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: var(--surface);
+  }
+  .lights-grid .detail-row {
+    gap: 6px;
+  }
+  .lights-grid h3 {
+    font-size: 15px;
+  }
+  .lights-grid .chip {
+    font-size: 11px;
+    padding: 5px 10px;
+  }
+  .lights-grid .compact-light {
+    padding: 0;
+    gap: 8px;
+  }
+  .lights-grid .compact-light:last-child {
+    border-bottom: 0;
+  }
+  .lights-grid .light-name {
+    min-height: 44px;
+    padding: 3px 0;
+    gap: 8px;
+    font-size: 13px;
+  }
+  .lights-grid .light-name small {
+    font-size: 11px;
+  }
+  .lights-grid .light-name svg {
+    width: 16px;
+  }
+  .lights-grid .light-name span {
+    gap: 1px;
+  }
+  .player-layout {
+    grid-template-columns: 1fr 1fr;
+  }
+  .player-main {
+    border-right: 1px solid var(--line);
+    padding-right: 24px;
+  }
+  .speaker-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .speaker-row {
+    padding: 12px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+  }
+  .music-tabs {
+    top: 65px;
+  }
+  dialog[data-kind='music'] .sheet-body {
+    gap: 12px;
+    padding: 12px 20px 20px;
+  }
+  .player-library .detail-title {
+    margin: 0;
+  }
+  .player-library .device-item {
+    padding: 10px;
+  }
+  .speaker-settings {
+    gap: 10px;
+  }
+  .speaker-settings .detail-card {
+    margin: 0;
+  }
+}
+@media (min-width: 701px) and (max-width: 850px) {
+  .lights-grid {
+    columns: 2;
+  }
+}
+.speaker-options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+@media (min-width: 701px) {
+  .speaker-settings {
+    display: grid;
+    grid-template-columns: 0.85fr 1.15fr;
+    gap: 24px;
+    align-items: start;
+  }
+  .speaker-grid {
+    align-items: start;
+  }
+  .speaker-grid .detail-row {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .speaker-grid .range-row {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .speaker-grid .range-row input {
+    min-width: 80px;
+  }
+  .speaker-options .detail-title {
+    margin: 0;
+  }
+  .player-main,
+  .player-library {
+    gap: 12px;
+  }
+  .player-library .fine-print {
+    font-size: 10px;
+  }
+}
+@media (min-width: 701px) {
+  .speaker-grid .range-row input {
+    order: 2;
+    flex-basis: 100%;
+    width: 100%;
+  }
+  .speaker-grid .range-row output {
+    margin-left: auto;
+  }
 }

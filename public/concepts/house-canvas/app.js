@@ -38,6 +38,7 @@ function updateDetails(preserve = false) {
   const key = preserve ? focusedKey() : null,
     scroll = dialog.scrollTop;
   const content = renderDetails(state, route, query);
+  dialog.dataset.kind = route.kind;
   dialog.innerHTML = `<header class="sheet-header">${history.length ? '<button class="icon-button" data-action="back" data-focus-key="sheet-back" aria-label="Back">' + icon('back') + '</button>' : ''}<h2 id="details-title" tabindex="-1">${content.title}</h2><button class="icon-button close" data-action="close" data-focus-key="sheet-close" aria-label="Close details">${icon('close')}</button></header><div class="sheet-body">${content.html}</div><div class="sr-only" role="status" aria-live="polite" id="sheet-announcer"></div>`;
   const search = dialog.querySelector('#device-search');
   if (search) search.value = query;
@@ -138,6 +139,12 @@ document.addEventListener('click', event => {
     renderHome();
     closeDetails();
     announce('Demo scene reset');
+    return;
+  }
+  if (a.type === 'music-tab') {
+    route.tab = a.value;
+    updateDetails(true);
+    dialog.scrollTop = 0;
     return;
   }
   if (a.type === 'forecast') {

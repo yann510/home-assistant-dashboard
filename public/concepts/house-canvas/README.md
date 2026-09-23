@@ -77,3 +77,11 @@ This remains a simulated design prototype, not a feature-complete production rep
 Verification: `node --test scripts/check-house-canvas.mjs` covers global light off with an unavailable device, all-room blinds, Follow/manual grouping constraints and bounded relative volume changes. Browser interaction checks cover power versus detail navigation, brightness, global off, grouping, individual volume, seek and mute. Tablet overview fits at 960×600; phone checked at 393×852.
 
 The existing application suite also passed: 190 tests across 16 files. Final browser checks found no console errors and confirmed no overview scroll at 960×600 and 1280×800. These checks do not verify physical Fire tablet/iPhone behaviour or Home Assistant integration.
+
+### Landscape detail overlays — September 23
+
+All lights now uses a wide, centred overlay with three room columns on landscape tablets (two on narrower widths). At 960×600 all seven rooms fit without scrolling. Individual light/volume settings use compact centred dialogs; Back restores the room overview and focus. Phones retain the list with room shortcuts.
+
+Music has Player and Speakers views. Tablet Player places favourites beside transport; Speakers places grouping options beside room volumes. Both fit at 960×600, including all four joined speakers. Per-speaker sliders measure approximately 212px at that size. The active Follow me colour pair now uses charcoal/yellow rather than pale text on a pale background.
+
+Verified in the browser: light details/back on tablet and phone, state retained between music views, Follow/manual switching, group and individual volume, no horizontal overflow at 393×852 and no console errors. Four existing prototype action checks passed. No live dashboard behaviour changed.
