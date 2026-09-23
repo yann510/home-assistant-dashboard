@@ -181,7 +181,8 @@ export function applyAction(state, a) {
       return 'Light colour updated';
     case 'blind': {
       const targets = state.rooms.filter(
-        r => r.blinds && (a.roomId === 'all' || (a.roomId === 'selected' ? state.blindRooms.includes(r.id) : r.id === a.roomId))
+        r =>
+          r.blinds && (a.roomId === 'all' || (a.roomId === 'selected' ? (a.roomIds ?? state.blindRooms).includes(r.id) : r.id === a.roomId))
       );
       if (!targets.length) return 'Select a room first';
       targets.forEach(r => {

@@ -31,10 +31,11 @@ function quickControls(state) {
 function attentionBanner(state) {
   const running = runningAppliances(state),
     notice = state.notices[0];
-  if (!notice && !running.length) return '';
+  if (!notice && !running.length)
+    return `<section class="house-pulse pulse-quiet" aria-label="Home activity and attention"><span class="eyebrow">HOUSE PULSE</span><span>All quiet at home.</span><small>Nothing running. Nothing needs your attention.</small></section>`;
   return `<section class="house-pulse" aria-label="Home activity and attention"><button class="pulse-heading" data-action="open" data-kind="activity" data-focus-key="activity"><span class="eyebrow">HOUSE PULSE</span><span>${running.length ? `${running.length} active` : 'A little heads-up'} ${icon('arrow')}</span></button>
-  ${notice ? `<button class="pulse-item pulse-attention" data-action="open" data-kind="attention" data-focus-key="attention">${icon('check')}<span><small>Needs attention${state.notices.length > 1 ? ` · ${state.notices.length}` : ''}</small><strong>${esc(notice.short)}</strong></span></button>` : ''}
-  ${running.map(a => `<button class="pulse-item pulse-running ${a.paused ? 'is-paused' : ''}" data-action="open" data-kind="${a.kind}" data-id="${a.id}" data-focus-key="activity-${a.id}">${icon(a.symbol)}<span><strong>${esc(a.name)}</strong><small>${esc(a.status)}</small></span></button>`).join('')}</section>`;
+  <div class="pulse-items">${notice ? `<button class="pulse-item pulse-attention" data-action="open" data-kind="attention" data-focus-key="attention">${icon('check')}<span><small>Needs attention${state.notices.length > 1 ? ` · ${state.notices.length}` : ''}</small><strong>${esc(notice.short)}</strong></span></button>` : ''}
+  ${running.map(a => `<button class="pulse-item pulse-running ${a.paused ? 'is-paused' : ''}" data-action="open" data-kind="${a.kind}" data-id="${a.id}" data-focus-key="activity-${a.id}">${icon(a.symbol)}<span><strong>${esc(a.name)}</strong><small>${esc(a.status)}</small></span></button>`).join('')}</div></section>`;
 }
 export function renderOverview(state) {
   const mood = moods.find(m => m.id === state.mood),
@@ -52,7 +53,7 @@ export function renderOverview(state) {
  <div class="hero-art">${moodArt(state.mood)}</div>
  <div class="mood-picker" aria-label="Choose a house mood">${moods.map(m => button(`${m.name} mood`, 'mood', `${icon(m.id === 'love' ? 'sparkle' : m.id === 'gym' ? 'gym' : m.id === 'dinner' ? 'cup' : m.id === 'party' ? 'sun' : 'moon')}<span>${m.name}</span>`, `data-value="${m.id}" data-focus-key="mood-${m.id}" aria-pressed="${state.mood === m.id}"`)).join('')}</div>
  </section>
- <section class="music-card"><div class="music-top"><button class="follow-button" data-action="follow" data-focus-key="follow" aria-pressed="${state.music.follow}">${icon('speaker')} Follow me <span>${state.music.follow ? 'On' : 'Off'}</span></button><button class="text-button" data-action="open" data-kind="music" data-focus-key="music-details">${state.music.room} ${icon('arrow')}</button></div>
+ <section class="music-card"><div class="music-top"><button class="follow-button" data-action="follow" data-focus-key="follow" aria-pressed="${state.music.follow}">${icon('speaker')} Follow me <span>${state.music.follow ? 'On' : 'Off'}</span></button><button class="text-button" data-action="open" data-kind="music" data-tab="speakers" data-focus-key="music-details">${state.music.room} ${icon('arrow')}</button></div>
  <div class="track-line"><div class="album">${albumArt()}</div><button class="track-copy" data-action="open" data-kind="music" data-focus-key="track"><span class="overline">${track.album}</span><h2 title="${esc(track.title)}">${esc(track.title)}</h2><p>${esc(track.artist)}</p></button></div>
  <div class="player-controls"><div class="transport">${button('Previous track', 'skip', icon('prev'), 'data-value="-1" data-focus-key="previous" class="icon-button"')}${button(playing ? 'Pause music' : 'Play music', 'play', icon(playing ? 'pause' : 'play'), 'data-focus-key="play" class="play-button"')}${button('Next track', 'skip', icon('next'), 'data-value="1" data-focus-key="next" class="icon-button"')}</div>${volumeStepper(state)}</div>
  </section></div>

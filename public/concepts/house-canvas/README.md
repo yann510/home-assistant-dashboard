@@ -97,3 +97,13 @@ Verified: all four active at 960×600 without page scroll; 393×852 without hori
 ### Multi-room blinds selection
 
 The overview now has three pressed-state room buttons instead of a dropdown. Any subset can receive Open/Stop/Close together; all three start selected. Empty selection disables commands, with a state-layer guard as well. Individual room details remain independent. Verified two-room targeting and empty selection with the prototype action check (five checks pass), plus browser checks for 960×600 fit, 393×852 overflow, 44px room targets, disabled controls and no console errors.
+
+### Pre-production refinements
+
+Speaker name now opens Speakers directly; track title opens Player. House pulse reserves 60px on tablet and 132px on phone, with a quiet empty state and a scrollable activity row on phone. Controls below it keep their position as activity changes.
+
+Device commands now demonstrate a 650ms pending response, followed by simulated success. Prototype → Fail the next device command tests failure without changing state, then Retry. Range gestures preview locally and commit on change. Blinds acknowledge a command without claiming a measured position; selected targets are captured at send time. Reset invalidates in-flight simulation callbacks.
+
+The production audit is `docs/superpowers/specs/2026-09-23-canvas-production-audit.md`. It names reusable real controllers and gaps to close before integration. This remains the static prototype; no live integration, deployment or physical tablet/iPhone validation has occurred.
+
+Verification: direct speaker/player entry, pending state remains uncommitted, failed state unchanged, successful retry, fixed tablet mood position for busy/quiet activity, phone overflow containment. Six prototype logic checks and the existing 190-test app suite passed in this pass.

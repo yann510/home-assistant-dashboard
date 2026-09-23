@@ -142,7 +142,7 @@ export function renderDetails(state, route, query = '') {
           speakersTab
             ? `<div class="speaker-settings"><div class="speaker-options"> <section class="detail-card"><div class="detail-row"><h3>Follow me</h3>${chip(state.music.follow ? 'Turn Follow me off' : 'Turn Follow me on', 'follow', '', state.music.follow)}</div><p class="fine-print">Rooms join when motion is detected. Turning off keeps the original speaker. This prototype does not detect motion.</p>${state.music.follow ? chip('Switch to manual grouping', 'manual', '') : ''}</section>
  <label class="field">Source speaker<select data-action="speaker" data-focus-key="speaker" ${state.music.follow ? 'disabled' : ''}>${speakers.map(r => `<option ${r === state.music.room ? 'selected' : ''}>${r}</option>`).join('')}</select></label>
- <h3 class="detail-title">Speakers</h3><p class="fine-print">${state.music.follow ? 'Follow me manages your rooms. Switch to manual grouping to choose them yourself.' : 'Tap a room to join or leave. Changes apply immediately in this demo.'}</p>
+ <h3 class="detail-title">Speakers</h3><p class="fine-print">${state.music.follow ? 'Follow me manages your rooms. Switch to manual grouping to choose them yourself.' : 'Tap a room to join or leave. Commands show simulated pending and outcome feedback.'}</p>
  ${!state.music.follow ? `<div class="chip-list">${chip('All rooms', 'group-all', '')}${chip('Only source', 'group-source', '')}</div>` : ''}
  </div><div class="speaker-grid">${speakers.map(r => `<section class="speaker-row"><div class="detail-row"><strong>${r}${r === state.music.room ? ' · Source' : ''}</strong>${button(`Toggle ${r} speaker`, 'group-toggle', state.music.members.includes(r) ? 'Joined' : 'Join', `class="chip" data-value="${r}" data-focus-key="speaker-${r}" aria-pressed="${state.music.members.includes(r)}" ${state.music.follow || r === state.music.room ? 'disabled' : ''}`)}</div>${state.music.members.includes(r) ? `<label class="range-row">Volume<input aria-label="${r} volume" type="range" min="0" max="100" value="${state.music.volumes[r]}" data-action="speaker-volume" data-id="${r}" data-focus-key="speaker-volume-${r}"><output>${state.music.volumes[r]}%</output></label>` : ''}</section>`).join('')}</div>
 </div>`
@@ -287,7 +287,7 @@ export function renderDetails(state, route, query = '') {
           )
           .join(
             ''
-          )}<button class="primary-button" data-action="reset">Reset this scene</button><p class="fine-print">Tablet: one landscape overview. Phone: room controls and detail sheets, with music always within reach.</p>`,
+          )}<button class="chip" data-action="fail-next">Fail the next device command</button><p class="fine-print">Test pending, failure and retry feedback. All responses are simulated.</p><button class="primary-button" data-action="reset">Reset this scene</button><p class="fine-print">Tablet: one landscape overview. Phone: room controls and detail sheets, with music always within reach.</p>`,
       };
     default:
       return { title: 'Home', html: '<p>Choose a room or device.</p>' };

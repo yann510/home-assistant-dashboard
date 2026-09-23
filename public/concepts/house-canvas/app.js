@@ -1,4 +1,4 @@
-import { createState, applyAction } from './state.js';
+import { createState, applyAction, escapeHtml } from './state.js';
 import { renderOverview } from './overview.js';
 import { renderDetails, renderDeviceList } from './details.js';
 import { icon } from './art.js';
@@ -12,7 +12,55 @@ let state = createState(),
   openerKey = '',
   savedOverflow = '',
   toastTimer,
-  backdropDown = false;
+  backdropDown = false,
+  commandFeedback = null,
+  commandBusy = false,
+  commandRevision = 0,
+  failNextCommand = false;
+const localActions = new Set(['light-room', 'blind-select', 'dismiss']);
+function feedbackHtml() {
+  if (!commandFeedback) return '';
+  return `<div class="command-feedback" tabindex="-1" data-focus-key="command-feedback" data-status="${commandFeedback.status}" role="status"><span>${escapeHtml(commandFeedback.text)}</span>${commandFeedback.status === 'error' ? '<button data-action="retry-command" data-focus-key="retry-command">Retry</button>' : ''}${commandFeedback.status !== 'pending' ? '<button data-action="clear-command" aria-label="Dismiss command feedback">×</button>' : ''}</div>`;
+}
+function refreshCommand() {
+  renderHome();
+  if (dialog.open) updateDetails(true);
+}
+function sendDemoCommand(action) {
+  if (action.type === 'blind' && action.roomId === 'selected' && !action.roomIds) action = { ...action, roomIds: [...state.blindRooms] };
+  if (commandBusy) return;
+  commandBusy = true;
+  const revision = ++commandRevision;
+  const fails = failNextCommand;
+  failNextCommand = false;
+  commandFeedback = { status: 'pending', text: 'Sending… · demo', action };
+  refreshCommand();
+  setTimeout(() => {
+    if (revision !== commandRevision) return;
+    commandBusy = false;
+    if (fails) {
+      commandFeedback = { status: 'error', text: 'Demo command failed. No device state changed.', action };
+    } else {
+      const message = applyAction(state, action);
+      commandFeedback = {
+        status: 'success',
+        text: action.type === 'blind' ? 'Demo command accepted. Blind position is not reported.' : `${message || 'Updated'} · demo`,
+      };
+    }
+    refreshCommand();
+  }, 650);
+}
+function setCommandDisabled(root) {
+  if (!commandBusy) return;
+  root.querySelectorAll('[data-action]').forEach(el => {
+    if (
+      ['open', 'close', 'back', 'music-tab', 'jump-room', 'forecast', 'scenario', 'reset', 'clear-search'].includes(el.dataset.action) ||
+      localActions.has(el.dataset.action)
+    )
+      return;
+    el.disabled = true;
+  });
+}
 function focusedKey() {
   return document.activeElement?.dataset.focusKey;
 }
@@ -27,8 +75,10 @@ function restoreFocus(key, root = document) {
 }
 function renderHome() {
   const key = dialog.open ? null : focusedKey();
-  app.innerHTML = renderOverview(state);
+  app.innerHTML = renderOverview(state) + (dialog.open ? '' : feedbackHtml());
+  setCommandDisabled(app);
   updateClock();
+  if (commandBusy && key) restoreFocus('command-feedback', dialog.open ? dialog : app);
   if (!restoreFocus(key, app) && key === 'end-mood') {
     app.querySelector('.mood-picker button')?.focus({ preventScroll: true });
   }
@@ -39,7 +89,8 @@ function updateDetails(preserve = false) {
     scroll = dialog.scrollTop;
   const content = renderDetails(state, route, query);
   dialog.dataset.kind = route.kind;
-  dialog.innerHTML = `<header class="sheet-header">${history.length ? '<button class="icon-button" data-action="back" data-focus-key="sheet-back" aria-label="Back">' + icon('back') + '</button>' : ''}<h2 id="details-title" tabindex="-1">${content.title}</h2><button class="icon-button close" data-action="close" data-focus-key="sheet-close" aria-label="Close details">${icon('close')}</button></header><div class="sheet-body">${content.html}</div><div class="sr-only" role="status" aria-live="polite" id="sheet-announcer"></div>`;
+  dialog.innerHTML = `<header class="sheet-header">${history.length ? '<button class="icon-button" data-action="back" data-focus-key="sheet-back" aria-label="Back">' + icon('back') + '</button>' : ''}<h2 id="details-title" tabindex="-1">${content.title}</h2><button class="icon-button close" data-action="close" data-focus-key="sheet-close" aria-label="Close details">${icon('close')}</button></header><div class="sheet-body">${content.html}</div>${feedbackHtml()}<div class="sr-only" role="status" aria-live="polite" id="sheet-announcer"></div>`;
+  setCommandDisabled(dialog);
   const search = dialog.querySelector('#device-search');
   if (search) search.value = query;
   if (preserve) {
@@ -74,6 +125,7 @@ dialog.addEventListener('close', () => {
   document.body.style.overflow = savedOverflow;
   route = null;
   history = [];
+  renderHome();
   if (!restoreFocus(openerKey, app)) restoreFocus('devices', app);
 });
 dialog.addEventListener('pointerdown', e => {
@@ -110,8 +162,23 @@ document.addEventListener('click', event => {
   const el = event.target.closest('button[data-action]');
   if (!el || el.disabled) return;
   const a = actionFor(el);
+  if (a.type === 'retry-command') {
+    sendDemoCommand(commandFeedback.action);
+    return;
+  }
+  if (a.type === 'clear-command') {
+    commandFeedback = null;
+    refreshCommand();
+    return;
+  }
+  if (a.type === 'fail-next') {
+    failNextCommand = true;
+    closeDetails();
+    announce('The next device command will fail in this demo.');
+    return;
+  }
   if (a.type === 'open') {
-    openDetails({ kind: el.dataset.kind, id: el.dataset.id, category: 'All', room: 'All' }, el);
+    openDetails({ kind: el.dataset.kind, id: el.dataset.id, tab: el.dataset.tab, category: 'All', room: 'All' }, el);
     return;
   }
   if (a.type === 'jump-room') {
@@ -135,6 +202,10 @@ document.addEventListener('click', event => {
     return;
   }
   if (a.type === 'scenario' || a.type === 'reset') {
+    commandRevision++;
+    commandBusy = false;
+    commandFeedback = null;
+    failNextCommand = false;
     state = createState(a.type === 'reset' ? state.scenario : a.value);
     renderHome();
     closeDetails();
@@ -160,6 +231,10 @@ document.addEventListener('click', event => {
     dialog.querySelector('#device-search').focus();
     return;
   }
+  if (!localActions.has(a.type)) {
+    sendDemoCommand(a);
+    return;
+  }
   const message = applyAction(state, a);
   renderHome();
   if (dialog.open) updateDetails(true);
@@ -173,14 +248,8 @@ document.addEventListener('input', event => {
     return;
   }
   if (!el.matches('input[type="range"][data-action]')) return;
-  applyAction(state, actionFor(el));
   const output = el.parentElement.querySelector('output');
   if (output) output.textContent = el.value + (el.dataset.action === 'thermostat' ? '°' : '%');
-  if (el.dataset.action === 'thermostat') {
-    dialog.querySelector('.thermostat-value').textContent = `${state.thermostat}°`;
-  }
-  // Keep the active range node alive throughout pointer and keyboard adjustments.
-  if (dialog.contains(el)) renderHome();
 });
 document.addEventListener('change', event => {
   const el = event.target;
@@ -188,6 +257,10 @@ document.addEventListener('change', event => {
   if (el.dataset.action === 'category' || el.dataset.action === 'room-filter') {
     route[el.dataset.action === 'category' ? 'category' : 'room'] = el.value;
     refreshSearch();
+    return;
+  }
+  if (!localActions.has(el.dataset.action)) {
+    sendDemoCommand(actionFor(el));
     return;
   }
   applyAction(state, actionFor(el));

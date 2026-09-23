@@ -47,3 +47,12 @@ test('Blinds commands only affect selected rooms and ignore an empty selection',
   applyAction(s, { type: 'blind', roomId: 'selected', value: 'open' });
   assert.equal(JSON.stringify(s.rooms), before);
 });
+test('Delayed blinds command retains the rooms selected when sent', () => {
+  const s = createState();
+  const action = { type: 'blind', roomId: 'selected', roomIds: ['living', 'gym'], value: 'close' };
+  s.blindRooms = ['bedroom'];
+  applyAction(s, action);
+  assert.equal(s.rooms.find(r => r.id === 'bedroom').lastBlindCommand, null);
+  assert.equal(s.rooms.find(r => r.id === 'living').lastBlindCommand, 'close');
+  assert.equal(s.rooms.find(r => r.id === 'gym').lastBlindCommand, 'close');
+});
