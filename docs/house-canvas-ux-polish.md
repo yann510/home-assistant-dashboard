@@ -35,3 +35,17 @@ Controlled scenarios are available at `/dev/canvas-preview/index.html?view=canva
 ## Live access and limits
 
 The corrected LAN trial URL, `/local/canvas-trial/index.html?view=canvas`, now reaches the normal Home Assistant authorization screen in the in-app browser, showing Username, Password and Log in. No credentials were entered. The earlier wrong-folder access issue is superseded by this successful login-screen reachability check. Authenticated live UI/state updates, Fire tablet/iPhone hardware acceptance and physical command outcomes remain pending. No real-home commands were sent during this follow-up.
+
+## Spacing follow-up
+
+Reviewed source `f840c3976828df2835fe755bf3e098ed2dc8cae3` applies a shared 4/8/12/16/20/24 px spacing scale to Canvas and its dialogs. Overview columns use equal 16 px gaps; Lights and Blinds have matched 44 px heading rows and 8 × 16 px card insets. Dialog content aligns beneath its header while preserving the focus gutter and phone safe-area padding. Speaker sections and Advanced actions have consistent gaps. Forecast tabs remain equal-width touch targets, and pulse focus outlines sit inside the scroll row. Classic and Quiet behavior, service calls and command handlers are unchanged.
+
+Verification: **340 tests across 30 files**, TypeScript, targeted ESLint and the Canvas trial build passed. The final CSS-only corrections were followed by another successful build and whitespace check. The existing Vite bundle-size advisory remains. Independent review passed with no blocking findings.
+
+The root agent inspected the controlled preview through CUA:
+
+- At 960 × 600 in the busy state, the document remains exactly 960 × 600, both overview gaps are 16 px, Lights/Blinds headings align and the pulse focus outline is fully visible.
+- Speakers header/content begin at x=74/74.5; body client and scroll widths both measure 813 px.
+- At 375 px, weather tabs share y=119.2, each measuring 50 × 102.66 px with 8 px gaps. Header/body content align at x=20; body client and scroll widths both measure 336 px, with no horizontal overflow.
+
+Screenshots were inspected in CUA; no new screenshot files were saved. Authenticated live updates and physical Fire tablet/iPhone checks remain pending. No real-home commands were issued.

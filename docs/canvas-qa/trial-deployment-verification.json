@@ -1,18 +1,18 @@
 {
-  "verifiedAt": "2026-09-23T19:07:29.416Z",
-  "sourceCommit": "cdcf153588d965dfb40b9a13bede8fda91c2f16a",
-  "releaseId": "cdcf153588d965dfb40b9a13bede8fda91c2f16a",
+  "verifiedAt": "2026-09-23T19:17:29.424Z",
+  "sourceCommit": "f840c3976828df2835fe755bf3e098ed2dc8cae3",
+  "releaseId": "f840c3976828df2835fe755bf3e098ed2dc8cae3",
   "url": "http://homeassistant.local:8123/local/canvas-trial/index.html?view=canvas",
   "entryStatus": 200,
-  "previousRelease": "4e29b770bff3c56fcd61c9a788e6d682c80bbe74",
-  "previousManifestFiles": 74,
+  "previousRelease": "cdcf153588d965dfb40b9a13bede8fda91c2f16a",
+  "previousManifestFiles": 76,
   "currentBuildFiles": 73,
-  "retainedAssetFiles": 2,
+  "retainedAssetFiles": 4,
   "remoteRoot": "/homeassistant/www/canvas-trial",
-  "manifestFiles": 76,
+  "manifestFiles": 78,
   "linkedAssets": [
-    "/local/canvas-trial/assets/index-sxnqIGhU.js",
-    "/local/canvas-trial/assets/index-CbFkEsjg.css"
+    "/local/canvas-trial/assets/index-B0yJSnOW.js",
+    "/local/canvas-trial/assets/index-BnXSeax8.css"
   ],
   "files": [
     {
@@ -220,16 +220,16 @@
       "sha256": "b44addb52e2f17e891a6922a3c39deab881fe6dbcb85530c98864c76c6ea42ce"
     },
     {
-      "path": "assets/index-CbFkEsjg.css",
+      "path": "assets/index-B0yJSnOW.js",
       "status": 200,
-      "bytes": 73415,
-      "sha256": "1accd98e6cca937f03363190908469978d07f1c3ca715011b45c5f5ed11ad6af"
+      "bytes": 1044440,
+      "sha256": "62a591132f2e74df5f6d34c7f0f9a183eaa79bb5dca0f8cc35ee46f51ceb0332"
     },
     {
-      "path": "assets/index-sxnqIGhU.js",
+      "path": "assets/index-BnXSeax8.css",
       "status": 200,
-      "bytes": 1044363,
-      "sha256": "029d972b10e2764879cae798195b4dc0c356b628ef5acc4a9c7035d6bf99a528"
+      "bytes": 75240,
+      "sha256": "78671befcc1bb44c471d4336785e9d0708e11cc0bc2be84cf6148c3bb76a1e00"
     },
     {
       "path": "assets/is-CMCH3DFk.js",
@@ -451,13 +451,19 @@
       "path": "index.html",
       "status": 200,
       "bytes": 495,
-      "sha256": "3fe743e2a1c33600920698fcdf9a06df1a4313c20441f286e435b0ebbcaead1b"
+      "sha256": "82d8e791b9d6ac73e1cec898c9d3e4c732f458f17cb862112d0d26e3b0446900"
     },
     {
       "path": "release-info.json",
       "status": 200,
       "bytes": 56,
-      "sha256": "65ee52d1bcc9399607ac407ff246558fa8b205a1a9aead6f251e928fa3e004bf"
+      "sha256": "6ab6cb50804821772eca9089b06b071d119332e79baeeb3a927bceab2018598c"
+    },
+    {
+      "path": "assets/index-CbFkEsjg.css",
+      "status": 200,
+      "bytes": 73415,
+      "sha256": "1accd98e6cca937f03363190908469978d07f1c3ca715011b45c5f5ed11ad6af"
     },
     {
       "path": "assets/index-DQmBCxDs.css",
@@ -470,6 +476,12 @@
       "status": 200,
       "bytes": 1043144,
       "sha256": "08d8d20cda924806afb6111fbcbf4c32291e33562d664d0d39afb3d4ecf3bbc7"
+    },
+    {
+      "path": "assets/index-sxnqIGhU.js",
+      "status": 200,
+      "bytes": 1044363,
+      "sha256": "029d972b10e2764879cae798195b4dc0c356b628ef5acc4a9c7035d6bf99a528"
     }
   ],
   "existingDashboard": [
