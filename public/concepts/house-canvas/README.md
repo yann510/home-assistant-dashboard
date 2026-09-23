@@ -125,3 +125,5 @@ Track progress uses seconds and m:ss labels, including accessible value text. Du
 Each favourite now uses its real public Spotify cover from Home Assistant's library metadata, in a two-column tile layout. Tablet tiles pair square covers with names; phone tiles give the artwork more space above the title. Selected playlists show a checkmark and highlighted border. Remote image failures hide the broken image and expose a local decorative fallback, keeping the playlist usable. No media credentials were copied.
 
 Verified all seven covers loaded, square 64px artwork on tablet, full 960×600 player fit, phone horizontal containment, and playlist selection. Six prototype state checks passed. Covers need network access; playback is still simulated.
+
+Favourite tiles are now artwork-only: no repeated titles, subtitles or visible section heading. Playlist buttons retain accessible names and selected checkmarks. If a cover fails, the fallback displays its title. Verified selection, all seven accessible names, 960×600 fit and phone horizontal containment.
