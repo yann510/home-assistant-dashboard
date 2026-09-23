@@ -15,7 +15,8 @@ function Artwork({ item }: { item: FavouriteItem }) {
     />
   ) : (
     <span className='canvas-favourites__fallback' aria-hidden='true'>
-      ♫
+      <span>♫</span>
+      <span className='canvas-favourites__title'>{item.title}</span>
     </span>
   );
 }
@@ -23,7 +24,6 @@ export function CanvasFavourites() {
   const { favourites: f, favouritePlayback: p, disabled } = useCanvasMusic();
   return (
     <section className='canvas-favourites' aria-label='Favourites'>
-      <h3>Your favourites</h3>
       {f.loading ? (
         <p role='status'>Loading favourites…</p>
       ) : f.error ? (

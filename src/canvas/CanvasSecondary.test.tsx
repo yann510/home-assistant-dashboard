@@ -511,3 +511,57 @@ it('uses thermostat bounds, supported features and reported availability indepen
     expect.objectContaining({ target: { entity_id: ['climate.thermostat_office'] }, service_data: { temperature: 21 } }),
   ]);
 });
+
+it('restores the chosen snoozed episode from the contained pulse row and locks restores while saving', async () => {
+  const restore = deferred();
+  ref.current!.respondWith(() => restore.promise);
+  ref.current!.publish('sensor.dashboard_attention', '3', {
+    ready: true,
+    items: ['First reminder', 'Second reminder with a long title', 'Third reminder'].map((title, index) => ({
+      id: `reminder-${index}`,
+      episode: `episode-${index}`,
+      title,
+      detail: 'Snoozed',
+      tone: 'amber',
+      icon: 'bin',
+      target: 'vacuum',
+      kind: 'condition',
+      occurred_at: new Date().toISOString(),
+      snoozed_until: new Date(Date.now() + 3600000).toISOString(),
+      snooze_seconds: 3600,
+    })),
+  });
+  render(<CanvasDashboard />);
+  const toggle = screen.getByRole('button', { name: 'Snoozed · 3' });
+  expect(screen.queryByRole('button', { name: 'Restore: First reminder' })).toBeNull();
+  fireEvent.click(toggle);
+  const chosen = screen.getByRole('button', { name: 'Restore: Second reminder with a long title' });
+  expect(chosen.parentElement).toBe(toggle.parentElement);
+  expect(toggle.getAttribute('aria-expanded')).toBe('true');
+  fireEvent.click(chosen);
+  expect(ref.current!.calls).toEqual([
+    expect.objectContaining({
+      domain: 'dashboard_attention',
+      service: 'unsnooze',
+      service_data: { id: 'reminder-1', episode: 'episode-1' },
+    }),
+  ]);
+  expect(screen.getByRole('button', { name: 'Restore: First reminder' }).hasAttribute('disabled')).toBe(true);
+  await act(async () => restore.resolve({}));
+  fireEvent.click(toggle);
+  expect(screen.queryByRole('button', { name: 'Restore: First reminder' })).toBeNull();
+});
+
+it('restores a searched directory position and trigger focus after nested navigation', () => {
+  render(<CanvasDashboard />);
+  fireEvent.click(screen.getByRole('button', { name: 'All devices' }));
+  fireEvent.change(screen.getByRole('searchbox', { name: 'Find a device or room' }), { target: { value: 'Bedroom' } });
+  const body = document.querySelector('.canvas-dialog__body')!;
+  body.scrollTop = 260;
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Bedroom blinds' }));
+  expect(body.scrollTop).toBe(0);
+  fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+  expect(body.scrollTop).toBe(260);
+  expect((screen.getByRole('searchbox', { name: 'Find a device or room' }) as HTMLInputElement).value).toBe('Bedroom');
+  expect(document.activeElement).toBe(within(screen.getByRole('dialog')).getByRole('button', { name: 'Bedroom blinds' }));
+});

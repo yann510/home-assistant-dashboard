@@ -37,7 +37,7 @@ for (const room of ['living_room', 'bathroom', 'bedroom', 'gym'])
     supported_features: 4127295,
     group_members: [`media_player.${room}`],
     volume_level: 0.32,
-    is_volume_muted: false,
+    is_volume_muted: params.has('muted'),
     media_title: params.has('long')
       ? 'A very long title about the extraordinary places we call home and everything in between'
       : 'All In A Dream',
@@ -74,26 +74,43 @@ for (const room of ['office', 'gym', 'bedroom'])
     max_temp: 30,
     target_temp_step: 0.5,
   });
+const snoozedItems = ['Empty Roomba bin', 'Check the dishwasher rinse aid and salt levels', 'Clean the washer filter'].map(
+  (title, index) => ({
+    id: `snoozed-${index}`,
+    episode: `snoozed-${index}-1`,
+    title,
+    detail: 'Preview reminder',
+    tone: 'amber',
+    icon: 'bin',
+    target: 'vacuum',
+    kind: 'condition',
+    occurred_at: new Date().toISOString(),
+    snoozed_until: new Date(Date.now() + 3600000).toISOString(),
+    snooze_seconds: 3600,
+  })
+);
 publish('sensor.dashboard_attention', '0', {
   ready: true,
   items:
-    scene === 'busy'
-      ? [
-          {
-            id: 'bin',
-            episode: 'bin-1',
-            title: 'Empty Roomba bin',
-            detail: 'Bin full',
-            tone: 'amber',
-            icon: 'bin',
-            target: 'vacuum',
-            kind: 'condition',
-            occurred_at: new Date().toISOString(),
-            snoozed_until: null,
-            snooze_seconds: 3600,
-          },
-        ]
-      : [],
+    scene === 'snoozed'
+      ? snoozedItems
+      : scene === 'busy'
+        ? [
+            {
+              id: 'bin',
+              episode: 'bin-1',
+              title: 'Empty Roomba bin',
+              detail: 'Bin full',
+              tone: 'amber',
+              icon: 'bin',
+              target: 'vacuum',
+              kind: 'condition',
+              occurred_at: new Date().toISOString(),
+              snoozed_until: null,
+              snooze_seconds: 3600,
+            },
+          ]
+        : [],
 });
 if (scene === 'empty') for (const id of Object.keys(entities)) delete entities[id];
 const connection = {
@@ -104,7 +121,11 @@ const connection = {
   async sendMessagePromise(message: Record<string, unknown>) {
     if (message.type === 'media_player/browse_media')
       return {
-        children: ['Morning calm', 'Dinner at home', 'Night drive'].map((title, index) => ({
+        children: [
+          'Morning calm',
+          params.has('long') ? 'Dinner at home with friends and a very long playlist title to read' : 'Dinner at home',
+          'Night drive',
+        ].map((title, index) => ({
           title,
           media_content_id: `fixture:${index}`,
           media_content_type: 'playlist',
@@ -112,10 +133,25 @@ const connection = {
           thumbnail:
             index === 0
               ? `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160"><rect width="160" height="160" fill="#bf8e73"/><circle cx="90" cy="65" r="40" fill="#e6dcbc"/><path d="M0 160Q80 15 160 160" fill="#443b46"/></svg>')}`
-              : undefined,
+              : index === 2 && params.has('brokenArt')
+                ? '/missing-favourite-cover.jpg'
+                : undefined,
         })),
       };
     if (scene === 'busy') throw new Error('Controlled preview failure. Retry after changing scene.');
+    if (message.type === 'call_service' && message.domain === 'input_boolean' && !params.has('unconfirmed')) {
+      const id = (message.target as { entity_id: string[] }).entity_id[0];
+      publish(id, 'on');
+    }
+    if (message.type === 'call_service' && message.domain === 'dashboard_attention' && message.service === 'unsnooze') {
+      const episode = (message.service_data as { episode: string }).episode;
+      publish('sensor.dashboard_attention', '0', {
+        ready: true,
+        items: (entities['sensor.dashboard_attention'].attributes.items as typeof snoozedItems).map(item =>
+          item.episode === episode ? { ...item, snoozed_until: null } : item
+        ),
+      });
+    }
     return { response: { success: true } };
   },
   async subscribeMessage(callback: (event: unknown) => void, message: Record<string, unknown>) {

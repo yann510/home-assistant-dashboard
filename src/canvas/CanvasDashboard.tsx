@@ -5,7 +5,8 @@ import { canvasRouteTitle, routeForAttention, type CanvasRoute } from './routes'
 import { CanvasLights, CanvasAllLights } from './CanvasLights';
 import { CanvasLightDetails } from './CanvasLightDetails';
 import { CanvasLightsProvider } from './useCanvasLights';
-import { CanvasModes } from './CanvasModes';
+import { CanvasModes, CanvasModeFeedback } from './CanvasModes';
+import { useCanvasModes } from './useCanvasModes';
 import { CanvasBlinds } from './CanvasBlinds';
 import { CanvasBlindsProvider } from './useCanvasBlinds';
 import { CanvasMusicProvider } from './CanvasMusicProvider';
@@ -29,9 +30,11 @@ import './canvas-secondary.css';
 function CanvasDashboardContent(): React.JSX.Element {
   const connected = useStore(state => Boolean(state.connection?.connected && state.connectionStatus === 'connected'));
   const [route, setRoute] = useState<CanvasRoute>({ kind: 'overview' });
-  const [routeHistory, setRouteHistory] = useState<{ route: CanvasRoute; trigger: string | null }[]>([]);
+  const [routeHistory, setRouteHistory] = useState<{ route: CanvasRoute; trigger: string | null; scrollTop: number }[]>([]);
   const backFocus = useRef<string | null>(null);
   const [deviceQuery, setDeviceQuery] = useState('');
+  const [dialogScrollTop, setDialogScrollTop] = useState(0);
+  const modes = useCanvasModes();
   const returnFocus = useRef<HTMLElement | null>(null);
   const mood = useHouseMood();
   const attention = useAttention();
@@ -57,8 +60,13 @@ function CanvasDashboardContent(): React.JSX.Element {
     if (route.kind === 'overview' && trigger) returnFocus.current = trigger;
     setRouteHistory(previous => [
       ...previous,
-      { route, trigger: trigger?.dataset.canvasFocusKey || trigger?.getAttribute('aria-label') || trigger?.textContent || null },
+      {
+        route,
+        trigger: trigger?.dataset.canvasFocusKey || trigger?.getAttribute('aria-label') || trigger?.textContent || null,
+        scrollTop: document.querySelector('.canvas-dialog__body')?.scrollTop ?? 0,
+      },
     ]);
+    setDialogScrollTop(0);
     setRoute(next);
   }
   function close() {
@@ -74,6 +82,7 @@ function CanvasDashboardContent(): React.JSX.Element {
     }
     setRouteHistory(routeHistory.slice(0, -1));
     backFocus.current = previous.trigger;
+    setDialogScrollTop(previous.scrollTop);
     setRoute(previous.route);
   }
 
@@ -88,7 +97,7 @@ function CanvasDashboardContent(): React.JSX.Element {
             </h1>
           </div>
           <div className='canvas__header-actions'>
-            <CanvasModes />
+            <CanvasModes modes={modes} />
             <span className='canvas__connection' role='status'>
               {connected ? 'Connected' : 'Disconnected'}
             </span>
@@ -98,7 +107,7 @@ function CanvasDashboardContent(): React.JSX.Element {
             </button>
           </div>
         </header>
-        <CanvasPulse onOpen={open} attention={attention} onSelect={setSelectedAttention} />
+        <CanvasPulse onOpen={open} attention={attention} onSelect={setSelectedAttention} feedback={<CanvasModeFeedback modes={modes} />} />
         <div className='canvas__feature-band'>
           <CanvasMood controller={mood} onExplore={trigger => open({ kind: 'moods' }, trigger)} />
           <CanvasMusic
@@ -112,12 +121,13 @@ function CanvasDashboardContent(): React.JSX.Element {
         </section>
       </div>
       {route.kind !== 'overview' && (
-        <CanvasDialog title={canvasRouteTitle(route)} onClose={close}>
-          {routeHistory.length > 1 && (
-            <button type='button' className='canvas-dialog__back' onClick={back}>
-              Back
-            </button>
-          )}
+        <CanvasDialog
+          title={canvasRouteTitle(route)}
+          onClose={close}
+          onBack={routeHistory.length > 1 ? back : undefined}
+          routeKey={JSON.stringify(route)}
+          scrollTop={dialogScrollTop}
+        >
           {activeAttention && routeForAttention(activeAttention).kind === route.kind && (
             <div className='canvas-attention-context'>
               <strong>{activeAttention.title}</strong>

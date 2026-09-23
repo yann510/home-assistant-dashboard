@@ -405,3 +405,35 @@ describe('Canvas music', () => {
     }
   );
 });
+
+it('labels missing and failed favourite artwork while leaving successful artwork title-free', async () => {
+  browseMedia.mockResolvedValue({
+    children: [
+      { title: 'A long favourite playlist title', media_content_id: 'one', media_content_type: 'playlist', can_play: true },
+      { title: 'Broken cover', media_content_id: 'two', media_content_type: 'playlist', can_play: true, thumbnail: '/broken.jpg' },
+    ],
+  });
+  mount();
+  await userEvent.click(screen.getByRole('button', { name: 'Open player' }));
+  expect((await screen.findByRole('button', { name: 'Play A long favourite playlist title' })).textContent).toContain(
+    'A long favourite playlist title'
+  );
+  const broken = screen.getByRole('button', { name: 'Play Broken cover' });
+  expect(broken.textContent).not.toContain('Broken cover');
+  fireEvent.error(broken.querySelector('img')!);
+  expect(broken.textContent).toContain('Broken cover');
+});
+
+it('shows all-muted, partly muted and unknown states truthfully and keeps opening speaker settings command-free', async () => {
+  updateEntity('media_player.living_room', {}, { is_volume_muted: true });
+  updateEntity('media_player.gym', {}, { is_volume_muted: true });
+  mount();
+  expect(screen.getByRole('button', { name: 'Open speaker volume, muted' }).textContent).toBe('Muted');
+  updateEntity('media_player.gym', {}, { is_volume_muted: false });
+  expect(screen.getByRole('button', { name: 'Open speaker volume, some muted' }).textContent).toBe('Some muted');
+  updateEntity('media_player.living_room', {}, { is_volume_muted: undefined });
+  expect(screen.getByRole('button', { name: 'Open speaker volume' }).textContent).toBe('34%');
+  await userEvent.click(screen.getByRole('button', { name: 'Open speaker volume' }));
+  expect(screen.getByRole('button', { name: 'Apply rooms' })).toBeTruthy();
+  expect(sendMessagePromise).not.toHaveBeenCalled();
+});

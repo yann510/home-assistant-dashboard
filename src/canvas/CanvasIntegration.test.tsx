@@ -208,7 +208,7 @@ it('retains mood recovery and attention context across navigation, then reflects
   expect(screen.getByText('No mood active')).toBeTruthy();
 });
 
-it('loads artwork-only favourites and surfaces a playback rejection in Player', async () => {
+it('labels favourites without artwork and surfaces a playback rejection in Player', async () => {
   speaker();
   fixture.respondWith(async message => {
     if ((message as { type: string }).type === 'media_player/browse_media')
@@ -219,7 +219,7 @@ it('loads artwork-only favourites and surfaces a playback rejection in Player', 
   fireEvent.click(screen.getByRole('button', { name: 'Open player' }));
   await act(async () => {});
   const playlist = screen.getByRole('button', { name: 'Play Morning calm' });
-  expect(playlist.textContent).not.toContain('Morning calm');
+  expect(playlist.textContent).toContain('Morning calm');
   fireEvent.click(playlist);
   await act(async () => {});
   expect(within(screen.getByRole('dialog')).getByRole('alert').textContent).toMatch(/Could not|Playback rejected/);

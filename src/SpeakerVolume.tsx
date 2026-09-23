@@ -27,6 +27,11 @@ export function SpeakerVolume({
   const reported = Math.round(Math.max(0, Math.min(1, attributes?.volume_level ?? 0)) * 100);
   const entities = useStore(state => state.entities);
   const muted = targets.length > 0 && targets.every(id => entities[id]?.attributes.is_volume_muted === true);
+  const reportedMuted = targets.filter(id => {
+    const target = entities[id];
+    return target && !['unknown', 'unavailable'].includes(target.state) && target.attributes.is_volume_muted === true;
+  }).length;
+  const muteStatus = reportedMuted > 0 ? (reportedMuted === targets.length ? 'Muted' : 'Some muted') : '';
   const features = attributes?.supported_features ?? 0;
   const unavailable = !entity || ['unknown', 'unavailable'].includes(entity.state);
   const cannotSetVolume = disabled || unavailable || !(features & 4) || !Number.isFinite(attributes?.volume_level);
@@ -321,8 +326,12 @@ export function SpeakerVolume({
         >
           −
         </button>
-        <button type='button' aria-label='Open speaker volume' onClick={event => onOpenSettings(event.currentTarget)}>
-          {Number.isFinite(attributes?.volume_level) ? `${level}%` : 'Volume'}
+        <button
+          type='button'
+          aria-label={`Open speaker volume${muteStatus ? `, ${muteStatus.toLowerCase()}` : ''}`}
+          onClick={event => onOpenSettings(event.currentTarget)}
+        >
+          {muteStatus || (Number.isFinite(attributes?.volume_level) ? `${level}%` : 'Volume')}
         </button>
         <button
           type='button'

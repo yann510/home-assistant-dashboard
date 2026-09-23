@@ -81,3 +81,7 @@ Real Home Assistant authentication, LAN trial/read-only updates, Fire tablet and
 
 
 Final-fix CUA check at **960 × 600** confirmed the busy overview remains exactly **960 × 600** with all essentials/footer visible. Mood uncertainty and its details link are visible; activate/end controls stay disabled while unconfirmed. The mood card measured x=20, y=140, width=472.47, height=219. Snooze rejection was visibly and programmatically confirmed within the active dialog (`[role=dialog] [role=alert]`); dialog bounds x=50, y=32.39, width=860, height=535.2 showed no overflow. Screenshots were inspected in tool output, with no additional saved screenshot artifact.
+
+## September 23 usability follow-up
+
+See [Canvas usability follow-up](house-canvas-ux-polish.md) for the five bounded fixes, current 340-test result, and fresh browser measurements. The corrected live trial path `/local/canvas-trial/index.html?view=canvas` now reaches Home Assistant's normal authorization screen in the in-app browser; the earlier wrong-folder access issue no longer describes current reachability. Authentication, live state/physical commands and hardware acceptance are still unverified.

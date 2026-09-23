@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useStore } from '@hakit/core';
 import { ApplianceIcon } from '../ApplianceIcon';
 import { useApplianceClock } from '../useApplianceClock';
@@ -13,9 +13,11 @@ export function CanvasPulse({
   onOpen,
   attention,
   onSelect,
+  feedback,
 }: {
   onOpen(route: CanvasRoute, trigger: HTMLElement): void;
   attention: AttentionController;
+  feedback?: ReactNode;
   onSelect(item: AttentionItem | null): void;
 }) {
   const entities = useStore(state => state.entities);
@@ -68,6 +70,7 @@ export function CanvasPulse({
       ) : (
         <>
           <div className='canvas-pulse__items'>
+            {feedback}
             {shownActivities.map(item => (
               <button
                 key={item.id}
@@ -118,26 +121,26 @@ export function CanvasPulse({
                 <span aria-hidden='true'>→</span>
               </button>
             ))}
+            {snoozed.length > 0 && (
+              <>
+                <button type='button' aria-expanded={showSnoozed} onClick={() => setShowSnoozed(!showSnoozed)}>
+                  Snoozed · {snoozed.length}
+                </button>
+                {showSnoozed &&
+                  snoozed.map(item => (
+                    <button
+                      key={item.episode}
+                      type='button'
+                      disabled={!attention.connected || attention.busy || !attention.ready}
+                      aria-label={`Restore: ${item.title}`}
+                      onClick={() => void attention.onAction('unsnooze', item)}
+                    >
+                      Restore {item.title}
+                    </button>
+                  ))}
+              </>
+            )}
           </div>
-          {snoozed.length > 0 && (
-            <div className='canvas-pulse__snoozed'>
-              <button type='button' aria-expanded={showSnoozed} onClick={() => setShowSnoozed(!showSnoozed)}>
-                Snoozed · {snoozed.length}
-              </button>
-              {showSnoozed &&
-                snoozed.map(item => (
-                  <button
-                    key={item.episode}
-                    type='button'
-                    disabled={!attention.connected || attention.busy || !attention.ready}
-                    aria-label={`Restore: ${item.title}`}
-                    onClick={() => void attention.onAction('unsnooze', item)}
-                  >
-                    Restore {item.title}
-                  </button>
-                ))}
-            </div>
-          )}
           {!attention.ready && <p role='status'>Attention reminders are unavailable.</p>}
           {attention.error && (
             <p role='alert' className='canvas-pulse__error'>

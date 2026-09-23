@@ -1,11 +1,29 @@
-import { useEffect, useId, useRef, type ReactNode } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, type ReactNode } from 'react';
 
 const focusable =
   'summary, a[href], button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])';
 
-export function CanvasDialog({ title, children, onClose }: { title: string; children: ReactNode; onClose(): void }): React.JSX.Element {
+export function CanvasDialog({
+  title,
+  children,
+  onClose,
+  onBack,
+  routeKey = title,
+  scrollTop = 0,
+}: {
+  title: string;
+  children: ReactNode;
+  onClose(): void;
+  onBack?(): void;
+  routeKey?: string;
+  scrollTop?: number;
+}): React.JSX.Element {
   const titleId = useId();
   const panel = useRef<HTMLElement>(null);
+  const body = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    if (body.current) body.current.scrollTop = scrollTop;
+  }, [routeKey, scrollTop]);
 
   useEffect(() => {
     const restoreTo = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -23,7 +41,7 @@ export function CanvasDialog({ title, children, onClose }: { title: string; chil
   }, []);
   useEffect(() => {
     panel.current?.focus({ preventScroll: true });
-  }, [title]);
+  }, [routeKey]);
 
   return (
     <div
@@ -68,12 +86,19 @@ export function CanvasDialog({ title, children, onClose }: { title: string; chil
         }}
       >
         <header className='canvas-dialog__header'>
+          {onBack && (
+            <button type='button' className='canvas-dialog__back' onClick={onBack}>
+              Back
+            </button>
+          )}
           <h2 id={titleId}>{title}</h2>
           <button type='button' onClick={onClose} aria-label='Close details' className='canvas-dialog__close'>
             ×
           </button>
         </header>
-        <div className='canvas-dialog__body'>{children}</div>
+        <div ref={body} className='canvas-dialog__body'>
+          {children}
+        </div>
       </section>
     </div>
   );

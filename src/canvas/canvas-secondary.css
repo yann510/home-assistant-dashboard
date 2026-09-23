@@ -69,10 +69,12 @@
 .canvas .canvas-pulse__error {
   color: #ffc8bd;
 }
-.canvas .canvas-pulse__snoozed {
-  display: flex;
-  gap: 6px;
-}
+.canvas .canvas-pulse__items > button { flex-shrink: 0; }
+.canvas .canvas-modes__feedback { order: -2; flex: 0 0 auto; display: flex; align-items: center; gap: 6px; max-width: 250px; font-size: .75rem; color: var(--canvas-ink); }
+.canvas .canvas-modes__feedback [role='alert'] { color: #ffc8bd; }
+.canvas .canvas-modes__feedback button { padding: 4px; }
+.canvas .canvas-modes__detail { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+
 .canvas .canvas-mood,
 .canvas-dialog .canvas-mood {
   position: relative;
