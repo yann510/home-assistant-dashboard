@@ -9,7 +9,10 @@ beforeEach(() => {
   fixture = createHaFixture();
   fixture.publish('light.gym', 'off');
 });
-afterEach(() => vi.useRealTimers());
+afterEach(() => {
+  expect(fixture.socketListenerCount).toBe(0);
+  vi.useRealTimers();
+});
 const run = (observe?: (id: string) => boolean, signal?: AbortSignal) => executeCommand(intent, fixture, observe, signal);
 it('captures nested data and stable keys without mutating the caller', () => {
   const input = { ...intent, targets: ['light.gym'], data: { rgb_color: [1, 2, 3] } };
@@ -116,4 +119,35 @@ it('requires explicit targetless correlation and never sends the room as an enti
   );
   expect(result.results).toEqual([{ target: 'living', phase: 'accepted' }]);
   expect(fixture.calls[0]).not.toHaveProperty('target');
+});
+
+it('ends observation on a same-object socket reconnect without a store publication', async () => {
+  const socket = fixture.connection;
+  const request = run(id => fixture.getState().entities[id].state === 'on');
+  await Promise.resolve();
+  await Promise.resolve();
+  fixture.socketDisconnect();
+  fixture.socketReconnect();
+  expect(fixture.connection).toBe(socket);
+  fixture.publish('light.gym', 'on');
+  expect((await request).results[0].phase).toBe('unconfirmed');
+  expect(fixture.socketListenerCount).toBe(0);
+  expect(fixture.listenerCount).toBe(0);
+  expect(vi.getTimerCount()).toBe(0);
+});
+it('reports pre-ack socket loss as unconfirmed even when the service promise rejects', async () => {
+  const ack = deferred();
+  fixture.respondWith(() => ack.promise);
+  const request = run();
+  ack.reject({ code: 3, message: 'Connection lost' });
+  fixture.socketDisconnect();
+  fixture.socketReconnect();
+  expect((await request).results[0].phase).toBe('unconfirmed');
+  expect(fixture.socketListenerCount).toBe(0);
+  expect(vi.getTimerCount()).toBe(0);
+});
+
+it('treats the HA lost-connection error as unconfirmed even without a lifecycle event', async () => {
+  fixture.respondWith(() => Promise.reject({ code: 3, message: 'Connection lost' }));
+  expect((await run()).results[0].phase).toBe('unconfirmed');
 });

@@ -1,3 +1,5 @@
+import { ERR_CONNECTION_LOST } from 'home-assistant-js-websocket';
+
 export type CommandPhase = 'pending' | 'accepted' | 'observed' | 'failed' | 'unconfirmed';
 export type DeviceIntent = {
   domain: string;
@@ -12,7 +14,12 @@ export type CommandResult = { results: TargetResult[] };
 export type SendCommand = (intent: DeviceIntent, observe?: (entityId: string) => boolean) => Promise<CommandResult>;
 export type CommandStore = {
   getState(): {
-    connection: { connected: boolean; sendMessagePromise<T = unknown>(message: Record<string, unknown>): Promise<T> } | null;
+    connection: {
+      connected: boolean;
+      sendMessagePromise<T = unknown>(message: Record<string, unknown>): Promise<T>;
+      addEventListener(event: 'disconnected' | 'ready', listener: () => void): void;
+      removeEventListener(event: 'disconnected' | 'ready', listener: () => void): void;
+    } | null;
     connectionStatus: string;
     entities: Record<string, unknown>;
   };
@@ -64,11 +71,13 @@ export async function executeCommand(
           let accepted = false;
           let timer: ReturnType<typeof setTimeout> | undefined;
           let unsubscribe = () => {};
+          let unsubscribeConnection = () => {};
           const finish = (phase: CommandPhase, message?: string) => {
             if (done) return;
             done = true;
             clearTimeout(timer);
             unsubscribe();
+            unsubscribeConnection();
             signal?.removeEventListener('abort', cancel);
             update(index, { target, phase, ...(message ? { message } : {}) });
             resolve();
@@ -88,11 +97,12 @@ export async function executeCommand(
             finish('failed', 'This entity is missing. Refresh the device list before trying again.');
             return;
           }
+          const connectionLost = () => finish('unconfirmed', 'Connection changed while waiting. Check the device before trying again.');
           const reconcile = () => {
             if (done) return;
             const current = store.getState();
             if (current.connection !== connection || !connection.connected || current.connectionStatus !== 'connected') {
-              finish('unconfirmed', 'Connection changed while waiting. Check the device before trying again.');
+              connectionLost();
               return;
             }
             if (accepted && observe && intent.targets.length) {
@@ -106,6 +116,13 @@ export async function executeCommand(
                 finish('unconfirmed', 'Could not verify the device state. Refresh before trying again.');
               }
             }
+          };
+          // HAKit can retain both store status and Connection identity across a socket reconnect.
+          connection.addEventListener('disconnected', connectionLost);
+          connection.addEventListener('ready', connectionLost);
+          unsubscribeConnection = () => {
+            connection.removeEventListener('disconnected', connectionLost);
+            connection.removeEventListener('ready', connectionLost);
           };
           unsubscribe = store.subscribe(reconcile);
           signal?.addEventListener('abort', cancel, { once: true });
@@ -148,6 +165,13 @@ export async function executeCommand(
               },
               error => {
                 if (done) return;
+                if (
+                  !connection.connected ||
+                  (error && typeof error === 'object' && 'code' in error && error.code === ERR_CONNECTION_LOST)
+                ) {
+                  connectionLost();
+                  return;
+                }
                 const detail =
                   error && typeof error === 'object' && 'message' in error ? String(error.message) : 'Service rejected the command.';
                 finish('failed', `${detail} Check the device and try again.`);

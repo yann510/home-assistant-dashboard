@@ -73,3 +73,35 @@ it('unmount cancels work without replay or leaked listeners', async () => {
   ack.resolve({});
   expect(ref.current!.calls).toHaveLength(1);
 });
+
+it('dispatches On-Off-On anew and displays the final On outcome while the first On is outstanding', async () => {
+  const hook = renderHook(useDeviceCommand);
+  let first!: ReturnType<typeof hook.result.current.send>;
+  act(() => {
+    first = hook.result.current.send(intent, () => false);
+  });
+  await act(async () => {
+    await hook.result.current.send({ ...intent, service: 'turn_off' });
+  });
+  const finalAck = deferred();
+  ref.current!.respondWith(() => finalAck.promise);
+  let final!: typeof first;
+  act(() => {
+    final = hook.result.current.send(intent);
+  });
+  expect(final).not.toBe(first);
+  expect(ref.current!.calls).toHaveLength(3);
+  expect(hook.result.current.result?.results[0].phase).toBe('pending');
+  await act(async () => {
+    finalAck.reject(new Error('Final On denied'));
+    await final;
+  });
+  expect(hook.result.current.result?.results[0].message).toContain('Final On denied');
+  expect(hook.result.current.pending).toBe(true);
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(15000);
+    await first;
+  });
+  expect(hook.result.current.result?.results[0].message).toContain('Final On denied');
+  expect(hook.result.current.pending).toBe(false);
+});

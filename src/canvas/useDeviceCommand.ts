@@ -7,7 +7,7 @@ export function useDeviceCommand() {
   const [result, setResult] = useState<CommandResult | null>(null);
   const mounted = useRef(true);
   const generation = useRef(0);
-  const inFlight = useRef(new Map<string, { promise: Promise<CommandResult>; controller: AbortController }>());
+  const inFlight = useRef(new Map<number, { key: string; promise: Promise<CommandResult>; controller: AbortController }>());
   useEffect(() => {
     mounted.current = true;
     const requests = inFlight.current;
@@ -33,8 +33,8 @@ export function useDeviceCommand() {
         })),
       });
     const key = intentKey(intent);
-    const duplicate = inFlight.current.get(key);
-    if (duplicate) return duplicate.promise;
+    const duplicate = inFlight.current.get(generation.current);
+    if (duplicate?.key === key) return duplicate.promise;
     const current = ++generation.current;
     const controller = new AbortController();
     setPending(true);
@@ -48,11 +48,10 @@ export function useDeviceCommand() {
         return next;
       })
       .finally(() => {
-        // StrictMode effect replay can leave an older finalizer with the same key.
-        if (inFlight.current.get(key)?.controller === controller) inFlight.current.delete(key);
+        inFlight.current.delete(current);
         if (mounted.current) setPending(inFlight.current.size > 0);
       });
-    inFlight.current.set(key, { promise, controller });
+    inFlight.current.set(current, { key, promise, controller });
     return promise;
   }, []);
   return { send, pending, result };

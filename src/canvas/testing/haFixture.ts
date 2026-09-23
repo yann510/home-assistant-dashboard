@@ -3,6 +3,8 @@ import { useSyncExternalStore } from 'react';
 type HaState = {
   connection: {
     connected: boolean;
+    addEventListener(event: 'disconnected' | 'ready', listener: () => void): void;
+    removeEventListener(event: 'disconnected' | 'ready', listener: () => void): void;
     sendMessage(message: unknown): void;
     sendMessagePromise<T = unknown>(message: unknown): Promise<T>;
   };
@@ -14,8 +16,16 @@ type HaState = {
 export function createHaFixture() {
   const calls: unknown[] = [];
   let responder: (message: unknown) => Promise<unknown> = () => Promise.resolve({});
+  const socketListeners = new Map<string, Set<() => void>>();
   const makeConnection = (connected: boolean): HaState['connection'] => ({
     connected,
+    addEventListener(event, listener) {
+      if (!socketListeners.has(event)) socketListeners.set(event, new Set());
+      socketListeners.get(event)!.add(listener);
+    },
+    removeEventListener(event, listener) {
+      socketListeners.get(event)?.delete(listener);
+    },
     sendMessage(message) {
       calls.push(message);
     },
@@ -40,6 +50,17 @@ export function createHaFixture() {
       return snapshot.connection;
     },
     calls,
+    socketDisconnect() {
+      snapshot.connection.connected = false;
+      socketListeners.get('disconnected')?.forEach(listener => listener());
+    },
+    socketReconnect() {
+      snapshot.connection.connected = true;
+      socketListeners.get('ready')?.forEach(listener => listener());
+    },
+    get socketListenerCount() {
+      return [...socketListeners.values()].reduce((sum, listeners) => sum + listeners.size, 0);
+    },
     getState: getSnapshot,
     subscribe,
     get listenerCount() {
