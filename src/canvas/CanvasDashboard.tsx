@@ -21,6 +21,7 @@ import { attentionExplanation, type AttentionItem } from '../attention';
 import { TemperatureCard } from '../TemperatureCard';
 import { AppliancesCard } from '../AppliancesCard';
 import { CanvasVacuum, CanvasVacuumProvider } from './CanvasVacuum';
+import { CanvasWeather, CanvasWeatherNow } from './CanvasWeather';
 import './canvas.css';
 import './canvas-music.css';
 import './canvas-secondary.css';
@@ -77,9 +78,9 @@ function CanvasDashboardContent(): React.JSX.Element {
             <span className='canvas__connection' role='status'>
               {connected ? 'Connected' : 'Disconnected'}
             </span>
-            <button type='button' onClick={event => open({ kind: 'weather' }, event.currentTarget)}>
-              Weather
-            </button>
+            <CanvasWeatherNow
+              onOpen={() => open({ kind: 'weather' }, document.activeElement instanceof HTMLElement ? document.activeElement : undefined)}
+            />
             <button type='button' onClick={event => open({ kind: 'all-devices' }, event.currentTarget)}>
               All devices
             </button>
@@ -158,6 +159,8 @@ function CanvasDashboardContent(): React.JSX.Element {
             <AppliancesCard />
           ) : route.kind === 'vacuum' ? (
             <CanvasVacuum />
+          ) : route.kind === 'weather' ? (
+            <CanvasWeather />
           ) : (
             <p className='canvas__empty'>Live {canvasRouteTitle(route).toLowerCase()} controls will appear here.</p>
           )}
