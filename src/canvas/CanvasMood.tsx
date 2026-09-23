@@ -45,6 +45,7 @@ export function CanvasMood({
 }) {
   const { status, connected, available, onActivate, onEnd, onRetry } = controller;
   const busy = status.phase === 'starting' || status.phase === 'restoring';
+  const compactError = Boolean(onExplore && !detail && status.errors.length);
   const recovery = status.phase === 'recovery_required';
   const current = moods.find(mood => mood.id === (status.pendingMood ?? status.activeMood));
   const locked = !connected || !available || busy || recovery;
@@ -70,7 +71,13 @@ export function CanvasMood({
       <div className='canvas-mood__copy'>
         <span className='canvas__eyebrow'>The feeling of home</span>
         <h2>{current?.name ?? 'Just be.'}</h2>
-        <p>{current?.caption ?? 'Your space. Your own pace.'}</p>
+        {compactError ? (
+          <p role='alert' className='canvas-mood__compact-error'>
+            {busy ? 'Waiting for Home Assistant confirmation.' : 'Mood change needs attention.'}
+          </p>
+        ) : (
+          <p>{current?.caption ?? 'Your space. Your own pace.'}</p>
+        )}
         <div className='canvas-mood__status' role='status'>
           <span aria-hidden='true'>●</span> {message}
         </div>
@@ -84,7 +91,7 @@ export function CanvasMood({
         <div className='canvas-mood__actions'>
           {onExplore && (
             <button type='button' onClick={event => onExplore(event.currentTarget)}>
-              Explore moods
+              {compactError ? 'Mood details' : 'Explore moods'}
             </button>
           )}
           {recovery ? (

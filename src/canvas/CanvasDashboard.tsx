@@ -18,7 +18,7 @@ import { CanvasDevices } from './CanvasDevices';
 import { useHouseMood } from '../useHouseMood';
 import { useAttention } from '../useAttention';
 import { attentionExplanation, type AttentionItem } from '../attention';
-import { TemperatureCard } from '../TemperatureCard';
+import { CanvasThermostats, CanvasThermostatsProvider } from './CanvasThermostats';
 import { AppliancesCard } from '../AppliancesCard';
 import { CanvasVacuum, CanvasVacuumProvider } from './CanvasVacuum';
 import { CanvasWeather, CanvasWeatherNow } from './CanvasWeather';
@@ -131,6 +131,8 @@ function CanvasDashboardContent(): React.JSX.Element {
               >
                 {activeAttention.kind === 'completion' ? 'Done' : 'Snooze'}
               </button>
+              {attention.busy && <p role='status'>Saving reminder…</p>}
+              {attention.error && <p role='alert'>{attention.error}</p>}
               <button type='button' onClick={close}>
                 Back to House pulse
               </button>
@@ -158,7 +160,7 @@ function CanvasDashboardContent(): React.JSX.Element {
           ) : route.kind === 'moods' ? (
             <CanvasMood controller={mood} detail />
           ) : route.kind === 'thermostats' ? (
-            <TemperatureCard />
+            <CanvasThermostats />
           ) : route.kind === 'appliances' ? (
             <AppliancesCard />
           ) : route.kind === 'vacuum' ? (
@@ -180,7 +182,9 @@ export function CanvasDashboard(): React.JSX.Element {
       <CanvasBlindsProvider>
         <CanvasVacuumProvider>
           <CanvasMusicProvider>
-            <CanvasDashboardContent />
+            <CanvasThermostatsProvider>
+              <CanvasDashboardContent />
+            </CanvasThermostatsProvider>
           </CanvasMusicProvider>
         </CanvasVacuumProvider>
       </CanvasBlindsProvider>

@@ -4,10 +4,10 @@ The optional live Canvas view is composed from the production React components. 
 
 ## Automated checks
 
-- `npm test`: **293 tests passed across 29 files**, including 10 Canvas integration journeys.
-- `npx tsc -b`: passed.
-- Scoped ESLint: passed with **no errors or warnings** for every changed `.ts`/`.tsx` file since `8e9f204`, plus the new integration test and `dev/canvas-preview`.
-- `npx vite build`: passed. Vite reports the existing large-chunk advisory (main chunk about 1.04 MB before gzip); no build failure. `npm run build` was deliberately not used because its prebuild formats unrelated files.
+- Final release candidate: `npx vitest run` — **333 tests passed across 30 files**. This includes the four final-review regressions and existing Canvas integration journeys.
+- `npx tsc -b --pretty false`: passed.
+- Final scoped ESLint: **79 changed TypeScript files** since `98efcea`, including the new thermostat controller, passed with **no errors or warnings**.
+- `VITE_FOLDER_NAME=canvas-trial npx vite build`: passed. Vite reports the existing large-chunk advisory (main chunk about 1.04 MB before gzip); no build failure. `npm run build` was deliberately not used because its prebuild formats unrelated files.
 - Production `dist/assets` contains none of the development fixture markers (`local-preview`, `Controlled preview failure`, `Canvas controlled preview`, `fixture:`).
 
 The new integration suite exercises every detail destination and Back/Close, retained directory search, focus restoration/trapping, speaker slider identity after telemetry, Player/Speakers roundtrips, offline/reconnect without writes, forecast failure/retry, all-light partial failure, failed-room-only blind retry across navigation, mood recovery with attention context, artwork-only favourite playback rejection, and immediate overview volume adjustment through the shared volume implementation. Existing controller tests continue to cover locks, partial results, capability filtering and stale replies.
@@ -67,3 +67,17 @@ This verifies desktop browser emulation only. Fire tablet and iPhone hardware ac
 ## Review follow-up: activation focus
 
 Pointer/touch navigation now passes each button's actual activation element instead of inferring it from keyboard focus. Back uses stable destination keys even when light names/state change. Regression tests intentionally click without pre-focusing buttons, including when search retains focus. The focused integration/dialog/affected-component run passes **77 tests across 7 suites** (17 integration cases); typecheck and full changed-file scoped lint also pass. The original full-suite result above records the composition acceptance run before this focused follow-up.
+
+
+## Final review fixes
+
+Day and Night only activate inactive modes; tapping an active mode sends no write and never changes the other boolean. Canvas thermostat controllers now live for the dashboard lifetime, one per room, using the shared command adapter to retain pending locks, acknowledgements, observations and rejection/connection-change feedback across details navigation. Supported temperature features, bounds, steps, off/unavailable states and explicit commands remain enforced. Classic/Quiet thermostat logic is unchanged; only their heat icon is exported for shared presentation.
+
+Done/Snooze now display pending and error feedback inside the active reminder dialog, with the existing action available for an explicit retry after rejection or timeout. Overview mood failures replace the decorative caption with a compact explanation and a **Mood details** link. Unconfirmed activation/end still retains the safe controller lock; full backend explanations remain in details.
+
+The test-first final-review run failed **9 new cases** (18 existing cases passed), then passed after implementation. Two additional thermostat capability/disconnect cases also pass. Final affected suites passed **61 tests across 6 files**. Complete release candidate totals above supersede the earlier 293/322-test checkpoints. See `.superpowers/sdd/2026-09-23-house-canvas-production/final-fixes-report.md` for commands and evidence.
+
+Real Home Assistant authentication, LAN trial/read-only updates, Fire tablet and iPhone acceptance, and all physical command outcomes remain pending. No real-home commands were sent. The Classic development WeatherCard warning has not been compared against a runtime baseline. Quiet's fallback HAKit vacuum mount behavior remains outside Canvas scope: the no-automatic-write Canvas checks must not be read as a claim about every fallback view.
+
+
+Final-fix CUA check at **960 × 600** confirmed the busy overview remains exactly **960 × 600** with all essentials/footer visible. Mood uncertainty and its details link are visible; activate/end controls stay disabled while unconfirmed. The mood card measured x=20, y=140, width=472.47, height=219. Snooze rejection was visibly and programmatically confirmed within the active dialog (`[role=dialog] [role=alert]`); dialog bounds x=50, y=32.39, width=860, height=535.2 showed no overflow. Screenshots were inspected in tool output, with no additional saved screenshot artifact.

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useEntity, useStore } from '@hakit/core';
 
-function HeatIcon({ state }: { state: string }) {
+export function HeatIcon({ state }: { state: string }) {
   return (
     <svg
       className='temperature-icon'

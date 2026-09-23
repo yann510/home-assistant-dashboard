@@ -6,12 +6,18 @@ import { createHaFixture } from './testing/haFixture';
 import { CanvasModes } from './CanvasModes';
 const ref = vi.hoisted(() => ({ current: null as ReturnType<typeof createHaFixture> | null }));
 vi.mock('@hakit/core', () => ({
-  useStore: Object.assign((select: (state: ReturnType<typeof createHaFixture> extends { getState: () => infer T } ? T : never) => unknown) => ref.current!.useStore(select), {
-    getState: () => ref.current!.getState(),
-    subscribe: (listener: () => void) => ref.current!.subscribe(listener),
-  }),
+  useStore: Object.assign(
+    (select: (state: ReturnType<typeof createHaFixture> extends { getState: () => infer T } ? T : never) => unknown) =>
+      ref.current!.useStore(select),
+    {
+      getState: () => ref.current!.getState(),
+      subscribe: (listener: () => void) => ref.current!.subscribe(listener),
+    }
+  ),
 }));
-beforeEach(() => { ref.current = createHaFixture(); });
+beforeEach(() => {
+  ref.current = createHaFixture();
+});
 afterEach(cleanup);
 it('keeps Day and Night independent', async () => {
   ref.current!.publish('input_boolean.morning_mode', 'on');
@@ -30,5 +36,15 @@ it('reports service failures and leaves the independent reported states intact',
   await act(async () => {});
   expect(screen.getByRole('alert').textContent).toContain('Mode denied');
   expect(screen.getByRole('button', { name: 'Day mode' }).getAttribute('aria-pressed')).toBe('false');
+  expect(screen.getByRole('button', { name: 'Night mode' }).getAttribute('aria-pressed')).toBe('true');
+});
+
+it.each(['Day', 'Night'])('does not turn off an active %s mode or touch the other mode', async name => {
+  ref.current!.publish('input_boolean.morning_mode', 'on');
+  ref.current!.publish('input_boolean.night_mode', 'on');
+  render(<CanvasModes />);
+  await userEvent.click(screen.getByRole('button', { name: `${name} mode` }));
+  expect(ref.current!.calls).toHaveLength(0);
+  expect(screen.getByRole('button', { name: 'Day mode' }).getAttribute('aria-pressed')).toBe('true');
   expect(screen.getByRole('button', { name: 'Night mode' }).getAttribute('aria-pressed')).toBe('true');
 });

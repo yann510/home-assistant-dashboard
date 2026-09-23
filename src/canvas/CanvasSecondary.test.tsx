@@ -363,3 +363,151 @@ it('keeps thermostat capability limits and reports a rejected command', async ()
   await act(async () => {});
   expect(screen.getByRole('alert').textContent).toContain('Denied');
 });
+
+function openThermostats() {
+  fireEvent.click(screen.getByRole('button', { name: 'All devices' }));
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Thermostats' }));
+}
+const thermostatAttrs = {
+  temperature: 20,
+  current_temperature: 19,
+  min_temp: 19,
+  max_temp: 22,
+  target_temp_step: 1,
+  supported_features: 1,
+  hvac_action: 'heating',
+};
+it.each(['rejected', 'observed'])('retains thermostat lock across close/reopen and a later %s outcome', async outcome => {
+  const change = deferred();
+  ref.current!.publish('climate.thermostat_office', 'heat', thermostatAttrs);
+  ref.current!.respondWith(() => change.promise);
+  render(<CanvasDashboard />);
+  openThermostats();
+  fireEvent.click(screen.getByRole('button', { name: 'Raise Office target temperature' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Close details' }));
+  openThermostats();
+  expect(screen.getByRole('button', { name: 'Raise Office target temperature' }).hasAttribute('disabled')).toBe(true);
+  fireEvent.click(screen.getByRole('button', { name: 'Raise Office target temperature' }));
+  expect(ref.current!.calls).toHaveLength(1);
+  if (outcome === 'rejected') {
+    await act(async () => change.reject(new Error('Thermostat denied')));
+    expect(within(screen.getByRole('dialog')).getByRole('alert').textContent).toContain('Thermostat denied');
+    fireEvent.click(screen.getByRole('button', { name: 'Close details' }));
+    openThermostats();
+    expect(within(screen.getByRole('dialog')).getByRole('alert').textContent).toContain('Thermostat denied');
+  } else {
+    await act(async () => change.resolve({}));
+    expect(screen.getByRole('button', { name: 'Raise Office target temperature' }).hasAttribute('disabled')).toBe(true);
+    await act(async () => ref.current!.publish('climate.thermostat_office', 'heat', { ...thermostatAttrs, temperature: 21 }));
+    expect(screen.getByRole('button', { name: 'Raise Office target temperature' }).hasAttribute('disabled')).toBe(false);
+    expect(screen.getByLabelText('Office target temperature').textContent).toBe('21°');
+  }
+  expect(ref.current!.calls).toHaveLength(1);
+});
+
+it.each(['completion', 'condition'])('shows pending, rejection and timeout for %s reminder inside its dialog', async kind => {
+  vi.useFakeTimers();
+  try {
+    const action = deferred();
+    ref.current!.publish('sensor.dashboard_attention', '1', {
+      ready: true,
+      items: [
+        {
+          id: 'bin',
+          episode: 'bin-1',
+          title: 'Empty Roomba bin',
+          detail: 'Bin full',
+          tone: 'amber',
+          icon: 'bin',
+          target: 'vacuum',
+          kind,
+          occurred_at: new Date().toISOString(),
+          snoozed_until: null,
+          snooze_seconds: 3600,
+        },
+      ],
+    });
+    ref.current!.respondWith(() => action.promise);
+    render(<CanvasDashboard />);
+    fireEvent.click(screen.getByRole('button', { name: 'View: Empty Roomba bin' }));
+    const dialog = within(screen.getByRole('dialog'));
+    const button = dialog.getByRole('button', { name: `${kind === 'completion' ? 'Done' : 'Snooze'}: Empty Roomba bin` });
+    fireEvent.click(button);
+    expect(dialog.getByText('Saving reminder…').getAttribute('role')).toBe('status');
+    expect(button.hasAttribute('disabled')).toBe(true);
+    await act(async () => action.reject(new Error('Denied')));
+    expect(dialog.getByRole('alert').textContent).toContain('Could not save this reminder');
+    ref.current!.respondWith(() => new Promise(() => {}));
+    fireEvent.click(button);
+    await act(async () => vi.advanceTimersByTime(15000));
+    expect(dialog.getByRole('alert').textContent).toContain('Could not save this reminder');
+    expect(button.hasAttribute('disabled')).toBe(false);
+    expect(ref.current!.calls).toHaveLength(2);
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it.each(['activate', 'end'])('shows overview mood %s uncertainty and keeps its no-resend lock', async service => {
+  vi.useFakeTimers();
+  try {
+    ref.current!.publish('sensor.house_mood', service === 'end' ? 'active' : 'idle', service === 'end' ? { active_mood: 'love' } : {});
+    ref.current!.respondWith(() => new Promise(() => {}));
+    render(<CanvasDashboard />);
+    const name = service === 'end' ? 'End mood' : 'Love mood';
+    fireEvent.click(screen.getByRole('button', { name }));
+    await act(async () => vi.advanceTimersByTime(35000));
+    expect(screen.getByRole('alert').textContent).toContain('Waiting for Home Assistant confirmation.');
+    fireEvent.click(screen.getByRole('button', { name }));
+    expect(ref.current!.calls).toHaveLength(1);
+    expect(screen.getByRole('button', { name }).hasAttribute('disabled')).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Mood details' }));
+    expect(within(screen.getByRole('dialog')).getByRole('alert').textContent).toContain(
+      'Waiting for Home Assistant to confirm the change.'
+    );
+  } finally {
+    vi.useRealTimers();
+  }
+});
+it('shows a terminal mood rejection on the overview and its full explanation in details', async () => {
+  ref.current!.publish('sensor.house_mood', 'idle');
+  ref.current!.respondWith(() =>
+    Promise.resolve({ response: { success: false, phase: 'idle', errors: [{ target: 'lamp', message: 'Lamp rejected activation' }] } })
+  );
+  render(<CanvasDashboard />);
+  fireEvent.click(screen.getByRole('button', { name: 'Love mood' }));
+  await act(async () => {});
+  expect(screen.getByRole('alert').textContent).toContain('Mood change needs attention.');
+  fireEvent.click(screen.getByRole('button', { name: 'Mood details' }));
+  expect(within(screen.getByRole('dialog')).getByRole('alert').textContent).toContain('Lamp rejected activation');
+});
+
+it('retains thermostat disconnect uncertainty across navigation and never replays on reconnect', async () => {
+  ref.current!.publish('climate.thermostat_office', 'heat', thermostatAttrs);
+  ref.current!.respondWith(() => new Promise(() => {}));
+  render(<CanvasDashboard />);
+  openThermostats();
+  fireEvent.click(screen.getByRole('button', { name: 'Raise Office target temperature' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Close details' }));
+  await act(async () => ref.current!.disconnect());
+  await act(async () => ref.current!.reconnect());
+  openThermostats();
+  expect(within(screen.getByRole('dialog')).getByRole('alert').textContent).toContain('Connection changed while waiting');
+  expect(ref.current!.calls).toHaveLength(1);
+});
+it('uses thermostat bounds, supported features and reported availability independently per room', () => {
+  ref.current!.publish('climate.thermostat_office', 'heat', { ...thermostatAttrs, temperature: 22 });
+  ref.current!.publish('climate.thermostat_gym', 'heat', { ...thermostatAttrs, supported_features: 0 });
+  ref.current!.publish('climate.thermostat_bedroom', 'unavailable', thermostatAttrs);
+  render(<CanvasDashboard />);
+  openThermostats();
+  expect(screen.getByRole('button', { name: 'Raise Office target temperature' }).hasAttribute('disabled')).toBe(true);
+  expect(screen.getByRole('button', { name: 'Lower Office target temperature' }).hasAttribute('disabled')).toBe(false);
+  for (const room of ['Gym', 'Bedroom'])
+    for (const verb of ['Raise', 'Lower'])
+      expect(screen.getByRole('button', { name: `${verb} ${room} target temperature` }).hasAttribute('disabled')).toBe(true);
+  fireEvent.click(screen.getByRole('button', { name: 'Lower Office target temperature' }));
+  expect(ref.current!.calls).toEqual([
+    expect.objectContaining({ target: { entity_id: ['climate.thermostat_office'] }, service_data: { temperature: 21 } }),
+  ]);
+});
