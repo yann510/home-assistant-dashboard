@@ -34,3 +34,16 @@ test('Group volume preserves relative levels and clamps', () => {
   assert.equal(s.music.volumes.Bedroom, 100);
   assert.equal(s.music.volumes['Living room'], 52);
 });
+test('Blinds commands only affect selected rooms and ignore an empty selection', () => {
+  const s = createState();
+  applyAction(s, { type: 'blind-select', value: 'bedroom' });
+  applyAction(s, { type: 'blind', roomId: 'selected', value: 'close' });
+  assert.equal(s.rooms.find(r => r.id === 'bedroom').lastBlindCommand, null);
+  assert.equal(s.rooms.find(r => r.id === 'living').lastBlindCommand, 'close');
+  assert.equal(s.rooms.find(r => r.id === 'gym').lastBlindCommand, 'close');
+  applyAction(s, { type: 'blind-select', value: 'living' });
+  applyAction(s, { type: 'blind-select', value: 'gym' });
+  const before = JSON.stringify(s.rooms);
+  applyAction(s, { type: 'blind', roomId: 'selected', value: 'open' });
+  assert.equal(JSON.stringify(s.rooms), before);
+});

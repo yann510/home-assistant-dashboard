@@ -32,7 +32,7 @@ export function createState(scenario = 'everyday') {
   return {
     scenario,
     lightRoom: 'living',
-    blindRoom: 'all',
+    blindRooms: ['living', 'bedroom', 'gym'],
     mode: night ? 'night' : 'day',
     mood: night ? 'love' : 'unwind',
     rooms: inventory.map(([id, name, symbol, blinds, names], i) => ({
@@ -156,8 +156,11 @@ export function applyAction(state, a) {
     case 'light-room':
       state.lightRoom = a.value;
       return '';
-    case 'blind-room':
-      state.blindRoom = a.value;
+    case 'blind-select':
+      if (!state.rooms.some(r => r.id === a.value && r.blinds)) return '';
+      state.blindRooms = state.blindRooms.includes(a.value)
+        ? state.blindRooms.filter(id => id !== a.value)
+        : [...state.blindRooms, a.value];
       return '';
     case 'room-brightness':
       room.lights
@@ -176,13 +179,16 @@ export function applyAction(state, a) {
     case 'colour':
       if (light?.available && light.colourCapable) light.colour = a.value;
       return 'Light colour updated';
-    case 'blind':
-      state.rooms
-        .filter(r => r.blinds && (a.roomId === 'all' || r.id === a.roomId))
-        .forEach(r => {
-          r.lastBlindCommand = a.value;
-        });
-      return `${a.roomId === 'all' ? 'All rooms' : room.name}: ${a.value} command sent (demo)`;
+    case 'blind': {
+      const targets = state.rooms.filter(
+        r => r.blinds && (a.roomId === 'all' || (a.roomId === 'selected' ? state.blindRooms.includes(r.id) : r.id === a.roomId))
+      );
+      if (!targets.length) return 'Select a room first';
+      targets.forEach(r => {
+        r.lastBlindCommand = a.value;
+      });
+      return `${targets.map(r => r.name).join(', ')}: ${a.value} command sent (demo)`;
+    }
     case 'play':
       state.music.playing = !state.music.playing;
       return state.music.playing ? 'Music playing' : 'Music paused';

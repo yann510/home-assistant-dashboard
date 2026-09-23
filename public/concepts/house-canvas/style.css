@@ -2708,3 +2708,30 @@ select,
     flex: 1.35;
   }
 }
+.blind-room-buttons {
+  display: flex;
+  gap: 6px;
+}
+.blind-room-buttons .chip {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 5px;
+  flex: 1;
+  min-width: 0;
+  padding: 6px;
+  font-size: 12px;
+  min-height: 44px;
+}
+.selection-mark {
+  font-size: 14px;
+}
+.quick-blinds .chip:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+@media (max-width: 380px) {
+  .blind-room-buttons .chip {
+    font-size: 11px;
+  }
+}

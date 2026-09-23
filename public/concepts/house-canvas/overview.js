@@ -11,7 +11,8 @@ export function blindControls(room) {
 }
 function quickControls(state) {
   const lightRoom = state.rooms.find(r => r.id === state.lightRoom),
-    blindRoom = state.rooms.find(r => r.id === state.blindRoom) || { id: 'all', name: 'All rooms', lastBlindCommand: null };
+    blindRooms = state.rooms.filter(r => r.blinds),
+    selectedBlinds = blindRooms.filter(r => state.blindRooms.includes(r.id));
   const summary = roomSummary(lightRoom),
     available = lightRoom.lights.filter(l => l.available);
   const level = available.length ? Math.round(available.reduce((sum, l) => sum + (l.on ? l.brightness : 0), 0) / available.length) : 0;
@@ -22,14 +23,10 @@ function quickControls(state) {
   <div class="quick-control-row">${picker('light-room', state.rooms, state.lightRoom)}${button(`Turn ${lightRoom.name} lights ${summary.on ? 'off' : 'on'}`, 'room-power', '<span></span>', `class="switch" data-room-id="${lightRoom.id}" data-focus-key="quick-power" aria-pressed="${summary.on > 0}" ${available.length ? '' : 'disabled'}`)}</div>
   <label class="range-row quick-brightness"><span>Brightness</span><input type="range" min="0" max="100" value="${level}" aria-label="Room brightness" data-action="room-brightness" data-room-id="${lightRoom.id}" data-focus-key="room-brightness" ${available.length ? '' : 'disabled'}><output>${level}%</output></label>
   <div class="quick-footer"><p class="quick-caption">${summary.on} of ${summary.available} available lights on${summary.unavailable ? ` · ${summary.unavailable} offline` : ''}</p></div></article>
-  <article class="quick-panel"><div class="quick-title"><h2>${icon('blinds')} Blinds</h2><span class="quick-caption">By room</span></div>
-  <div class="quick-control-row">${picker(
-    'blind-room',
-    [{ id: 'all', name: 'All rooms' }, ...state.rooms.filter(r => r.blinds)],
-    state.blindRoom
-  )}</div>
-  <div class="quick-blinds">${['Open', 'Stop', 'Close'].map((label, i) => button(`${label} ${blindRoom.name} blinds`, 'blind', `${icon(['up', 'stop', 'down'][i])}<span>${label}</span>`, `class="chip" data-room-id="${blindRoom.id}" data-value="${label.toLowerCase()}" data-focus-key="quick-blind-${i}"`)).join('')}</div>
-  <p class="quick-caption">${blindRoom.lastBlindCommand ? `Last command: ${blindRoom.lastBlindCommand}` : blindRoom.id === 'all' ? 'Control blinds across the whole home' : 'Open, pause, or close this room’s blinds'}</p></article></section>`;
+  <article class="quick-panel"><div class="quick-title"><h2>${icon('blinds')} Blinds</h2><span class="quick-caption">Choose rooms</span></div>
+  <div class="blind-room-buttons" role="group" aria-label="Rooms to control blinds">${blindRooms.map(r => button(r.name + ' blinds', 'blind-select', `<span class="selection-mark" aria-hidden="true">${state.blindRooms.includes(r.id) ? '✓' : '+'}</span>${r.name}`, `class="chip" data-value="${r.id}" data-focus-key="blind-select-${r.id}" aria-pressed="${state.blindRooms.includes(r.id)}"`)).join('')}</div>
+  <div class="quick-blinds">${['Open', 'Stop', 'Close'].map((label, i) => button(`${label} selected blinds`, 'blind', `${icon(['up', 'stop', 'down'][i])}<span>${label}</span>`, `class="chip" data-room-id="selected" data-value="${label.toLowerCase()}" data-focus-key="quick-blind-${i}" ${selectedBlinds.length ? '' : 'disabled'}`)).join('')}</div>
+  <p class="quick-caption" role="status">${selectedBlinds.length ? `${selectedBlinds.length === blindRooms.length ? 'All rooms' : selectedBlinds.map(r => r.name).join(' + ')} selected` : 'Select one or more rooms above'}</p></article></section>`;
 }
 function attentionBanner(state) {
   const running = runningAppliances(state),

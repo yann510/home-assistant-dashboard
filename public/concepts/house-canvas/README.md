@@ -93,3 +93,7 @@ The attention bar now combines sage activity tiles with amber reminders. Washer,
 Local SVG drum, wash and vacuum animations run only for active states and are disabled by prefers-reduced-motion. Everyday includes a running dishwasher and a finished-dryer reminder; Busy evening shows all four appliances running alongside the offline-light reminder; Nighttime starts quiet. These are sample states, not a connection to appliance sensors.
 
 Verified: all four active at 960×600 without page scroll; 393×852 without horizontal overflow; dishwasher detail routing; pause/dock/start transitions; activity shown with no reminders; quiet state hides the bar; animation styles present for running appliances. Four prototype action checks passed. Existing production dashboard unchanged.
+
+### Multi-room blinds selection
+
+The overview now has three pressed-state room buttons instead of a dropdown. Any subset can receive Open/Stop/Close together; all three start selected. Empty selection disables commands, with a state-layer guard as well. Individual room details remain independent. Verified two-room targeting and empty selection with the prototype action check (five checks pass), plus browser checks for 960×600 fit, 393×852 overflow, 44px room targets, disabled controls and no console errors.
