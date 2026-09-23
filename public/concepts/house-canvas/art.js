@@ -8,6 +8,11 @@ export function icon(name) {
       '<rect x="3" y="2" width="18" height="20" rx="3"/><path d="M3 7h18M7 5h2M7 17v2h10v-2"/><g class="appliance-wash"><path d="M8 10v3m4-2v3m4-4v3"/></g>',
     roomba:
       '<g class="appliance-roam"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="10" r="2"/><path d="M7 16h10M4 18l-2 2m18-2l2 2"/></g>',
+    cloud: '<path d="M6 18a4 4 0 010-8 6 6 0 0111-2 5 5 0 011 10z"/>',
+    rain: '<path d="M6 14a4 4 0 010-8 6 6 0 0111-2 5 5 0 011 10z"/><path d="M7 17l-1 3m6-3l-1 3m6-3l-1 3"/>',
+    'cloud-sun':
+      '<circle cx="7" cy="7" r="3"/><path d="M7 1v1M1 7h1M2 2l1 1m9-1l-1 1"/><path d="M7 20a4 4 0 010-8 5 5 0 019-2 5 5 0 012 10z"/>',
+    'cloud-moon': '<path d="M10 2a6 6 0 00-4 10A6 6 0 0110 2zM7 20a4 4 0 010-8 5 5 0 019-2 5 5 0 012 10z"/>',
     sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/>',
     moon: '<path d="M20 15.5A9 9 0 018.5 4a8.5 8.5 0 1011.5 11.5z"/>',
     arrow: '<path d="M5 12h14m-5-5l5 5-5 5"/>',

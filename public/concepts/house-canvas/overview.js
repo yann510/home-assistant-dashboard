@@ -1,3 +1,4 @@
+import { sampleWeather } from './weather.js';
 import { runningAppliances, moods, tracks, roomSummary, escapeHtml as esc } from './state.js';
 import { icon, moodArt, albumArt } from './art.js';
 export function button(label, action, content, extra = '') {
@@ -40,11 +41,12 @@ function attentionBanner(state) {
 export function renderOverview(state) {
   const mood = moods.find(m => m.id === state.mood),
     track = tracks[state.music.trackIndex],
-    playing = state.music.playing;
+    playing = state.music.playing,
+    weather = sampleWeather(state.scenario).hours[0];
   return `<div class="home" style="--mood:${mood?.colour || '#cbb5ed'}">
  <header class="topbar"><div class="brand"><span class="brand-symbol">${icon('sparkle')}</span><div><span class="eyebrow">YOUR EVERYDAY, REIMAGINED</span><h1>Make yourself <em>at home.</em></h1></div></div>
  <div class="header-controls"><div class="mode-control" aria-label="Home mode">${['day', 'night'].map(m => button(`${m === 'day' ? 'Day' : 'Night'} mode`, 'mode', `${icon(m === 'day' ? 'sun' : 'moon')}<span>${m === 'day' ? 'Day' : 'Night'}</span>`, `data-value="${m}" data-focus-key="mode-${m}" aria-pressed="${state.mode === m}"`)).join('')}</div>
- <button class="weather-button" data-action="open" data-kind="weather" data-focus-key="weather" aria-label="Weather, 18 degrees, open forecast">${icon(state.scenario === 'nighttime' ? 'moon' : 'sun')}<span><strong>18°</strong><small>${state.scenario === 'nighttime' ? 'Clear night' : 'Mostly sunny'}</small></span>${icon('arrow')}</button>
+ <button class="weather-button" data-action="open" data-kind="weather" data-focus-key="weather" aria-label="Weather, ${weather.temperature} degrees, open forecast">${icon(weather.symbol)}<span><strong>${weather.temperature}°</strong><small>${weather.condition}</small></span>${icon('arrow')}</button>
  <button class="devices-button" aria-label="All devices" data-action="open" data-kind="devices" data-focus-key="devices">${icon('grid')}<span>All devices</span></button></div></header>
  ${attentionBanner(state)}
  <div class="feature-band">

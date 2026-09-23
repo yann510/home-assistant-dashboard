@@ -127,3 +127,9 @@ Each favourite now uses its real public Spotify cover from Home Assistant's libr
 Verified all seven covers loaded, square 64px artwork on tablet, full 960×600 player fit, phone horizontal containment, and playlist selection. Six prototype state checks passed. Covers need network access; playback is still simulated.
 
 Favourite tiles are now artwork-only: no repeated titles, subtitles or visible section heading. Playlist buttons retain accessible names and selected checkmarks. If a cover fails, the fallback displays its title. Verified selection, all seven accessible names, 960×600 fit and phone horizontal containment.
+
+### Extended weather
+
+Forecast now offers Next 12 hours, Next 24 hours (default), and Daily. Consecutive timestamped sample hours start at the current hour and cross midnight correctly. Condition-specific sun/cloud/partly-cloudy/rain/night icons accompany written conditions, temperature and precipitation chance; the overview matches the current sample condition. Nighttime scene starts at 9pm. These remain generated examples, not a real forecast.
+
+Verified 24 consecutive hourly timestamps, rain/cloud/night icon mappings, 12/24 switching, daily view, 960×600 full 24-hour fit and phone horizontal containment.

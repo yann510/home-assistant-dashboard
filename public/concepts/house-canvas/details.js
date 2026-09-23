@@ -1,3 +1,4 @@
+import { sampleWeather } from './weather.js';
 import {
   favouriteArtwork,
   favouritePlaylists,
@@ -167,31 +168,23 @@ export function renderDetails(state, route, query = '') {
       };
     }
     case 'weather': {
-      const hourly = route.period !== 'daily';
+      const daily = route.period === 'daily',
+        hours = route.period === '12' ? 12 : 24;
+      const forecast = sampleWeather(state.scenario),
+        current = forecast.hours[0];
       return {
         title: 'A look outside',
-        html: `<div class="forecast-header"><div><strong>18°</strong><p>${state.scenario === 'nighttime' ? 'Clear night' : 'Mostly sunny'} · Feels like 17°</p></div>${icon('sun')}</div><p class="sheet-intro">A little sun, a little fresh air.<br>Sample forecast · not live weather.</p><div class="chip-list">${chip('Hourly', 'forecast', 'hourly', hourly)}${chip('Daily', 'forecast', 'daily', !hourly)}</div><div>${(hourly
-          ? [
-              ['Now', 18, '10%'],
-              ['1 pm', 19, '10%'],
-              ['2 pm', 20, '5%'],
-              ['3 pm', 21, '5%'],
-              ['4 pm', 20, '10%'],
-              ['5 pm', 18, '15%'],
-            ]
-          : [
-              ['Today', '21° / 14', '10%'],
-              ['Thursday', '19° / 12', '20%'],
-              ['Friday', '17° / 11', '45%'],
-              ['Saturday', '20° / 13', '10%'],
-              ['Sunday', '22° / 15', '5%'],
-            ]
-        )
-          .map(
-            ([label, temp, rain]) =>
-              `<div class="forecast-row"><strong>${label}</strong>${icon('sun')}<span>${temp}°</span><small>${rain} rain</small></div>`
-          )
-          .join('')}</div>`,
+        html: `<div class="weather-summary"><div class="forecast-header"><div><strong>${current.temperature}°</strong><p>${current.condition}</p></div>${icon(current.symbol)}</div><p class="fine-print">Sample forecast · not live weather<br>Rain percentages show the chance of precipitation.</p></div><div class="chip-list">${chip('Next 12 hours', 'forecast', '12', !daily && hours === 12)}${chip('Next 24 hours', 'forecast', '24', !daily && hours === 24)}${chip('Daily', 'forecast', 'daily', daily)}</div>${
+          daily
+            ? `<div>${forecast.days.map(d => `<div class="forecast-row"><strong>${d.label}</strong><span class="daily-condition">${icon(d.symbol)}<small>${d.condition}</small></span><span>${d.high}° / ${d.low}°</span><small>${d.rain}% rain</small></div>`).join('')}</div>`
+            : `<div class="hourly-forecast" aria-label="Next ${hours} hours">${forecast.hours
+                .slice(0, hours)
+                .map(
+                  h =>
+                    `<article class="forecast-hour" aria-label="${esc(h.label)}, ${h.condition}, ${h.temperature} degrees, ${h.rain} percent chance of rain"><time datetime="${h.date.toISOString()}">${h.label}</time>${icon(h.symbol)}<strong>${h.temperature}°</strong><span>${h.condition}</span><small>${h.rain}% rain</small></article>`
+                )
+                .join('')}</div>`
+        }`,
       };
     }
     case 'activity':
