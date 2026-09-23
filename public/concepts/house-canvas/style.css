@@ -2832,3 +2832,126 @@ select,
     justify-content: center;
   }
 }
+.speaker-simple {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.follow-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 12px 16px;
+  background: var(--surface);
+}
+.follow-summary h3,
+.speaker-question h3 {
+  margin: 0;
+  font-size: 17px;
+}
+.follow-summary p,
+.speaker-question p {
+  margin: 5px 0 0;
+}
+.follow-summary .chip {
+  min-width: 72px;
+}
+.speaker-question {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.speaker-question .fine-print {
+  flex-basis: 100%;
+}
+.speaker-room-choices {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+.speaker-room-choice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 76px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+  text-align: left;
+}
+.speaker-room-choice[aria-pressed='true'] {
+  color: var(--canvas);
+  background: var(--lilac);
+  border-color: var(--lilac);
+}
+.speaker-room-choice:disabled {
+  opacity: 1;
+  cursor: default;
+}
+.speaker-room-choice > svg {
+  width: 24px;
+  flex-shrink: 0;
+}
+.speaker-room-choice > span:not(.room-check) {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+}
+.speaker-room-choice small {
+  display: block;
+  font-size: 10px;
+  font-weight: 400;
+  margin-top: 5px;
+}
+.room-check {
+  font-size: 19px;
+}
+.speaker-group-volume {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.speaker-group-volume .range-row {
+  flex: 1;
+}
+.speaker-extra-buttons {
+  display: flex;
+  gap: 10px;
+}
+.speaker-extra-buttons button {
+  flex: 1;
+}
+.speaker-demo-note {
+  margin: 0;
+  font-size: 10px;
+}
+@media (max-width: 700px) {
+  .speaker-room-choices {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .speaker-room-choice {
+    gap: 6px;
+    padding: 10px;
+  }
+  .speaker-group-volume {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .speaker-group-volume .range-row {
+    flex-basis: 100%;
+  }
+  .speaker-extra-buttons .chip {
+    font-size: 12px;
+    padding: 8px;
+  }
+}
+.speaker-room-choice small {
+  color: inherit;
+  opacity: 0.8;
+}

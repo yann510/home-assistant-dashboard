@@ -54,7 +54,9 @@ function setCommandDisabled(root) {
   if (!commandBusy) return;
   root.querySelectorAll('[data-action]').forEach(el => {
     if (
-      ['open', 'close', 'back', 'music-tab', 'jump-room', 'forecast', 'scenario', 'reset', 'clear-search'].includes(el.dataset.action) ||
+      ['open', 'close', 'back', 'music-tab', 'speaker-disclosure', 'jump-room', 'forecast', 'scenario', 'reset', 'clear-search'].includes(
+        el.dataset.action
+      ) ||
       localActions.has(el.dataset.action)
     )
       return;
@@ -210,6 +212,11 @@ document.addEventListener('click', event => {
     renderHome();
     closeDetails();
     announce('Demo scene reset');
+    return;
+  }
+  if (a.type === 'speaker-disclosure') {
+    route[a.value] = !route[a.value];
+    updateDetails(true);
     return;
   }
   if (a.type === 'music-tab') {

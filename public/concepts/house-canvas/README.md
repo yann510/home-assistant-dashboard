@@ -107,3 +107,9 @@ Device commands now demonstrate a 650ms pending response, followed by simulated 
 The production audit is `docs/superpowers/specs/2026-09-23-canvas-production-audit.md`. It names reusable real controllers and gaps to close before integration. This remains the static prototype; no live integration, deployment or physical tablet/iPhone validation has occurred.
 
 Verification: direct speaker/player entry, pending state remains uncommitted, failed state unchanged, successful retry, fixed tablet mood position for busy/quiet activity, phone overflow containment. Six prototype logic checks and the existing 190-test app suite passed in this pass.
+
+### Simplified speaker selection
+
+Speakers now leads with Follow me and four checked room choices, followed by one wide group-volume control. Individual volumes and Advanced settings expand on demand and retain their open state across command feedback. Main-speaker changes and All rooms/Only main speaker remain under Advanced. The main room is explicitly labelled and cannot be removed; Follow me locks manual choices with a direct Choose rooms manually action that retains the group.
+
+Verified tablet and phone layouts, room selection, individual volume persistence, Follow lock/manual handoff preserving the group, and Advanced access. Six prototype state checks passed. All speaker commands remain simulated.
