@@ -8,6 +8,7 @@ import '../../src/index.css';
 
 const params = new URLSearchParams(location.search);
 const scene = params.get('scene') ?? 'everyday';
+const media = params.get('media');
 const entities: HassEntities = {};
 function publish(id: string, state: string, attributes: Record<string, unknown> = {}) {
   entities[id] = {
@@ -32,19 +33,27 @@ for (const room of rooms)
       rgb_color: [240, 180, 120],
     });
 for (const room of ['living_room', 'bathroom', 'bedroom', 'gym'])
-  publish(`media_player.${room}`, room === 'living_room' ? 'playing' : 'idle', {
-    friendly_name: room.replaceAll('_', ' '),
-    supported_features: 4127295,
-    group_members: [`media_player.${room}`],
-    volume_level: 0.32,
-    is_volume_muted: params.has('muted'),
-    media_title: params.has('long')
-      ? 'A very long title about the extraordinary places we call home and everything in between'
-      : 'All In A Dream',
-    media_artist: 'LP Giobbi · DJ Tennis · Joseph Ashworth',
-    media_duration: 250,
-    media_position: 42,
-  });
+  publish(
+    `media_player.${room}`,
+    room === 'living_room' ? (media === 'idle' ? 'idle' : media === 'paused' ? 'paused' : 'playing') : 'idle',
+    {
+      friendly_name: room.replaceAll('_', ' '),
+      supported_features: 4127295,
+      group_members: [`media_player.${room}`],
+      volume_level: 0.32,
+      is_volume_muted: params.has('muted'),
+      media_title:
+        room === 'living_room' && (media === 'idle' || media === 'untitled')
+          ? undefined
+          : params.has('long')
+            ? 'A very long title about the extraordinary places we call home and everything in between'
+            : 'All In A Dream',
+      media_artist:
+        room === 'living_room' && (media === 'idle' || media === 'untitled') ? undefined : 'LP Giobbi · DJ Tennis · Joseph Ashworth',
+      media_duration: room === 'living_room' && (media === 'idle' || media === 'untitled') ? undefined : 250,
+      media_position: room === 'living_room' && (media === 'idle' || media === 'untitled') ? undefined : 42,
+    }
+  );
 publish('input_boolean.speaker_follow_motion', 'off');
 publish('input_text.speaker_follow_source', '');
 publish('script.speaker_follow_motion', 'off');

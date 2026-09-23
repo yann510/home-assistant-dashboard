@@ -74,10 +74,10 @@ export function CanvasMusic({
   onOpenPlayer(trigger: HTMLElement): void;
   onOpenSpeakers(trigger: HTMLElement): void;
 }) {
-  const { session, title, attributes, idle, rooms, disabled } = useCanvasMusic();
+  const { session, title, trackTitle, attributes, idle, rooms, disabled } = useCanvasMusic();
   const { joinHassUrl } = useHass();
   const [failedArtwork, setFailedArtwork] = useState<string>();
-  const picture = !idle ? attributes?.entity_picture : undefined;
+  const picture = !idle && !disabled ? attributes?.entity_picture : undefined;
   function openSpeakers(trigger: HTMLElement) {
     if (!rooms.busy) rooms.begin();
     onOpenSpeakers(trigger);
@@ -100,11 +100,15 @@ export function CanvasMusic({
           )}
         </div>
         <div>
-          <span className='canvas__eyebrow'>Music, for this moment</span>
-          <button className='canvas-music__title' aria-label='Open player' onClick={event => onOpenPlayer(event.currentTarget)}>
+          <span className='canvas__eyebrow'>{trackTitle ? 'Music, for this moment' : 'Music'}</span>
+          <button
+            className={`canvas-music__title${trackTitle ? '' : ' canvas-music__title--status'}`}
+            aria-label='Open player'
+            onClick={event => onOpenPlayer(event.currentTarget)}
+          >
             {title}
           </button>
-          {!idle && attributes?.media_artist && <p>{attributes.media_artist}</p>}
+          {!idle && !disabled && attributes?.media_artist && <p>{attributes.media_artist}</p>}
         </div>
       </div>
       <div className='canvas-music__bottom'>

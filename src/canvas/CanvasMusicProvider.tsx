@@ -16,12 +16,10 @@ function useCanvasMusicController() {
   const favouritePlayback = useSpeakerFavouritePlayback(entityId, disabled, () => {});
   const attributes = coordinator?.attributes;
   const playing = coordinator?.state === 'playing' || coordinator?.state === 'buffering';
-  const idle = !playing && (coordinator?.state !== 'paused' || !(attributes?.media_title?.trim() || attributes?.media_playlist?.trim()));
-  const title = disabled
-    ? 'Speaker unavailable'
-    : idle
-      ? 'Ready to play'
-      : attributes?.media_title || attributes?.media_playlist || 'Audio playing';
+  const mediaTitle = attributes?.media_title?.trim() || attributes?.media_playlist?.trim() || null;
+  const idle = !playing && (coordinator?.state !== 'paused' || !mediaTitle);
+  const trackTitle = !disabled && !idle ? mediaTitle : null;
+  const title = disabled ? 'Speaker unavailable' : (trackTitle ?? (playing ? 'Audio playing' : 'Nothing playing'));
   // The ref is acquired synchronously by grouping, before React renders its busy state.
   // Guard the shared action itself so a retained callback cannot race manual handoff.
   async function updateFollowing(command: 'enable' | 'disable') {
@@ -38,6 +36,7 @@ function useCanvasMusicController() {
     disabled,
     playing,
     idle,
+    trackTitle,
     title,
     attributes,
   };

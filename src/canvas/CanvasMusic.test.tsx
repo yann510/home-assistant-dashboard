@@ -163,6 +163,54 @@ afterEach(() => {
 });
 
 describe('Canvas music', () => {
+  it('shows an honest compact empty state for an idle speaker with stale track metadata', async () => {
+    updateEntity('media_player.living_room', { state: 'idle' });
+    mount();
+    expect(screen.getByRole('button', { name: 'Open player' }).textContent).toBe('Nothing playing');
+    await userEvent.click(screen.getByRole('button', { name: 'Open player' }));
+    expect(screen.getByText('Nothing playing')).toBeTruthy();
+    expect(screen.getByText('Choose a favourite to start.')).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Test track' })).toBeNull();
+    expect(screen.queryByText('Now playing')).toBeNull();
+    expect(screen.queryByText('Ready to play')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Resume' })).toBeNull();
+    expect(sendMessagePromise).not.toHaveBeenCalled();
+  });
+  it('keeps a named paused track and its resume control', async () => {
+    updateEntity('media_player.living_room', { state: 'paused' });
+    mount();
+    await userEvent.click(screen.getByRole('button', { name: 'Open player' }));
+    expect(screen.getByText('Paused')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Test track' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Resume' })).toBeTruthy();
+    expect(screen.queryByText('Now playing')).toBeNull();
+    expect(sendMessagePromise).not.toHaveBeenCalled();
+  });
+  it('describes active playback with no usable track title as a status', async () => {
+    updateEntity('media_player.living_room', { state: 'playing' }, { media_title: '   ', media_playlist: ' ' });
+    mount();
+    expect(screen.getByRole('button', { name: 'Open player' }).textContent).toBe('Audio playing');
+    await userEvent.click(screen.getByRole('button', { name: 'Open player' }));
+    expect(screen.getByText('Audio playing')).toBeTruthy();
+    expect(screen.getByText('Track details are unavailable.')).toBeTruthy();
+    expect(screen.queryByRole('heading')).toBeNull();
+    expect(screen.queryByText('Now playing')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Pause' })).toBeTruthy();
+    expect(sendMessagePromise).not.toHaveBeenCalled();
+  });
+  it('shows speaker unavailable without presenting retained metadata as a track', async () => {
+    updateEntity('media_player.living_room', { state: 'unavailable' }, { entity_picture: '/stale-cover.jpg' });
+    mount();
+    expect(screen.getByRole('button', { name: 'Open player' }).textContent).toBe('Speaker unavailable');
+    expect(screen.queryByText('Test artist')).toBeNull();
+    expect(screen.queryByRole('img')).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'Open player' }));
+    expect(screen.getByText('Speaker unavailable')).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Test track' })).toBeNull();
+    expect(screen.queryByText('Now playing')).toBeNull();
+    expect(screen.queryByRole('slider', { name: 'Track position' })).toBeNull();
+    expect(sendMessagePromise).not.toHaveBeenCalled();
+  });
   it('opens Player with real time seeking and artwork-only favourites, without volume or source controls', async () => {
     browseMedia.mockResolvedValue({
       children: [
