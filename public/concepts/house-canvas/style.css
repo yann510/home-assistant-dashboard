@@ -2998,3 +2998,128 @@ select,
     gap: 6px;
   }
 }
+.favourite-playlists {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.favourite-playlists .device-item {
+  display: flex;
+  gap: 10px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  align-items: center;
+  min-width: 0;
+  min-height: 82px;
+}
+.playlist-art {
+  position: relative;
+  display: block;
+  width: 64px;
+  height: 64px;
+  flex: 0 0 64px;
+  overflow: hidden;
+  border-radius: 9px;
+  background: #655176;
+}
+.playlist-art-fallback {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--ink);
+  font-size: 28px;
+  background: linear-gradient(135deg, #655176, #b16f62);
+}
+.playlist-cover {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.playlist-play {
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #222127e8;
+  color: var(--ink);
+  display: grid;
+  place-items: center;
+}
+.playlist-play svg {
+  width: 12px;
+  height: 12px;
+}
+.favourite-playlists .playlist-copy {
+  min-width: 0;
+}
+.favourite-playlists .device-item strong {
+  font-size: 12px;
+  line-height: 1.3;
+  white-space: normal;
+}
+.favourite-playlists .device-item small {
+  display: block;
+  font-size: 9px;
+  margin-top: 6px;
+}
+.favourite-playlists .device-item[aria-pressed='true'] {
+  background: #45384f;
+  border-color: var(--lilac);
+}
+@media (max-width: 700px) {
+  .favourite-playlists .device-item {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 8px;
+    gap: 9px;
+  }
+  .playlist-art {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 1;
+    flex-basis: auto;
+  }
+  .favourite-playlists .device-item strong {
+    font-size: 13px;
+  }
+  .favourite-playlists .playlist-copy {
+    padding: 0 3px 5px;
+  }
+  .playlist-play {
+    width: 30px;
+    height: 30px;
+    right: 7px;
+    bottom: 7px;
+  }
+}
+.favourite-playlists .playlist-art {
+  flex: 0 0 64px;
+  width: 64px;
+  height: 64px;
+}
+.favourite-playlists .playlist-copy {
+  flex: 1;
+}
+@media (min-width: 701px) {
+  .favourite-playlists {
+    gap: 6px;
+  }
+  .favourite-playlists .device-item {
+    padding: 6px;
+    min-height: 78px;
+  }
+}
+@media (max-width: 700px) {
+  .favourite-playlists .playlist-art {
+    flex: 0 0 auto;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 1;
+  }
+}

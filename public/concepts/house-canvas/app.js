@@ -303,3 +303,13 @@ function updateClock() {
   }
 }
 setInterval(updateClock, 60000);
+
+// A missing remote cover must not hide the playlist or show a broken-image glyph.
+document.addEventListener(
+  'error',
+  event => {
+    const image = event.target;
+    if (image instanceof HTMLImageElement && image.classList.contains('playlist-cover')) image.hidden = true;
+  },
+  true
+);

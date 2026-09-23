@@ -119,3 +119,9 @@ Verified tablet and phone layouts, room selection, individual volume persistence
 Player now contains track/transport, elapsed time and duration, and the seven real saved favourites read from Home Assistant's media browse API on September 23. Only playlist titles were copied; no credentials or media identifiers are included. Choosing one updates the simulated playlist selection. Source selection and volume/mute were removed from Player; group/individual volumes remain in Speakers and the overview retains quick volume controls.
 
 Track progress uses seconds and m:ss labels, including accessible value text. Durations and playback remain sample data. Verified all seven selections, seek formatting/bounds, 960×600 dialog fit, 393×852 horizontal containment, no Source select or volume slider in Player, and no console errors. Six existing prototype checks passed.
+
+### Favourite playlist artwork
+
+Each favourite now uses its real public Spotify cover from Home Assistant's library metadata, in a two-column tile layout. Tablet tiles pair square covers with names; phone tiles give the artwork more space above the title. Selected playlists show a checkmark and highlighted border. Remote image failures hide the broken image and expose a local decorative fallback, keeping the playlist usable. No media credentials were copied.
+
+Verified all seven covers loaded, square 64px artwork on tablet, full 960×600 player fit, phone horizontal containment, and playlist selection. Six prototype state checks passed. Covers need network access; playback is still simulated.

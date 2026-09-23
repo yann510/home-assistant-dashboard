@@ -1,4 +1,13 @@
-import { favouritePlaylists, formatTime, runningAppliances, speakers, tracks, roomSummary, escapeHtml as esc } from './state.js';
+import {
+  favouriteArtwork,
+  favouritePlaylists,
+  formatTime,
+  runningAppliances,
+  speakers,
+  tracks,
+  roomSummary,
+  escapeHtml as esc,
+} from './state.js';
 import { icon, albumArt } from './art.js';
 import { button, blindControls } from './overview.js';
 const open = (kind, id = '') => `data-action="open" data-kind="${kind}" data-id="${id}"`;
@@ -153,7 +162,7 @@ export function renderDetails(state, route, query = '') {
  <div class="transport large-transport">${button('Previous track', 'skip', icon('prev'), 'class="icon-button" data-value="-1" data-focus-key="sheet-prev"')}${button(state.music.playing ? 'Pause music' : 'Play music', 'play', icon(state.music.playing ? 'pause' : 'play'), 'class="play-button" data-focus-key="sheet-play"')}${button('Next track', 'skip', icon('next'), 'class="icon-button" data-value="1" data-focus-key="sheet-next"')}</div>
  <div class="track-timeline"><label for="track-progress">Track progress <small>Sample track</small></label><input id="track-progress" aria-label="Track progress" aria-valuetext="${formatTime(state.music.position)} of ${formatTime(track.duration)}" type="range" min="0" max="${track.duration}" value="${state.music.position}" data-action="seek" data-focus-key="seek"><output>${formatTime(state.music.position)} / ${formatTime(track.duration)}</output></div>
  <p class="fine-print">${state.music.playlist ? `Selected playlist: ${esc(state.music.playlist)} · demo` : 'Choose a favourite playlist to set the mood.'}</p>
-</section><section class="player-library"><h3 class="detail-title">Your favourite playlists</h3><div class="device-list favourite-playlists">${favouritePlaylists.map((title, i) => button(title, 'favourite', `${icon(state.music.playlist === title ? 'check' : 'play')}<span><strong>${esc(title)}</strong></span>`, `class="device-item" data-value="${i}" data-focus-key="favourite-${i}" aria-pressed="${state.music.playlist === title}"`)).join('')}</div><p class="fine-print">Your saved favourites · captured from Home Assistant. Playback and track times are simulated.</p></section></div>`
+</section><section class="player-library"><h3 class="detail-title">Your favourite playlists</h3><div class="device-list favourite-playlists">${favouritePlaylists.map((title, i) => button(title, 'favourite', `<span class="playlist-art"><span class="playlist-art-fallback" aria-hidden="true">♫</span>${favouriteArtwork[title] ? `<img class="playlist-cover" src="${esc(favouriteArtwork[title])}" alt="" loading="lazy" referrerpolicy="no-referrer">` : ''}<span class="playlist-play">${icon(state.music.playlist === title ? 'check' : 'play')}</span></span><span class="playlist-copy"><strong>${esc(title)}</strong><small>${state.music.playlist === title ? 'Selected' : 'Favourite playlist'}</small></span>`, `class="device-item" data-value="${i}" data-focus-key="favourite-${i}" aria-pressed="${state.music.playlist === title}"`)).join('')}</div><p class="fine-print">Your saved favourites · captured from Home Assistant. Playback and track times are simulated.</p></section></div>`
         }`,
       };
     }

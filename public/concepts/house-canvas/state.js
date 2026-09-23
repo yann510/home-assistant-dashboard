@@ -1,3 +1,12 @@
+export const favouriteArtwork = {
+  'Bangers Workout Mix': 'https://seed-mix-image.spotifycdn.com/v6/img/desc/Bangers Workout/en/default',
+  'Chill House Mix': 'https://seed-mix-image.spotifycdn.com/v6/img/desc/Chill House/en/default',
+  'Cozy Dinner Mix': 'https://seed-mix-image.spotifycdn.com/v6/img/desc/Cozy Dinner/en/default',
+  'Crush Radio': 'https://pickasso.spotifycdn.com/image/ab67c0de0000deef/dt/v1/img/radio/track/0FtuxFKzjbVCQAA3UQZXll/en',
+  'Discover Weekly': 'https://pickasso.spotifycdn.com/image/ab67c0de0000deef/dt/v1/img/dw/cover/en',
+  'Electro House Mix': 'https://seed-mix-image.spotifycdn.com/v6/img/desc/Electro House/en/default',
+  'Modern Jazz Mix': 'https://seed-mix-image.spotifycdn.com/v6/img/desc/Modern Jazz/en/default',
+};
 export const favouritePlaylists = [
   'Bangers Workout Mix',
   'Chill House Mix',
