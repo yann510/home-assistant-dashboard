@@ -29,7 +29,9 @@ function renderHome() {
   const key = dialog.open ? null : focusedKey();
   app.innerHTML = renderOverview(state);
   updateClock();
-  restoreFocus(key, app);
+  if (!restoreFocus(key, app) && key === 'end-mood') {
+    app.querySelector('.mood-picker button')?.focus({ preventScroll: true });
+  }
 }
 function updateDetails(preserve = false) {
   if (!route) return;

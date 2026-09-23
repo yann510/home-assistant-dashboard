@@ -1,6 +1,6 @@
 # House Canvas Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Deliver an artistic, playful, fully interactive third dashboard prototype for a landscape Fire HD 10 and a smaller iPhone Pro.
 
@@ -82,8 +82,8 @@ const state = {
 
 **Produces:** A renderable overview and the shared exports defined above.
 
-- [ ] Define fixtures using the seven existing room groups. Living room: Bulbs/LED strip; Bedroom: Main/Closet; Office: Bulbs/Neon; Kitchen: Main; Gym: Main; Entry: Front door/Laundry; Toilet: Main. Blinds exist only in Living room, Bedroom, and Gym. Support five existing moods and no active mood. Create everyday, busy, and nighttime fixtures as independent deep copies. Busy includes three notices, washer activity, and an unavailable light; nighttime uses Night mode and mostly dark rooms.
-- [ ] Build the semantic document with independent overview and modal roots:
+- [x] Define fixtures using the seven existing room groups. Living room: Bulbs/LED strip; Bedroom: Main/Closet; Office: Bulbs/Neon; Kitchen: Main; Gym: Main; Entry: Front door/Laundry; Toilet: Main. Blinds exist only in Living room, Bedroom, and Gym. Support five existing moods and no active mood. Create everyday, busy, and nighttime fixtures as independent deep copies. Busy includes three notices, washer activity, and an unavailable light; nighttime uses Night mode and mostly dark rooms.
+- [x] Build the semantic document with independent overview and modal roots:
 
 ```html
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -94,7 +94,7 @@ const state = {
 <script type="module" src="./app.js"></script>
 ```
 
-- [ ] Establish the approved palette and responsive grid. Use original geometric mood motifs, warm cream typography, room-specific small illustrations, and a clear active state. Start from these rules and refine against screenshots:
+- [x] Establish the approved palette and responsive grid. Use original geometric mood motifs, warm cream typography, room-specific small illustrations, and a clear active state. Start from these rules and refine against screenshots:
 
 ```css
 :root { color-scheme: dark; --canvas:#201e24; --surface:#2d2931;
@@ -114,9 +114,9 @@ button { min-height:44px; min-width:44px; }
 @media (prefers-reduced-motion:reduce) { *,*::before,*::after { animation:none!important; transition:none!important; } }
 ```
 
-- [ ] Render Day/Night, weather, All devices, mood choices, music, room controls, and fixed-height attention summary. Provide a distinct room-detail button alongside each direct toggle; use explicit accessible names for every blind command. Reserve the eighth grid position for a compact all-room summary or decorative breathing space, not a fabricated room.
-- [ ] Open the standalone page through the existing local static server, or start a free localhost port serving `public`. Inspect 1280×800 and 960×600. Verify no overview scroll at those reference sizes. At 375×812, 393×852, and 440×956, verify no horizontal overflow and no overlap with the compact music transport. Browser measurements can compare `scrollWidth` against `clientWidth` and tablet `scrollHeight` against viewport height.
-- [ ] Inspect a long track title and the busy scenario before finalising typography; shrink decorative space first. Fix clipping and contrast issues from screenshots. Commit the independently viewable shell.
+- [x] Render Day/Night, weather, All devices, mood choices, music, room controls, and fixed-height attention summary. Provide a distinct room-detail button alongside each direct toggle; use explicit accessible names for every blind command. Reserve the eighth grid position for a compact all-room summary or decorative breathing space, not a fabricated room.
+- [x] Open the standalone page through the existing local static server, or start a free localhost port serving `public`. Inspect 1280×800 and 960×600. Verify no overview scroll at those reference sizes. At 375×812, 393×852, and 440×956, verify no horizontal overflow and no overlap with the compact music transport. Browser measurements can compare `scrollWidth` against `clientWidth` and tablet `scrollHeight` against viewport height.
+- [x] Inspect a long track title and the busy scenario before finalising typography; shrink decorative space first. Fix clipping and contrast issues from screenshots. Commit the independently viewable shell.
 
 ## Task 2: Complete simulated controls and detail navigation
 
@@ -126,7 +126,7 @@ button { min-height:44px; min-width:44px; }
 
 **Produces:** Working local actions and `renderDetails(state, route, query)`. A route is `{kind, id?}` with kind `room`, `music`, `weather`, `attention`, `devices`, `thermostat`, `appliances`, or `vacuum`.
 
-- [ ] Implement local action types `mode`, `mood`, `room-power`, `light-power`, `brightness`, `colour`, `blind`, `play`, `skip`, `volume`, `speaker`, `source`, `favourite`, `dismiss`, `thermostat`, and `vacuum`. Range inputs clamp brightness/volume to 0–100 and thermostat to 16–28°C. Unavailable lights ignore actions. Room power switches available lights off when any available light is on, otherwise on. Blind actions store only the last command and announce it. Mode and mood remain independently selected. Skip wraps a small local track list; favourites select a track. No network requests.
+- [x] Implement local action types `mode`, `mood`, `room-power`, `light-power`, `brightness`, `colour`, `blind`, `play`, `skip`, `volume`, `speaker`, `source`, `favourite`, `dismiss`, `thermostat`, and `vacuum`. Range inputs clamp brightness/volume to 0–100 and thermostat to 16–28°C. Unavailable lights ignore actions. Room power switches available lights off when any available light is on, otherwise on. Blind actions store only the last command and announce it. Mode and mood remain independently selected. Skip wraps a small local track list; favourites select a track. No network requests.
 
 ```js
 // Representative room-power behavior inside applyAction:
@@ -137,9 +137,9 @@ available.forEach(light => { light.on = nextOn; });
 // Return a readable status message; render pressed state from state, never DOM history.
 ```
 
-- [ ] Implement a single native dialog with a title, close button, and scrollable content. Open with `showModal()`, remember the opener's stable `data-focus-key`, and set body overflow to hidden. Route changes update title/content without nesting dialogs. Close restores original overflow and re-finds the opener after overview renders. Fall back to All devices if the original opener no longer exists. Backdrop dismissal requires pointer down and up on the backdrop; Escape uses the dialog cancel event. Keep directory filters/query when returning from a device detail.
-- [ ] Render room details with individual light power/brightness/supported colour controls and blind commands. Render music source/room/favourites controls; a sample hourly/daily forecast; full attention list and activity; thermostat temperature adjustment; appliance statuses; and vacuum start/pause/dock. All devices filters by text and room/category and includes these destinations. Empty results show a clear reset-filter action.
-- [ ] Use delegated events through explicit action attributes. Use `input` to update state and the nearby numeric output for sliders; avoid replacing the focused range input while dragging. On completion, update overview and other affected summaries. Restore focus by stable key after updates when needed.
+- [x] Implement a single native dialog with a title, close button, and scrollable content. Open with `showModal()`, remember the opener's stable `data-focus-key`, and set body overflow to hidden. Route changes update title/content without nesting dialogs. Close restores original overflow and re-finds the opener after overview renders. Fall back to All devices if the original opener no longer exists. Backdrop dismissal requires pointer down and up on the backdrop; Escape uses the dialog cancel event. Keep directory filters/query when returning from a device detail.
+- [x] Render room details with individual light power/brightness/supported colour controls and blind commands. Render music source/room/favourites controls; a sample hourly/daily forecast; full attention list and activity; thermostat temperature adjustment; appliance statuses; and vacuum start/pause/dock. All devices filters by text and room/category and includes these destinations. Empty results show a clear reset-filter action.
+- [x] Use delegated events through explicit action attributes. Use `input` to update state and the nearby numeric output for sliders; avoid replacing the focused range input while dragging. On completion, update overview and other affected summaries. Restore focus by stable key after updates when needed.
 
 ```js
 document.addEventListener('click', event => {
@@ -149,8 +149,8 @@ document.addEventListener('click', event => {
 });
 ```
 
-- [ ] Verify these browser sequences: toggle Living room then open its sheet and check matching states; change one light and close/reopen; toggle a room with one unavailable light and confirm it remains unavailable; issue Open/Stop/Close and confirm command text without position; select/end each mood; select Night then a mood and confirm Night persists; play/skip/volume/source/room/favourite; open hourly/daily forecast; search devices, open a result, return and confirm filter preserved; inspect/dismiss each reminder; adjust thermostat and operate simulated vacuum.
-- [ ] Verify Tab/Shift+Tab remain within the modal, Escape closes, background cannot scroll, focus returns to the initiating control, and phone sheets leave their close button reachable. Test slider focus while changing volume. Test zero brightness/volume explicitly. Commit working interactions.
+- [x] Verify these browser sequences: toggle Living room then open its sheet and check matching states; change one light and close/reopen; toggle a room with one unavailable light and confirm it remains unavailable; issue Open/Stop/Close and confirm command text without position; select/end each mood; select Night then a mood and confirm Night persists; play/skip/volume/source/room/favourite; open hourly/daily forecast; search devices, open a result, return and confirm filter preserved; inspect/dismiss each reminder; adjust thermostat and operate simulated vacuum.
+- [x] Verify Tab/Shift+Tab remain within the modal, Escape closes, background cannot scroll, focus returns to the initiating control, and phone sheets leave their close button reachable. Test slider focus while changing volume. Test zero brightness/volume explicitly. Commit working interactions.
 
 ## Task 3: Polish, verify, and deliver
 
@@ -160,9 +160,9 @@ document.addEventListener('click', event => {
 
 **Produces:** A polished preview, documented verification, and pushed proof-of-concept commits.
 
-- [ ] Add a subtle Prototype label and demo menu with Everyday, Busy, Nighttime, and Reset. Every scenario reset replaces state and closes any active sheet cleanly. Verify dismissing every notice leads to a quiet empty state and resetting restores the scenario.
-- [ ] Visually inspect all scenarios on tablet and phone, including disabled controls, pressed states, keyboard focus, long text, open sheets, all-device empty results, and safe-area spacing. Confirm the attention area does not move room controls as notice count changes. Keep animations brief and finite; check reduced motion. Record tested sizes and actual findings in README.
-- [ ] Run syntax/diff checks without repository-wide formatting:
+- [x] Add a subtle Prototype label and demo menu with Everyday, Busy, Nighttime, and Reset. Every scenario reset replaces state and closes any active sheet cleanly. Verify dismissing every notice leads to a quiet empty state and resetting restores the scenario.
+- [x] Visually inspect all scenarios on tablet and phone, including disabled controls, pressed states, keyboard focus, long text, open sheets, all-device empty results, and safe-area spacing. Confirm the attention area does not move room controls as notice count changes. Keep animations brief and finite; check reduced motion. Record tested sizes and actual findings in README.
+- [x] Run syntax/diff checks without repository-wide formatting:
 
 ```sh
 export PATH="/Users/yann510/Library/Application Support/fnm/node-versions/v24.10.0/installation/bin:$PATH"
@@ -174,10 +174,10 @@ node --check public/concepts/house-canvas/app.js
 git diff --check
 ```
 
-- [ ] Open existing concept and Quiet Home URLs to confirm they still load. Inspect browser errors on the new standalone page. No new unit tests for purely visual reversible changes; the stateful interactions above receive explicit browser checks.
-- [ ] Request the execution workflow's final independent review after implementation, incorporating actionable findings and rechecking affected behavior. Do not operate real Home Assistant controls during comparison.
-- [ ] Commit verified prototype changes, fetch origin, verify no unintegrated commits on `origin/codex/quiet-home-poc`, and push normally to that branch. Do not merge main or deploy.
-- [ ] Open the finished prototype for the user. Share its URL, a short description of the third direction, verification results, and the remaining limitation that the actual Fire tablet viewport has not been measured.
+- [x] Open existing concept and Quiet Home URLs to confirm they still load. Inspect browser errors on the new standalone page. No new unit tests for purely visual reversible changes; the stateful interactions above receive explicit browser checks.
+- [x] Request the execution workflow's final independent review after implementation, incorporating actionable findings and rechecking affected behavior. Do not operate real Home Assistant controls during comparison.
+- [x] Commit verified prototype changes, fetch origin, verify no unintegrated commits on `origin/codex/quiet-home-poc`, and push normally to that branch. Do not merge main or deploy.
+- [x] Open the finished prototype for the user. Share its URL, a short description of the third direction, verification results, and the remaining limitation that the actual Fire tablet viewport has not been measured.
 
 ## Self-review
 
