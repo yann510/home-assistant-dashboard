@@ -14,8 +14,11 @@ export function useCanvasBlinds() {
   const [selection, setSelection] = useState<readonly BlindRoom[]>(blindRooms);
   const selectionRef = useRef<readonly BlindRoom[]>(blindRooms);
   const [results, setResults] = useState(emptyResults);
+  const resultsRef = useRef(emptyResults());
   const [failedRooms, setFailedRooms] = useState(emptyFailures);
   const failedRef = useRef(emptyFailures());
+  const [movingRooms, setMovingRooms] = useState<readonly BlindRoom[]>([]);
+  const movingRef = useRef<readonly BlindRoom[]>([]);
   const [pending, setPending] = useState<Record<BlindAction, boolean>>({ open: false, stop: false, close: false });
   const busyRef = useRef<Record<BlindAction, boolean>>({ open: false, stop: false, close: false });
   const { send: sendMovement } = useDeviceCommand();
@@ -29,19 +32,33 @@ export function useCanvasBlinds() {
     setSelection(next);
   }, []);
 
-  const dispatch = useCallback(async (action: BlindAction, targets: readonly BlindRoom[]): Promise<CommandResult> => {
+  const publishResults = useCallback((action: BlindAction, outcome: CommandResult) => {
+    resultsRef.current = { ...resultsRef.current, [action]: outcome };
+    setResults(resultsRef.current);
+  }, []);
+
+  const dispatch = useCallback(async (action: BlindAction, targets: readonly BlindRoom[], retry = false): Promise<CommandResult> => {
     if (!targets.length || !connected || busyRef.current[action] || (action !== 'stop' && (busyRef.current.open || busyRef.current.close)))
       return { results: [] };
     // Snapshot the action targets before any service call can settle or selection can change.
     const captured = [...targets];
     busyRef.current[action] = true;
     setPending(previous => ({ ...previous, [action]: true }));
+    if (action !== 'stop') {
+      movingRef.current = captured;
+      setMovingRooms(captured);
+    }
     failedRef.current = { ...failedRef.current, [action]: [] };
     setFailedRooms(failedRef.current);
-    setResults(previous => ({ ...previous, [action]: { results: captured.map(target => ({ target, phase: 'pending' })) } }));
+    const pendingResults: TargetResult[] = captured.map(target => ({ target, phase: 'pending' }));
+    const previousResults = resultsRef.current[action]?.results ?? [];
+    publishResults(action, { results: retry
+      ? previousResults.map(result => captured.includes(result.target as BlindRoom)
+        ? { target: result.target, phase: 'pending' } : result)
+      : pendingResults });
     const send = action === 'stop' ? sendStop : sendMovement;
     try {
-      const perRoom = await Promise.all(captured.map(async room => {
+      await Promise.all(captured.map(async room => {
         let item: TargetResult;
         try {
           const result = await send({
@@ -52,21 +69,25 @@ export function useCanvasBlinds() {
         } catch (error) {
           item = { target: room, phase: 'failed', message: error instanceof Error ? error.message : 'Could not send the command. Try again.' };
         }
-        setResults(previous => ({ ...previous, [action]: { results: previous[action]!.results.map(result => result.target === room ? item : result) } }));
+        publishResults(action, { results: resultsRef.current[action]!.results.map(result => result.target === room ? item : result) });
         return item;
       }));
-      const outcome = { results: perRoom } satisfies CommandResult;
-      failedRef.current = { ...failedRef.current, [action]: perRoom.filter(item => item.phase === 'failed').map(item => item.target as BlindRoom) };
+      const outcome = resultsRef.current[action]!;
+      failedRef.current = { ...failedRef.current, [action]: outcome.results.filter(item => item.phase === 'failed').map(item => item.target as BlindRoom) };
       setFailedRooms(failedRef.current);
-      setResults(previous => ({ ...previous, [action]: outcome }));
       return outcome;
     } finally {
       busyRef.current[action] = false;
       setPending(previous => ({ ...previous, [action]: false }));
+      if (action !== 'stop') {
+        movingRef.current = [];
+        setMovingRooms([]);
+      }
     }
-  }, [connected, sendMovement, sendStop]);
+  }, [connected, publishResults, sendMovement, sendStop]);
 
-  const run = useCallback((action: BlindAction) => dispatch(action, selectionRef.current), [dispatch]);
-  const retryFailed = useCallback((action: BlindAction) => dispatch(action, failedRef.current[action]), [dispatch]);
-  return { selection, toggleRoom, run, retryFailed, failedRooms, results, pending, connected };
+  const run = useCallback((action: BlindAction) => dispatch(action,
+    action === 'stop' && movingRef.current.length ? movingRef.current : selectionRef.current), [dispatch]);
+  const retryFailed = useCallback((action: BlindAction) => dispatch(action, failedRef.current[action], true), [dispatch]);
+  return { selection, toggleRoom, run, retryFailed, failedRooms, results, pending, movingRooms, connected };
 }

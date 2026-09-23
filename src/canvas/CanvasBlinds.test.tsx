@@ -74,11 +74,19 @@ it('reports a partial failure and retries only its immutable failed room', async
   expect(within(feedback).getByText('Living room · Command sent · position unavailable')).toBeTruthy();
   expect(within(feedback).getByText(/Bedroom · Assistant unavailable/)).toBeTruthy();
   await choose('Bedroom');
-  fixture.respondWith(() => Promise.resolve({}));
+  const retry = deferred();
+  fixture.respondWith(() => retry.promise);
   await userEvent.click(screen.getByRole('button', { name: 'Retry Open for failed rooms' }));
   await waitFor(() => expect(fixture.calls).toHaveLength(3));
   expect(command(2).service_data.command).toBe('open all the blinds bedroom');
-  expect(screen.queryByRole('button', { name: 'Retry Open for failed rooms' })).toBeNull();
+  const retryFeedback = screen.getByRole('group', { name: 'Open blind command results' });
+  expect(within(retryFeedback).getByText('Living room · Command sent · position unavailable')).toBeTruthy();
+  expect(within(retryFeedback).getByText('Bedroom · Sending command…')).toBeTruthy();
+  await act(async () => retry.resolve({}));
+  await waitFor(() => expect(screen.queryByRole('button', { name: 'Retry Open for failed rooms' })).toBeNull());
+  const finalFeedback = screen.getByRole('group', { name: 'Open blind command results' });
+  expect(within(finalFeedback).getByText('Living room · Command sent · position unavailable')).toBeTruthy();
+  expect(within(finalFeedback).getByText('Bedroom · Command sent · position unavailable')).toBeTruthy();
 });
 
 it('does not dispatch while disconnected and describes the failure', async () => {
@@ -96,9 +104,44 @@ it('keeps Stop available while Open waits and sends an independent Stop command'
   await choose('Bedroom');
   await choose('Gym');
   await userEvent.click(screen.getByRole('button', { name: 'Open selected blinds' }));
-  expect(screen.getByRole('button', { name: 'Stop selected blinds' }).hasAttribute('disabled')).toBe(false);
-  await userEvent.click(screen.getByRole('button', { name: 'Stop selected blinds' }));
+  expect(screen.getByRole('button', { name: 'Stop moving blinds in Living room' }).hasAttribute('disabled')).toBe(false);
+  await userEvent.click(screen.getByRole('button', { name: 'Stop moving blinds in Living room' }));
   await waitFor(() => expect(fixture.calls).toHaveLength(2));
   expect(command(1).service_data.command).toBe('stop all the blinds living room');
   await act(async () => opening.resolve({}));
+});
+
+it('stops the originally commanded rooms after the selection changes', async () => {
+  const movement = deferred();
+  fixture.respondWith(message => String((message as { service_data: { command: string } }).service_data.command).startsWith('close') ? movement.promise : Promise.resolve({}));
+  render(<CanvasBlinds />);
+  await choose('Gym');
+  await userEvent.click(screen.getByRole('button', { name: 'Close selected blinds' }));
+  await choose('Living room');
+  await choose('Gym');
+  expect(screen.getByRole('button', { name: 'Stop moving blinds in Living room, Bedroom' }).hasAttribute('disabled')).toBe(false);
+  await userEvent.click(screen.getByRole('button', { name: 'Stop moving blinds in Living room, Bedroom' }));
+  await waitFor(() => expect(fixture.calls).toHaveLength(4));
+  expect(fixture.calls.slice(2).map((_, index) => command(index + 2).service_data.command)).toEqual([
+    'stop all the blinds living room', 'stop all the blinds bedroom',
+  ]);
+  await act(async () => movement.resolve({}));
+});
+
+it('keeps Stop available for moving rooms after the selection is cleared', async () => {
+  const movement = deferred();
+  fixture.respondWith(message => String((message as { service_data: { command: string } }).service_data.command).startsWith('open') ? movement.promise : Promise.resolve({}));
+  render(<CanvasBlinds />);
+  await choose('Gym');
+  await userEvent.click(screen.getByRole('button', { name: 'Open selected blinds' }));
+  await choose('Living room');
+  await choose('Bedroom');
+  expect(screen.getByRole('button', { name: 'Open selected blinds' }).hasAttribute('disabled')).toBe(true);
+  expect(screen.getByRole('button', { name: 'Stop moving blinds in Living room, Bedroom' }).hasAttribute('disabled')).toBe(false);
+  await userEvent.click(screen.getByRole('button', { name: 'Stop moving blinds in Living room, Bedroom' }));
+  await waitFor(() => expect(fixture.calls).toHaveLength(4));
+  expect(fixture.calls.slice(2).map((_, index) => command(index + 2).service_data.command)).toEqual([
+    'stop all the blinds living room', 'stop all the blinds bedroom',
+  ]);
+  await act(async () => movement.resolve({}));
 });

@@ -12,7 +12,7 @@ function feedback(result: TargetResult) {
 }
 
 export function CanvasBlinds() {
-  const { selection, toggleRoom, run, retryFailed, failedRooms, results, pending, connected } = useCanvasBlinds();
+  const { selection, toggleRoom, run, retryFailed, failedRooms, results, pending, movingRooms, connected } = useCanvasBlinds();
   return <section className='canvas-blinds' aria-label='Blinds'>
     <div className='canvas-blinds__heading'><div><span className='canvas__eyebrow'>Blinds</span><h2>Let the light in.</h2></div><span className='canvas-blinds__caption'>Choose rooms</span></div>
     <div className='canvas-blinds__rooms' role='group' aria-label='Rooms to control blinds'>
@@ -20,13 +20,15 @@ export function CanvasBlinds() {
         onClick={() => toggleRoom(room)}>{selection.includes(room) ? '✓ ' : '+ '}{label(room)}</button>)}
     </div>
     <div className='canvas-blinds__actions'>
-      {actions.map(action => <button key={action} type='button' aria-label={`${actionLabel(action)} selected blinds`}
-        disabled={!connected || !selection.length || pending[action] || (action !== 'stop' && (pending.open || pending.close))}
+      {actions.map(action => <button key={action} type='button'
+        aria-label={action === 'stop' && movingRooms.length ? `Stop moving blinds in ${movingRooms.map(label).join(', ')}` : `${actionLabel(action)} selected blinds`}
+        disabled={!connected || !(action === 'stop' ? movingRooms.length || selection.length : selection.length) || pending[action] || (action !== 'stop' && (pending.open || pending.close))}
         onClick={() => void run(action)}>{actionLabel(action)}</button>)}
     </div>
     <p className='canvas-blinds__caption' role='status'>
       {!connected ? 'Home Assistant is disconnected. Reconnect to control blinds.' : selection.length ? `${selection.map(label).join(' + ')} selected` : 'Select one or more rooms above'}
     </p>
+    {movingRooms.length > 0 && <p className='canvas-blinds__caption'>Movement request pending for {movingRooms.map(label).join(' + ')}. Stop targets these rooms.</p>}
     {actions.map(action => results[action] && <div key={action} className='canvas-blinds__results' role='group' aria-label={`${actionLabel(action)} blind command results`}>
       <strong>{actionLabel(action)}</strong>
       {results[action]!.results.map(result => <p key={result.target} className={result.phase === 'failed' || result.phase === 'unconfirmed' ? 'canvas-blinds__error' : ''}
