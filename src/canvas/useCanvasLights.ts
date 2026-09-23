@@ -2,7 +2,7 @@ import { createContext, createElement, useCallback, useContext, useMemo, useRef,
 import { useStore, type LightEntity } from '@hakit/core';
 import { rooms as inventory } from '../useLightSummary';
 import { useDeviceCommand } from './useDeviceCommand';
-import type { CommandResult, DeviceIntent } from './commands';
+import type { CommandResult, DeviceIntent, TargetResult } from './commands';
 
 export type CanvasLight = { id: string; name: string; state: 'on' | 'off' | 'unavailable'; entity?: LightEntity };
 export type CanvasRoom = { name: string; lights: CanvasLight[]; on: number; available: number; brightness?: number };
@@ -15,10 +15,10 @@ const supportsBrightness = (entity?: LightEntity) => Boolean(entity?.attributes.
 function useCanvasLightsController() {
   const entities = useStore(state => state.entities);
   const connected = useStore(state => Boolean(state.connection?.connected && state.connectionStatus === 'connected'));
-  const { send: sendCommand, pending, result } = useDeviceCommand();
+  const { send: sendCommand, pending, result: activeResult } = useDeviceCommand();
   const busyRef = useRef(new Set<string>());
   const [busy, setBusy] = useState<ReadonlySet<string>>(new Set());
-  const [lastResult, setLastResult] = useState<CommandResult | null>(null);
+  const [outcomes, setOutcomes] = useState<Record<string, TargetResult>>({});
   const [selectedRoom, setSelectedRoom] = useState<string>(inventory[0].name);
   const rooms: CanvasRoom[] = useMemo(() => inventory.map(room => {
     const lights = room.lights.map(id => {
@@ -37,9 +37,10 @@ function useCanvasLightsController() {
     if (!targets.length) return null;
     targets.forEach(id => busyRef.current.add(id));
     setBusy(new Set(busyRef.current));
+    setOutcomes(previous => ({ ...previous, ...Object.fromEntries(targets.map(target => [target, { target, phase: 'pending' as const }])) }));
     try {
       const outcome = await sendCommand({ ...intent, targets }, observe);
-      setLastResult(outcome);
+      setOutcomes(previous => ({ ...previous, ...Object.fromEntries(outcome.results.map(item => [item.target, item])) }));
       return outcome;
     } finally {
       targets.forEach(id => busyRef.current.delete(id));
@@ -56,10 +57,18 @@ function useCanvasLightsController() {
     const targets = ids.filter(id => usable(current(id)) && supportsBrightness(current(id)));
     const value = Math.round(Math.max(1, Math.min(100, percent)) * 255 / 100);
     return send({ domain: 'light', service: 'turn_on', targets, data: { brightness: value } },
-      id => Math.abs(Number((useStore.getState().entities[id] as LightEntity | undefined)?.attributes.brightness) - value) <= 1);
+      id => {
+        const next = useStore.getState().entities[id] as LightEntity | undefined;
+        return next?.state === 'on' && Math.abs(Number(next.attributes.brightness) - value) <= 1;
+      });
   }, [send]);
+  const visibleResults = { ...outcomes };
+  for (const item of activeResult?.results ?? []) {
+    if (busy.has(item.target)) visibleResults[item.target] = item;
+  }
+  const results = Object.values(visibleResults);
   return { rooms, selectedRoom, setSelectedRoom, connected, busy, pending,
-    result: result ?? lastResult, send, power, brightness };
+    result: results.length ? { results } satisfies CommandResult : null, send, power, brightness };
 }
 type Controller = ReturnType<typeof useCanvasLightsController>;
 const LightsContext = createContext<Controller | null>(null);

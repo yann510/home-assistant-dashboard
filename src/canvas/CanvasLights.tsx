@@ -5,13 +5,15 @@ function CommandFeedback() {
   const { result } = useCanvasLights();
   if (!result) return null;
   const failures = result.results.filter(item => item.phase === 'failed' || item.phase === 'unconfirmed');
-  if (failures.length) return <p className='canvas-lights__error' role='alert'>{failures.map(item => `${item.target}: ${item.message}`).join(' ')}</p>;
   const pending = result.results.filter(item => item.phase === 'pending').length;
   const accepted = result.results.filter(item => item.phase === 'accepted').length;
   const observed = result.results.filter(item => item.phase === 'observed').length;
-  return <p className='canvas-lights__muted' role='status'>
-    {pending ? `Sending to ${pending} light${pending === 1 ? '' : 's'}…` : accepted ? `Service accepted for ${accepted} light${accepted === 1 ? '' : 's'}; waiting for reported state.` : `${observed} light${observed === 1 ? '' : 's'} reported the requested state.`}
-  </p>;
+  return <>
+    {failures.length > 0 && <p className='canvas-lights__error' role='alert'>{failures.map(item => `${item.target}: ${item.message}`).join(' ')}</p>}
+    {(pending > 0 || accepted > 0 || observed > 0) && <p className='canvas-lights__muted' role='status'>
+      {pending ? `Sending to ${pending} light${pending === 1 ? '' : 's'}…` : accepted ? `Service accepted for ${accepted} light${accepted === 1 ? '' : 's'}; waiting for reported state.` : `${observed} light${observed === 1 ? '' : 's'} reported the requested state.`}
+    </p>}
+  </>;
 }
 
 function RoomPower({ room }: { room: CanvasRoom }) {
@@ -30,6 +32,7 @@ function RoomBrightness({ room }: { room: CanvasRoom }) {
   const supported = room.lights.some(light => light.state !== 'unavailable' && lightSupportsBrightness(light.entity));
   const [draft, setDraft] = useState<number | null>(null);
   const [committing, setCommitting] = useState(false);
+  const position = draft ?? room.brightness ?? 50;
   const commit = () => {
     if (draft === null || committing) return;
     setCommitting(true);
@@ -40,11 +43,14 @@ function RoomBrightness({ room }: { room: CanvasRoom }) {
   };
   if (!supported) return <p className='canvas-lights__muted'>Brightness unavailable for this room.</p>;
   return <label className='canvas-lights__slider'>Brightness
-    <input type='range' min='1' max='100' aria-label='Room brightness' value={draft ?? room.brightness ?? 50}
+    <input type='range' min='1' max='100' aria-label='Room brightness'
+      aria-valuetext={`${draft !== null || room.brightness === undefined ? 'proposed' : 'reported'} ${position} percent${room.brightness === undefined ? '; current room brightness unknown' : ''}`}
+      value={position}
       disabled={!connected || committing || room.lights.some(light => busy.has(light.id))}
       onChange={event => setDraft(Number(event.target.value))}
       onPointerUp={commit} onKeyUp={commit} onBlur={commit} />
-    <output>{draft ?? room.brightness ?? '—'}%</output>
+    <output>{draft !== null || room.brightness === undefined ? 'Proposed' : 'Reported'} brightness {position}%</output>
+    {room.brightness === undefined && <small className='canvas-lights__reading'>Current room brightness unknown</small>}
   </label>;
 }
 

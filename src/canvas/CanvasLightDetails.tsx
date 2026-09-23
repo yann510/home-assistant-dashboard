@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { useStore, type LightEntity } from '@hakit/core';
 import { lightSupportsBrightness, useCanvasLights } from './useCanvasLights';
 
@@ -32,18 +32,24 @@ export function CanvasLightDetails({ entityId }: { entityId: string }) {
   const [colourDraft, setColourDraft] = useState<string | null>(null);
   const [effectDraft, setEffectDraft] = useState<string | null>(null);
   const [committing, setCommitting] = useState(false);
+  const colourDescriptionId = useId();
   if (!light) return <p role='status'>This light is not in the current inventory.</p>;
   const sendValue = async (data: Record<string, unknown>, observe: (next: LightEntity) => boolean, clear: () => void) => {
     if (!available || working || committing) return;
     setCommitting(true);
     try {
       const outcome = await send({ domain: 'light', service: 'turn_on', targets: [entityId], data },
-        id => { const next = useStore.getState().entities[id] as LightEntity | undefined; return Boolean(next && observe(next)); });
+        id => { const next = useStore.getState().entities[id] as LightEntity | undefined; return Boolean(next?.state === 'on' && observe(next)); });
       if (outcome?.results.every(item => item.phase === 'observed')) clear();
     } finally { setCommitting(false); }
   };
-  const brightness = numeric(attrs?.brightness);
+  const brightness = entity?.state === 'on' ? numeric(attrs?.brightness) : undefined;
   const brightnessPercent = brightness === undefined ? undefined : Math.round(brightness / 255 * 100);
+  const brightnessPosition = brightnessDraft ?? brightnessPercent ?? 50;
+  const temperatureValue = entity?.state === 'on' && temperature ? temperature.value : undefined;
+  const temperaturePosition = temperatureDraft ?? temperatureValue ?? (temperature ? Math.round((temperature.min + temperature.max) / 2) : 0);
+  const reportedColour = entity?.state === 'on' ? attrs?.rgb_color : undefined;
+  const colourValue = colourDraft ?? hexFromRgb(reportedColour);
   const commitBrightness = () => {
     if (brightnessDraft === null) return;
     const value = Math.round(brightnessDraft / 100 * 255);
@@ -75,20 +81,26 @@ export function CanvasLightDetails({ entityId }: { entityId: string }) {
         {light.state === 'on' ? 'Turn off' : 'Turn on'}
       </button></div>
     {lightSupportsBrightness(entity) && <label className='canvas-lights__slider'>Brightness
-      <input aria-label='Light brightness' type='range' min='1' max='100' value={brightnessDraft ?? brightnessPercent ?? 50}
+      <input aria-label='Light brightness' aria-valuetext={`${brightnessDraft !== null || brightnessPercent === undefined ? 'proposed' : 'reported'} ${brightnessPosition} percent${brightnessPercent === undefined ? '; current brightness unknown' : ''}`}
+        type='range' min='1' max='100' value={brightnessPosition}
         disabled={!available || working || committing} onChange={event => setBrightnessDraft(Number(event.target.value))}
         onPointerUp={commitBrightness} onKeyUp={commitBrightness} onBlur={commitBrightness} />
-      <output>{brightnessDraft ?? brightnessPercent ?? '—'}%</output></label>}
+      <output>{brightnessDraft !== null || brightnessPercent === undefined ? 'Proposed' : 'Reported'} brightness {brightnessPosition}%</output>
+      {brightnessPercent === undefined && <small className='canvas-lights__reading'>Current brightness unknown</small>}</label>}
     {colour && <label className='canvas-lights__field'>Colour
-      <input aria-label='Light colour' type='color' value={colourDraft ?? hexFromRgb(attrs?.rgb_color)}
+      <input aria-label='Light colour' aria-describedby={colourDescriptionId} type='color' value={colourValue}
         disabled={!available || working || committing} onChange={event => setColourDraft(event.target.value)} onBlur={commitColour} />
-      <button type='button' disabled={!available || working || committing || colourDraft === null} onClick={commitColour}>Apply colour</button></label>}
+      <button type='button' disabled={!available || working || committing || colourDraft === null} onClick={commitColour}>Apply colour</button>
+      <span id={colourDescriptionId} className='canvas-lights__reading'>
+        {reportedColour === undefined ? 'Current colour unknown' : `Reported colour ${hexFromRgb(reportedColour)}`}</span>
+      <output>{colourDraft !== null || reportedColour === undefined ? 'Proposed' : 'Reported'} colour {colourValue}</output></label>}
     {temperature && <label className='canvas-lights__slider'>Colour temperature
-      <input aria-label='Light colour temperature' type='range' min={temperature.min} max={temperature.max}
-        value={temperatureDraft ?? temperature.value ?? Math.round((temperature.min + temperature.max) / 2)}
+      <input aria-label='Light colour temperature' aria-valuetext={`${temperatureDraft !== null || temperatureValue === undefined ? 'proposed' : 'reported'} ${temperaturePosition} ${temperature.unit}${temperatureValue === undefined ? '; current colour temperature unknown' : ''}`}
+        type='range' min={temperature.min} max={temperature.max} value={temperaturePosition}
         disabled={!available || working || committing} onChange={event => setTemperatureDraft(Number(event.target.value))}
         onPointerUp={commitTemperature} onKeyUp={commitTemperature} onBlur={commitTemperature} />
-      <output>{temperatureDraft ?? temperature.value ?? '—'} {temperature.unit}</output></label>}
+      <output>{temperatureDraft !== null || temperatureValue === undefined ? 'Proposed' : 'Reported'} colour temperature {temperaturePosition} {temperature.unit}</output>
+      {temperatureValue === undefined && <small className='canvas-lights__reading'>Current colour temperature unknown</small>}</label>}
     {effects.length > 0 && <label className='canvas-lights__field'>Effect
       <select aria-label='Light effect' value={effectDraft ?? attrs?.effect ?? ''} disabled={!available || working || committing}
         onChange={event => setEffectDraft(event.target.value)}><option value=''>Choose effect</option>

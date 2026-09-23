@@ -58,6 +58,8 @@
 .canvas-lights__slider { display: grid; grid-template-columns: minmax(80px, 1fr) minmax(120px, 2fr) auto; align-items: center; gap: 10px; margin-top: 12px; }
 .canvas-lights__slider input { width: 100%; accent-color: #cbb5ed; min-height: 44px; }
 .canvas-lights__field { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+.canvas-lights__reading { color: #b6b0bb; font-size: .78rem; }
+.canvas-lights__slider .canvas-lights__reading { grid-column: 1 / -1; }
 .canvas-lights__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(255px, 1fr)); gap: 16px; }
 .canvas-lights__group { border: 1px solid #48444e; border-radius: 18px; padding: 16px; background: #35323a; }
 .canvas-lights__light { border-top: 1px solid #48444e; padding: 8px 0; }
