@@ -1,6 +1,6 @@
 # House Canvas trial handoff
 
-Status: dedicated trial deployed and verified over SSH and LAN HTTP. Supported browser login, read-only entity updates and physical-device observations remain **pending**. No physical home commands were issued during deployment verification.
+Status: dedicated trial deployed and verified over SSH and LAN HTTP. The normal Home Assistant login screen is reachable. Authenticated live entity updates and physical-device observations remain **pending**. No physical home commands were issued during deployment verification.
 
 Live trial URL: **http://homeassistant.local:8123/local/canvas-trial/index.html?view=canvas**.
 
@@ -8,7 +8,7 @@ The originally shared folder URL (`/local/canvas-trial/?view=canvas`) returns **
 
 Immediate existing-dashboard fallback: **http://homeassistant.local:8123/local/dashboard/index.html**.
 
-Deployed source commit and release ID: `4e29b770bff3c56fcd61c9a788e6d682c80bbe74` on `codex/quiet-home-poc`. The source and deployment handoff were published to `origin/main` at `1dbee1e` by a verified fast-forward; source publication is separate from deployment. Canvas remains optional; adopting it as the default remains a later decision.
+Deployed source commit and release ID: `cdcf153588d965dfb40b9a13bede8fda91c2f16a` on `codex/quiet-home-poc`. Previous release `4e29b770bff3c56fcd61c9a788e6d682c80bbe74` is retained for rollback. Source publication to `origin/main` is separate from deployment. Canvas remains optional; adopting it as the default remains a later decision.
 
 ## Build and release
 
@@ -32,19 +32,16 @@ Rollback stages the previous release, retains current assets for already-open cl
 
 ## Deployment evidence
 
-Verified at **2026-09-23T18:34:57.651Z**. The reviewed final build passed 333 tests, project type checking and lint across all changed TypeScript files before deployment.
+Verified at **2026-09-23T19:07:29.416Z**. The reviewed UX polish build passed **340 tests**, project type checking, changed-file ESLint and the trial build; see [UX polish verification](house-canvas-ux-polish.md).
 
-- `npm run deploy:canvas-trial -- 4e29b770bff3c56fcd61c9a788e6d682c80bbe74` exited 0 after its secret scan, staged SHA-256 verification and promotion.
-- Remote `/homeassistant/www/canvas-trial/release-info.json` reports the exact source/release ID above.
-- Re-read the deployed manifest and all **74 files** over SSH; every SHA-256 matched. Fetched all 74 over LAN HTTP with **HTTP 200** and matching hashes. All 73 build files also match local `dist`; the remaining file is generated release metadata.
-- The two assets directly linked by index.html (JS and CSS) were included in these checks.
-- The existing dashboard index.html and its two baseline JS/CSS files still return HTTP 200 with unchanged byte counts and SHA-256 values. The original URL remains available.
-- Full per-file evidence is retained in the local workspace at `.superpowers/sdd/2026-09-23-house-canvas-production/trial-deployment-verification.json`, compared against `existing-dashboard-baseline.json` in that directory.
-- This is the first trial release: no earlier trial existed to roll back to. `npm run rollback:canvas-trial` becomes useful after a later release has retained this one; today the immediate fallback is the existing dashboard URL.
-- **Browser verification blocked:** the controller attempted the originally shared folder URL in both the Codex in-app browser and regular Chrome through browser tooling. Both failed with `net::ERR_BLOCKED_BY_CLIENT` before the page opened. This is separate from the successful direct HTTP/SSH checks. Supported Home Assistant login and live read-only entity updates require the user to open the trial link; neither is claimed verified. No credentials were injected or browser restrictions bypassed.
-- Source push verified: remote `refs/heads/main` matched local `1dbee1e1c2723c9513abcb2272bc933b3b985785` after the fast-forward. The final documentation-only record follows that commit.
-- [Deployment hash evidence](canvas-qa/trial-deployment-verification.json) records the successful LAN responses and hashes.
-- **Pending:** supported browser login, live UI updates and the physical checks below.
+- `npm run deploy:canvas-trial -- cdcf153588d965dfb40b9a13bede8fda91c2f16a` exited 0 after its secret scan, staged SHA-256 verification and promotion. Remote release-info reports that exact source/release ID.
+- All **76 manifest files** match their remote SHA-256 hashes and LAN HTTP responses (HTTP 200). All **73 current build files** match local `dist`; **2 previous hashed assets** remain available and verified, alongside generated release metadata.
+- Exact user entry `/local/canvas-trial/index.html?view=canvas` returns **HTTP 200** and the expected index hash. Both directly linked JS/CSS assets were verified.
+- Previous release `4e29b770bff3c56fcd61c9a788e6d682c80bbe74` is preserved in `/homeassistant/www/canvas-trial-previous`; all **74 previous manifest files** were re-read and verified. `npm run rollback:canvas-trial` can restore it while retaining the new hashed assets for open clients. Rollback was not executed during this verification.
+- The existing dashboard HTML and its two baseline JS/CSS files still return HTTP 200 with unchanged byte counts and SHA-256 values.
+- [Deployment hash evidence](canvas-qa/trial-deployment-verification.json) records every verified file, exact entry status and previous release. The original local dashboard baseline remains untouched.
+- **Login-screen reachability confirmed:** the controller opened the corrected explicit index URL and reached Home Assistant's normal authorization screen with Username, Password and Log in. No credentials were entered. This supersedes the earlier wrong-folder/browser-tool access failure; it does not establish authenticated live state updates.
+- **Pending:** authenticated live UI updates and the physical checks below. No real-home commands were issued.
 
 ## Physical hardware checklist
 

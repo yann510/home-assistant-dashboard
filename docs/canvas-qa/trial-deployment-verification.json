@@ -1,13 +1,18 @@
 {
-  "verifiedAt": "2026-09-23T18:34:57.651Z",
-  "sourceCommit": "4e29b770bff3c56fcd61c9a788e6d682c80bbe74",
-  "releaseId": "4e29b770bff3c56fcd61c9a788e6d682c80bbe74",
+  "verifiedAt": "2026-09-23T19:07:29.416Z",
+  "sourceCommit": "cdcf153588d965dfb40b9a13bede8fda91c2f16a",
+  "releaseId": "cdcf153588d965dfb40b9a13bede8fda91c2f16a",
   "url": "http://homeassistant.local:8123/local/canvas-trial/index.html?view=canvas",
+  "entryStatus": 200,
+  "previousRelease": "4e29b770bff3c56fcd61c9a788e6d682c80bbe74",
+  "previousManifestFiles": 74,
+  "currentBuildFiles": 73,
+  "retainedAssetFiles": 2,
   "remoteRoot": "/homeassistant/www/canvas-trial",
-  "manifestFiles": 74,
+  "manifestFiles": 76,
   "linkedAssets": [
-    "/local/canvas-trial/assets/index-C33O2k4O.js",
-    "/local/canvas-trial/assets/index-DQmBCxDs.css"
+    "/local/canvas-trial/assets/index-sxnqIGhU.js",
+    "/local/canvas-trial/assets/index-CbFkEsjg.css"
   ],
   "files": [
     {
@@ -215,16 +220,16 @@
       "sha256": "b44addb52e2f17e891a6922a3c39deab881fe6dbcb85530c98864c76c6ea42ce"
     },
     {
-      "path": "assets/index-C33O2k4O.js",
+      "path": "assets/index-CbFkEsjg.css",
       "status": 200,
-      "bytes": 1043144,
-      "sha256": "08d8d20cda924806afb6111fbcbf4c32291e33562d664d0d39afb3d4ecf3bbc7"
+      "bytes": 73415,
+      "sha256": "1accd98e6cca937f03363190908469978d07f1c3ca715011b45c5f5ed11ad6af"
     },
     {
-      "path": "assets/index-DQmBCxDs.css",
+      "path": "assets/index-sxnqIGhU.js",
       "status": 200,
-      "bytes": 72771,
-      "sha256": "698f4ef845b17ff978e797903e0104a0f8275892c0440b5017ce4e4150d1079b"
+      "bytes": 1044363,
+      "sha256": "029d972b10e2764879cae798195b4dc0c356b628ef5acc4a9c7035d6bf99a528"
     },
     {
       "path": "assets/is-CMCH3DFk.js",
@@ -446,13 +451,25 @@
       "path": "index.html",
       "status": 200,
       "bytes": 495,
-      "sha256": "6f703f41da290dae15ebb21427b581071a750b0382967207821eeec768b19279"
+      "sha256": "3fe743e2a1c33600920698fcdf9a06df1a4313c20441f286e435b0ebbcaead1b"
     },
     {
       "path": "release-info.json",
       "status": 200,
       "bytes": 56,
-      "sha256": "ba244e427d9f2ea4eeb40b814921c38a621b12659b3763ac05faa2822821f158"
+      "sha256": "65ee52d1bcc9399607ac407ff246558fa8b205a1a9aead6f251e928fa3e004bf"
+    },
+    {
+      "path": "assets/index-DQmBCxDs.css",
+      "status": 200,
+      "bytes": 72771,
+      "sha256": "698f4ef845b17ff978e797903e0104a0f8275892c0440b5017ce4e4150d1079b"
+    },
+    {
+      "path": "assets/index-C33O2k4O.js",
+      "status": 200,
+      "bytes": 1043144,
+      "sha256": "08d8d20cda924806afb6111fbcbf4c32291e33562d664d0d39afb3d4ecf3bbc7"
     }
   ],
   "existingDashboard": [
@@ -478,28 +495,7 @@
       "unchanged": true
     }
   ],
-  "browserLogin": "pending",
-  "physicalDevices": "pending",
-  "entryUrlCorrection": {
-    "verifiedAt": "2026-09-23T18:52:18.588964+00:00",
-    "reason": "The originally shared folder URL returns HTTP 403. Use the explicit index.html entry. Original per-file deployment evidence remains unchanged.",
-    "checks": [
-      {
-        "url": "http://homeassistant.local:8123/local/canvas-trial/?view=canvas",
-        "status": 403
-      },
-      {
-        "url": "http://homeassistant.local:8123/local/canvas-trial/index.html?view=canvas",
-        "status": 200,
-        "bytes": 495,
-        "sha256": "6f703f41da290dae15ebb21427b581071a750b0382967207821eeec768b19279"
-      },
-      {
-        "url": "http://homeassistant.local:8123/local/dashboard/index.html",
-        "status": 200,
-        "bytes": 496,
-        "sha256": "b23b93f86849fadcef39a462ea2b9c9314c337ef1870d3c04c55b54c4811c8c5"
-      }
-    ]
-  }
+  "browserLoginScreen": "confirmed by controller without credentials",
+  "authenticatedLiveUpdates": "pending",
+  "physicalDevices": "pending"
 }
