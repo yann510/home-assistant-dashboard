@@ -708,7 +708,7 @@ it('restores a searched directory position and trigger focus after nested naviga
   expect(document.activeElement).toBe(within(screen.getByRole('dialog')).getByRole('button', { name: 'Bedroom blinds' }));
 });
 
-it.each(['art', 'hidden'] as const)('only uses the %s quiet prototype when all activity is known and settled', variant => {
+it.each(['art', 'hidden', undefined] as const)('only uses the %s quiet presentation when all activity is known and settled', variant => {
   for (const prefix of ['washer_washer', 'dryer_dryer', 'dishwasher_dishwasher'])
     ref.current!.publish(`sensor.${prefix}_machine_state`, 'stop');
   ref.current!.publish('vacuum.roomba', 'docked');
@@ -728,7 +728,7 @@ it.each(['art', 'hidden'] as const)('only uses the %s quiet prototype when all a
   );
   const view = render(draw());
   const expectQuiet = () => {
-    if (variant === 'hidden') expect(screen.queryByRole('region', { name: 'House pulse' })).toBeNull();
+    if (variant !== 'art') expect(screen.queryByRole('region', { name: 'House pulse' })).toBeNull();
     else expect(screen.getByRole('region', { name: 'House pulse' }).classList.contains('canvas-pulse--quiet-art')).toBe(true);
   };
   const expectNormal = () =>
@@ -773,9 +773,25 @@ it.each(['art', 'hidden'] as const)('only uses the %s quiet prototype when all a
   expectNormal();
 });
 
-it('keeps missing device status visible in the quiet prototype', () => {
+it('keeps missing device status visible with the default quiet presentation', () => {
   ref.current!.publish('sensor.dashboard_attention', '0', { ready: true, items: [] });
-  render(<CanvasDashboard quietPulse='hidden' />);
+  render(<CanvasDashboard />);
   expect(screen.getByRole('region', { name: 'House pulse' })).toBeTruthy();
   expect(screen.getByText('Activity status unavailable for some devices.')).toBeTruthy();
+});
+
+
+it('hides the settled pulse by default and brings it back for live activity', () => {
+  for (const prefix of ['washer_washer', 'dryer_dryer', 'dishwasher_dishwasher'])
+    ref.current!.publish(`sensor.${prefix}_machine_state`, 'stop');
+  ref.current!.publish('vacuum.roomba', 'docked');
+  ref.current!.publish('sensor.dashboard_attention', '0', { ready: true, items: [] });
+  render(<CanvasDashboard />);
+  expect(screen.queryByRole('region', { name: 'House pulse' })).toBeNull();
+  act(() => ref.current!.publish('vacuum.roomba', 'cleaning'));
+  expect(screen.getByRole('button', { name: 'Roomba Cleaning' })).toBeTruthy();
+  act(() => ref.current!.publish('vacuum.roomba', 'docked'));
+  expect(screen.queryByRole('region', { name: 'House pulse' })).toBeNull();
+  act(() => ref.current!.disconnect());
+  expect(screen.getByText('Live activity unavailable while disconnected.')).toBeTruthy();
 });

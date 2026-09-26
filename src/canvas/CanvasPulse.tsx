@@ -17,7 +17,7 @@ export function CanvasPulse({
   attention,
   onSelect,
   feedback,
-  quietPresentation = 'current',
+  quietPresentation = 'hidden',
 }: {
   onOpen(route: CanvasRoute, trigger: HTMLElement): void;
   attention: AttentionController;
