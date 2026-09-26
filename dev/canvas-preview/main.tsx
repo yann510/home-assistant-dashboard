@@ -8,6 +8,7 @@ import '../../src/index.css';
 import { applySpeakerService } from './speaker-services';
 import { applyMoodService } from './mode-services';
 import { lightCapabilities } from './light-capabilities';
+import { previewFavourites } from './favourites';
 
 const params = new URLSearchParams(location.search);
 const scene = params.get('scene') ?? 'everyday';
@@ -139,21 +140,13 @@ const connection = {
   async sendMessagePromise(message: Record<string, unknown>) {
     if (message.type === 'media_player/browse_media')
       return {
-        children: [
-          'Morning calm',
-          params.has('long') ? 'Dinner at home with friends and a very long playlist title to read' : 'Dinner at home',
-          'Night drive',
-        ].map((title, index) => ({
-          title,
+        children: previewFavourites.map((item, index) => ({
+          ...item,
+          title: index === 1 && params.has('long') ? 'Dinner at home with friends and a very long playlist title to read' : item.title,
           media_content_id: `fixture:${index}`,
           media_content_type: 'playlist',
           can_play: true,
-          thumbnail:
-            index === 0
-              ? `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160"><rect width="160" height="160" fill="#bf8e73"/><circle cx="90" cy="65" r="40" fill="#e6dcbc"/><path d="M0 160Q80 15 160 160" fill="#443b46"/></svg>')}`
-              : index === 2 && params.has('brokenArt')
-                ? '/missing-favourite-cover.jpg'
-                : undefined,
+          thumbnail: index === 2 && params.has('brokenArt') ? '/missing-favourite-cover.jpg' : item.thumbnail,
         })),
       };
     if (scene === 'busy') throw new Error('Controlled preview failure. Retry after changing scene.');
@@ -167,6 +160,35 @@ const connection = {
     if (speakerUpdates) {
       Object.assign(entities, speakerUpdates);
       useStore.setState({ entities: { ...entities } });
+    }
+    if (message.type === 'call_service' && message.domain === 'media_player' && message.service === 'play_media' && !params.has('unconfirmed')) {
+      const data = (message.service_data ?? {}) as Record<string, unknown>;
+      const item = previewFavourites.find((_, index) => data.media_content_id === `fixture:${index}`);
+      const target = (message.target as { entity_id?: string | string[] } | undefined)?.entity_id;
+      const ids = Array.isArray(target) ? target : target ? [target] : [];
+      if (item) {
+        for (const id of ids) {
+          const speaker = entities[id];
+          if (!speaker || speaker.state === 'unavailable' || speaker.state === 'unknown') continue;
+          const members = speaker.attributes.group_members;
+          const group = Array.isArray(members) && members.length ? members : [id];
+          for (const member of group) {
+            if (!entities[member]) continue;
+            publish(member, 'playing', {
+              ...entities[member].attributes,
+              media_content_id: data.media_content_id,
+              media_content_type: data.media_content_type,
+              media_title: item.title,
+              media_playlist: item.title,
+              media_artist: undefined,
+              entity_picture: item.thumbnail,
+              media_position: 0,
+              media_position_updated_at: new Date().toISOString(),
+              media_duration: undefined,
+            });
+          }
+        }
+      }
     }
     if (message.type === 'call_service' && message.domain === 'light' && !params.has('unconfirmed')) {
       const target = (message.target as { entity_id?: string | string[] }).entity_id;

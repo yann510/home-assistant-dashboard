@@ -23,8 +23,8 @@ const categoryEntries: Omit<Entry, 'id'>[] = [
     route: { kind: 'blinds' },
   },
   {
-    name: 'Player',
-    detail: 'Music and favourites',
+    name: 'Favourites',
+    detail: 'Favourite playlists and tracks',
     category: 'Music',
     room: '',
     search: 'music playback playlists',

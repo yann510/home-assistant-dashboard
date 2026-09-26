@@ -58,7 +58,7 @@ function speaker() {
 it('opens every directory destination with one modal owner and returns to the searched trigger', async () => {
   render(<CanvasDashboard />);
   fireEvent.click(screen.getByRole('button', { name: 'All devices' }));
-  for (const name of ['All lights', 'Blinds', 'Player', 'Speakers', 'Weather', 'Thermostats', 'Appliances', 'Roomba']) {
+  for (const name of ['All lights', 'Blinds', 'Favourites', 'Speakers', 'Weather', 'Thermostats', 'Appliances', 'Roomba']) {
     const button = within(screen.getByRole('dialog')).getByRole('button', { name });
     fireEvent.click(button);
     expect(screen.getAllByRole('dialog')).toHaveLength(1);
@@ -77,7 +77,7 @@ it('opens every directory destination with one modal owner and returns to the se
   expect(fixture.calls.filter(call => (call as { type: string }).type === 'call_service')).toHaveLength(0);
 });
 
-it('retains speaker slider identity and focus across entity updates and Player/Speakers roundtrips', async () => {
+it('retains speaker slider identity and focus across entity updates and Favourites/Speakers roundtrips', async () => {
   speaker();
   render(<CanvasDashboard />);
   fireEvent.click(screen.getByRole('button', { name: 'Open speakers' }));
@@ -92,8 +92,8 @@ it('retains speaker slider identity and focus across entity updates and Player/S
   expect(document.activeElement).toBe(slider);
   expect(screen.getByRole('slider', { name: 'Group volume' })).toBe(slider);
   fireEvent.click(screen.getByRole('button', { name: 'Close details' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Open player' }));
-  expect(screen.getByRole('dialog', { name: 'Player' })).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Open favourites' }));
+  expect(screen.getByRole('dialog', { name: 'Favourites' })).toBeTruthy();
   expect(within(screen.getByRole('dialog')).queryByRole('slider', { name: /volume/i })).toBeNull();
   await act(async () => {});
   fireEvent.click(screen.getByRole('button', { name: 'Close details' }));
@@ -105,8 +105,9 @@ it('keeps offline detail access, disables commands, and never replays writes on 
   speaker();
   fixture.disconnect();
   render(<CanvasDashboard />);
-  fireEvent.click(screen.getByRole('button', { name: 'Open player' }));
-  expect((within(screen.getByRole('dialog')).getByRole('button', { name: 'Pause' }) as HTMLButtonElement).disabled).toBe(true);
+  expect((screen.getByRole('button', { name: 'Pause' }) as HTMLButtonElement).disabled).toBe(true);
+  fireEvent.click(screen.getByRole('button', { name: 'Open favourites' }));
+  expect(within(screen.getByRole('dialog')).getByText('Reconnecting to Home Assistant…')).toBeTruthy();
   act(() => fixture.reconnect());
   expect(fixture.calls.filter(call => (call as { type: string }).type === 'call_service')).toHaveLength(0);
 });
@@ -252,7 +253,7 @@ it('dismisses a completed mood notice from the card', () => {
   expect(within(card).queryByText('The room is ready')).toBeNull();
 });
 
-it('labels favourites without artwork and surfaces a playback rejection in Player', async () => {
+it('labels favourites without artwork and surfaces a playback rejection in Favourites', async () => {
   speaker();
   fixture.respondWith(async message => {
     if ((message as { type: string }).type === 'media_player/browse_media')
@@ -260,7 +261,7 @@ it('labels favourites without artwork and surfaces a playback rejection in Playe
     throw new Error('Playback rejected');
   });
   render(<CanvasDashboard />);
-  fireEvent.click(screen.getByRole('button', { name: 'Open player' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Open favourites' }));
   await act(async () => {});
   const playlist = screen.getByRole('button', { name: 'Play Morning calm' });
   expect(playlist.textContent).toContain('Morning calm');
@@ -288,7 +289,7 @@ it('adjusts overview volume through the shared speaker control without opening a
   expect(screen.getByRole('button', { name: 'Open speaker volume' }).textContent).toBe('34%');
 });
 
-it.each(['Open player', 'Open speakers', 'Open speaker volume', 'All lights'])(
+it.each(['Open favourites', 'Open speakers', 'Open speaker volume', 'All lights'])(
   'restores the actual %s pointer trigger without pre-focusing it',
   async name => {
     speaker();

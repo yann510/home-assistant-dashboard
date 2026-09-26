@@ -220,7 +220,6 @@ describe('Canvas music', () => {
     for (const id of ['media_player.living_room', 'media_player.gym'])
       updateEntity(id, {}, { media_content_id: 'playlist-1', media_playlist: 'Playlist 1' });
     mount();
-    await userEvent.click(screen.getByRole('button', { name: 'Open player' }));
     await userEvent.click(screen.getByRole('button', { name: 'Pause' }));
     expect(sendMessagePromise).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
       service: 'media_pause', target: { entity_id: ['media_player.living_room'] },
@@ -235,7 +234,6 @@ describe('Canvas music', () => {
     await screen.findByText('Rooms updated.');
     expect(sendMessagePromise.mock.calls.map(([message]) => message.service)).toEqual(['media_pause', 'unjoin']);
     await userEvent.click(screen.getByRole('button', { name: 'Close detail' }));
-    await userEvent.click(screen.getByRole('button', { name: 'Open player' }));
     await userEvent.click(screen.getByRole('button', { name: 'Resume' }));
     expect(sendMessagePromise.mock.calls.map(([message]) => message.service)).toEqual(['media_pause', 'unjoin', 'media_play']);
     expect(sendMessagePromise).toHaveBeenLastCalledWith(expect.objectContaining({
@@ -302,10 +300,10 @@ describe('Canvas music', () => {
   it('shows an honest compact empty state for an idle speaker with stale track metadata', async () => {
     updateEntity('media_player.living_room', { state: 'idle' });
     mount();
-    expect(screen.getByRole('button', { name: 'Open player' }).textContent).toBe('Nothing playing');
-    await userEvent.click(screen.getByRole('button', { name: 'Open player' }));
     expect(screen.getByText('Nothing playing')).toBeTruthy();
-    expect(screen.getByText('Choose a favourite to start.')).toBeTruthy();
+    expect(screen.queryByRole('slider', { name: 'Track position' })).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'Open favourites' }));
+    expect(screen.queryByText('Nothing playing')).toBeNull();
     expect(screen.queryByRole('heading', { name: 'Test track' })).toBeNull();
     expect(screen.queryByText('Now playing')).toBeNull();
     expect(screen.queryByText('Ready to play')).toBeNull();
@@ -315,9 +313,7 @@ describe('Canvas music', () => {
   it('keeps a named paused track and its resume control', async () => {
     updateEntity('media_player.living_room', { state: 'paused' });
     mount();
-    await userEvent.click(screen.getByRole('button', { name: 'Open player' }));
-    expect(screen.getByText('Paused')).toBeTruthy();
-    expect(screen.getByRole('heading', { name: 'Test track' })).toBeTruthy();
+    expect(screen.getByText('Test track')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Resume' })).toBeTruthy();
     expect(screen.queryByText('Now playing')).toBeNull();
     expect(sendMessagePromise).not.toHaveBeenCalled();
@@ -325,10 +321,7 @@ describe('Canvas music', () => {
   it('describes active playback with no usable track title as a status', async () => {
     updateEntity('media_player.living_room', { state: 'playing' }, { media_title: '   ', media_playlist: ' ' });
     mount();
-    expect(screen.getByRole('button', { name: 'Open player' }).textContent).toBe('Audio playing');
-    await userEvent.click(screen.getByRole('button', { name: 'Open player' }));
     expect(screen.getByText('Audio playing')).toBeTruthy();
-    expect(screen.getByText('Track details are unavailable.')).toBeTruthy();
     expect(screen.queryByRole('heading')).toBeNull();
     expect(screen.queryByText('Now playing')).toBeNull();
     expect(screen.getByRole('button', { name: 'Pause' })).toBeTruthy();
@@ -337,52 +330,65 @@ describe('Canvas music', () => {
   it('shows speaker unavailable without presenting retained metadata as a track', async () => {
     updateEntity('media_player.living_room', { state: 'unavailable' }, { entity_picture: '/stale-cover.jpg' });
     mount();
-    expect(screen.getByRole('button', { name: 'Open player' }).textContent).toBe('Speaker unavailable');
+    expect(screen.getByText('Speaker unavailable')).toBeTruthy();
     expect(screen.queryByText('Test artist')).toBeNull();
     expect(screen.queryByRole('img')).toBeNull();
-    await userEvent.click(screen.getByRole('button', { name: 'Open player' }));
-    expect(screen.getByText('Speaker unavailable')).toBeTruthy();
+    await userEvent.click(screen.getByRole('button', { name: 'Open favourites' }));
+    expect(screen.queryByText('Speaker unavailable')).toBeNull();
     expect(screen.queryByRole('heading', { name: 'Test track' })).toBeNull();
     expect(screen.queryByText('Now playing')).toBeNull();
     expect(screen.queryByRole('slider', { name: 'Track position' })).toBeNull();
     expect(sendMessagePromise).not.toHaveBeenCalled();
   });
-  it('opens Player with real time seeking and artwork-only favourites, without volume or source controls', async () => {
+  it('keeps seeking on the main card and opens only artwork favourites in the library', async () => {
     browseMedia.mockResolvedValue({
       children: [
         { title: 'Evening jazz', media_content_id: 'jazz', media_content_type: 'playlist', can_play: true, thumbnail: '/jazz.jpg' },
       ],
     });
     mount();
-    await userEvent.click(screen.getByRole('button', { name: 'Open player' }));
-    expect(screen.queryByRole('slider', { name: /volume/i })).toBeNull();
-    expect(screen.queryByText('Main speaker')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Open player' })).toBeNull();
     const seek = screen.getByRole('slider', { name: 'Track position' });
     expect(seek.getAttribute('aria-valuetext')).toBe('0:40 of 3:20');
-    expect(seek.closest('.speaker-seek')?.nextElementSibling).toBe(
-      screen.getByRole('button', { name: 'Pause' }).closest('.canvas-music__transport')
+    expect(seek.closest('.speaker-seek')?.nextElementSibling?.contains(screen.getByRole('button', { name: 'Pause' }))).toBe(true);
+    fireEvent.change(seek, { target: { value: '70' } });
+    expect(sendMessagePromise).toHaveBeenCalledWith(
+      expect.objectContaining({ service: 'media_seek', target: { entity_id: ['media_player.living_room'] }, service_data: { seek_position: 70 } })
     );
+    await userEvent.click(screen.getByRole('button', { name: 'Open favourites' }));
+    expect(screen.queryByRole('slider')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Pause' })).toBeNull();
+    expect(screen.queryByText('Test track')).toBeNull();
+    expect(screen.queryByText('Test artist')).toBeNull();
+    expect(screen.queryByText('Main speaker')).toBeNull();
     const favourite = await screen.findByRole('button', { name: 'Play Evening jazz' });
     expect(favourite.textContent).not.toContain('Evening jazz');
     const img = favourite.querySelector('img')!;
     expect(img.getAttribute('src')).toBe('http://homeassistant.test/jazz.jpg');
     fireEvent.error(img);
     expect(favourite.querySelector('img')).toBeNull();
-    fireEvent.change(screen.getByRole('slider', { name: 'Track position' }), { target: { value: '70' } });
-    expect(sendMessagePromise).toHaveBeenCalledWith(
-      expect.objectContaining({
-        service: 'media_seek',
-        target: { entity_id: ['media_player.living_room'] },
-        service_data: { seek_position: 70 },
-      })
-    );
   });
   it('hides seek on a radio without duration and never invents artwork', async () => {
     updateEntity('media_player.living_room', {}, { media_duration: undefined, media_title: 'Live radio', entity_picture: undefined });
     mount();
-    await userEvent.click(screen.getByRole('button', { name: 'Open player' }));
     expect(screen.queryByRole('slider', { name: 'Track position' })).toBeNull();
     expect(screen.queryByRole('img')).toBeNull();
+  });
+  it('shows passive progress when the speaker cannot seek', () => {
+    updateEntity('media_player.living_room', {}, { supported_features: 1 | 16 | 32 | 16384 });
+    mount();
+    expect(screen.queryByRole('slider', { name: 'Track position' })).toBeNull();
+    const progress = screen.getByRole('progressbar', { name: 'Track position' }) as HTMLProgressElement;
+    expect(progress.value).toBe(40);
+    expect(progress.max).toBe(200);
+    expect(screen.getByText('0:40')).toBeTruthy();
+    expect(screen.getByText('3:20')).toBeTruthy();
+  });
+  it('does not invent an elapsed position when the speaker omits it', () => {
+    updateEntity('media_player.living_room', {}, { media_position: undefined });
+    mount();
+    expect(screen.queryByRole('slider', { name: 'Track position' })).toBeNull();
+    expect(screen.queryByRole('progressbar', { name: 'Track position' })).toBeNull();
   });
   it('retains a pending Follow command across detail navigation and targets coordinator transport once', async () => {
     let resolve!: (value: unknown) => void;
@@ -632,15 +638,15 @@ describe('Canvas music', () => {
       expect.objectContaining({ service: 'volume_mute', target: { entity_id: ['media_player.living_room'] } })
     );
   });
-  it('retains favourite confirmation across closing and reopening Player', async () => {
+  it('retains favourite confirmation across closing and reopening Favourites', async () => {
     browseMedia.mockResolvedValue({
       children: [{ title: 'Evening jazz', media_content_id: 'jazz', media_content_type: 'playlist', can_play: true }],
     });
     mount();
-    await userEvent.click(screen.getByRole('button', { name: 'Open player' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Open favourites' }));
     await userEvent.click(await screen.findByRole('button', { name: 'Play Evening jazz' }));
     await userEvent.click(screen.getByRole('button', { name: 'Close detail' }));
-    await userEvent.click(screen.getByRole('button', { name: 'Open player' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Open favourites' }));
     expect(((await screen.findByRole('button', { name: 'Play Evening jazz' })) as HTMLButtonElement).disabled).toBe(true);
     expect(screen.getByText('Starting Evening jazz…')).toBeTruthy();
     updateEntity('media_player.living_room', {}, { media_title: 'New jazz track', media_content_id: 'jazz-track' });
@@ -653,7 +659,7 @@ describe('Canvas music', () => {
       Promise.resolve({ children: [{ media_content_type: 'folder', media_content_id: message.media_content_id + 'x', can_expand: true }] })
     );
     mount();
-    await userEvent.click(screen.getByRole('button', { name: 'Open player' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Open favourites' }));
     await screen.findByRole('button', { name: 'Retry favourites' });
     expect(browseMedia).toHaveBeenCalledTimes(6);
     browseMedia.mockResolvedValue({ children: [] });
@@ -802,7 +808,7 @@ it('labels missing and failed favourite artwork while leaving successful artwork
     ],
   });
   mount();
-  await userEvent.click(screen.getByRole('button', { name: 'Open player' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Open favourites' }));
   expect((await screen.findByRole('button', { name: 'Play A long favourite playlist title' })).textContent).toContain(
     'A long favourite playlist title'
   );

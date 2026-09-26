@@ -209,7 +209,7 @@ it('finds real devices by name and room and reaches every secondary category', (
   for (const destination of [
     'All lights',
     'Blinds',
-    'Player',
+    'Favourites',
     'Speakers',
     'Weather',
     'Thermostats',
@@ -221,7 +221,7 @@ it('finds real devices by name and room and reaches every secondary category', (
   for (const destination of [
     'All lights',
     'Blinds',
-    'Player',
+    'Favourites',
     'Speakers',
     'Weather',
     'Thermostats',

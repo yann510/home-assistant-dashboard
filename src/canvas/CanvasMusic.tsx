@@ -1,3 +1,4 @@
+import { SpeakerSeek } from '../SpeakerSeek';
 import { SpeakerVolume } from '../SpeakerVolume';
 import { useHass } from '@hakit/core';
 import { useState } from 'react';
@@ -96,18 +97,22 @@ export function CanvasMusic({
             <span>♪</span>
           )}
         </div>
-        <div>
+        <div className='canvas-music__metadata'>
           <span className='canvas__eyebrow'>{trackTitle ? 'Music, for this moment' : 'Music'}</span>
-          <button
-            className={`canvas-music__title${trackTitle ? '' : ' canvas-music__title--status'}`}
-            aria-label='Open player'
-            onClick={event => onOpenPlayer(event.currentTarget)}
-          >
-            {title}
-          </button>
+          <div className={`canvas-music__title${trackTitle ? '' : ' canvas-music__title--status'}`}>{title}</div>
           {!idle && !disabled && attributes?.media_artist && <p>{attributes.media_artist}</p>}
         </div>
       </div>
+      <button className='canvas-music__favourites' aria-label='Open favourites' onClick={event => onOpenPlayer(event.currentTarget)}>
+        <svg viewBox='0 0 24 24' aria-hidden='true'><path d='M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z' /></svg>
+      </button>
+      {!idle && !disabled && Number.isFinite(attributes?.media_position) && (
+        <SpeakerSeek
+          key={`${session.entityId}:${attributes?.media_content_id ?? ''}:${attributes?.media_title ?? ''}`}
+          entityId={session.entityId}
+          disabled={disabled}
+        />
+      )}
       <div className='canvas-music__bottom'>
         <CanvasTransport />
         <SpeakerVolume

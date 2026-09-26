@@ -7,17 +7,7 @@
 :is(.canvas, .canvas-dialog) .canvas-music__follow > button { display: flex; gap: var(--canvas-space-4); justify-content: space-between; }
 :is(.canvas, .canvas-dialog) .canvas-music__follow p { font-size: .85rem; }
 :is(.canvas, .canvas-dialog) .canvas-player { max-width: 800px; margin: auto; display: grid; gap: var(--canvas-space-3); }
-:is(.canvas, .canvas-dialog) .canvas-player h2 { font-size: clamp(1.8rem, 4vw, 3rem); margin: 0; }
-:is(.canvas, .canvas-dialog) .canvas-player__empty { display: grid; gap: .35rem; }
-:is(.canvas, .canvas-dialog) .canvas-player__empty p { margin: 0; }
-:is(.canvas, .canvas-dialog) .canvas-player__status { font-size: 1rem; font-weight: 700; }
-:is(.canvas, .canvas-dialog) .canvas-player .speaker-seek { margin: 0; }
-.canvas-dialog .canvas-player .canvas-music__transport { justify-content: center; gap: var(--canvas-space-4); }
-.canvas-dialog .canvas-player .canvas-music__transport button:nth-child(2) { min-width: 52px; min-height: 52px; padding: 8px; border-radius: 50%; border-color: var(--canvas-lilac, #cbb5ed); background: var(--canvas-lilac, #cbb5ed); color: #26212d; font-size: 1.35rem; font-weight: 800; line-height: 1; }
-.canvas-dialog .canvas-player .canvas-music__transport button:nth-child(2):hover:not(:disabled) { filter: brightness(1.08); }
-.canvas-dialog .canvas-player .canvas-music__transport button:nth-child(2):disabled { opacity: .55; }
-.canvas-dialog .canvas-player .canvas-music__transport [role='alert'] { flex-basis: 100%; text-align: center; }
-:is(.canvas, .canvas-dialog) .canvas-favourites__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: var(--canvas-space-3); }
+:is(.canvas, .canvas-dialog) .canvas-favourites__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 160px), 1fr)); gap: var(--canvas-space-3); }
 :is(.canvas, .canvas-dialog) .canvas-favourites__grid button { min-width: 0; padding: 0; overflow: hidden; aspect-ratio: 1; border-radius: 16px; }
 :is(.canvas, .canvas-dialog) .canvas-favourites__grid img { width: 100%; height: 100%; object-fit: cover; display: block; }
 :is(.canvas, .canvas-dialog) .canvas-favourites__fallback { display: flex; flex-direction: column; justify-content: center; gap: 6px; height: 100%; padding: 8px; font-size: 1.5rem; }
@@ -130,7 +120,6 @@
 /* Section flow replaces browser heading/paragraph margins in detail views. */
 .canvas-dialog :is(.canvas-player, .canvas-speakers) :is(h3, p) { margin: 0; }
 .canvas-dialog :is(.canvas-music__follow, .canvas-favourites) { display: grid; gap: var(--canvas-space-2); }
-.canvas-dialog .canvas-player .canvas-favourites { margin-top: var(--canvas-space-2); }
 
 /* Explicit geometry avoids inherited dialog button padding moving the icons. */
 .canvas-dialog .canvas-speakers .speaker-control {
@@ -142,3 +131,36 @@
 .canvas-dialog .canvas-speakers .speaker-control > svg { display: block; width: 20px; height: 20px; margin: 0; }
 
 .canvas-dialog .canvas-speakers__source-actions { display: flex; justify-content: flex-end; }
+
+/* Keep the library entrance separate from the current track. */
+.canvas .canvas-music > .canvas-music__favourites { position: absolute; top: var(--canvas-space-2); right: var(--canvas-space-3); z-index: 2; display: grid; place-items: center; width: 44px; height: 44px; min-width: 44px; min-height: 44px; padding: 10px; border: 0; border-radius: 50%; }
+.canvas .canvas-music__favourites svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linejoin: round; }
+.canvas .canvas-music__favourites:hover { background: #51473418; }
+.canvas .canvas-music__favourites:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+.canvas .canvas-music__metadata { min-width: 0; padding-right: 32px; }
+.canvas .canvas-music .speaker-seek input { min-height: 44px; }
+.canvas-dialog .canvas-player { width: 100%; }
+.canvas-dialog .canvas-favourites__grid button { border: 1px solid var(--canvas-line); background: color-mix(in srgb, var(--canvas-lilac) 12%, var(--canvas-surface)); }
+.canvas-dialog .canvas-favourites__grid button:hover:not(:disabled) { border-color: var(--canvas-lilac); }
+@media (max-width: 420px) {
+ .canvas-dialog .canvas-favourites__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* The time labels share the seek control's 44px touch row. */
+.canvas .canvas-music .speaker-seek { position: relative; min-height: 44px; margin: 0; --ha-A400: #302c26; --ha-S400: #51473455; }
+.canvas .canvas-music .speaker-seek .speaker-track-time { position: absolute; top: 29px; left: 0; right: 0; margin: 0; pointer-events: none; opacity: 1; }
+.canvas .canvas-music .speaker-seek input[type='range'] { display: block; color: #302c26; }
+.canvas .canvas-music .speaker-seek input[type='range']::-webkit-slider-runnable-track { height: 2px; background: linear-gradient(to right, #302c26 var(--speaker-range-fill), #51473455 var(--speaker-range-fill)); }
+.canvas .canvas-music .speaker-seek input[type='range']::-moz-range-track { height: 2px; background: #51473455; }
+.canvas .canvas-music .speaker-seek input[type='range']::-moz-range-progress { height: 2px; background: #302c26; }
+.canvas .canvas-music .speaker-seek--passive progress { display: block; position: relative; top: 21px; height: 2px; background: #51473455; }
+.canvas .canvas-music .speaker-seek--passive progress::-webkit-progress-bar { background: #51473455; }
+.canvas .canvas-music .speaker-seek--passive progress::-webkit-progress-value { background: #302c26; }
+.canvas .canvas-music .speaker-seek--passive progress::-moz-progress-bar { background: #302c26; }
+@media (min-width: 701px) and (max-height: 700px) {
+ .canvas .canvas__music { padding-block: var(--canvas-space-2); gap: 2px; }
+ .canvas .canvas-music__track { grid-template-columns: 64px minmax(0, 1fr); }
+ .canvas .canvas-music__title { font-size: 1.25rem; -webkit-line-clamp: 1; }
+ .canvas .canvas-music__title--status { font-size: 1rem; }
+ .canvas .canvas-music__settings { padding-top: 0; }
+}
