@@ -39,7 +39,7 @@ export function useSpeakerFavouritePlayback(entityId: string, disabled: boolean,
   }, [entityId]);
 
   async function play(item: FavouriteItem) {
-    if (disabled || inFlight.current) return;
+    if (disabled || inFlight.current) return false;
     const request = generation.current.value;
     inFlight.current = true;
     setPending(item);
@@ -77,8 +77,9 @@ export function useSpeakerFavouritePlayback(entityId: string, disabled: boolean,
     });
     if (!sent) stop();
     const confirmed = await confirmation;
+    const succeeded = mounted.current && request === generation.current.value && sent && confirmed;
     if (mounted.current && request === generation.current.value) {
-      if (sent && confirmed) closeRef.current();
+      if (succeeded) closeRef.current();
       else if (sent) setPlayError('Playback could not be confirmed. Tap a favourite to try again.');
       setPending(null);
     }
@@ -86,6 +87,7 @@ export function useSpeakerFavouritePlayback(entityId: string, disabled: boolean,
       cancelWait.current = null;
       inFlight.current = false;
     }
+    return succeeded;
   }
 
   return { play, pending, playError, commandError };

@@ -178,7 +178,7 @@ function CanvasDashboardContent(): React.JSX.Element {
                 }}
               />
             ) : route.kind === 'player' ? (
-              <CanvasPlayer />
+              <CanvasPlayer onClose={close} />
             ) : route.kind === 'speakers' ? (
               <CanvasSpeakers />
             ) : route.kind === 'all-lights' ? (

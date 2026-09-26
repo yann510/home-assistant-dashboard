@@ -64,7 +64,7 @@ function Surface() {
       {panel === 'overview' ? (
         <CanvasMusic onOpenPlayer={() => setPanel('player')} onOpenSpeakers={() => setPanel('speakers')} />
       ) : panel === 'player' ? (
-        <CanvasPlayer />
+        <CanvasPlayer onClose={() => setPanel('overview')} />
       ) : (
         <CanvasSpeakers />
       )}
@@ -637,6 +637,45 @@ describe('Canvas music', () => {
     expect(sendMessagePromise).toHaveBeenLastCalledWith(
       expect.objectContaining({ service: 'volume_mute', target: { entity_id: ['media_player.living_room'] } })
     );
+  });
+  it('closes favourites only after Home Assistant confirms playback', async () => {
+    browseMedia.mockResolvedValue({
+      children: [{ title: 'Evening jazz', media_content_id: 'jazz', media_content_type: 'playlist', can_play: true }],
+    });
+    mount();
+    await userEvent.click(screen.getByRole('button', { name: 'Open favourites' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Play Evening jazz' }));
+    expect(screen.getByText('Starting Evening jazz…')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Open favourites' })).toBeNull();
+    updateEntity('media_player.living_room', {}, { media_title: 'New jazz track', media_content_id: 'jazz-track' });
+    expect(await screen.findByRole('button', { name: 'Open favourites' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Play Evening jazz' })).toBeNull();
+    expect(screen.getByText('New jazz track')).toBeTruthy();
+  });
+  it('keeps favourites open with its error when playback fails', async () => {
+    browseMedia.mockResolvedValue({
+      children: [{ title: 'Evening jazz', media_content_id: 'jazz', media_content_type: 'playlist', can_play: true }],
+    });
+    sendMessagePromise.mockRejectedValue(new Error('Speaker offline'));
+    mount();
+    await userEvent.click(screen.getByRole('button', { name: 'Open favourites' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Play Evening jazz' }));
+    expect((await screen.findByRole('alert')).textContent).toContain('Speaker offline');
+    expect((screen.getByRole('button', { name: 'Play Evening jazz' }) as HTMLButtonElement).disabled).toBe(false);
+  });
+  it('does not close speakers when a dismissed favourite request later succeeds', async () => {
+    browseMedia.mockResolvedValue({
+      children: [{ title: 'Evening jazz', media_content_id: 'jazz', media_content_type: 'playlist', can_play: true }],
+    });
+    mount();
+    await userEvent.click(screen.getByRole('button', { name: 'Open favourites' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Play Evening jazz' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Close detail' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Open speakers' }));
+    updateEntity('media_player.living_room', {}, { media_title: 'New jazz track', media_content_id: 'jazz-track' });
+    await act(async () => {});
+    expect(screen.getByRole('checkbox', { name: /bathroom/ })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Open favourites' })).toBeNull();
   });
   it('retains favourite confirmation across closing and reopening Favourites', async () => {
     browseMedia.mockResolvedValue({

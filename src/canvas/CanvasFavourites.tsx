@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { animateFavouriteArtwork } from './favouriteArtworkTransition';
 import { useHass } from '@hakit/core';
 import type { FavouriteItem } from '../useSpeakerFavourites';
 import { useCanvasMusic } from './CanvasMusicProvider';
@@ -20,8 +21,20 @@ function Artwork({ item }: { item: FavouriteItem }) {
     </span>
   );
 }
-export function CanvasFavourites() {
+export function CanvasFavourites({ onPlayed }: { onPlayed(): void }) {
   const { favourites: f, favouritePlayback: p, disabled } = useCanvasMusic();
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
+  async function play(item: FavouriteItem, button: HTMLButtonElement) {
+    const confirmed = await p.play(item);
+    // The playback request survives navigation, but its gallery does not.
+    if (!confirmed || !mounted.current) return;
+    animateFavouriteArtwork(button.querySelector('img'), document.querySelector('.canvas-music__cover'));
+    onPlayed();
+  }
   return (
     <section className='canvas-favourites' aria-label='Favourites'>
       {f.loading ? (
@@ -39,7 +52,7 @@ export function CanvasFavourites() {
               key={item.media_content_type + ':' + item.media_content_id}
               aria-label={`Play ${item.title}`}
               disabled={disabled || !!p.pending}
-              onClick={() => void p.play(item)}
+              onClick={event => void play(item, event.currentTarget)}
             >
               <Artwork key={item.thumbnail} item={item} />
             </button>

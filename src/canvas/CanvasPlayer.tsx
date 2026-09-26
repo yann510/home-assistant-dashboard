@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { CanvasFavourites } from './CanvasFavourites';
 import { useCanvasMusic } from './CanvasMusicProvider';
 
-export function CanvasPlayer() {
+export function CanvasPlayer({ onClose }: { onClose(): void }) {
   const { session, setLibraryOpen } = useCanvasMusic();
   useEffect(() => {
     setLibraryOpen(true);
@@ -11,7 +11,7 @@ export function CanvasPlayer() {
   return (
     <div className='canvas-player'>
       {!session.connected && <p role='status'>Reconnecting to Home Assistant…</p>}
-      <CanvasFavourites />
+      <CanvasFavourites onPlayed={onClose} />
     </div>
   );
 }
