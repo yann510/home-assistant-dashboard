@@ -6,7 +6,7 @@ import { createHaFixture, deferred } from './testing/haFixture';
 import { CanvasModes, CanvasModeFeedback } from './CanvasModes';
 import { useCanvasModes } from './useCanvasModes';
 import { useHouseMood } from '../useHouseMood';
-import type { MoodId } from '../HouseMoodCard';
+import type { MoodId } from '../moodTypes';
 
 const ref = vi.hoisted(() => ({ current: null as ReturnType<typeof createHaFixture> | null }));
 vi.mock('@hakit/core', () => ({ useStore: Object.assign(

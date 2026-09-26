@@ -14,8 +14,6 @@ vi.mock('@hakit/core', () => ({
   useHass: () => ({ joinHassUrl: (path: string) => path }),
   useIcon: () => null,
 }));
-vi.mock('../Dashboard', () => ({ default: () => <div>Classic dashboard</div> }));
-vi.mock('../QuietHome', () => ({ QuietHome: () => <div>Quiet dashboard</div> }));
 const fixture = createHaFixture();
 fixtureRef.current = fixture;
 

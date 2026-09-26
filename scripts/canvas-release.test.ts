@@ -183,3 +183,43 @@ it('rejects asset collisions without changing the current release', async () => 
   await expect(publishTrial(a, local, 'one')).rejects.toThrow(/collision/);
   expect(a.operations.some(o => o.kind === 'rename')).toBe(false);
 });
+
+it('publishes Canvas to the canonical dashboard with isolated backups and rollback', async () => {
+  const a = new Fake();
+  existing(a);
+  a.dirs.add(root + '/dashboard');
+  a.dirs.add(root + '/dashboard/assets');
+  a.files.set(root + '/dashboard/index.html', Buffer.from('classic'));
+  a.files.set(root + '/dashboard/assets/classic.js', Buffer.from('classic asset'));
+  await writeFile(join(local, 'index.html'), '<script src="/local/dashboard/assets/new-12345678.js"></script>');
+  await publishTrial(a, local, 'canvas-only', 'dashboard');
+  expect((await a.readFile(root + '/dashboard-previous/index.html')).toString()).toBe('classic');
+  expect((await a.readFile(root + '/dashboard/index.html')).toString()).toContain('/local/dashboard/');
+  expect((await a.readFile(root + '/canvas-trial/index.html')).toString()).toBe('old');
+  expect((await a.readFile(root + '/dashboard/assets/classic.js')).toString()).toBe('classic asset');
+  await rollbackTrial(a, 'dashboard');
+  expect((await a.readFile(root + '/dashboard/index.html')).toString()).toBe('classic');
+  expect((await a.readFile(root + '/dashboard/assets/new-12345678.js')).toString()).toBe('new');
+});
+
+it.each(['upload', 'hash', 'promotion'])('preserves the canonical dashboard after %s failure', async fail => {
+  const a = new Fake();
+  a.dirs.add(root + '/dashboard');
+  a.files.set(root + '/dashboard/index.html', Buffer.from('classic'));
+  await writeFile(join(local, 'index.html'), '<script src="/local/dashboard/assets/new-12345678.js"></script>');
+  a.fail = fail;
+  await expect(publishTrial(a, local, 'canvas-only', 'dashboard')).rejects.toThrow();
+  expect((await a.readFile(root + '/dashboard/index.html')).toString()).toBe('classic');
+  expect(a.closed).toBe(true);
+  expect(a.dirs.has(root + '/dashboard-lock')).toBe(false);
+});
+
+it('requires explicit canonical target and matching build base', async () => {
+  expect(() => trialPath(root, 'dashboard')).toThrow();
+  expect(() => trialPath(root, 'canvas-trial', 'dashboard')).toThrow();
+  expect(() => trialPath(root, 'dashboard/../other', 'dashboard')).toThrow();
+  expect(() => trialPath(root, 'dashboard', 'other' as 'dashboard')).toThrow();
+  const a = new Fake();
+  await expect(publishTrial(a, local, 'wrong-base', 'dashboard')).rejects.toThrow('Build must use dashboard base');
+  expect(a.operations.some(o => o.kind === 'rename')).toBe(false);
+});

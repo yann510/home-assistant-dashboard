@@ -1,6 +1,22 @@
-# House Canvas trial handoff
+# House Canvas deployment handoff
 
-## Current release — September 26, 2026
+## Canvas-only rollout — September 26, 2026
+
+Canvas is now the only application view. Classic and Quiet Home entry components, exclusive controls and their obsolete UI tests have been removed; shared controllers and their tests remain. Old `view` query parameters resolve to Canvas. The main destination is **http://homeassistant.local:8123/local/dashboard/index.html**. The trial URL is also updated with the same application for existing bookmarks.
+
+Production release commands (Node 24):
+
+```sh
+npm run build:dashboard
+npm run deploy:dashboard -- RELEASE_ID
+npm run rollback:dashboard
+```
+
+The reviewed release mechanism now explicitly allows either `dashboard` or `canvas-trial`, with matching build-base validation and separate locks, staging, previous-release backups and manifests. Existing assets are retained for open clients. The generic `npm run deploy -- RELEASE_ID` now uses this safe dashboard publisher. Use the rollback command above to recover the previous main dashboard; the historical trial rollback remains separate.
+
+Deployment evidence is recorded in `canvas-qa/canvas-only-deployment.json` after publication. This frontend rollout does not upgrade the House Mood backend. Physical Fire/iPhone acceptance and the coordinated mode/mood backend limitations in the live hardware results remain separate from deployment verification.
+
+## Previous trial release — September 26, 2026
 
 Canvas trial release `4b2dcfe` is deployed at **http://homeassistant.local:8123/local/canvas-trial/index.html?view=canvas**. All 90 published manifest files passed LAN HTTP/SHA-256 verification; the existing dashboard index is unchanged. The reviewed [live test plan](canvas-qa/live-hardware-test-plan.md) and [execution results](canvas-qa/live-hardware-results.md) are the current acceptance record. Live API probes passed with restoration; authenticated browser, physical-device and coordinated-backend acceptance remain blocked/pending as recorded there. No backend rollout was performed.
 

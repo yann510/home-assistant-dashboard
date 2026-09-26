@@ -15,8 +15,6 @@ vi.mock('@hakit/core', () => ({
   useHass: () => ({ joinHassUrl: (path: string) => path }),
   useIcon: () => null,
 }));
-vi.mock('../Dashboard', () => ({ default: () => <div>Classic dashboard</div> }));
-vi.mock('../QuietHome', () => ({ QuietHome: () => <div>Quiet dashboard</div> }));
 const fixture = createHaFixture();
 fixtureRef.current = fixture;
 
@@ -25,24 +23,12 @@ afterEach(() => {
   fixture.reset();
 });
 
-it('routes Classic by default, Quiet and Canvas by URL, and unknown views to Classic', () => {
-  history.replaceState(null, '', '/?keep=1');
-  const view = render(<DashboardViews />);
-  expect(screen.getByText('Classic dashboard')).toBeTruthy();
-  expect(screen.getByRole('link', { name: 'Canvas' }).getAttribute('href')).toContain('keep=1');
-  view.unmount();
-  history.replaceState(null, '', '/?view=quiet&keep=1');
-  const quiet = render(<DashboardViews />);
-  expect(screen.getByText('Quiet dashboard')).toBeTruthy();
-  quiet.unmount();
-  history.replaceState(null, '', '/?view=canvas&keep=1');
-  const canvas = render(<DashboardViews />);
-  expect(screen.getByRole('heading', { name: /Make yourself at home/ })).toBeTruthy();
-  expect(screen.getByRole('link', { name: 'Classic' }).getAttribute('href')).toContain('keep=1');
-  canvas.unmount();
-  history.replaceState(null, '', '/?view=unknown');
+it.each(['', 'classic', 'quiet', 'canvas', 'unknown'])('always renders Canvas for view=%s without switching controls', view => {
+  history.replaceState(null, '', view ? `/?view=${view}&keep=1` : '/?keep=1');
   render(<DashboardViews />);
-  expect(screen.getByText('Classic dashboard')).toBeTruthy();
+  expect(screen.getByRole('heading', { name: /Make yourself at home/ })).toBeTruthy();
+  expect(screen.queryByRole('navigation', { name: 'Dashboard view' })).toBeNull();
+  expect(fixture.calls).toHaveLength(0);
   history.replaceState(null, '', '/');
 });
 

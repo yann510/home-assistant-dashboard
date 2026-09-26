@@ -4,14 +4,17 @@ import { localPayload, publishTrial, rollbackTrial, type TrialAdapter } from './
 
 dotenv.config({ quiet: true });
 async function main() {
-  const action = process.argv[2];
+  const requestedAction = process.argv[2];
+  const action = requestedAction?.replace('-dashboard', '');
   const releaseId = process.argv[3];
+  const target = requestedAction?.endsWith('-dashboard') ? 'dashboard' : (process.argv[4] ?? 'canvas-trial');
+  if (target !== 'canvas-trial' && target !== 'dashboard') throw new Error('Invalid release target');
   if (action !== 'rollback' && (action !== 'publish' || !releaseId))
-    throw new Error('Usage: deploy-canvas.ts publish RELEASE_ID | rollback');
+    throw new Error('Usage: deploy-canvas.ts publish[-dashboard] RELEASE_ID | rollback[-dashboard]');
   const required = ['VITE_SSH_HOSTNAME', 'VITE_SSH_USERNAME', 'VITE_SSH_PASSWORD'];
   if (required.some(key => !process.env[key])) throw new Error('Missing SSH configuration');
   if (action === 'publish') {
-    const payload = await localPayload('dist');
+    const payload = await localPayload('dist', target);
     const secrets = Object.entries(process.env)
       .filter(([key, value]) => /token|password|secret/i.test(key) && value && value.length >= 8)
       .map(([, value]) => value!);
@@ -45,15 +48,15 @@ async function main() {
     removeTree: path => client.rmdir(path),
     close: async () => client.close(),
   };
-  if (action === 'rollback') await rollbackTrial(adapter);
-  else await publishTrial(adapter, 'dist', releaseId!);
+  if (action === 'rollback') await rollbackTrial(adapter, target);
+  else await publishTrial(adapter, 'dist', releaseId!, target);
   console.info(
-    action === 'rollback' ? 'Canvas trial rollback verified and promoted.' : `Canvas trial release ${releaseId} verified and promoted.`
+    action === 'rollback' ? `${target} rollback verified and promoted.` : `${target} release ${releaseId} verified and promoted.`
   );
 }
 main().catch(() => {
   console.error(
-    'Canvas trial operation failed. Current or retained release remains available; inspect release directories before retrying.'
+    'Dashboard release operation failed. Current or retained release remains available; inspect release directories before retrying.'
   );
   process.exitCode = 1;
 });

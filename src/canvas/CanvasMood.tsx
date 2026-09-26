@@ -1,4 +1,4 @@
-import type { HouseMoodCardProps, MoodId } from '../HouseMoodCard';
+import type { HouseMoodCardProps, MoodId } from '../moodTypes';
 import { attentionExplanation, type AttentionItem } from '../attention';
 
 const moods: { id: MoodId; name: string; colour: string; caption: string }[] = [

@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useStore } from '@hakit/core';
-import type { HouseMoodCardProps, MoodId, MoodPhase, MoodStatus } from './HouseMoodCard';
+import type { HouseMoodCardProps, MoodId, MoodPhase, MoodStatus } from './moodTypes';
 
 const phases: MoodPhase[] = ['idle', 'starting', 'active', 'restoring', 'recovery_required'];
 const moodIds: MoodId[] = ['love', 'unwind', 'dinner', 'party', 'gym'];
