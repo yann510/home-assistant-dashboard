@@ -1,0 +1,91 @@
+/* Canvas variants keep the classic appliance card's layout intact. */
+.canvas-dialog .canvas-appliances {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--canvas-ink, #f6f0e6);
+}
+.canvas-dialog .canvas-appliances ul { display: grid; gap: var(--canvas-space-3); }
+.canvas-dialog .canvas-appliances .appliance-row {
+  --appliance-accent: #abc9db;
+  grid-template-columns: 64px minmax(0, 1fr) minmax(0, 1.4fr);
+  gap: var(--canvas-space-4);
+  padding: var(--canvas-space-4);
+  border: 1px solid var(--canvas-line, #48444e);
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--appliance-accent) 6%, var(--canvas-surface, #2e2c33));
+}
+.canvas-dialog .canvas-appliances [data-appliance='dryer'] { --appliance-accent: var(--canvas-coral, #f1aa8e); }
+.canvas-dialog .canvas-appliances [data-appliance='dishwasher'] { --appliance-accent: #b5cfb6; }
+.canvas-dialog .canvas-appliances .appliance-icon {
+  justify-content: center;
+  width: 64px;
+  height: 72px;
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--appliance-accent) 13%, transparent);
+}
+.canvas-dialog .canvas-appliances .appliance-status-icon { width: 42px; height: 48px; color: var(--appliance-accent); }
+.canvas-dialog .canvas-appliances :is([data-state='unknown'], [data-state='unavailable']) .appliance-status-icon { color: var(--canvas-muted, #b6b0bb); opacity: .6; }
+.canvas-dialog .canvas-appliances .appliance-name { font-size: 1.15rem; font-weight: 650; }
+.canvas-dialog .canvas-appliances .appliance-status { color: var(--canvas-muted, #b6b0bb); font-size: .9rem; font-variant-numeric: tabular-nums; }
+.canvas-dialog .canvas-appliances [data-state='running'] .appliance-status { color: var(--appliance-accent); }
+.canvas-dialog .canvas-vacuum {
+  --vacuum-accent: #d7b1ca;
+  display: grid;
+  gap: var(--canvas-space-4);
+  color: var(--canvas-ink, #f6f0e6);
+}
+.canvas-dialog .canvas-vacuum__summary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--canvas-space-5);
+  min-height: 160px;
+  padding: var(--canvas-space-4);
+  border: 1px solid var(--canvas-line, #48444e);
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--vacuum-accent) 6%, var(--canvas-surface, #2e2c33));
+}
+.canvas-dialog .canvas-vacuum__artwork { flex: 0 0 160px; width: 160px; height: 120px; color: var(--vacuum-accent); }
+.canvas-dialog .canvas-vacuum__readout { display: grid; gap: 10px; min-width: 0; }
+.canvas-dialog .canvas-vacuum__state { font-size: 1.8rem; font-weight: 600; overflow-wrap: anywhere; }
+.canvas-dialog .canvas-vacuum__battery { display: flex; align-items: center; gap: 8px; color: var(--canvas-muted, #b6b0bb); font-size: .85rem; }
+.canvas-dialog .canvas-vacuum__battery svg { width: 24px; height: 14px; }
+.canvas-dialog .canvas-vacuum__actions { display: flex; flex-wrap: wrap; gap: var(--canvas-space-2); }
+.canvas-dialog .canvas-vacuum__action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex: 1 1 140px;
+  min-height: 48px;
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid var(--canvas-line, #48444e);
+  background: var(--canvas-surface, #2e2c33);
+  color: var(--canvas-ink, #f6f0e6);
+  font-size: .85rem;
+}
+.canvas-dialog .canvas-vacuum__action svg { width: 20px; height: 20px; flex-shrink: 0; }
+.canvas-dialog .canvas-vacuum__action--primary { flex-basis: 100%; background: var(--vacuum-accent); color: var(--canvas-bg, #222127); border-color: transparent; font-size: 1rem; font-weight: 650; }
+.canvas-dialog .canvas-vacuum__fan { display: flex; flex-wrap: wrap; align-items: end; gap: var(--canvas-space-3); padding-top: var(--canvas-space-3); border-top: 1px solid var(--canvas-line, #48444e); }
+.canvas-dialog .canvas-vacuum__fan label { display: grid; gap: 8px; flex: 1 1 180px; color: var(--canvas-muted, #b6b0bb); font-size: .8rem; }
+.canvas-dialog .canvas-vacuum__fan select { width: 100%; min-height: 48px; padding: 10px 12px; border: 1px solid var(--canvas-line, #48444e); border-radius: 14px; color: var(--canvas-ink, #f6f0e6); background: var(--canvas-surface, #2e2c33); font-size: .95rem; color-scheme: dark; }
+.canvas-dialog .canvas-vacuum__fan button { min-height: 48px; border-radius: 14px; }
+.canvas-dialog .canvas-vacuum :is(button, select):disabled { opacity: .4; cursor: not-allowed; }
+.canvas-dialog .canvas-vacuum p { margin: 0; color: var(--canvas-muted, #b6b0bb); font-size: .85rem; line-height: 1.5; }
+.canvas-dialog .canvas-vacuum [role='alert'] { color: #ffc8bd; }
+.canvas-dialog .canvas-vacuum button:active:not(:disabled) { transform: translateY(1px); }
+@media (hover: hover) {
+  .canvas-dialog .canvas-vacuum button:hover:not(:disabled) { border-color: var(--vacuum-accent); filter: brightness(1.08); }
+}
+@media (max-width: 560px) {
+  .canvas-dialog .canvas-appliances .appliance-row { grid-template-columns: 48px minmax(0, 1fr); gap: 4px 12px; padding: 12px; }
+  .canvas-dialog .canvas-appliances .appliance-icon { grid-row: span 2; width: 48px; height: 58px; border-radius: 14px; }
+  .canvas-dialog .canvas-appliances .appliance-status-icon { width: 32px; height: 38px; }
+  .canvas-dialog .canvas-appliances .appliance-name { align-self: end; }
+  .canvas-dialog .canvas-appliances .appliance-status { align-self: start; text-align: left; }
+  .canvas-dialog .canvas-vacuum__summary { gap: 8px; padding: 12px; min-height: 132px; }
+  .canvas-dialog .canvas-vacuum__artwork { flex-basis: 120px; width: 120px; height: 100px; }
+  .canvas-dialog .canvas-vacuum__state { font-size: 1.4rem; }
+}

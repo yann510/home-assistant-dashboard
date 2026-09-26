@@ -36,7 +36,7 @@ function ApplianceRow({ appliance, now, connected }: { appliance: (typeof applia
     status = finished ? 'Finished' : runningApplianceStatus(job?.state, completion?.state, now);
   }
   return (
-    <li className='appliance-row'>
+    <li className='appliance-row' data-appliance={id} data-state={iconState}>
       <span className='appliance-icon' aria-hidden='true'>
         <ApplianceIcon kind={id} state={iconState} />
       </span>
@@ -46,12 +46,18 @@ function ApplianceRow({ appliance, now, connected }: { appliance: (typeof applia
   );
 }
 
-export function AppliancesCard() {
+export function AppliancesCard({ variant = 'classic' }: { variant?: 'classic' | 'canvas' }) {
   const now = useApplianceClock();
   const connected = useStore(state => Boolean(state.connection?.connected && state.connectionStatus === 'connected'));
   return (
-    <section id='appliances-card' tabIndex={-1} className='appliances-card' aria-labelledby='appliances-title'>
-      <h2 id='appliances-title'>Appliances</h2>
+    <section
+      id='appliances-card'
+      tabIndex={-1}
+      className={`appliances-card${variant === 'canvas' ? ' canvas-appliances' : ''}`}
+      aria-label={variant === 'canvas' ? 'Appliance status' : undefined}
+      aria-labelledby={variant === 'classic' ? 'appliances-title' : undefined}
+    >
+      {variant === 'classic' && <h2 id='appliances-title'>Appliances</h2>}
       <ul>
         {appliances.map(appliance => (
           <ApplianceRow key={appliance.id} appliance={appliance} now={now} connected={connected} />

@@ -88,13 +88,45 @@ export function CanvasVacuum() {
 
   const feedback = result?.results[0];
   return (
-    <section className='canvas-vacuum' aria-label='Roomba controls'>
+    <section className='canvas-vacuum' aria-label='Roomba controls' data-active={Boolean(available && activeStates.includes(state))}>
       <div className='canvas-vacuum__summary'>
-        <strong>Roomba</strong>
-        <span role='status'>
-          {!connected ? 'Disconnected' : !entity || ['unknown', 'unavailable'].includes(state) ? 'Unavailable' : label(state)}
-        </span>
-        {typeof attrs?.battery_level === 'number' && <span>Battery {attrs.battery_level}%</span>}
+        <svg className='canvas-vacuum__artwork' viewBox='0 0 160 120' fill='none' aria-hidden='true'>
+          <ellipse cx='80' cy='104' rx='52' ry='7' fill='currentColor' opacity='.08' />
+          <path d='M24 93c-17-30 3-66 30-71 29-6 32 13 55 8 28-5 38 36 16 61' fill='currentColor' opacity='.08' />
+          <g stroke='currentColor' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round'>
+            <path d='M53 23v-8h54v8' opacity='.45' />
+            <circle cx='80' cy='65' r='37' fill='var(--canvas-surface, #2e2c33)' />
+            <circle cx='80' cy='65' r='31' opacity='.25' />
+            <path d='M48 81h64M68 36h24M48 90l-9 9M112 90l9 9' />
+            <circle cx='80' cy='59' r='9' fill='currentColor' fillOpacity='.16' />
+            <path d='M80 53v6m-4-4a6 6 0 1 0 8 0' strokeWidth='1.4' />
+            <g className='canvas-vacuum__sparkles'>
+              <path d='M131 32v12m-6-6h12M28 49v8m-4-4h8' />
+            </g>
+          </g>
+        </svg>
+        <div className='canvas-vacuum__readout'>
+          <span className='canvas-vacuum__state' role='status'>
+            {!connected ? 'Disconnected' : !entity || ['unknown', 'unavailable'].includes(state) ? 'Unavailable' : label(state)}
+          </span>
+          {available && typeof attrs?.battery_level === 'number' && Number.isFinite(attrs.battery_level) && (
+            <span className='canvas-vacuum__battery'>
+              <svg viewBox='0 0 24 14' fill='none' aria-hidden='true'>
+                <rect x='1' y='1' width='19' height='12' rx='3' stroke='currentColor' />
+                <path d='M23 5v4' stroke='currentColor' strokeWidth='2' />
+                <rect
+                  x='4'
+                  y='4'
+                  width={(13 * Math.max(0, Math.min(100, attrs.battery_level))) / 100}
+                  height='6'
+                  rx='1'
+                  fill='currentColor'
+                />
+              </svg>
+              Battery {attrs.battery_level}%
+            </span>
+          )}
+        </div>
       </div>
       {!available && <p role='status'>Reconnect or wait for a reliable Roomba state to use controls.</p>}
       <div className='canvas-vacuum__actions'>
@@ -103,10 +135,32 @@ export function CanvasVacuum() {
           .map(action => (
             <button
               key={action.service}
+              className={`canvas-vacuum__action${['start', 'pause'].includes(action.service) ? ' canvas-vacuum__action--primary' : ''}`}
               type='button'
               disabled={!available || pending}
               onClick={() => void command(action.service, undefined, action.observe)}
             >
+              <svg
+                viewBox='0 0 24 24'
+                aria-hidden='true'
+                fill='none'
+                stroke='currentColor'
+                strokeWidth='1.8'
+                strokeLinecap='round'
+                strokeLinejoin='round'
+              >
+                {action.service === 'start' && <path d='m9 5 10 7-10 7V5Z' fill='currentColor' stroke='none' />}
+                {action.service === 'pause' && <path d='M8 5v14M16 5v14' strokeWidth='3' />}
+                {action.service === 'stop' && <rect x='6' y='6' width='12' height='12' rx='2' />}
+                {action.service === 'return_to_base' && <path d='m3 11 9-8 9 8M6 10v11h12V10M10 21v-7h4v7' />}
+                {action.service === 'locate' && (
+                  <>
+                    <circle cx='12' cy='12' r='7' />
+                    <circle cx='12' cy='12' r='2' />
+                    <path d='M12 2v3m0 14v3M2 12h3m14 0h3' />
+                  </>
+                )}
+              </svg>
               {action.name}
             </button>
           ))}
@@ -114,7 +168,7 @@ export function CanvasVacuum() {
       {can(feature.fanSpeed) && fanList.length > 0 && state !== 'docked' && (
         <div className='canvas-vacuum__fan'>
           <label>
-            Roomba fan speed{' '}
+            <span>Fan speed</span>
             <select aria-label='Roomba fan speed' value={fanValue} disabled={pending} onChange={event => setDraftFan(event.target.value)}>
               {!fanValue && <option value=''>Choose speed</option>}
               {fanList.map(speed => (

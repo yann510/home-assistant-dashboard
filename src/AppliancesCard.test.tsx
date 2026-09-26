@@ -95,3 +95,19 @@ it.each(['finish', 'finished'])('shows terminal %s job as finished even before m
   expect(screen.queryByText(/min left/)).toBeNull();
   expect(screen.getByText('Dryer').closest('li')?.querySelector('svg')?.getAttribute('data-state')).toBe('idle');
 });
+
+it('uses the modal title in Canvas while retaining the classic heading and live statuses', () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date('2026-09-10T12:00:00Z'));
+  dryer('run');
+  const view = render(<AppliancesCard variant='canvas' />);
+  expect(screen.getByRole('region', { name: 'Appliance status' })).toBeTruthy();
+  expect(screen.queryByRole('heading', { name: 'Appliances' })).toBeNull();
+  expect(screen.getByText('Drying · ~25 min left')).toBeTruthy();
+  act(() => {
+    vi.advanceTimersByTime(60_000);
+  });
+  expect(screen.getByText('Drying · ~24 min left')).toBeTruthy();
+  view.rerender(<AppliancesCard />);
+  expect(screen.getByRole('heading', { name: 'Appliances' })).toBeTruthy();
+});

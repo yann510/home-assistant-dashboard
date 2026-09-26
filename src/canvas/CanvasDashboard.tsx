@@ -26,6 +26,7 @@ import { CanvasWeatherDialog, CanvasWeatherNow } from './CanvasWeather';
 import './canvas.css';
 import './canvas-music.css';
 import './canvas-secondary.css';
+import './canvas-appliances-vacuum.css';
 
 function CanvasDashboardContent(): React.JSX.Element {
   const connected = useStore(state => Boolean(state.connection?.connected && state.connectionStatus === 'connected'));
@@ -190,7 +191,7 @@ function CanvasDashboardContent(): React.JSX.Element {
             ) : route.kind === 'thermostats' ? (
               <CanvasThermostats />
             ) : route.kind === 'appliances' ? (
-              <AppliancesCard />
+              <AppliancesCard variant='canvas' />
             ) : route.kind === 'vacuum' ? (
               <CanvasVacuum />
             ) : (

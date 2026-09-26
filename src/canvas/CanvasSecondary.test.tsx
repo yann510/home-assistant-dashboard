@@ -325,8 +325,11 @@ it('mounts and reconnects Roomba detail without sending a command, filtering uns
   expect(within(detail).queryByRole('button', { name: 'Return to dock' })).toBeNull();
   expect(within(detail).queryByRole('button', { name: 'Set fan speed' })).toBeNull();
   expect(ref.current!.calls).toHaveLength(0);
+  expect(within(detail).getByText('Battery 67%')).toBeTruthy();
   act(() => ref.current!.disconnect());
+  expect(within(detail).queryByText('Battery 67%')).toBeNull();
   act(() => ref.current!.reconnect());
+  expect(within(detail).getByText('Battery 67%')).toBeTruthy();
   expect(ref.current!.calls).toHaveLength(0);
 });
 
