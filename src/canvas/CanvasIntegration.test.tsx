@@ -383,13 +383,13 @@ it('keeps All lights and its scroll position mounted while settings open and Esc
   const close = screen.getByRole('button', { name: 'Close light settings' });
   expect(document.activeElement).toBe(close);
   const overlay = screen.getByRole('region', { name: 'Gym settings' });
-  const slider = within(overlay).getByRole('slider', { name: 'Light brightness' });
-  slider.focus();
-  fireEvent.keyDown(slider, { key: 'Tab' });
-  const overlayPower = within(overlay).getByRole('button', { name: 'Turn off Gym' });
-  expect(document.activeElement).toBe(overlayPower);
-  fireEvent.keyDown(overlayPower, { key: 'Tab', shiftKey: true });
-  expect(document.activeElement).toBe(slider);
+  expect(within(overlay).getByRole('slider', { name: 'Light brightness' })).toBeTruthy();
+  const otherRoom = screen.getByRole('region', { name: 'Living Room lights' });
+  expect(
+    within(otherRoom)
+      .getByRole('button', { name: /Living Room lights/ })
+      .closest('[inert]')
+  ).toBeNull();
   fireEvent.keyDown(close, { key: 'Escape' });
   expect(screen.getByRole('dialog', { name: 'All lights' })).toBe(dialog);
   expect(within(room).getByRole('button', { name: 'Turn off Gym lights' })).toBe(power);

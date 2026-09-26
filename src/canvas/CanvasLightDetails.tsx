@@ -58,6 +58,15 @@ export function CanvasLightDetails({
   const [effectDraft, setEffectDraft] = useState<string | null>(null);
   const [committing, setCommitting] = useState(false);
   const colourDescriptionId = useId();
+  const [selectedControl, setSelectedControl] = useState('Brightness');
+  const controls = [
+    ...(lightSupportsBrightness(entity) ? ['Brightness'] : []),
+    ...(colour ? ['Colour'] : []),
+    ...(temperature ? ['Warmth'] : []),
+    ...(effects.length ? ['Effect'] : []),
+  ];
+  const activeControl = controls.includes(selectedControl) ? selectedControl : controls[0];
+  const showControl = (name: string) => !embedded || activeControl === name;
   if (!light) return <p role='status'>This light is not in the current inventory.</p>;
   const sendValue = async (data: Record<string, unknown>, observe: (next: LightEntity) => boolean, clear: () => void) => {
     if (!available || working || committing) return;
@@ -127,8 +136,10 @@ export function CanvasLightDetails({
     <section className='canvas-lights canvas-lights--detail' aria-label={`${light.name} controls`}>
       <div className='canvas-lights__heading'>
         <div>
-          <h3>{title}</h3>
-          <p className='canvas-lights__muted'>{light.state === 'unavailable' ? 'Unavailable' : light.state === 'on' ? 'On' : 'Off'}</p>
+          <h3 title={light.name}>{title}</h3>
+          {!embedded && (
+            <p className='canvas-lights__muted'>{light.state === 'unavailable' ? 'Unavailable' : light.state === 'on' ? 'On' : 'Off'}</p>
+          )}
         </div>
         <button
           type='button'
@@ -136,14 +147,37 @@ export function CanvasLightDetails({
           disabled={!available || working || committing}
           onClick={() => void power([entityId], light.state === 'on' ? 'off' : 'on')}
         >
-          {light.state === 'on' ? 'Turn off' : 'Turn on'}
+          {embedded ? (
+            <svg viewBox='0 0 24 24' width='20' height='20' aria-hidden='true' focusable='false'>
+              <path d='M12 3v9m-5-7a8 8 0 1 0 10 0' fill='none' stroke='currentColor' strokeWidth='1.8' strokeLinecap='round' />
+            </svg>
+          ) : light.state === 'on' ? (
+            'Turn off'
+          ) : (
+            'Turn on'
+          )}
         </button>
         {closeControl}
       </div>
+      {embedded && controls.length > 0 && (
+        <div className='canvas-light-settings__switcher' role='group' aria-label='Light adjustments'>
+          {controls.map(control => (
+            <button type='button' key={control} aria-pressed={activeControl === control} onClick={() => setSelectedControl(control)}>
+              {control}
+            </button>
+          ))}
+        </div>
+      )}
       <div className={embedded ? 'canvas-light-settings__controls' : undefined}>
-        {lightSupportsBrightness(entity) && (
+        {embedded && !available && (
+          <p className='canvas-lights__muted' role='status'>
+            {connected ? 'Unavailable' : 'Reconnecting…'}
+          </p>
+        )}
+        {embedded && controls.length === 0 && available && <p className='canvas-lights__muted'>Power control only</p>}
+        {lightSupportsBrightness(entity) && showControl('Brightness') && (
           <label className='canvas-lights__slider'>
-            Brightness
+            {!embedded && 'Brightness'}
             <input
               aria-label='Light brightness'
               aria-valuetext={`${brightnessDraft !== null || brightnessPercent === undefined ? 'proposed' : 'reported'} ${brightnessPosition} percent${brightnessPercent === undefined ? '; current brightness unknown' : ''}`}
@@ -176,15 +210,19 @@ export function CanvasLightDetails({
             />
             <output>
               {embedded
-                ? `${brightnessDraft !== null || brightnessPercent === undefined ? 'Proposed ' : ''}${brightnessPosition}%`
+                ? brightnessDraft === null && brightnessPercent === undefined
+                  ? '—'
+                  : `${brightnessPosition}%`
                 : `${brightnessDraft !== null || brightnessPercent === undefined ? 'Proposed' : 'Reported'} brightness ${brightnessPosition}%`}
             </output>
-            {brightnessPercent === undefined && <small className='canvas-lights__reading'>Current brightness unknown</small>}
+            {brightnessPercent === undefined && (
+              <small className={embedded ? 'canvas-light-settings__sr-only' : 'canvas-lights__reading'}>Current brightness unknown</small>
+            )}
           </label>
         )}
-        {colour && (
+        {colour && showControl('Colour') && (
           <label className='canvas-lights__field'>
-            Colour
+            {!embedded && 'Colour'}
             <input
               aria-label='Light colour'
               aria-describedby={colourDescriptionId}
@@ -192,15 +230,12 @@ export function CanvasLightDetails({
               value={colourValue}
               disabled={!available || working || committing}
               onChange={event => setColourDraft(event.target.value)}
-              onBlur={commitColour}
+              onBlur={embedded ? undefined : commitColour}
             />
             <button type='button' disabled={!available || working || committing || colourDraft === null} onClick={commitColour}>
-              Apply colour
+              {embedded ? 'Apply' : 'Apply colour'}
             </button>
-            <span
-              id={colourDescriptionId}
-              className={embedded && reportedColour !== undefined ? 'canvas-light-settings__sr-only' : 'canvas-lights__reading'}
-            >
+            <span id={colourDescriptionId} className={embedded ? 'canvas-light-settings__sr-only' : 'canvas-lights__reading'}>
               {reportedColour === undefined ? 'Current colour unknown' : `Reported colour ${hexFromRgb(reportedColour)}`}
             </span>
             <output className={embedded ? 'canvas-light-settings__sr-only' : undefined}>
@@ -208,9 +243,9 @@ export function CanvasLightDetails({
             </output>
           </label>
         )}
-        {temperature && (
+        {temperature && showControl('Warmth') && (
           <label className='canvas-lights__slider'>
-            Colour temperature
+            {!embedded && 'Colour temperature'}
             <input
               aria-label='Light colour temperature'
               aria-valuetext={`${temperatureDraft !== null || temperatureValue === undefined ? 'proposed' : 'reported'} ${temperaturePosition} ${temperature.unit}${temperatureValue === undefined ? '; current colour temperature unknown' : ''}`}
@@ -231,15 +266,21 @@ export function CanvasLightDetails({
             />
             <output>
               {embedded
-                ? `${temperatureDraft !== null || temperatureValue === undefined ? 'Proposed ' : ''}${temperaturePosition} ${temperature.unit}`
+                ? temperatureDraft === null && temperatureValue === undefined
+                  ? '—'
+                  : `${temperaturePosition} ${temperature.unit}`
                 : `${temperatureDraft !== null || temperatureValue === undefined ? 'Proposed' : 'Reported'} colour temperature ${temperaturePosition} ${temperature.unit}`}
             </output>
-            {temperatureValue === undefined && <small className='canvas-lights__reading'>Current colour temperature unknown</small>}
+            {temperatureValue === undefined && (
+              <small className={embedded ? 'canvas-light-settings__sr-only' : 'canvas-lights__reading'}>
+                Current colour temperature unknown
+              </small>
+            )}
           </label>
         )}
-        {effects.length > 0 && (
+        {effects.length > 0 && showControl('Effect') && (
           <label className='canvas-lights__field'>
-            Effect
+            {!embedded && 'Effect'}
             <select
               aria-label='Light effect'
               value={effectDraft ?? attrs?.effect ?? ''}
@@ -252,7 +293,7 @@ export function CanvasLightDetails({
               ))}
             </select>
             <button type='button' disabled={!available || working || committing || effectDraft === null} onClick={commitEffect}>
-              Apply effect
+              {embedded ? 'Apply' : 'Apply effect'}
             </button>
           </label>
         )}

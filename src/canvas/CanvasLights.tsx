@@ -328,7 +328,7 @@ export function CanvasAllLights({ showGlobalAction = true }: { showGlobalAction?
             data-unavailable={!connected || !room.available}
             style={{ '--canvas-room-accent': getRoomAccent(room.name) } as CSSProperties}
           >
-            <div inert={Boolean(settings.active)} aria-hidden={settings.active ? true : undefined}>
+            <div inert={settings.active?.room === room.name} aria-hidden={settings.active?.room === room.name ? true : undefined}>
               <div className='canvas-lights__room-line'>
                 <RoomArtwork room={room.name} className='canvas-lights__room-artwork' />
                 <div className='canvas-lights__room-summary'>

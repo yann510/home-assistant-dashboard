@@ -889,3 +889,63 @@ it('keeps a pending brightness command alive after closing inline settings', asy
   expect((within(room).getByRole('slider', { name: 'Gym brightness' }) as HTMLInputElement).value).toBe('70');
   expect(fixture.calls).toHaveLength(1);
 });
+
+it('shows only the chosen supported adjustment and preserves drafts until explicit colour Apply', async () => {
+  const fixture = ref.current!;
+  fixture.publish('light.gym', 'on', {
+    brightness: 128,
+    supported_color_modes: ['rgb', 'color_temp'],
+    min_color_temp_kelvin: 2000,
+    max_color_temp_kelvin: 6000,
+    color_temp_kelvin: 3000,
+    rgb_color: [255, 255, 255],
+    effect_list: ['None', 'Pulse'],
+  });
+  render(
+    <CanvasLightsProvider>
+      <CanvasLightDetails entityId='light.gym' embedded />
+    </CanvasLightsProvider>
+  );
+  expect(screen.getByRole('slider', { name: 'Light brightness' })).toBeTruthy();
+  expect(screen.queryByLabelText('Light colour')).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Colour' }));
+  expect(screen.queryByRole('slider')).toBeNull();
+  const colour = screen.getByLabelText('Light colour') as HTMLInputElement;
+  fireEvent.change(colour, { target: { value: '#123456' } });
+  fireEvent.blur(colour);
+  expect(fixture.calls).toEqual([]);
+  fireEvent.click(screen.getByRole('button', { name: 'Effect' }));
+  fireEvent.change(screen.getByRole('combobox'), { target: { value: 'Pulse' } });
+  expect(screen.queryByLabelText('Light colour')).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Warmth' }));
+  expect(screen.getByRole('slider', { name: 'Light colour temperature' })).toBeTruthy();
+  expect(screen.queryByRole('combobox')).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Effect' }));
+  expect((screen.getByRole('combobox') as HTMLSelectElement).value).toBe('Pulse');
+  fireEvent.click(screen.getByRole('button', { name: 'Colour' }));
+  expect((screen.getByLabelText('Light colour') as HTMLInputElement).value).toBe('#123456');
+  fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+  await waitFor(() =>
+    expect(fixture.calls).toEqual([
+      {
+        type: 'call_service',
+        domain: 'light',
+        service: 'turn_on',
+        target: { entity_id: ['light.gym'] },
+        service_data: { rgb_color: [18, 52, 86] },
+      },
+    ])
+  );
+});
+
+it('omits unsupported adjustment choices and keeps missing brightness visibly unknown', () => {
+  ref.current!.publish('light.gym', 'off', { supported_color_modes: ['brightness'] });
+  render(
+    <CanvasLightsProvider>
+      <CanvasLightDetails entityId='light.gym' embedded />
+    </CanvasLightsProvider>
+  );
+  expect(screen.getByRole('group', { name: 'Light adjustments' }).querySelectorAll('button')).toHaveLength(1);
+  expect(screen.getByText('—')).toBeTruthy();
+  expect(screen.getByRole('slider').getAttribute('aria-valuetext')).toContain('current brightness unknown');
+});
