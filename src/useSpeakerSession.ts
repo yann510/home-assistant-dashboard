@@ -55,6 +55,7 @@ export function useSpeakerSession(allowIdleSource = false) {
   const configured = [followMode, followSource, followScript].every(entity => entity && !['unknown', 'unavailable'].includes(entity.state));
   // Keep controlling the saved source while following, even if another room starts audio.
   const [preferredSource, setPreferredSource] = useState<string | null>(null);
+  const [pinnedSource, pinSource] = useState<string | null>(null);
   const selected =
     (following || cleanupPending ? speakers.find(speaker => speaker?.entity_id === savedSource) : undefined) ??
     speakers.find(speaker => speaker?.entity_id === preferredSource) ??
@@ -62,7 +63,7 @@ export function useSpeakerSession(allowIdleSource = false) {
     available.find(speaker => (speaker.attributes.group_members?.length ?? 0) > 1) ??
     available.find(speaker => speaker.state === 'paused') ??
     (allowIdleSource ? available[0] : undefined);
-  const coordinatorId = selected?.attributes.group_members?.[0] ?? selected?.entity_id;
+  const coordinatorId = pinnedSource ?? selected?.attributes.group_members?.[0] ?? selected?.entity_id;
   const coordinator = speakers.find(speaker => speaker?.entity_id === coordinatorId);
   const members = selected?.attributes.group_members ?? (coordinatorId ? [coordinatorId] : []);
   const canToggle = Boolean(
@@ -129,6 +130,7 @@ export function useSpeakerSession(allowIdleSource = false) {
     busy,
     error,
     updateFollowing,
+    pinSource,
     preferredSource,
     setPreferredSource,
   };

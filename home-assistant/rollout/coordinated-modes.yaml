@@ -1,0 +1,21 @@
+# Merge into configuration only during an explicitly authorized backend rollout.
+# Existing legacy automations remain installed but DISABLED (required by guard):
+# automation.bedroom_lights_on_when_morning_mode_turns_on
+# automation.apply_night_mode
+# automation.reset_morning_mode_at_9_30pm
+house_moods:
+  coordinated_modes: true
+
+# Add to the existing automation list; do not replace unrelated automations.
+automation:
+  - id: house_moods_coordinated_night_2130
+    alias: Coordinated Night Mode at 9:30pm
+    triggers:
+      - trigger: time
+        at: '21:30:00'
+    actions:
+      - action: house_moods.apply_mode
+        data:
+          mode: night
+        response_variable: mode_result
+    mode: single

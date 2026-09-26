@@ -42,7 +42,6 @@ export function SpeakerVolume({
   const trigger = useRef<HTMLButtonElement>(null);
   const { send, error } = useSpeakerCommand();
   const { send: sendMute, error: muteError } = useSpeakerCommand();
-  const baseline = useRef<{ anchor: number; levels: Record<string, number> } | null>(null);
   const latest = useRef<number | null>(null);
   const queued = useRef<number | null>(null);
   const sending = useRef(false);
@@ -60,15 +59,6 @@ export function SpeakerVolume({
   const level = draft ?? reported;
   const label = accessibleLabel ?? (room ? `${room} volume` : 'Volume');
   const heading = room ?? (targets.length > 1 ? 'Group volume' : `${attributes?.friendly_name ?? 'Speaker'} volume`);
-
-  function captureBalance() {
-    if (baseline.current) return;
-    const entities = useStore.getState().entities;
-    baseline.current = {
-      anchor: reported,
-      levels: Object.fromEntries(targets.map(id => [id, Math.round((entities[id]?.attributes.volume_level ?? 0) * 100)])),
-    };
-  }
 
   useEffect(() => {
     const panel = popup.current;
@@ -114,7 +104,6 @@ export function SpeakerVolume({
     const unsubscribe = onSpeakerDisconnect(() => {
       queued.current = null;
       latest.current = null;
-      baseline.current = null;
       dragging.current = false;
       dirty.current = false;
       clearTimeout(settle.current);
@@ -139,7 +128,6 @@ export function SpeakerVolume({
     settle.current = setTimeout(() => {
       if (mounted.current && !dragging.current && !sending.current) {
         latest.current = null;
-        baseline.current = null;
         setDraft(null);
       }
     }, 1500);
@@ -148,7 +136,6 @@ export function SpeakerVolume({
   async function commit(value: number) {
     if (cannotSetVolume) return;
     dirty.current = false;
-    captureBalance();
     updateDraft(value);
     queued.current = latest.current;
     if (sending.current) return;
@@ -156,40 +143,30 @@ export function SpeakerVolume({
     while (queued.current !== null && mounted.current) {
       const next = queued.current;
       queued.current = null;
-      const balance = baseline.current!;
-      const batches = new Map<number, string[]>();
-      for (const target of targets) {
-        const targetEntity = useStore.getState().entities[target];
-        if (
-          !targetEntity ||
-          ['unknown', 'unavailable'].includes(targetEntity.state) ||
-          !((targetEntity.attributes.supported_features ?? 0) & 4) ||
-          !Number.isFinite(targetEntity.attributes.volume_level)
-        )
-          continue;
-        const level = Math.max(0, Math.min(100, balance.levels[target] + next - balance.anchor));
-        batches.set(level, [...(batches.get(level) ?? []), target]);
-      }
-      let success = true;
-      for (const [level, ids] of batches) {
-        if (!mounted.current) return;
-        if (
-          !(await send(
-            'volume_set',
-            ids,
-            `change volume for ${ids.map(id => useStore.getState().entities[id]?.attributes.friendly_name ?? id).join(', ')}`,
-            { volume_level: level / 100 }
-          ))
-        ) {
-          success = false;
-          break;
-        }
-      }
+      const currentEntities = useStore.getState().entities;
+      const confirmedGroup = [...new Set([
+        entityId,
+        ...(currentEntities[entityId]?.attributes.group_members ?? []),
+      ])];
+      const ids = (room ? [entityId] : confirmedGroup).filter(target => {
+        const targetEntity = currentEntities[target];
+        return (
+          targetEntity &&
+          !['unknown', 'unavailable'].includes(targetEntity.state) &&
+          Boolean((targetEntity.attributes.supported_features ?? 0) & 4) &&
+          Number.isFinite(targetEntity.attributes.volume_level)
+        );
+      });
+      const success = await send(
+        'volume_set',
+        ids,
+        `change volume for ${ids.map(id => useStore.getState().entities[id]?.attributes.friendly_name ?? id).join(', ')}`,
+        { volume_level: next / 100 }
+      );
       if (!mounted.current) return;
       if (!success) {
         queued.current = null;
         latest.current = null;
-        baseline.current = null;
         setDraft(null);
         break;
       }
@@ -204,7 +181,6 @@ export function SpeakerVolume({
     dragging.current = false;
     if (dirty.current) void commit(value);
     else if (latest.current !== null && !sending.current) resumeDeviceUpdates();
-    else if (!sending.current) baseline.current = null;
   }
 
   async function toggleMute() {
@@ -271,7 +247,6 @@ export function SpeakerVolume({
           aria-valuetext={`${level} percent${muted ? ', muted' : ''}`}
           style={{ '--speaker-range-fill': `${level}%` } as CSSProperties}
           onPointerDown={event => {
-            captureBalance();
             dragging.current = true;
             clearTimeout(settle.current);
             event.currentTarget.setPointerCapture?.(event.pointerId);
@@ -289,7 +264,6 @@ export function SpeakerVolume({
             dragging.current = false;
             dirty.current = false;
             latest.current = null;
-            baseline.current = null;
             setDraft(null);
           }}
         />
@@ -303,9 +277,7 @@ export function SpeakerVolume({
           {plus}
         </button>
       </div>
-      {children && targets.length > 1 && (
-        <p className='speaker-volume-note'>Adjusts all rooms together, keeping their volume differences.</p>
-      )}
+      {children && targets.length > 1 && <p className='speaker-volume-note'>Sets every room to the same volume.</p>}
       {muteButton}
       {(error || muteError) && (
         <p className='speaker-command-error' role='alert'>

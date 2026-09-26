@@ -25,7 +25,6 @@ export function CanvasPlayer() {
           {!disabled && <p>{playing ? 'Track details are unavailable.' : 'Choose a favourite to start.'}</p>}
         </div>
       )}
-      <CanvasTransport />
       {!idle && !disabled && Number.isFinite(attributes?.media_position) && (
         <SpeakerSeek
           key={`${session.entityId}:${attributes?.media_content_id ?? ''}:${attributes?.media_title ?? ''}`}
@@ -33,6 +32,7 @@ export function CanvasPlayer() {
           disabled={disabled}
         />
       )}
+      <CanvasTransport />
       {!session.connected && <p role='status'>Reconnecting to Home Assistant…</p>}
       <CanvasFavourites />
     </div>

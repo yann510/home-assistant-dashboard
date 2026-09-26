@@ -1,4 +1,4 @@
-import { createContext, createElement, useCallback, useContext, useRef, useState, type ReactNode } from 'react';
+import { createContext, createElement, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useStore } from '@hakit/core';
 import { useDeviceCommand } from './useDeviceCommand';
 import type { CommandResult, TargetResult } from './commands';
@@ -8,6 +8,10 @@ export type BlindAction = 'open' | 'stop' | 'close';
 export const blindRooms: readonly BlindRoom[] = ['living room', 'bedroom', 'gym'];
 const emptyResults = (): Record<BlindAction, CommandResult | null> => ({ open: null, stop: null, close: null });
 const emptyFailures = (): Record<BlindAction, readonly BlindRoom[]> => ({ open: [], stop: [], close: [] });
+// Google Assistant exposes no blind position or movement telemetry. Keep recent movement
+// targets from the latest movement request (including Retry) for 90 seconds after dispatch.
+// This replaces earlier targets and is not evidence that any room is still moving.
+const MOVEMENT_WINDOW_MS = 90_000;
 
 function useCanvasBlindsController() {
   const connected = useStore(state => Boolean(state.connection?.connected && state.connectionStatus === 'connected'));
@@ -17,10 +21,14 @@ function useCanvasBlindsController() {
   const failedRef = useRef(emptyFailures());
   const [movingRooms, setMovingRooms] = useState<readonly BlindRoom[]>([]);
   const movingRef = useRef<readonly BlindRoom[]>([]);
+  const movementDeadline = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [pending, setPending] = useState<Record<BlindAction, boolean>>({ open: false, stop: false, close: false });
   const busyRef = useRef<Record<BlindAction, boolean>>({ open: false, stop: false, close: false });
   const { send: sendMovement } = useDeviceCommand();
   const { send: sendStop } = useDeviceCommand();
+  useEffect(() => () => {
+    if (movementDeadline.current) clearTimeout(movementDeadline.current);
+  }, []);
 
   const publishResults = useCallback((action: BlindAction, outcome: CommandResult) => {
     resultsRef.current = { ...resultsRef.current, [action]: outcome };
@@ -28,7 +36,7 @@ function useCanvasBlindsController() {
   }, []);
 
   const dispatch = useCallback(async (action: BlindAction, targets: readonly BlindRoom[], retry = false): Promise<CommandResult> => {
-    if (!targets.length || !connected || busyRef.current[action] || (action !== 'stop' && (busyRef.current.open || busyRef.current.close)))
+    if (!targets.length || !connected || busyRef.current[action] || (action !== 'stop' && (busyRef.current.open || busyRef.current.close || busyRef.current.stop)))
       return { results: [] };
     // Snapshot the action targets before any service call can settle or selection can change.
     const captured = [...targets];
@@ -37,6 +45,12 @@ function useCanvasBlindsController() {
     if (action !== 'stop') {
       movingRef.current = captured;
       setMovingRooms(captured);
+      if (movementDeadline.current) clearTimeout(movementDeadline.current);
+      movementDeadline.current = setTimeout(() => {
+        movingRef.current = [];
+        setMovingRooms([]);
+        movementDeadline.current = null;
+      }, MOVEMENT_WINDOW_MS);
     }
     failedRef.current = { ...failedRef.current, [action]: [] };
     setFailedRooms(failedRef.current);
@@ -48,6 +62,8 @@ function useCanvasBlindsController() {
       : pendingResults });
     const send = action === 'stop' ? sendStop : sendMovement;
     try {
+      // Stop is best effort and immediate: ACKs cannot prove physical command order.
+      // Never defer a write until movement settles or a connection is replaced.
       await Promise.all(captured.map(async room => {
         let item: TargetResult;
         try {
@@ -69,10 +85,6 @@ function useCanvasBlindsController() {
     } finally {
       busyRef.current[action] = false;
       setPending(previous => ({ ...previous, [action]: false }));
-      if (action !== 'stop') {
-        movingRef.current = [];
-        setMovingRooms([]);
-      }
     }
   }, [connected, publishResults, sendMovement, sendStop]);
 

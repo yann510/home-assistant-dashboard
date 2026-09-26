@@ -58,7 +58,7 @@ function speaker() {
 it('opens every directory destination with one modal owner and returns to the searched trigger', async () => {
   render(<CanvasDashboard />);
   fireEvent.click(screen.getByRole('button', { name: 'All devices' }));
-  for (const name of ['All lights', 'Blinds', 'Player', 'Speakers', 'Weather', 'House Mood', 'Thermostats', 'Appliances', 'Roomba']) {
+  for (const name of ['All lights', 'Blinds', 'Player', 'Speakers', 'Weather', 'Thermostats', 'Appliances', 'Roomba']) {
     const button = within(screen.getByRole('dialog')).getByRole('button', { name });
     fireEvent.click(button);
     expect(screen.getAllByRole('dialog')).toHaveLength(1);
@@ -173,7 +173,7 @@ it('captures selected blinds and retries only the failed room after a detail rou
   expect(fixture.calls[2]).toMatchObject({ service_data: { command: 'open all the blinds bedroom' } });
 });
 
-it('retains mood recovery and attention context across navigation, then reflects fresh recovery state', async () => {
+it('shows mood attention and recovery actions on the card without opening details', async () => {
   fixture.publish('sensor.house_mood', 'recovery_required', {
     active_mood: 'unwind',
     errors: [{ target: 'Living room', message: 'Restoration failed' }],
@@ -199,13 +199,52 @@ it('retains mood recovery and attention context across navigation, then reflects
   fixture.respondWith(async () => ({ response: { success: true, phase: 'idle' } }));
   render(<CanvasDashboard />);
   fireEvent.click(screen.getByRole('button', { name: 'View: Restore your home' }));
-  const dialog = screen.getByRole('dialog', { name: 'House Mood' });
-  expect(within(dialog).getByText('Mood needs recovery')).toBeTruthy();
-  fireEvent.click(within(dialog).getByRole('button', { name: 'Retry restoration' }));
+  const card = screen.getByRole('region', { name: 'House Mood' });
+  expect(within(card).getByText('Mood needs recovery')).toBeTruthy();
+  expect(within(card).getByText('Restoration failed')).toBeTruthy();
+  expect(within(card).getByRole('button', { name: 'Snooze reminder' })).toBeTruthy();
+  expect(screen.queryByRole('dialog', { name: 'House Mood' })).toBeNull();
+  fireEvent.click(within(card).getByRole('button', { name: 'Retry restoration' }));
   await act(async () => {});
-  expect(within(dialog).getByText('No mood active')).toBeTruthy();
-  fireEvent.click(screen.getByRole('button', { name: 'Close details' }));
-  expect(screen.getByText('No mood active')).toBeTruthy();
+  expect(within(card).getByText('No mood active')).toBeTruthy();
+  fireEvent.click(within(card).getByRole('button', { name: 'Snooze reminder' }));
+  expect(fixture.calls).toContainEqual(
+    expect.objectContaining({ domain: 'dashboard_attention', service: 'snooze', service_data: { id: 'mood', episode: 'mood-1' } })
+  );
+  expect(within(card).getByText('Mood needs recovery')).toBeTruthy();
+  act(() => fixture.publish('sensor.dashboard_attention', '1', { ready: true, items: [] }));
+  expect(within(card).queryByText('Mood needs recovery')).toBeNull();
+});
+
+it('dismisses a completed mood notice from the card', () => {
+  fixture.publish('sensor.dashboard_attention', '1', {
+    ready: true,
+    items: [
+      {
+        id: 'mood-complete',
+        episode: 'mood-complete-1',
+        title: 'Mood finished',
+        detail: 'The room is ready',
+        tone: 'amber',
+        icon: 'mood',
+        target: 'mood',
+        kind: 'completion',
+        occurred_at: new Date().toISOString(),
+        snoozed_until: null,
+        snooze_seconds: 3600,
+      },
+    ],
+  });
+  render(<CanvasDashboard />);
+  fireEvent.click(screen.getByRole('button', { name: 'View: Mood finished' }));
+  const card = screen.getByRole('region', { name: 'House Mood' });
+  fireEvent.click(within(card).getByRole('button', { name: 'Done' }));
+  expect(fixture.calls).toContainEqual(
+    expect.objectContaining({ domain: 'dashboard_attention', service: 'dismiss', service_data: { id: 'mood-complete', episode: 'mood-complete-1' } })
+  );
+  expect(within(card).getByText('The room is ready')).toBeTruthy();
+  act(() => fixture.publish('sensor.dashboard_attention', '1', { ready: true, items: [] }));
+  expect(within(card).queryByText('The room is ready')).toBeNull();
 });
 
 it('labels favourites without artwork and surfaces a playback rejection in Player', async () => {
@@ -244,7 +283,7 @@ it('adjusts overview volume through the shared speaker control without opening a
   expect(screen.getByRole('button', { name: 'Open speaker volume' }).textContent).toBe('34%');
 });
 
-it.each(['Explore moods', 'Open player', 'Open speakers', 'Open speaker volume', 'All lights'])(
+it.each(['Open player', 'Open speakers', 'Open speaker volume', 'All lights'])(
   'restores the actual %s pointer trigger without pre-focusing it',
   async name => {
     speaker();

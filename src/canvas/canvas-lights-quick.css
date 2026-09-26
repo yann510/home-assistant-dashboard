@@ -1,0 +1,15 @@
+.canvas .canvas-lights--compact .canvas-lights__room-line { min-height: 44px; grid-template-columns: 44px minmax(0, 1fr) auto; }
+.canvas .canvas-lights--compact .canvas-lights__room-artwork { width: 44px; height: 44px; }
+.canvas .canvas-lights--compact .canvas-lights__quick { display: flex; gap: 8px; margin-top: 8px; }
+.canvas .canvas-lights--compact .canvas-lights__quick-light { display: flex; flex: 1 1 0; min-width: 0; border: 1px solid var(--canvas-line); border-radius: 12px; overflow: hidden; }
+.canvas .canvas-lights--compact .canvas-lights__quick-light[data-on='true'] { border-color: var(--canvas-room-accent); background: color-mix(in srgb, var(--canvas-room-accent) 10%, var(--canvas-surface)); }
+.canvas .canvas-lights--compact .canvas-lights__quick button { min-height: 44px; border: 0; border-radius: 0; background: transparent; font-size: .75rem; padding: 6px 8px; }
+.canvas .canvas-lights--compact .canvas-lights__quick-power { display: flex; align-items: center; gap: 6px; flex: 1 1 0; min-width: 0; text-align: left; }
+.canvas .canvas-lights--compact .canvas-lights__quick-power > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.canvas .canvas-lights--compact .canvas-lights__quick-dot { width: 6px; height: 6px; flex: 0 0 6px; border-radius: 50%; border: 1px solid var(--canvas-muted); }
+.canvas .canvas-lights--compact .canvas-lights__quick-light[data-on='true'] .canvas-lights__quick-dot { background: var(--canvas-room-accent); border-color: var(--canvas-room-accent); }
+.canvas .canvas-lights--compact .canvas-lights__quick button:disabled { opacity: .5; }
+.canvas .canvas-lights--compact .canvas-lights__quick .canvas-lights__quick-settings { display: flex; align-items: center; justify-content: center; flex: 0 0 44px; border-left: 1px solid var(--canvas-line); }
+.canvas .canvas-lights--compact .canvas-lights__quick-settings svg { width: 18px; height: 18px; stroke: currentColor; fill: var(--canvas-surface); stroke-width: 1.4; }
+.canvas .canvas-lights--compact .canvas-lights__quick button:focus-visible { outline-offset: -3px; }
+.canvas .canvas-lights--compact .canvas-lights__slider output { min-width: 5ch; }

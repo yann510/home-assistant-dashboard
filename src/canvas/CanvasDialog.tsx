@@ -6,6 +6,7 @@ const focusable =
 export function CanvasDialog({
   title,
   children,
+  headerAccessory,
   onClose,
   onBack,
   routeKey = title,
@@ -13,6 +14,7 @@ export function CanvasDialog({
 }: {
   title: string;
   children: ReactNode;
+  headerAccessory?: ReactNode;
   onClose(): void;
   onBack?(): void;
   routeKey?: string;
@@ -92,6 +94,7 @@ export function CanvasDialog({
             </button>
           )}
           <h2 id={titleId}>{title}</h2>
+          {headerAccessory}
           <button type='button' onClick={onClose} aria-label='Close details' className='canvas-dialog__close'>
             ×
           </button>

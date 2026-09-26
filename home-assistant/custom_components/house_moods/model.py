@@ -27,6 +27,9 @@ class Session:
     owned: set[str] = field(default_factory=set)
     included: set[str] = field(default_factory=set)
     pending_mood: MoodId | None = None
+    mode_intent: str | None = None
+    mode_completed: list[str] = field(default_factory=list)
+    mode_before: dict[str, dict[str, Any]] = field(default_factory=dict)
     version: int = 1
 
     def to_dict(self):
@@ -45,6 +48,12 @@ class Session:
             raise ValueError('Invalid session phase')
         if not isinstance(value.get('session_id'), str):
             raise ValueError('Invalid session identity')
+        if value.get('mode_intent') not in (None, 'day', 'night'):
+            raise ValueError('Invalid mode intent')
+        if not isinstance(value.get('mode_completed', []), list) or any(not isinstance(t, str) for t in value.get('mode_completed', [])):
+            raise ValueError('Invalid mode progress')
+        if not isinstance(value.get('mode_before', {}), dict) or any(not isinstance(k, str) or not isinstance(v, dict) for k, v in value.get('mode_before', {}).items()):
+            raise ValueError('Invalid mode evidence')
         for name in ('active_mood', 'pending_mood'):
             if value.get(name) is not None and value[name] not in MOODS:
                 raise ValueError('Invalid mood')

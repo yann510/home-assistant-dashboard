@@ -55,9 +55,30 @@ class LightControls:
             result[color] = deepcopy(attributes[color])
         return result
 
+    def base_mode(self):
+        from .modes import MODE_ENTITIES
+        try:
+            states = {mode: self.io.state(entity)['state'] for mode, entity in MODE_ENTITIES.items()}
+        except KeyError:
+            return None
+        if states == {'day': 'on', 'night': 'off'}:
+            return 'day'
+        if states == {'day': 'off', 'night': 'on'}:
+            return 'night'
+        return None
+
     async def read(self, target):
         self._state(target)
-        return await self.neon.read() if target == NEON else self.standard_state(target)
+        if target == NEON:
+            return await self.neon.read()
+        result = self.standard_state(target)
+        from .modes import TUYA_LIGHTS
+        mode = self.base_mode() if target in TUYA_LIGHTS and result['state'] == 'off' else None
+        if mode:
+            # Policy evidence, NOT raw DP readback: HA hides off-light brightness.
+            # Only a subsequent owned brightness write makes restaging necessary.
+            result['_mode_staging'] = {'mode': mode, 'raw': 126 if mode == 'night' else 1000, 'written': False}
+        return result
 
     async def capture(self, targets):
         return {target: await self.read(target) for target in targets}
@@ -141,6 +162,13 @@ class LightControls:
             return {'state':'off'}
         return deepcopy(baseline)
 
+    def restore_requires_service_completion(self, target, baseline):
+        from .modes import TUYA_LIGHTS
+        hint = baseline.get('_mode_staging', {})
+        return (target in TUYA_LIGHTS and baseline.get('state') == 'off'
+                and hint.get('written') is True and hint.get('mode') == self.base_mode()
+                and hint.get('raw') == (126 if hint.get('mode') == 'night' else 1000))
+
     async def restore(self, target, baseline, session_id):
         self._state(target)
         if target == NEON:
@@ -154,3 +182,11 @@ class LightControls:
             data['transition'] = 3
         await self.io.call('light','turn_on' if baseline['state']=='on' else 'turn_off',[target],data,session_id)
         await self.io.wait(lambda: matches(target,desired,self.standard_state(target)))
+        if self.restore_requires_service_completion(target, baseline):
+            from .modes import TUYA_LIGHTS
+            # Turn-off confirmation precedes raw staging; no turn-on flash.
+            # HAIO rechecks manual intent before this second physical subcall.
+            await self.io.call('localtuya', 'set_dp', [], {
+                'device_id': TUYA_LIGHTS[target], 'dp': 22,
+                'value': baseline['_mode_staging']['raw'],
+            }, session_id)

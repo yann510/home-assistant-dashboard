@@ -9,11 +9,11 @@ function useCanvasMusicController() {
   const session = useSpeakerSession(true);
   const { coordinator, entityId, targets, connected } = session;
   const disabled = !connected || !coordinator || ['unknown', 'unavailable'].includes(coordinator.state);
-  const rooms = useSpeakerRooms({ source: entityId, members: targets, disabled: disabled || session.busy });
-  const playback = useSpeakerTransport(entityId, disabled);
+  const rooms = useSpeakerRooms({ source: entityId, members: targets, disabled: disabled || session.busy, onSourceChanged: session.setPreferredSource, pinSource: session.pinSource });
+  const playback = useSpeakerTransport(entityId, disabled || rooms.busy);
   const [libraryOpen, setLibraryOpen] = useState(false);
   const favourites = useSpeakerFavourites(entityId, libraryOpen && !disabled);
-  const favouritePlayback = useSpeakerFavouritePlayback(entityId, disabled, () => {});
+  const favouritePlayback = useSpeakerFavouritePlayback(entityId, disabled || rooms.busy, () => {});
   const attributes = coordinator?.attributes;
   const playing = coordinator?.state === 'playing' || coordinator?.state === 'buffering';
   const mediaTitle = attributes?.media_title?.trim() || attributes?.media_playlist?.trim() || null;
@@ -33,7 +33,7 @@ function useCanvasMusicController() {
     favourites,
     favouritePlayback,
     setLibraryOpen,
-    disabled,
+    disabled: disabled || rooms.busy,
     playing,
     idle,
     trackTitle,

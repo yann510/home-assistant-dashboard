@@ -49,7 +49,7 @@ it('shows the reported current zero temperature without subscribing before detai
   expect(ha.subscribe).not.toHaveBeenCalled();
 });
 
-it('renders a chronological 12-hour list, 24-hour option and separate daily columns', async () => {
+it('renders a chronological 12-hour list and separate daily columns', async () => {
   render(<CanvasWeather />);
   expect(ha.subscribe.mock.calls[0][1].forecast_type).toBe('hourly');
   act(() =>
@@ -63,8 +63,7 @@ it('renders a chronological 12-hour list, 24-hour option and separate daily colu
   );
   expect(screen.getAllByRole('listitem')).toHaveLength(12);
   expect(screen.getByText(/Thursday, September 24/)).toBeTruthy();
-  fireEvent.click(screen.getByRole('button', { name: 'Next 24 hours' }));
-  expect(screen.getAllByRole('listitem')).toHaveLength(24);
+  expect(screen.queryByRole('button', { name: 'Next 24 hours' })).toBeNull();
   fireEvent.click(screen.getByRole('button', { name: 'Daily' }));
   expect(ha.subscribe.mock.calls[1][1].forecast_type).toBe('daily');
   act(() =>
@@ -156,6 +155,55 @@ it('does not let a late hourly event replace the daily forecast', () => {
   expect(screen.queryByText('99°C')).toBeNull();
 });
 
+it('releases each forecast subscription across daily, disconnect and close, then reopens without stale rows', async () => {
+  const view = render(<CanvasWeather />);
+  const oldHourly = ha.subscribe.mock.calls[0][0] as typeof receive;
+  await act(async () => {});
+  fireEvent.click(screen.getByRole('button', { name: 'Daily' }));
+  const oldDaily = ha.subscribe.mock.calls[1][0] as typeof receive;
+  await act(async () => {});
+  expect(stop).toHaveBeenCalledTimes(1);
+  act(() => oldDaily({ forecast: [{ datetime: '2026-09-24T12:00:00Z', temperature: 8 }] }));
+  expect(screen.getAllByRole('listitem')).toHaveLength(1);
+  ha.connected = false;
+  view.rerender(<CanvasWeather />);
+  await act(async () => {});
+  expect(stop).toHaveBeenCalledTimes(2);
+  expect(screen.queryByRole('listitem')).toBeNull();
+  act(() => oldHourly({ forecast: [{ datetime: '2026-09-23T13:00:00Z', temperature: 99 }] }));
+  act(() => oldDaily({ forecast: [{ datetime: '2026-09-24T12:00:00Z', temperature: 98 }] }));
+  ha.connected = true;
+  view.rerender(<CanvasWeather />);
+  expect(ha.subscribe.mock.calls[2][1].forecast_type).toBe('daily');
+  act(() => (ha.subscribe.mock.calls[2][0] as typeof receive)({ forecast: [{ datetime: '2026-09-25T12:00:00Z', temperature: 7 }] }));
+  expect(screen.getAllByRole('listitem')).toHaveLength(1);
+  expect(screen.getByText('7°C')).toBeTruthy();
+  view.unmount();
+  await act(async () => {});
+  expect(stop).toHaveBeenCalledTimes(3);
+  render(<CanvasWeather />);
+  expect(ha.subscribe.mock.calls[3][1].forecast_type).toBe('hourly');
+  act(() => (ha.subscribe.mock.calls[3][0] as typeof receive)({ forecast: [{ datetime: '2026-09-23T13:00:00Z', temperature: 6 }] }));
+  expect(screen.getAllByRole('listitem')).toHaveLength(1);
+  expect(screen.queryByText('99°C')).toBeNull();
+  expect(screen.queryByText('98°C')).toBeNull();
+});
+
+it('keeps Verdun location and Toronto midnight labels independent of the condition icon', () => {
+  vi.setSystemTime(new Date('2026-09-24T03:45:00Z'));
+  ha.weather = { state: 'rainy', attributes: { temperature: 0, temperature_unit: '°C', supported_features: 3 } };
+  render(<CanvasWeather />);
+  expect(screen.getByText('Local forecast · Verdun, Montréal')).toBeTruthy();
+  expect(screen.getByRole('region', { name: 'Current weather' }).className).toContain('canvas-weather__sky-window--rain');
+  act(() => receive({ forecast: [
+    { datetime: '2026-09-24T03:55:00Z', temperature: 0, condition: 'sunny' },
+    { datetime: '2026-09-24T04:15:00Z', temperature: 1, condition: 'rainy' },
+  ] }));
+  expect(screen.getAllByRole('listitem')).toHaveLength(2);
+  expect(screen.getByText('Wednesday, September 23')).toBeTruthy();
+  expect(screen.getByText('Thursday, September 24')).toBeTruthy();
+});
+
 it('shows both actual offsets when fall DST repeats a local hour', () => {
   vi.setSystemTime(new Date('2026-11-01T04:00:00Z'));
   render(<CanvasWeather />);
@@ -212,7 +260,8 @@ it('omits invalid optional readings and never converts precipitation amount into
   expect(screen.queryByText('0%')).toBeNull();
   expect(screen.getByLabelText('Precipitation amount: 0 mm')).toBeTruthy();
   expect(screen.getByLabelText('Precipitation amount: 4 mm')).toBeTruthy();
-  expect(screen.getByText(/[Pp]recipitation chance.*unavailable/)).toBeTruthy();
+  expect(screen.queryByText(/[Pp]recipitation chance.*unavailable/)).toBeNull();
+  expect(screen.queryByText('amount')).toBeNull();
 });
 
 it('keeps wind unavailable without a provider unit and uses the configured temperature unit', () => {

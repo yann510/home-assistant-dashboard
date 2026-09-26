@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { HassContext, useStore, type HassContextProps } from '@hakit/core';
 import type { Connection, HassEntities } from 'home-assistant-js-websocket';
 import { SpeakerCard } from './SpeakerCard';
+import { SpeakerVolume } from './SpeakerVolume';
 
 const sendMessagePromise = vi.fn();
 const legacyCallService = vi.fn();
@@ -513,8 +514,59 @@ describe('Artwork and on-demand volume', () => {
   });
 });
 
-describe('Room picker and balanced group volume', () => {
-  it('preserves room volume differences during dragging despite delayed echoes', async () => {
+describe('Room picker and group volume', () => {
+  it('rechecks confirmed membership when dispatching a volume change', async () => {
+    render(
+      <HassContext.Provider value={context}>
+        <SpeakerVolume entityId='media_player.living_room' targets={['media_player.living_room', 'media_player.gym']} disabled={false} />
+      </HassContext.Provider>
+    );
+    updateEntity('media_player.living_room', {}, { group_members: ['media_player.living_room'] });
+    await userEvent.click(screen.getByRole('button', { name: 'Increase volume' }));
+    expect(sendMessagePromise).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+      service: 'volume_set',
+      target: { entity_id: ['media_player.living_room'] },
+      service_data: { volume_level: 0.36 },
+    }));
+  });
+
+  it('includes a newly confirmed room when a volume gesture ends', async () => {
+    render(
+      <HassContext.Provider value={context}>
+        <SpeakerVolume entityId='media_player.living_room' targets={['media_player.living_room', 'media_player.gym']} disabled={false} />
+      </HassContext.Provider>
+    );
+    const slider = screen.getByRole('slider', { name: 'Volume' });
+    fireEvent.pointerDown(slider);
+    fireEvent.change(slider, { target: { value: '50' } });
+    updateEntity('media_player.living_room', {}, { group_members: ['media_player.living_room', 'media_player.gym', 'media_player.bathroom'] });
+    await act(async () => { fireEvent.pointerUp(slider); });
+    expect(sendMessagePromise).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+      service: 'volume_set',
+      target: { entity_id: ['media_player.living_room', 'media_player.gym', 'media_player.bathroom'] },
+      service_data: { volume_level: 0.5 },
+    }));
+  });
+
+  it('keeps a partial group volume failure visible after one room updates', async () => {
+    updateEntity('media_player.living_room', {}, { volume_level: 0.4 });
+    updateEntity('media_player.gym', {}, { volume_level: 0.2 });
+    sendMessagePromise.mockImplementation(async () => {
+      updateEntity('media_player.living_room', {}, { volume_level: 0.5 });
+      throw new Error('Gym did not update');
+    });
+    mountCard();
+    openVolume();
+    fireEvent.change(screen.getByRole('slider', { name: 'Volume' }), { target: { value: '50' } });
+    expect((await screen.findByRole('alert')).textContent).toContain('Gym did not update');
+    expect(useStore.getState().entities['media_player.living_room'].attributes.volume_level).toBe(0.5);
+    expect(useStore.getState().entities['media_player.gym'].attributes.volume_level).toBe(0.2);
+    expect(sendMessagePromise).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+      service: 'volume_set', target: { entity_id: ['media_player.living_room', 'media_player.gym'] },
+    }));
+  });
+
+  it('sets the same volume in every room on release despite different levels and delayed echoes', async () => {
     updateEntity('media_player.living_room', {}, { volume_level: 0.4 });
     updateEntity('media_player.gym', {}, { volume_level: 0.2 });
     mountCard();
@@ -524,15 +576,12 @@ describe('Room picker and balanced group volume', () => {
     fireEvent.change(slider, { target: { value: '50' } });
     updateEntity('media_player.gym', {}, { volume_level: 0.23 });
     await act(async () => fireEvent.pointerUp(slider));
-    expect(sendMessagePromise).toHaveBeenCalledWith(
+    expect(sendMessagePromise).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({
         service: 'volume_set',
-        target: { entity_id: ['media_player.living_room'] },
+        target: { entity_id: ['media_player.living_room', 'media_player.gym'] },
         service_data: { volume_level: 0.5 },
       })
-    );
-    expect(sendMessagePromise).toHaveBeenCalledWith(
-      expect.objectContaining({ service: 'volume_set', target: { entity_id: ['media_player.gym'] }, service_data: { volume_level: 0.3 } })
     );
   });
 
@@ -682,7 +731,7 @@ describe('Room grouping edge cases', () => {
     expect(sendMessagePromise).not.toHaveBeenCalled();
   });
 
-  it('captures a fresh balance after an untouched gesture', async () => {
+  it('sets a uniform level after an untouched gesture and external room changes', async () => {
     mountCard();
     openVolume();
     const slider = screen.getByRole('slider', { name: 'Volume' });
@@ -691,7 +740,10 @@ describe('Room grouping edge cases', () => {
     updateEntity('media_player.gym', {}, { volume_level: 0.2 });
     await userEvent.click(screen.getByRole('button', { name: 'Increase volume' }));
     expect(sendMessagePromise).toHaveBeenCalledWith(
-      expect.objectContaining({ target: { entity_id: ['media_player.gym'] }, service_data: { volume_level: 0.22 } })
+      expect.objectContaining({
+        target: { entity_id: ['media_player.living_room', 'media_player.gym'] },
+        service_data: { volume_level: 0.36 },
+      })
     );
   });
 });
@@ -704,17 +756,39 @@ describe('Mixed group levels', () => {
     expect(screen.getByRole('button', { name: 'Mute' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Unmute' })).toBeNull();
   });
-  it('clamps each room independently while retaining differences elsewhere', async () => {
+  it.each([
+    ['Increase volume', 0.42],
+    ['Decrease volume', 0.38],
+  ] as const)('sets every room to the same level using %s', async (label, expected) => {
     updateEntity('media_player.living_room', {}, { volume_level: 0.4 });
     updateEntity('media_player.gym', {}, { volume_level: 0.95 });
     mountCard();
     openVolume();
-    await act(async () => fireEvent.change(screen.getByRole('slider', { name: 'Volume' }), { target: { value: '50' } }));
-    expect(sendMessagePromise).toHaveBeenCalledWith(
-      expect.objectContaining({ target: { entity_id: ['media_player.living_room'] }, service_data: { volume_level: 0.5 } })
+    await userEvent.click(screen.getByRole('button', { name: label }));
+    expect(sendMessagePromise).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        service: 'volume_set',
+        target: { entity_id: ['media_player.living_room', 'media_player.gym'] },
+        service_data: { volume_level: expected },
+      })
     );
-    expect(sendMessagePromise).toHaveBeenCalledWith(
-      expect.objectContaining({ target: { entity_id: ['media_player.gym'] }, service_data: { volume_level: 1 } })
+  });
+
+  it.each([
+    [{ state: 'unavailable' }, {}],
+    [{}, { supported_features: 0 }],
+    [{}, { volume_level: undefined }],
+  ])('skips a room that cannot accept volume changes', async (patch, attributes) => {
+    updateEntity('media_player.gym', patch, attributes);
+    mountCard();
+    openVolume();
+    await act(async () => fireEvent.change(screen.getByRole('slider', { name: 'Volume' }), { target: { value: '50' } }));
+    expect(sendMessagePromise).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        service: 'volume_set',
+        target: { entity_id: ['media_player.living_room'] },
+        service_data: { volume_level: 0.5 },
+      })
     );
   });
 });

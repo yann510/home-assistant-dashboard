@@ -140,19 +140,58 @@ it('sends completion dismissal with the exact episode while retaining live activ
   expect(screen.getByRole('button', { name: /Dishwasher.*Washing/ })).toBeTruthy();
 });
 
-it('preserves one mood controller across overview and detail, including End and recovery retry', async () => {
+it('keeps simultaneous appliance activity and a new completion episode while an old dismissal is pending', async () => {
+  const dismissal = deferred();
+  ref.current!.respondWith(() => dismissal.promise);
+  ref.current!.publish('sensor.washer_washer_machine_state', 'run');
+  ref.current!.publish('sensor.washer_washer_job_state', 'wash');
+  ref.current!.publish('sensor.dryer_dryer_machine_state', 'run');
+  ref.current!.publish('sensor.dryer_dryer_job_state', 'drying');
+  const reminder = (id: string, episode: string, title: string) => ({
+    id, episode, title, detail: 'Cycle complete', tone: 'blue', icon: 'washer', target: 'appliances',
+    kind: 'completion', occurred_at: new Date().toISOString(), snoozed_until: null, snooze_seconds: 3600,
+  });
+  const dryer = reminder('dryer-finished', 'dryer-1', 'Dryer finished');
+  const washer = reminder('washer-finished', 'washer-1', 'Washer finished');
+  ref.current!.publish('sensor.dashboard_attention', '2', { ready: true, items: [washer, dryer] });
+  render(<CanvasDashboard />);
+  expect(screen.getByRole('button', { name: /Washer.*Washing/ })).toBeTruthy();
+  expect(screen.getByRole('button', { name: /Dryer.*Drying/ })).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'View: Washer finished' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Done: Washer finished' }));
+  expect(ref.current!.calls).toContainEqual(expect.objectContaining({
+    service: 'dismiss', service_data: { id: 'washer-finished', episode: 'washer-1' },
+  }));
+  act(() => ref.current!.publish('sensor.washer_washer_job_state', 'finished'));
+  expect(screen.getByRole('button', { name: /Washer.*Finished/ })).toBeTruthy();
+  act(() => {
+    ref.current!.publish('sensor.washer_washer_job_state', 'wash');
+    ref.current!.publish('sensor.dashboard_attention', '2', {
+      ready: true, items: [reminder('washer-finished', 'washer-2', 'Washer finished again'), dryer],
+    });
+  });
+  expect(screen.getByRole('button', { name: /Washer.*Washing/ })).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'View: Washer finished again' })).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'View: Dryer finished' })).toBeTruthy();
+  await act(async () => dismissal.resolve({}));
+  expect(screen.getByRole('button', { name: 'View: Washer finished again' })).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'View: Dryer finished' })).toBeTruthy();
+});
+
+it('keeps mood selection, End, and recovery retry available on the overview', async () => {
   ref.current!.publish('sensor.house_mood', 'active', { active_mood: 'love' });
   render(<CanvasDashboard />);
   for (const name of ['Love', 'Unwind', 'Dinner', 'Party', 'Gym'])
     expect(screen.getByRole('button', { name: `${name} mood` })).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: 'End mood' }));
   expect(ref.current!.calls).toContainEqual(expect.objectContaining({ domain: 'house_moods', service: 'end' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Explore moods' }));
-  expect(screen.getByRole('dialog', { name: 'House Mood' })).toBeTruthy();
+  expect(screen.queryByRole('button', { name: 'Explore moods' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Mood details' })).toBeNull();
+  expect(screen.queryByText('House mood is on')).toBeNull();
   act(() =>
     ref.current!.publish('sensor.house_mood', 'recovery_required', { errors: [{ target: 'lamp', message: 'Could not restore lamp' }] })
   );
-  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Retry restoration' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Retry restoration' }));
   expect(ref.current!.calls).toContainEqual(expect.objectContaining({ domain: 'house_moods', service: 'retry_restoration' }));
 });
 
@@ -173,7 +212,6 @@ it('finds real devices by name and room and reaches every secondary category', (
     'Player',
     'Speakers',
     'Weather',
-    'House Mood',
     'Thermostats',
     'Appliances',
     'Roomba',
@@ -186,7 +224,6 @@ it('finds real devices by name and room and reaches every secondary category', (
     'Player',
     'Speakers',
     'Weather',
-    'House Mood',
     'Thermostats',
     'Appliances',
     'Roomba',
@@ -230,7 +267,7 @@ it('keeps pending blind targets and Stop after navigating from Bedroom to Gym', 
   fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Gym blinds' }));
   const gym = screen.getByRole('dialog', { name: 'Gym blinds' });
   expect(within(gym).getByRole('button', { name: 'Open selected blinds' }).hasAttribute('disabled')).toBe(true);
-  fireEvent.click(within(gym).getByRole('button', { name: 'Stop moving blinds in Bedroom' }));
+  fireEvent.click(within(gym).getByRole('button', { name: 'Stop recently requested blinds in Bedroom' }));
   expect(ref.current!.calls).toHaveLength(2);
   expect((ref.current!.calls[1] as { service_data: { command: string } }).service_data.command).toBe('stop all the blinds bedroom');
   await act(async () => opening.resolve({}));
@@ -266,6 +303,19 @@ it('mounts and reconnects Roomba detail without sending a command, filtering uns
   expect(ref.current!.calls).toHaveLength(0);
   act(() => ref.current!.disconnect());
   act(() => ref.current!.reconnect());
+  expect(ref.current!.calls).toHaveLength(0);
+});
+
+it('shows an unavailable Roomba as uncertain and sends no command from read-only navigation', () => {
+  ref.current!.publish('vacuum.roomba', 'unavailable', { supported_features: 8192 | 4 | 16 });
+  render(<CanvasDashboard />);
+  fireEvent.click(screen.getByRole('button', { name: 'All devices' }));
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Roomba' }));
+  const detail = within(screen.getByRole('dialog', { name: 'Roomba' }));
+  expect(detail.getByText('Reconnect or wait for a reliable Roomba state to use controls.')).toBeTruthy();
+  expect(detail.queryByRole('button', { name: 'Start cleaning' })).toBeNull();
+  expect(detail.queryByRole('button', { name: 'Pause cleaning' })).toBeNull();
+  expect(detail.queryByRole('button', { name: 'Return to dock' })).toBeNull();
   expect(ref.current!.calls).toHaveLength(0);
 });
 
@@ -457,19 +507,16 @@ it.each(['activate', 'end'])('shows overview mood %s uncertainty and keeps its n
     const name = service === 'end' ? 'End mood' : 'Love mood';
     fireEvent.click(screen.getByRole('button', { name }));
     await act(async () => vi.advanceTimersByTime(35000));
-    expect(screen.getByRole('alert').textContent).toContain('Waiting for Home Assistant confirmation.');
+    expect(screen.getByRole('alert').textContent).toContain('Waiting for Home Assistant to confirm the change.');
     fireEvent.click(screen.getByRole('button', { name }));
     expect(ref.current!.calls).toHaveLength(1);
     expect(screen.getByRole('button', { name }).hasAttribute('disabled')).toBe(true);
-    fireEvent.click(screen.getByRole('button', { name: 'Mood details' }));
-    expect(within(screen.getByRole('dialog')).getByRole('alert').textContent).toContain(
-      'Waiting for Home Assistant to confirm the change.'
-    );
+    expect(screen.queryByRole('button', { name: 'Mood details' })).toBeNull();
   } finally {
     vi.useRealTimers();
   }
 });
-it('shows a terminal mood rejection on the overview and its full explanation in details', async () => {
+it('shows a terminal mood rejection with its full explanation on the overview', async () => {
   ref.current!.publish('sensor.house_mood', 'idle');
   ref.current!.respondWith(() =>
     Promise.resolve({ response: { success: false, phase: 'idle', errors: [{ target: 'lamp', message: 'Lamp rejected activation' }] } })
@@ -477,9 +524,8 @@ it('shows a terminal mood rejection on the overview and its full explanation in 
   render(<CanvasDashboard />);
   fireEvent.click(screen.getByRole('button', { name: 'Love mood' }));
   await act(async () => {});
-  expect(screen.getByRole('alert').textContent).toContain('Mood change needs attention.');
-  fireEvent.click(screen.getByRole('button', { name: 'Mood details' }));
-  expect(within(screen.getByRole('dialog')).getByRole('alert').textContent).toContain('Lamp rejected activation');
+  expect(screen.getByRole('alert').textContent).toContain('Lamp rejected activation');
+  expect(screen.queryByRole('button', { name: 'Mood details' })).toBeNull();
 });
 
 it('retains thermostat disconnect uncertainty across navigation and never replays on reconnect', async () => {
@@ -510,6 +556,22 @@ it('uses thermostat bounds, supported features and reported availability indepen
   expect(ref.current!.calls).toEqual([
     expect.objectContaining({ target: { entity_id: ['climate.thermostat_office'] }, service_data: { temperature: 21 } }),
   ]);
+});
+
+it('honours fractional thermostat steps while off and unsupported rooms remain read-only', () => {
+  ref.current!.publish('climate.thermostat_office', 'heat', { ...thermostatAttrs, temperature: 20.25, target_temp_step: 0.25 });
+  ref.current!.publish('climate.thermostat_gym', 'off', { ...thermostatAttrs, supported_features: 1 });
+  ref.current!.publish('climate.thermostat_bedroom', 'heat', { ...thermostatAttrs, supported_features: 0 });
+  render(<CanvasDashboard />);
+  openThermostats();
+  expect(ref.current!.calls).toHaveLength(0);
+  for (const room of ['Gym', 'Bedroom'])
+    expect(screen.getByRole('button', { name: `Raise ${room} target temperature` }).hasAttribute('disabled')).toBe(true);
+  fireEvent.click(screen.getByRole('button', { name: 'Raise Office target temperature' }));
+  expect(ref.current!.calls).toEqual([expect.objectContaining({
+    domain: 'climate', service: 'set_temperature', target: { entity_id: ['climate.thermostat_office'] },
+    service_data: { temperature: 20.5 },
+  })]);
 });
 
 it('restores the chosen snoozed episode from the contained pulse row and locks restores while saving', async () => {

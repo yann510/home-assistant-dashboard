@@ -16,7 +16,11 @@ export function CanvasFollow() {
         disabled={s.updating || rooms.busy || !s.canToggle}
         onClick={() => void s.updateFollowing(s.following ? 'disable' : 'enable')}
       >
-        Follow me <span>{s.following ? 'On' : 'Off'}</span>
+        <span className='canvas-music__follow-label'>Follow me</span>
+        <span className='canvas-music__follow-state' aria-hidden='true'>
+          <span className='canvas-music__follow-indicator' />
+          {s.following ? 'On' : 'Off'}
+        </span>
       </button>
       {s.updating && <p role='status'>Updating Follow me…</p>}
       {!s.connected ? (
@@ -84,13 +88,6 @@ export function CanvasMusic({
   }
   return (
     <section className='canvas__music canvas-music' aria-label='Music'>
-      <div className='canvas-music__top'>
-        <CanvasFollow />
-        <button className='canvas-music__room' aria-label='Open speakers' onClick={event => openSpeakers(event.currentTarget)}>
-          {attributes?.friendly_name ?? 'Speakers'}
-          {session.targets.length > 1 ? ` +${session.targets.length - 1}` : ''} →
-        </button>
-      </div>
       <div className='canvas-music__track'>
         <div className='canvas-music__cover' aria-hidden='true'>
           {picture && failedArtwork !== picture ? (
@@ -120,6 +117,13 @@ export function CanvasMusic({
           disabled={disabled}
           onOpenSettings={openSpeakers}
         />
+      </div>
+      <div className='canvas-music__settings'>
+        <CanvasFollow />
+        <button className='canvas-music__room' aria-label='Open speakers' onClick={event => openSpeakers(event.currentTarget)}>
+          {attributes?.friendly_name ?? 'Speakers'}
+          {session.targets.length > 1 ? ` +${session.targets.length - 1}` : ''} →
+        </button>
       </div>
       <svg className='canvas-music__art' viewBox='0 0 200 160' aria-hidden='true'>
         <circle cx='140' cy='80' r='70' />

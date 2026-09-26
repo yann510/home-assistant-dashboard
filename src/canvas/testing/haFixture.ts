@@ -82,6 +82,10 @@ export function createHaFixture() {
     respondWith(response: (message: unknown) => Promise<unknown>) {
       responder = response;
     },
+    respondInOrder(...responses: readonly Promise<unknown>[]) {
+      const pending = [...responses];
+      responder = () => pending.shift() ?? Promise.reject(new Error('Unexpected Home Assistant call'));
+    },
     reset() {
       calls.length = 0;
       responder = () => Promise.resolve({});

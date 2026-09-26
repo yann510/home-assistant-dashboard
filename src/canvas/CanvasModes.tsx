@@ -12,6 +12,7 @@ export function CanvasModes({ modes }: { modes: Modes }) {
           aria-label={`${mode.label} mode`}
           aria-pressed={mode.state === 'on'}
           disabled={mode.disabled}
+          title={mode.disabledReason}
           onClick={mode.activate}
         >
           {mode.label}
@@ -23,7 +24,7 @@ export function CanvasModes({ modes }: { modes: Modes }) {
 function ModeFeedback({ mode }: { mode: Modes[number] }) {
   const item = useRef<HTMLDivElement>(null);
   const phase = mode.feedback?.phase;
-  const visible = phase && phase !== 'observed';
+  const visible = phase && phase !== 'observed' && phase !== 'accepted';
   useEffect(() => {
     // Reveal new feedback within the pulse strip without moving the page.
     if (visible && item.current?.parentElement) item.current.parentElement.scrollLeft = 0;
@@ -38,9 +39,7 @@ function ModeFeedback({ mode }: { mode: Modes[number] }) {
           ? 'failed. Try again.'
           : phase === 'unconfirmed'
             ? 'not confirmed. Check state.'
-            : phase === 'accepted'
-              ? 'waiting for state…'
-              : 'sending…'}
+            : 'sending…'}
         {failure && <span className='canvas-modes__detail'> {mode.feedback?.message}</span>}
       </span>
       {failure && (

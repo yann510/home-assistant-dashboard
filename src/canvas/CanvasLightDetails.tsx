@@ -1,4 +1,4 @@
-import { useId, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import { useStore, type LightEntity } from '@hakit/core';
 import { lightSupportsBrightness, useCanvasLights } from './useCanvasLights';
 
@@ -28,6 +28,8 @@ export function CanvasLightDetails({ entityId }: { entityId: string }) {
       ? { min: miredMin, max: miredMax, value: numeric(attrs?.color_temp), key: 'color_temp', unit: 'mired' }
       : null);
   const [brightnessDraft, setBrightnessDraft] = useState<number | null>(null);
+  const brightnessPointerActive = useRef(false);
+  const brightnessPointerCancelled = useRef(false);
   const [temperatureDraft, setTemperatureDraft] = useState<number | null>(null);
   const [colourDraft, setColourDraft] = useState<string | null>(null);
   const [effectDraft, setEffectDraft] = useState<string | null>(null);
@@ -54,6 +56,11 @@ export function CanvasLightDetails({ entityId }: { entityId: string }) {
     if (brightnessDraft === null) return;
     const value = Math.round(brightnessDraft / 100 * 255);
     void sendValue({ brightness: value }, next => Math.abs(Number(next.attributes.brightness) - value) <= 1, () => setBrightnessDraft(null));
+  };
+  const cancelBrightnessPointer = () => {
+    brightnessPointerActive.current = false;
+    brightnessPointerCancelled.current = true;
+    setBrightnessDraft(null);
   };
   const commitTemperature = () => {
     if (!temperature || temperatureDraft === null) return;
@@ -83,8 +90,15 @@ export function CanvasLightDetails({ entityId }: { entityId: string }) {
     {lightSupportsBrightness(entity) && <label className='canvas-lights__slider'>Brightness
       <input aria-label='Light brightness' aria-valuetext={`${brightnessDraft !== null || brightnessPercent === undefined ? 'proposed' : 'reported'} ${brightnessPosition} percent${brightnessPercent === undefined ? '; current brightness unknown' : ''}`}
         type='range' min='1' max='100' value={brightnessPosition}
-        disabled={!available || working || committing} onChange={event => setBrightnessDraft(Number(event.target.value))}
-        onPointerUp={commitBrightness} onKeyUp={commitBrightness} onBlur={commitBrightness} />
+        disabled={!available || working || committing} onChange={event => {
+          if (!brightnessPointerActive.current) brightnessPointerCancelled.current = false;
+          setBrightnessDraft(Number(event.target.value));
+        }}
+        onPointerDown={() => { brightnessPointerActive.current = true; brightnessPointerCancelled.current = false; }}
+        onPointerCancel={cancelBrightnessPointer}
+        onPointerUp={() => { brightnessPointerActive.current = false; if (!brightnessPointerCancelled.current) commitBrightness(); }}
+        onKeyUp={() => { if (!brightnessPointerActive.current) commitBrightness(); }}
+        onBlur={() => { if (brightnessPointerActive.current) cancelBrightnessPointer(); else if (!brightnessPointerCancelled.current) commitBrightness(); }} />
       <output>{brightnessDraft !== null || brightnessPercent === undefined ? 'Proposed' : 'Reported'} brightness {brightnessPosition}%</output>
       {brightnessPercent === undefined && <small className='canvas-lights__reading'>Current brightness unknown</small>}</label>}
     {colour && <label className='canvas-lights__field'>Colour

@@ -59,12 +59,12 @@ it.each(['Day', 'Night'])('does not turn off an active %s mode or touch the othe
   expect(screen.getByRole('button', { name: 'Night mode' }).getAttribute('aria-pressed')).toBe('true');
 });
 
-it('clears feedback after reported success without resending or leaving a success message', async () => {
+it('does not claim routine completion from a helper update', async () => {
   ref.current!.publish('input_boolean.morning_mode', 'on');
   ref.current!.publish('input_boolean.night_mode', 'off');
   render(<Surface />);
   await userEvent.click(screen.getByRole('button', { name: 'Night mode' }));
-  expect(screen.getByRole('status').textContent).toContain('waiting for state');
+  expect(screen.queryByRole('status')).toBeNull();
   act(() => ref.current!.publish('input_boolean.night_mode', 'on'));
   expect(screen.queryByRole('status')).toBeNull();
   expect(screen.queryByText('State updated.')).toBeNull();

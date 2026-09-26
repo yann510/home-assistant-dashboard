@@ -22,7 +22,7 @@ import { attentionExplanation, type AttentionItem } from '../attention';
 import { CanvasThermostats, CanvasThermostatsProvider } from './CanvasThermostats';
 import { AppliancesCard } from '../AppliancesCard';
 import { CanvasVacuum, CanvasVacuumProvider } from './CanvasVacuum';
-import { CanvasWeather, CanvasWeatherNow } from './CanvasWeather';
+import { CanvasWeatherDialog, CanvasWeatherNow } from './CanvasWeather';
 import './canvas.css';
 import './canvas-music.css';
 import './canvas-secondary.css';
@@ -39,7 +39,11 @@ function CanvasDashboardContent(): React.JSX.Element {
   const mood = useHouseMood();
   const attention = useAttention();
   const [selectedAttention, setSelectedAttention] = useState<AttentionItem | null>(null);
-  const activeAttention = selectedAttention ? (attention.items.find(item => item.id === selectedAttention.id) ?? null) : null;
+  const activeAttention = selectedAttention
+    ? (attention.items.find(
+        item => item.id === selectedAttention.id && (!item.snoozed_until || Date.parse(item.snoozed_until) <= attention.now)
+      ) ?? null)
+    : null;
 
   useEffect(() => {
     if (backFocus.current) {
@@ -109,78 +113,93 @@ function CanvasDashboardContent(): React.JSX.Element {
         </header>
         <CanvasPulse onOpen={open} attention={attention} onSelect={setSelectedAttention} feedback={<CanvasModeFeedback modes={modes} />} />
         <div className='canvas__feature-band'>
-          <CanvasMood controller={mood} onExplore={trigger => open({ kind: 'moods' }, trigger)} />
+          <CanvasMood
+            controller={mood}
+            attention={activeAttention?.target === 'mood' ? activeAttention : null}
+            attentionBusy={attention.busy || !attention.connected || !attention.ready}
+            onAttentionAction={item => {
+              void attention.onAction(item.kind === 'completion' ? 'dismiss' : 'snooze', item);
+            }}
+          />
           <CanvasMusic
             onOpenPlayer={trigger => open({ kind: 'player' }, trigger)}
             onOpenSpeakers={trigger => open({ kind: 'speakers' }, trigger)}
           />
         </div>
         <section className='canvas__shortcuts' aria-label='Home controls'>
-          <CanvasLights onOpenAll={trigger => open({ kind: 'all-lights' }, trigger)} />
+          <CanvasLights
+            onOpenAll={trigger => open({ kind: 'all-lights' }, trigger)}
+            onOpenLight={(entityId, trigger) => open({ kind: 'light', entityId }, trigger)}
+          />
           <CanvasBlinds />
         </section>
       </div>
-      {route.kind !== 'overview' && (
-        <CanvasDialog
-          title={canvasRouteTitle(route)}
+      {route.kind === 'weather' ? (
+        <CanvasWeatherDialog
           onClose={close}
           onBack={routeHistory.length > 1 ? back : undefined}
           routeKey={JSON.stringify(route)}
           scrollTop={dialogScrollTop}
-        >
-          {activeAttention && routeForAttention(activeAttention).kind === route.kind && (
-            <div className='canvas-attention-context'>
-              <strong>{activeAttention.title}</strong>
-              <p>{activeAttention.detail}</p>
-              <p>{attentionExplanation(activeAttention)}</p>
-              <button
-                type='button'
-                disabled={!attention.connected || attention.busy || !attention.ready}
-                aria-label={`${activeAttention.kind === 'completion' ? 'Done' : 'Snooze'}: ${activeAttention.title}`}
-                onClick={() => void attention.onAction(activeAttention.kind === 'completion' ? 'dismiss' : 'snooze', activeAttention)}
-              >
-                {activeAttention.kind === 'completion' ? 'Done' : 'Snooze'}
-              </button>
-              {attention.busy && <p role='status'>Saving reminder…</p>}
-              {attention.error && <p role='alert'>{attention.error}</p>}
-              <button type='button' onClick={close}>
-                Back to House pulse
-              </button>
-            </div>
-          )}
-          {route.kind === 'all-devices' ? (
-            <CanvasDevices
-              query={deviceQuery}
-              onQueryChange={setDeviceQuery}
-              onOpen={(next, trigger) => {
-                setSelectedAttention(null);
-                open(next, trigger);
-              }}
-            />
-          ) : route.kind === 'player' ? (
-            <CanvasPlayer />
-          ) : route.kind === 'speakers' ? (
-            <CanvasSpeakers />
-          ) : route.kind === 'all-lights' ? (
-            <CanvasAllLights onOpenLight={(entityId, trigger) => open({ kind: 'light', entityId }, trigger)} />
-          ) : route.kind === 'light' ? (
-            <CanvasLightDetails key={route.entityId} entityId={route.entityId} />
-          ) : route.kind === 'blinds' ? (
-            <CanvasBlinds key={route.room ?? 'all'} initialRoom={route.room} />
-          ) : route.kind === 'moods' ? (
-            <CanvasMood controller={mood} detail />
-          ) : route.kind === 'thermostats' ? (
-            <CanvasThermostats />
-          ) : route.kind === 'appliances' ? (
-            <AppliancesCard />
-          ) : route.kind === 'vacuum' ? (
-            <CanvasVacuum />
-          ) : route.kind === 'weather' ? (
-            <CanvasWeather />
-          ) : (
-            <p className='canvas__empty'>Live {canvasRouteTitle(route).toLowerCase()} controls will appear here.</p>
-          )}
-        </CanvasDialog>
+        />
+      ) : (
+        route.kind !== 'overview' && (
+          <CanvasDialog
+            title={canvasRouteTitle(route)}
+            onClose={close}
+            onBack={routeHistory.length > 1 ? back : undefined}
+            routeKey={JSON.stringify(route)}
+            scrollTop={dialogScrollTop}
+          >
+            {activeAttention && routeForAttention(activeAttention).kind === route.kind && (
+              <div className='canvas-attention-context'>
+                <strong>{activeAttention.title}</strong>
+                <p>{activeAttention.detail}</p>
+                <p>{attentionExplanation(activeAttention)}</p>
+                <button
+                  type='button'
+                  disabled={!attention.connected || attention.busy || !attention.ready}
+                  aria-label={`${activeAttention.kind === 'completion' ? 'Done' : 'Snooze'}: ${activeAttention.title}`}
+                  onClick={() => void attention.onAction(activeAttention.kind === 'completion' ? 'dismiss' : 'snooze', activeAttention)}
+                >
+                  {activeAttention.kind === 'completion' ? 'Done' : 'Snooze'}
+                </button>
+                {attention.busy && <p role='status'>Saving reminder…</p>}
+                {attention.error && <p role='alert'>{attention.error}</p>}
+                <button type='button' onClick={close}>
+                  Back to House pulse
+                </button>
+              </div>
+            )}
+            {route.kind === 'all-devices' ? (
+              <CanvasDevices
+                query={deviceQuery}
+                onQueryChange={setDeviceQuery}
+                onOpen={(next, trigger) => {
+                  setSelectedAttention(null);
+                  open(next, trigger);
+                }}
+              />
+            ) : route.kind === 'player' ? (
+              <CanvasPlayer />
+            ) : route.kind === 'speakers' ? (
+              <CanvasSpeakers />
+            ) : route.kind === 'all-lights' ? (
+              <CanvasAllLights onOpenLight={(entityId, trigger) => open({ kind: 'light', entityId }, trigger)} />
+            ) : route.kind === 'light' ? (
+              <CanvasLightDetails key={route.entityId} entityId={route.entityId} />
+            ) : route.kind === 'blinds' ? (
+              <CanvasBlinds key={route.room ?? 'all'} initialRoom={route.room} />
+            ) : route.kind === 'thermostats' ? (
+              <CanvasThermostats />
+            ) : route.kind === 'appliances' ? (
+              <AppliancesCard />
+            ) : route.kind === 'vacuum' ? (
+              <CanvasVacuum />
+            ) : (
+              <p className='canvas__empty'>Live {canvasRouteTitle(route).toLowerCase()} controls will appear here.</p>
+            )}
+          </CanvasDialog>
+        )
       )}
     </main>
   );

@@ -19,6 +19,7 @@ class MoodCoordinator:
         self._on_status = on_status
         self._last_errors = []
         self._storage_failed = False
+        self._manual_during_operation = set()
 
     def status(self, success=True):
         s = self.session
@@ -26,6 +27,7 @@ class MoodCoordinator:
                 'phase': 'recovery_required' if self._storage_failed else s.phase if s else 'idle',
                 'active_mood': s.active_mood if s else None,
                 'pending_mood': s.pending_mood if s else None,
+                'pending_mode': s.mode_intent if s else None,
                 'affected_devices': sorted(s.owned) if s else [],
                 'errors': copy.deepcopy(self._last_errors or (s.errors if s else []))}
 
@@ -75,6 +77,97 @@ class MoodCoordinator:
         self._publish()
         return self.status(False)
 
+    def note_external(self, target):
+        """Capture intent synchronously, before a service can overtake an awaited write."""
+        if self._lock.locked():
+            self._manual_during_operation.add(target)
+        s = self.session
+        if s and target in s.baseline:
+            s.overridden.add(target)
+            s.owned.discard(target)
+
+    async def apply_mode(self, mode):
+        # Do not queue a stale opposite mode behind a running transition.
+        if self._lock.locked():
+            result = self.status(False)
+            result['errors'] = [{'target': 'coordinator', 'message': 'Operation in progress'}]
+            return result
+        async with self._lock:
+            self._last_errors = []
+            self._manual_during_operation.clear()
+            try:
+                await self._load()
+                if self._storage_failed or (self.session and self.session.phase != 'active'):
+                    raise ValueError('Resolve recovery before changing mode')
+                await self.adapter.preflight_mode(mode)
+                targets = set(self.adapter.mode_targets(mode))
+                captured = await self.adapter.capture(sorted(targets))
+                if set(captured) != targets:
+                    raise ValueError('Incomplete mode snapshot')
+                if not self.session:
+                    self.session = Session(str(uuid.uuid4()), None, 'restoring')
+                s = self.session
+                for target, state in captured.items():
+                    s.baseline.setdefault(target, copy.deepcopy(state))
+                # Mode owns these lights now: never restore their brighter mood baseline.
+                s.owned.difference_update(targets)
+                s.overridden.difference_update(targets)
+                s.mode_intent = mode
+                s.phase, s.active_mood, s.pending_mood = 'restoring', None, None
+                await self._save()
+                return await self._finish_mode()
+            except PersistenceError as err:
+                return await self._storage_error(err)
+            except Exception as err:
+                self._error('mode', err)
+                if self.session and self.session.mode_intent:
+                    self.session.phase = 'recovery_required'
+                    await self._save()
+                self._publish()
+                return self.status(False)
+
+    async def _finish_mode(self):
+        s = self.session
+        mode = s.mode_intent
+        await self.adapter.preflight_mode(mode)
+        # Stop/restore remaining owned controls (music, Follow me, other lights).
+        # Any mode-controlled light was relinquished before this phase.
+        await self._resolve_planned()
+        blocked, failed = await self._prepare_restoration(s.owned.copy())
+        await self._restore_targets(s.owned - blocked)
+        if s.owned or self._pending_targets() or failed:
+            s.phase = 'recovery_required'
+            await self._save()
+            return self.status(False)
+        for step in self.adapter.mode_steps(mode):
+            if step in s.mode_completed:
+                continue
+            target = self.adapter.mode_step_target(mode, step)
+            if target:
+                current = await self.adapter.read(target)
+                # A changed report or explicit manual intent after a failed write
+                # wins over a retry, including an identical manual service call.
+                changed = step in s.mode_before and not matches(target, s.mode_before[step], current)
+                if target in s.overridden or target in self._manual_during_operation or changed:
+                    s.mode_completed.append(step)
+                    await self._save()
+                    continue
+                s.mode_before[step] = copy.deepcopy(current)
+            await self._save()  # Durable pending step before physical I/O.
+            if target and (target in s.overridden or target in self._manual_during_operation):
+                s.mode_completed.append(step)
+                await self._save()
+                continue
+            await self.adapter.apply_mode_step(mode, step, s.session_id)
+            s.mode_completed.append(step)
+            await self._save()
+        self.session = None
+        await self._save()
+        result = self.status()
+        # DP acceptance cannot prove physical staging; never report observed success.
+        result['mode_result'] = 'accepted'
+        return result
+
     async def activate(self, mood):
         if self._lock.locked():
             result = self.status(False)
@@ -82,6 +175,7 @@ class MoodCoordinator:
             return result
         async with self._lock:
             self._last_errors = []
+            self._manual_during_operation.clear()
             try:
                 await self._load()
                 if self._storage_failed or (self.session and self.session.phase != 'active'):
@@ -160,6 +254,7 @@ class MoodCoordinator:
             return result
         async with self._lock:
             self._last_errors = []
+            self._manual_during_operation.clear()
             try:
                 await self._load()
                 s = self.session
@@ -202,21 +297,34 @@ class MoodCoordinator:
 
     async def _apply_write(self, write):
         s = self.session
+        if set(write.targets) & self._manual_during_operation:
+            return
         before = await self.adapter.capture(write.targets)
+        if set(write.targets) & self._manual_during_operation:
+            return
         entry = self._entry(write.operation_id, 'apply', write.targets, write.requested, before, write.transition_seconds)
         s.journal.append(entry)
+        for target in write.targets:
+            hint = s.baseline.get(target, {}).get('_mode_staging')
+            if hint and 'brightness' in write.requested[target]:
+                hint['written'] = True
         # Selecting a new mood explicitly reclaims its included
         # controls, even if a previous mood was overridden.
         for target in write.targets:
             s.overridden.discard(target)
         await self._save()
+        if set(write.targets) & self._manual_during_operation:
+            entry['status'], entry['resolved'] = 'failed', list(write.targets)
+            await self._save()
+            return
         observations = await self.adapter.apply_write(write, s.session_id)
         for target in write.targets:
             if target not in observations or not matches(target, write.requested[target], observations[target]):
                 raise RuntimeError('Device did not confirm requested state: ' + target)
             s.expected[target] = copy.deepcopy(observations[target])
-            s.owned.add(target)
-            s.overridden.discard(target)
+            if target not in self._manual_during_operation:
+                s.owned.add(target)
+                s.overridden.discard(target)
         entry['status'], entry['observed'] = 'confirmed', copy.deepcopy(observations)
         await self._save()
 
@@ -241,7 +349,13 @@ class MoodCoordinator:
                         s.owned.discard(target)
                     elif matches(target, entry['requested'][target], current):
                         if entry['action'] == 'restore':
-                            s.owned.discard(target)
+                            if entry.get('requires_service_completion'):
+                                # Power-off alone cannot confirm the later raw DP
+                                # stage. Preserve ownership for idempotent retry.
+                                s.owned.add(target)
+                                s.expected[target] = copy.deepcopy(current)
+                            else:
+                                s.owned.discard(target)
                         else:
                             s.owned.add(target)
                             s.expected[target] = copy.deepcopy(current)
@@ -254,7 +368,7 @@ class MoodCoordinator:
                 except Exception as err:
                     self._error(target, err)
             if set(entry['resolved']) == set(entry['targets']):
-                entry['status'] = ('confirmed' if all(matches(t, entry['requested'][t], entry['observed'][t])
+                entry['status'] = ('confirmed' if not entry.get('requires_service_completion') and all(matches(t, entry['requested'][t], entry['observed'][t])
                                                     for t in entry['targets']) else 'failed')
             await self._save()
 
@@ -279,8 +393,15 @@ class MoodCoordinator:
                 if hasattr(self.adapter, 'restoration_state'):
                     destination = self.adapter.restoration_state(target, destination)
                 entry = self._entry(str(uuid.uuid4()), 'restore', [target], {target: destination}, {target: current})
+                if hasattr(self.adapter, 'restore_requires_service_completion') and self.adapter.restore_requires_service_completion(target, s.baseline[target]):
+                    entry['requires_service_completion'] = True
                 s.journal.append(entry)
                 await self._save()
+                if target in self._manual_during_operation or target in s.overridden:
+                    entry['status'], entry['resolved'] = 'failed', [target]
+                    s.owned.discard(target)
+                    await self._save()
+                    continue
                 await self.adapter.restore(target, copy.deepcopy(s.baseline[target]), s.session_id)
                 current = await self.adapter.read(target)
                 if not matches(target, destination, current):
@@ -353,8 +474,13 @@ class MoodCoordinator:
         await self._save()
 
     async def end(self):
+        if self._lock.locked():
+            result = self.status(False)
+            result['errors'] = [{'target': 'coordinator', 'message': 'Operation in progress'}]
+            return result
         async with self._lock:
             self._last_errors = []
+            self._manual_during_operation.clear()
             try:
                 await self._load()
                 if self._storage_failed:
@@ -362,6 +488,8 @@ class MoodCoordinator:
                 if not self.session:
                     return self.status()
                 self.session.errors = []
+                if self.session.mode_intent:
+                    return await self._finish_mode()
                 await self._resolve_planned()
                 await self._finish_restoration()
                 return self.status(self.session is None)
@@ -369,6 +497,9 @@ class MoodCoordinator:
                 return await self._storage_error(err)
             except Exception as err:
                 self._error('coordinator', err)
+                if self.session:
+                    self.session.phase = 'recovery_required'
+                    await self._save()
                 return self.status(False)
 
     async def retry_restoration(self):

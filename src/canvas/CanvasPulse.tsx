@@ -111,6 +111,12 @@ export function CanvasPulse({
                 aria-label={`View: ${item.title}`}
                 onClick={event => {
                   onSelect(item);
+                  if (item.target === 'mood') {
+                    const moodCard = document.querySelector<HTMLElement>('.canvas-mood');
+                    moodCard?.focus({ preventScroll: true });
+                    moodCard?.scrollIntoView?.({ behavior: 'smooth', block: 'nearest' });
+                    return;
+                  }
                   onOpen(routeForAttention(item), event.currentTarget);
                 }}
               >

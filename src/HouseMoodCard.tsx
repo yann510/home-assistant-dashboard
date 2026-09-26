@@ -64,9 +64,7 @@ export function HouseMoodCard({ status, connected, available, onActivate, onEnd,
               <span className='house-mood-check house-mood-spinner' aria-hidden='true' />
             ) : (
               status.activeMood === mood.id && (
-                <span className='house-mood-check' aria-hidden='true'>
-                  ✓
-                </span>
+                <span className='house-mood-active' aria-hidden='true'>Active</span>
               )
             )}
           </button>

@@ -22,3 +22,13 @@ follow_join:
       selector:
         entity:
           domain: media_player
+
+apply_mode:
+  name: Apply home mode
+  description: End the mood overlay and serialize the verified Day or Night routine. Requires coordinated mode rollout.
+  fields:
+    mode:
+      required: true
+      selector:
+        select:
+          options: [day, night]

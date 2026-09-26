@@ -1,0 +1,65 @@
+/* Small illustrated windows keep room selection tactile without suggesting a reported position. */
+.canvas .canvas-blinds .canvas-blinds__heading { min-height: 44px; }
+.canvas .canvas-blinds .canvas-blinds__rooms { gap: 8px; margin-top: 0; }
+.canvas .canvas-blinds .canvas-blinds__rooms button {
+  --blinds-accent: var(--canvas-coral);
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  min-width: 0;
+  min-height: 66px;
+  padding: 8px;
+  border: 1px solid var(--canvas-line);
+  border-radius: 14px;
+  background: var(--canvas-surface);
+  color: var(--canvas-muted);
+  font-size: .78rem;
+  line-height: 1.2;
+  text-align: left;
+}
+.canvas .canvas-blinds .canvas-blinds__rooms button[data-room='bedroom'] { --blinds-accent: var(--canvas-lilac); }
+.canvas .canvas-blinds .canvas-blinds__rooms button[data-room='gym'] { --blinds-accent: #bdd8b2; }
+.canvas .canvas-blinds .canvas-blinds__rooms button[aria-pressed='true'] {
+  background: var(--blinds-accent);
+  border-color: var(--blinds-accent);
+  color: var(--canvas-bg);
+  font-weight: 600;
+}
+.canvas .canvas-blinds .canvas-blinds__rooms button:hover:not([aria-pressed='true']) { border-color: var(--blinds-accent); color: var(--canvas-ink); }
+.canvas .canvas-blinds .canvas-blinds__window { width: 32px; height: 44px; flex: 0 0 32px; overflow: visible; color: var(--blinds-accent); }
+.canvas .canvas-blinds .canvas-blinds__rooms button[aria-pressed='true'] .canvas-blinds__window { color: var(--canvas-bg); }
+.canvas .canvas-blinds .canvas-blinds__glass { fill: currentColor; opacity: .08; }
+.canvas .canvas-blinds .canvas-blinds__sun { fill: currentColor; opacity: .65; }
+.canvas .canvas-blinds .canvas-blinds__landscape { fill: currentColor; opacity: .15; }
+.canvas .canvas-blinds .canvas-blinds__frame { fill: none; stroke: currentColor; stroke-width: 1.3; stroke-linecap: round; stroke-linejoin: round; }
+.canvas .canvas-blinds .canvas-blinds__shade { fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; }
+.canvas .canvas-blinds .canvas-blinds__actions { gap: 4px; margin-top: 8px; border-top: 1px solid var(--canvas-line); padding-top: 4px; }
+.canvas .canvas-blinds .canvas-blinds__actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 44px;
+  padding: 6px 8px;
+  border-color: transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--canvas-ink);
+  font-size: .78rem;
+}
+.canvas .canvas-blinds .canvas-blinds__actions button:hover:not(:disabled) { background: var(--canvas-bg); }
+.canvas .canvas-blinds .canvas-blinds__actions svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.canvas .canvas-blinds .canvas-blinds__action-pending { display: none; }
+/* The overview keeps routine acknowledgements within its fixed-height controls. */
+.canvas .canvas__shortcuts .canvas-blinds__actions button[aria-busy='true'] .canvas-blinds__action-label { display: none; }
+.canvas .canvas__shortcuts .canvas-blinds__actions button[aria-busy='true'] .canvas-blinds__action-pending { display: inline; }
+.canvas .canvas__shortcuts .canvas-blinds__results[data-has-issue='false'] { display: none; }
+.canvas .canvas__shortcuts .canvas-blinds__results > :not(.canvas-blinds__error):not(button) { display: none; }
+@media (max-width: 420px) {
+  .canvas .canvas-blinds .canvas-blinds__rooms button { gap: 5px; padding: 6px; font-size: .73rem; }
+  .canvas .canvas-blinds .canvas-blinds__window { width: 26px; flex-basis: 26px; }
+}
+
+.canvas .canvas-blinds .canvas-blinds__glyph-fill { fill: currentColor; opacity: .4; }
+.canvas .canvas-blinds .canvas-blinds__moon { fill: currentColor; opacity: .8; }

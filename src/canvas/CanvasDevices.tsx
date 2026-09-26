@@ -40,14 +40,6 @@ const categoryEntries: Omit<Entry, 'id'>[] = [
   },
   { name: 'Weather', detail: 'Forecast', category: 'Weather', room: '', search: 'temperature forecast rain', route: { kind: 'weather' } },
   {
-    name: 'House Mood',
-    detail: 'Five moods',
-    category: 'Moods',
-    room: '',
-    search: 'love unwind dinner party gym',
-    route: { kind: 'moods' },
-  },
-  {
     name: 'Thermostats',
     detail: 'Office, Gym and Bedroom',
     category: 'Climate',

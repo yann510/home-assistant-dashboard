@@ -70,7 +70,13 @@ async function service(domain: string, name: string, targets: string[], data: Re
   }
 }
 
-export function useSpeakerRooms({ source, members, disabled }: { source: SpeakerId; members: SpeakerId[]; disabled: boolean }) {
+export function useSpeakerRooms({ source, members, disabled, onSourceChanged, pinSource }: {
+  source: SpeakerId;
+  members: SpeakerId[];
+  disabled: boolean;
+  onSourceChanged?: (source: string) => void;
+  pinSource?: (source: string | null) => void;
+}) {
   const entities = useStore(state => state.entities);
   const following = entities['input_boolean.speaker_follow_motion']?.state === 'on';
   const cleanupPending =
@@ -80,6 +86,7 @@ export function useSpeakerRooms({ source, members, disabled }: { source: Speaker
   const name = entities[source]?.attributes.friendly_name ?? 'Speaker';
   const [selected, setSelected] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
+  const [busyRoom, setBusyRoom] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState('');
   const original = useRef('');
@@ -104,24 +111,27 @@ export function useSpeakerRooms({ source, members, disabled }: { source: Speaker
       unsubscribe();
     };
   }, [source]);
-  const begin = useCallback(() => {
+  const begin = useCallback((preserveFeedback: unknown = false) => {
     setBusy(false);
     setConflict(null);
     setSelected(membersOf(source));
     original.current = signature(membersOf(source));
-    setError(null);
-    setStatus('');
+    if (preserveFeedback !== true) {
+      setError(null);
+      setStatus('');
+    }
   }, [source]);
-  async function perform(manual = false, consent?: string) {
+  async function perform(manual = false, consent?: string, immediateSelection?: string[]) {
+    const requested = immediateSelection ?? selected;
     if (pending.current || disabled || (!manual && locked)) return;
     if (!manual) {
       if (original.current !== signature(membersOf(source))) {
         setConflict(null);
-        setError('Could not update rooms. The group changed elsewhere. Close and reopen Play in to use the latest rooms.');
+        setError('Could not update rooms. The group changed elsewhere. Close and reopen speaker controls to use the latest rooms.');
         return;
       }
       const state = useStore.getState().entities;
-      const adding = selected.filter(id => !membersOf(source).includes(id));
+      const adding = requested.filter(id => !membersOf(source).includes(id));
       const conflicts = adding.filter(
         id => ['playing', 'buffering', 'paused'].includes(state[id]?.state ?? '') || (state[id]?.attributes.group_members?.length ?? 0) > 1
       );
@@ -175,8 +185,8 @@ export function useSpeakerRooms({ source, members, disabled }: { source: Speaker
         setStatus('Manual grouping is on. Your rooms are unchanged.');
       } else {
         if (original.current !== signature(membersOf(source)))
-          throw new Error('The group changed elsewhere. Close and reopen Play in to use the latest rooms.');
-        const desired = [...new Set([source, ...selected])];
+          throw new Error('The group changed elsewhere. Close and reopen speaker controls to use the latest rooms.');
+        const desired = [...new Set([source, ...requested])];
         const before = membersOf(source);
         const remove = before.filter(id => id !== source && !desired.includes(id));
         const add = desired.filter(id => !before.includes(id));
@@ -192,6 +202,7 @@ export function useSpeakerRooms({ source, members, disabled }: { source: Speaker
           const roomName = useStore.getState().entities[id]?.attributes.friendly_name ?? id;
           action = `${removing ? 'disconnect' : 'connect'} ${roomName}`;
           setStatus(`${removing ? 'Disconnecting' : 'Connecting'} ${roomName}…`);
+          setBusyRoom(id);
           const entity = useStore.getState().entities[id];
           if (!entity || ['unknown', 'unavailable'].includes(entity.state)) throw new Error('This speaker is unavailable.');
           await service(
@@ -224,14 +235,130 @@ export function useSpeakerRooms({ source, members, disabled }: { source: Speaker
       }
     } finally {
       if (active.current === controller) {
+        setBusyRoom(null);
         pending.current = false;
         if (!controller.signal.aborted) setBusy(false);
       }
     }
   }
 
+  async function removeSource() {
+    const before = membersOf(source);
+    const remaining = before.filter(id => id !== source);
+    if (!onSourceChanged || !pinSource || !remaining.length || locked || pending.current) return;
+    pending.current = true;
+    pinSource(source);
+    setBusy(true);
+    setBusyRoom(source);
+    setError(null);
+    setStatus('Moving playback…');
+    setConflict(null);
+    const controller = new AbortController();
+    active.current = controller;
+    let nextSource: string | undefined;
+    const originalEntity = useStore.getState().entities[source];
+    const wasPlaying = ['playing', 'buffering'].includes(originalEntity?.state ?? '');
+    const mediaMatches = (id: string) => {
+      const attributes = useStore.getState().entities[id]?.attributes;
+      const originalAttributes = originalEntity?.attributes;
+      return Boolean(attributes && originalAttributes && (originalAttributes.media_content_id
+        ? attributes.media_content_id === originalAttributes.media_content_id
+        : originalAttributes.media_title && attributes.media_title === originalAttributes.media_title &&
+          attributes.media_artist === originalAttributes.media_artist));
+    };
+    const readTopology = () => {
+      const state = useStore.getState().entities;
+      for (const id of before) {
+        if (!state[id] || ['unknown', 'unavailable'].includes(state[id].state))
+          throw new Error('A speaker became unavailable. Check the current rooms before retrying.');
+        const observed = membersOf(id);
+        // HA publishes each speaker separately: accept the old or final snapshot,
+        // but never adopt an unrelated regrouping as a successful handoff.
+        const expected = id === source ? [source] : remaining;
+        if (signature(observed) !== signature(before) && signature(observed) !== signature(expected))
+          throw new Error('The group changed elsewhere. Check the current rooms before retrying.');
+      }
+      const candidate = state[remaining[0]].attributes.group_members?.[0] ?? remaining[0];
+      const confirmed = membersOf(source).length === 1 && remaining.every(id =>
+        signature(membersOf(id)) === signature(remaining) &&
+        (state[id].attributes.group_members?.[0] ?? id) === candidate
+      );
+      if (!confirmed) return false;
+      if (!remaining.includes(candidate)) throw new Error('The new main speaker could not be confirmed.');
+      nextSource = candidate;
+      return true;
+    };
+    try {
+      readTopology();
+      await service('media_player', 'unjoin', [source], undefined, controller.signal);
+      await waitForState(readTopology, controller.signal);
+      // Unjoin preserves the queue on the remaining Sonos group. Only pause the
+      // detached speaker after every affected entity confirms that separation.
+      if (!readTopology()) throw new Error('The group changed before playback could be moved.');
+      if (['playing', 'buffering'].includes(useStore.getState().entities[source]?.state ?? '')) {
+        if (!mediaMatches(source)) throw new Error('Audio changed on the removed speaker. Its new playback was left untouched.');
+        await service('media_player', 'media_pause', [source], undefined, controller.signal);
+        await waitForState(() => {
+          if (!readTopology()) throw new Error('The group changed while stopping the removed speaker.');
+          return !['playing', 'buffering'].includes(useStore.getState().entities[source]?.state ?? '');
+        }, controller.signal);
+      }
+      if (wasPlaying && nextSource && useStore.getState().entities[nextSource]?.state === 'paused') {
+        if (!mediaMatches(nextSource)) throw new Error('Playback moved, but the remaining audio could not be verified. Resume it from the player.');
+        if (!readTopology()) throw new Error('The group changed before playback could resume.');
+        await service('media_player', 'media_play', [nextSource], undefined, controller.signal);
+        await waitForState(() => {
+          if (!readTopology() || !mediaMatches(nextSource!)) throw new Error('Audio changed while resuming. Check the player.');
+          return ['playing', 'buffering'].includes(useStore.getState().entities[nextSource!]?.state ?? '');
+        }, controller.signal);
+      }
+      if (wasPlaying && nextSource && !['playing', 'buffering'].includes(useStore.getState().entities[nextSource]?.state ?? ''))
+        throw new Error('The rooms changed, but playback stopped. Resume playback from the player.');
+      setStatus('Rooms updated.');
+    } catch (cause) {
+      if (!controller.signal.aborted) {
+        setError(`Could not finish moving playback. ${cause instanceof Error ? cause.message : 'Please retry.'}`);
+        setStatus('');
+      }
+    } finally {
+      if (active.current === controller) {
+        // A confirmed group is still the right source if pausing the detached
+        // speaker failed. Preserve the error so the partial result stays visible.
+        if (!controller.signal.aborted && nextSource) {
+          original.current = signature(membersOf(nextSource));
+          setSelected(membersOf(nextSource));
+          onSourceChanged(nextSource);
+        }
+        pinSource(null);
+        pending.current = false;
+        setBusyRoom(null);
+        setBusy(false);
+      }
+    }
+  }
+
+  async function toggleRoom(id: string) {
+    if (locked || pending.current) return;
+    if (id === source) {
+      await removeSource();
+      return;
+    }
+    const entity = useStore.getState().entities[id];
+    if (!entity || ['unknown', 'unavailable'].includes(entity.state)) return;
+    const latest = membersOf(source);
+    const desired = latest.includes(id) ? latest.filter(member => member !== id) : [...latest, id];
+    // Immediate actions always start with the latest confirmed group, never a stale draft.
+    original.current = signature(latest);
+    setSelected(desired);
+    setError(null);
+    setStatus('');
+    await perform(false, undefined, desired);
+  }
+
   return {
     entities,
+    busyRoom,
+    toggleRoom,
     following,
     cleanupPending,
     name,

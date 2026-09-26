@@ -1,4 +1,5 @@
 import type { HouseMoodCardProps, MoodId } from '../HouseMoodCard';
+import { attentionExplanation, type AttentionItem } from '../attention';
 
 const moods: { id: MoodId; name: string; colour: string; caption: string }[] = [
   { id: 'love', name: 'Love', colour: '#efa5a5', caption: 'A little closer.' },
@@ -36,19 +37,21 @@ function MoodArt({ id }: { id: MoodId | null }) {
 
 export function CanvasMood({
   controller,
-  onExplore,
-  detail = false,
+  attention,
+  attentionBusy = false,
+  onAttentionAction,
 }: {
   controller: HouseMoodCardProps;
-  onExplore?: (trigger: HTMLElement) => void;
-  detail?: boolean;
+  attention?: AttentionItem | null;
+  attentionBusy?: boolean;
+  onAttentionAction?: (item: AttentionItem) => void;
 }) {
   const { status, connected, available, onActivate, onEnd, onRetry } = controller;
   const busy = status.phase === 'starting' || status.phase === 'restoring';
-  const compactError = Boolean(onExplore && !detail && status.errors.length);
   const recovery = status.phase === 'recovery_required';
   const current = moods.find(mood => mood.id === (status.pendingMood ?? status.activeMood));
   const locked = !connected || !available || busy || recovery;
+  const showActions = recovery || Boolean(status.activeMood);
   const message = !connected
     ? 'Reconnecting to Home Assistant…'
     : !available
@@ -60,52 +63,56 @@ export function CanvasMood({
           : recovery
             ? 'Restoration needs attention.'
             : status.activeMood
-              ? 'House mood is on'
+              ? null
               : 'No mood active';
   return (
     <section
-      className={`canvas-mood${detail ? ' canvas-mood--detail' : ''}`}
+      className='canvas-mood'
       style={{ background: current?.colour ?? '#cbb5ed' }}
       aria-label='House Mood'
+      tabIndex={-1}
     >
       <div className='canvas-mood__copy'>
         <span className='canvas__eyebrow'>The feeling of home</span>
         <h2>{current?.name ?? 'Just be.'}</h2>
-        {compactError ? (
-          <p role='alert' className='canvas-mood__compact-error'>
-            {busy ? 'Waiting for Home Assistant confirmation.' : 'Mood change needs attention.'}
-          </p>
-        ) : (
-          <p>{current?.caption ?? 'Your space. Your own pace.'}</p>
+        <p>{current?.caption ?? 'Your space. Your own pace.'}</p>
+        {message && (
+          <div className='canvas-mood__status' role='status'>
+            <span aria-hidden='true'>●</span> {message}
+          </div>
         )}
-        <div className='canvas-mood__status' role='status'>
-          <span aria-hidden='true'>●</span> {message}
-        </div>
-        {status.errors.length > 0 && (detail || !onExplore) && (
+        {status.errors.length > 0 && (
           <div role='alert' className='canvas-mood__error'>
             {status.errors.map((error, index) => (
               <p key={`${error.target}-${index}`}>{error.message}</p>
             ))}
           </div>
         )}
-        <div className='canvas-mood__actions'>
-          {onExplore && (
-            <button type='button' onClick={event => onExplore(event.currentTarget)}>
-              {compactError ? 'Mood details' : 'Explore moods'}
+        {attention && (
+          <div className='canvas-mood__attention'>
+            <strong>{attention.title}</strong>
+            <p>{attention.detail}</p>
+            <p>{attentionExplanation(attention)}</p>
+            <button type='button' disabled={attentionBusy || !onAttentionAction} onClick={() => onAttentionAction?.(attention)}>
+              {attention.kind === 'completion' ? 'Done' : 'Snooze reminder'}
             </button>
-          )}
-          {recovery ? (
-            <button type='button' disabled={!connected || !available || busy} onClick={onRetry}>
-              Retry restoration
-            </button>
-          ) : (
-            status.activeMood && (
-              <button type='button' disabled={!connected || !available || busy} onClick={onEnd}>
-                End mood
+          </div>
+        )}
+        {showActions && (
+          <div className={`canvas-mood__actions${message ? '' : ' canvas-mood__actions--solo'}`}>
+            {recovery ? (
+              <button type='button' disabled={!connected || !available || busy} onClick={onRetry}>
+                Retry restoration
               </button>
-            )
-          )}
-        </div>
+            ) : (
+              status.activeMood && (
+                <button type='button' disabled={!connected || !available || busy} onClick={onEnd}>
+                  End mood
+                </button>
+              )
+            )}
+          </div>
+        )}
       </div>
       <MoodArt id={current?.id ?? null} />
       <div className='canvas-mood__picker' role='group' aria-label='Choose a house mood'>
@@ -118,7 +125,6 @@ export function CanvasMood({
             disabled={locked || status.activeMood === mood.id}
             onClick={() => onActivate(mood.id)}
           >
-            {status.activeMood === mood.id ? '✓ ' : ''}
             {mood.name}
           </button>
         ))}

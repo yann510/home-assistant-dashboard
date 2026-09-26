@@ -73,7 +73,8 @@ it('captures the selected room before the user switches rooms', async () => {
     </CanvasLightsProvider>
   );
   await userEvent.click(screen.getByRole('button', { name: 'Turn on Living Room lights' }));
-  await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Lights room' }), 'Kitchen');
+  await userEvent.click(screen.getByRole('button', { name: 'Lights room' }));
+  await userEvent.click(screen.getByRole('option', { name: 'Kitchen' }));
   expect((fixture.calls[0] as { target: { entity_id: string[] } }).target.entity_id).toEqual(['light.light_living_room_bulbs']);
   await act(async () => {
     ack.resolve({});
@@ -178,7 +179,8 @@ it('targets only the on member of a mixed room', async () => {
       <CanvasLights onOpenAll={() => {}} />
     </CanvasLightsProvider>
   );
-  await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Lights room' }), 'Bedroom');
+  await userEvent.click(screen.getByRole('button', { name: 'Lights room' }));
+  await userEvent.click(screen.getByRole('option', { name: 'Bedroom' }));
   await userEvent.click(screen.getByRole('button', { name: 'Turn off Bedroom lights' }));
   expect(fixture.calls).toMatchObject([{ service: 'turn_off', target: { entity_id: ['light.light_bedroom'] } }]);
 });
@@ -200,18 +202,20 @@ it('keeps an earlier room failure visible while another room command is pending'
     </CanvasLightsProvider>
   );
   await userEvent.click(screen.getByRole('button', { name: 'Turn on Living Room lights' }));
-  await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Lights room' }), 'Kitchen');
+  await userEvent.click(screen.getByRole('button', { name: 'Lights room' }));
+  await userEvent.click(screen.getByRole('option', { name: 'Kitchen' }));
   await userEvent.click(screen.getByRole('button', { name: 'Turn on Kitchen lights' }));
   await act(async () => {
     living.reject(new Error('Living denied'));
   });
   expect(await screen.findByRole('alert')).toHaveProperty('textContent', expect.stringContaining('1 light needs attention'));
+  expect(screen.getByRole('button', { name: 'Updating Kitchen lights' }).getAttribute('aria-busy')).toBe('true');
   await act(async () => {
     kitchen.resolve({});
   });
 });
 
-it('does not observe room brightness from retained attributes while the light is off', async () => {
+it('disables room brightness when all dimmable lights are off and never turns them on', async () => {
   const fixture = ref.current!;
   fixture.publish('light.light_living_room_bulbs', 'off', { brightness: 100, supported_color_modes: ['brightness'] });
   render(
@@ -220,13 +224,53 @@ it('does not observe room brightness from retained attributes while the light is
     </CanvasLightsProvider>
   );
   const slider = screen.getByRole('slider', { name: 'Room brightness' });
+  expect((slider as HTMLInputElement).disabled).toBe(true);
   fireEvent.change(slider, { target: { value: '68' } });
   fireEvent.blur(slider);
-  await screen.findByText(/Sent; waiting for 1 light to report state/);
-  await act(async () => {
-    fixture.publish('light.light_living_room_bulbs', 'off', { brightness: 173, supported_color_modes: ['brightness'] });
-  });
-  expect(screen.getByText(/Sent; waiting for 1 light to report state/)).toBeTruthy();
+  expect(fixture.calls).toHaveLength(0);
+  expect(slider.getAttribute('aria-busy')).toBe('false');
+});
+
+it('targets only currently-on dimmable lights when a room brightness drag ends', async () => {
+  const fixture = ref.current!;
+  fixture.publish('light.light_bedroom', 'on', { brightness: 100, supported_color_modes: ['brightness'] });
+  fixture.publish('light.bedroom_closet', 'off', { brightness: 100, supported_color_modes: ['brightness'] });
+  render(<CanvasLightsProvider><CanvasLights onOpenAll={() => {}} /></CanvasLightsProvider>);
+  await userEvent.click(screen.getByRole('button', { name: 'Lights room' }));
+  await userEvent.click(screen.getByRole('option', { name: 'Bedroom' }));
+  const slider = screen.getByRole('slider', { name: 'Room brightness' });
+  fireEvent.pointerDown(slider);
+  fireEvent.change(slider, { target: { value: '68' } });
+  await act(async () => fixture.publish('light.light_bedroom', 'off', { brightness: 100, supported_color_modes: ['brightness'] }));
+  fireEvent.pointerUp(slider);
+  expect(fixture.calls).toHaveLength(0);
+});
+
+it.each(['pointerCancel', 'blur'])('cancels a room pointer brightness drag on %s', eventName => {
+  const fixture = ref.current!;
+  fixture.publish('light.light_living_room_bulbs', 'on', { brightness: 100, supported_color_modes: ['brightness'] });
+  render(<CanvasLightsProvider><CanvasLights onOpenAll={() => {}} /></CanvasLightsProvider>);
+  const slider = screen.getByRole('slider', { name: 'Room brightness' });
+  fireEvent.pointerDown(slider);
+  fireEvent.change(slider, { target: { value: '68' } });
+  if (eventName === 'pointerCancel') fireEvent.pointerCancel(slider);
+  else fireEvent.blur(slider);
+  fireEvent.blur(slider);
+  fireEvent.pointerUp(slider);
+  expect(fixture.calls).toHaveLength(0);
+});
+
+it('cancels a detail pointer brightness drag without a write', () => {
+  const fixture = ref.current!;
+  fixture.publish('light.gym', 'on', { brightness: 100, supported_color_modes: ['brightness'] });
+  render(<CanvasLightsProvider><CanvasLightDetails entityId='light.gym' /></CanvasLightsProvider>);
+  const slider = screen.getByRole('slider', { name: 'Light brightness' });
+  fireEvent.pointerDown(slider);
+  fireEvent.change(slider, { target: { value: '68' } });
+  fireEvent.pointerCancel(slider);
+  fireEvent.blur(slider);
+  fireEvent.pointerUp(slider);
+  expect(fixture.calls).toHaveLength(0);
 });
 
 it('labels unknown room brightness as a proposal and follows later readings after confirmation', async () => {
@@ -238,8 +282,8 @@ it('labels unknown room brightness as a proposal and follows later readings afte
     </CanvasLightsProvider>
   );
   const slider = screen.getByRole('slider', { name: 'Room brightness' });
-  expect(screen.getByText('Current room brightness unknown')).toBeTruthy();
-  expect(screen.getByRole('status', { name: 'Proposed brightness' }).textContent).toBe('50%');
+  expect(screen.queryByText('Current room brightness unknown')).toBeNull();
+  expect(screen.getByRole('status', { name: 'Proposed brightness' }).textContent).toBe('—');
   expect(slider.getAttribute('aria-valuetext')).toContain('current room brightness unknown');
   fireEvent.change(slider, { target: { value: '68' } });
   fireEvent.blur(slider);
@@ -353,4 +397,262 @@ it('clears an observed brightness draft so later telemetry updates the display',
     fixture.publish('light.gym', 'on', { brightness: 80, supported_color_modes: ['brightness'] });
   });
   expect(screen.getByText('Reported brightness 31%')).toBeTruthy();
+});
+
+it('keeps compact command progress in the power control and removes success feedback', async () => {
+  const fixture = ref.current!;
+  fixture.publish('light.light_living_room_bulbs', 'off', { supported_color_modes: ['brightness'] });
+  fixture.publish('light.light_kitchen', 'off', { supported_color_modes: ['brightness'] });
+  const ack = deferred();
+  fixture.respondWith(() => ack.promise);
+  render(
+    <CanvasLightsProvider>
+      <CanvasLights onOpenAll={() => {}} />
+    </CanvasLightsProvider>
+  );
+  await userEvent.click(screen.getByRole('button', { name: 'Turn on Living Room lights' }));
+  expect(screen.getByRole('button', { name: 'Updating Living Room lights' }).getAttribute('aria-busy')).toBe('true');
+  expect(screen.queryByText(/Sending to|Sent; waiting|reported the requested state/)).toBeNull();
+  await userEvent.click(screen.getByRole('button', { name: 'Lights room' }));
+  await userEvent.click(screen.getByRole('option', { name: 'Kitchen' }));
+  expect(screen.getByRole('button', { name: 'Turn on Kitchen lights' }).getAttribute('aria-busy')).toBe('false');
+  await userEvent.click(screen.getByRole('button', { name: 'Lights room' }));
+  await userEvent.click(screen.getByRole('option', { name: 'Living Room' }));
+  expect(screen.getByRole('button', { name: 'Updating Living Room lights' })).toBeTruthy();
+  await act(async () => {
+    ack.resolve({});
+  });
+  expect(screen.getByRole('button', { name: 'Updating Living Room lights' })).toBeTruthy();
+  await act(async () => {
+    fixture.publish('light.light_living_room_bulbs', 'on', { supported_color_modes: ['brightness'] });
+  });
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Turn off Living Room lights' }).getAttribute('aria-busy')).toBe('false'));
+  expect(screen.queryByText(/Sending to|Sent; waiting|reported the requested state/)).toBeNull();
+});
+
+it('retains compact errors while suppressing normal command feedback', async () => {
+  const fixture = ref.current!;
+  fixture.publish('light.light_living_room_bulbs', 'on');
+  fixture.respondWith(() => Promise.reject(new Error('Unavailable service')));
+  render(
+    <CanvasLightsProvider>
+      <CanvasLights onOpenAll={() => {}} />
+    </CanvasLightsProvider>
+  );
+  await userEvent.click(screen.getByRole('button', { name: 'Turn off Living Room lights' }));
+  expect((await screen.findByRole('alert')).textContent).toContain('needs attention');
+  expect(screen.queryByText(/Sending to|Sent; waiting|reported the requested state/)).toBeNull();
+});
+
+it('shows brightness progress in place while retaining proposed and reported readings', async () => {
+  const fixture = ref.current!;
+  fixture.publish('light.light_living_room_bulbs', 'on', { brightness: 128, supported_color_modes: ['brightness'] });
+  const ack = deferred();
+  fixture.respondWith(() => ack.promise);
+  render(
+    <CanvasLightsProvider>
+      <CanvasLights onOpenAll={() => {}} />
+    </CanvasLightsProvider>
+  );
+  const slider = screen.getByRole('slider', { name: 'Room brightness' });
+  fireEvent.change(slider, { target: { value: '70' } });
+  fireEvent.blur(slider);
+  expect(slider.getAttribute('aria-busy')).toBe('true');
+  expect(screen.getByText('Updating…')).toBeTruthy();
+  expect(screen.getByLabelText('Proposed brightness').textContent).toBe('70%');
+  expect(screen.getByRole('button', { name: 'Turn off Living Room lights' }).getAttribute('aria-busy')).toBe('false');
+  await act(async () => {
+    ack.resolve({});
+  });
+  await act(async () => {
+    fixture.publish('light.light_living_room_bulbs', 'on', { brightness: 179, supported_color_modes: ['brightness'] });
+  });
+  await waitFor(() => expect(slider.getAttribute('aria-busy')).toBe('false'));
+  expect(screen.getByLabelText('Reported brightness').textContent).toBe('70%');
+  expect(screen.queryByText(/reported the requested state/)).toBeNull();
+});
+
+it('retains a pending brightness proposal across room switches until its room confirms', async () => {
+  const fixture = ref.current!;
+  fixture.publish('light.light_living_room_bulbs', 'on', { brightness: 128, supported_color_modes: ['brightness'] });
+  fixture.publish('light.light_kitchen', 'on', { brightness: 80, supported_color_modes: ['brightness'] });
+  const ack = deferred();
+  fixture.respondWith(() => ack.promise);
+  render(
+    <CanvasLightsProvider>
+      <CanvasLights onOpenAll={() => {}} />
+    </CanvasLightsProvider>
+  );
+  const slider = () => screen.getByRole('slider', { name: 'Room brightness' });
+  fireEvent.change(slider(), { target: { value: '70' } });
+  fireEvent.blur(slider());
+  await userEvent.click(screen.getByRole('button', { name: 'Lights room' }));
+  await userEvent.click(screen.getByRole('option', { name: 'Kitchen' }));
+  expect(slider().getAttribute('aria-busy')).toBe('false');
+  expect(screen.getByLabelText('Reported brightness').textContent).toBe('31%');
+  await userEvent.click(screen.getByRole('button', { name: 'Lights room' }));
+  await userEvent.click(screen.getByRole('option', { name: 'Living Room' }));
+  expect(slider().getAttribute('aria-busy')).toBe('true');
+  expect(screen.getByLabelText('Proposed brightness').textContent).toBe('70%');
+  await userEvent.click(screen.getByRole('button', { name: 'Lights room' }));
+  await userEvent.click(screen.getByRole('option', { name: 'Kitchen' }));
+  await act(async () => {
+    ack.resolve({});
+  });
+  await act(async () => {
+    fixture.publish('light.light_living_room_bulbs', 'on', { brightness: 179, supported_color_modes: ['brightness'] });
+  });
+  expect(screen.getByLabelText('Reported brightness').textContent).toBe('31%');
+  await userEvent.click(screen.getByRole('button', { name: 'Lights room' }));
+  await userEvent.click(screen.getByRole('option', { name: 'Living Room' }));
+  await waitFor(() => expect(slider().getAttribute('aria-busy')).toBe('false'));
+  expect(screen.getByLabelText('Reported brightness').textContent).toBe('70%');
+});
+
+it('supports keyboard room selection and returns focus after selection and Escape', async () => {
+  render(
+    <CanvasLightsProvider>
+      <CanvasLights onOpenAll={() => {}} />
+    </CanvasLightsProvider>
+  );
+  const trigger = screen.getByRole('button', { name: 'Lights room' });
+  trigger.focus();
+  await userEvent.keyboard('{ArrowDown}');
+  const menu = screen.getByRole('listbox', { name: 'Lights room' });
+  expect(document.activeElement).toBe(menu);
+  expect(screen.getByRole('option', { name: 'Living Room' }).getAttribute('aria-selected')).toBe('true');
+  await userEvent.keyboard('{End}{Enter}');
+  expect(trigger.textContent).toContain('Toilet');
+  expect(screen.queryByRole('listbox')).toBeNull();
+  expect(document.activeElement).toBe(trigger);
+  await userEvent.keyboard('{Enter}{Home}{ArrowDown}{Enter}');
+  expect(trigger.textContent).toContain('Bedroom');
+  await userEvent.keyboard('{Enter}{End}{Escape}');
+  expect(trigger.textContent).toContain('Bedroom');
+  expect(document.activeElement).toBe(trigger);
+  expect(screen.queryByRole('listbox')).toBeNull();
+});
+
+it('dismisses the room menu on outside click and resumes normal keyboard navigation on Tab', async () => {
+  ref.current!.publish('light.light_living_room_bulbs', 'on');
+  render(
+    <CanvasLightsProvider>
+      <CanvasLights onOpenAll={() => {}} />
+    </CanvasLightsProvider>
+  );
+  const trigger = screen.getByRole('button', { name: 'Lights room' });
+  await userEvent.click(trigger);
+  await userEvent.click(screen.getByRole('heading', { name: 'Lights' }));
+  expect(screen.queryByRole('listbox')).toBeNull();
+  await userEvent.click(trigger);
+  await userEvent.tab();
+  expect(screen.queryByRole('listbox')).toBeNull();
+  expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Turn off Living Room lights' }));
+});
+
+it('toggles one quick light only and opens its separate settings without a power command', async () => {
+  const fixture = ref.current!;
+  fixture.publish('light.light_living_room_bulbs', 'on', {
+    friendly_name: 'Ceiling',
+    brightness: 128,
+    supported_color_modes: ['brightness'],
+  });
+  fixture.publish('light.living_room_led_strip', 'on', {
+    friendly_name: 'LED strip',
+    brightness: 128,
+    supported_color_modes: ['brightness'],
+  });
+  const onOpenLight = vi.fn();
+  render(
+    <CanvasLightsProvider>
+      <CanvasLights onOpenAll={() => {}} onOpenLight={onOpenLight} />
+    </CanvasLightsProvider>
+  );
+  const settings = screen.getByRole('button', { name: 'LED strip settings' });
+  await userEvent.click(settings);
+  expect(onOpenLight).toHaveBeenCalledWith('light.living_room_led_strip', settings);
+  expect(fixture.calls).toHaveLength(0);
+  const toggle = screen.getByRole('button', { name: 'Turn off Ceiling' });
+  expect(toggle.getAttribute('aria-pressed')).toBe('true');
+  await userEvent.click(toggle);
+  expect(fixture.calls).toEqual([
+    expect.objectContaining({ service: 'turn_off', target: { entity_id: ['light.light_living_room_bulbs'] } }),
+  ]);
+  expect(toggle.getAttribute('aria-busy')).toBe('true');
+  expect(screen.getByRole('button', { name: 'Turn off LED strip' }).getAttribute('aria-busy')).toBe('false');
+});
+
+it('shows Mixed for different reported on-light levels until the user chooses a common brightness', async () => {
+  const fixture = ref.current!;
+  fixture.publish('light.light_living_room_bulbs', 'on', { brightness: 51, supported_color_modes: ['brightness'] });
+  fixture.publish('light.living_room_led_strip', 'on', { brightness: 204, supported_color_modes: ['brightness'] });
+  render(
+    <CanvasLightsProvider>
+      <CanvasLights onOpenAll={() => {}} />
+    </CanvasLightsProvider>
+  );
+  const slider = screen.getByRole('slider', { name: 'Room brightness' });
+  expect(screen.getByLabelText('Mixed brightness').textContent).toBe('Mixed');
+  expect(slider.getAttribute('aria-valuetext')).toContain('Mixed brightness');
+  expect(slider.getAttribute('aria-valuetext')).toContain('adjust lights that are on');
+  fireEvent.change(slider, { target: { value: '60' } });
+  expect(screen.getByLabelText('Proposed brightness').textContent).toBe('60%');
+  expect(slider.getAttribute('aria-valuetext')).toContain('proposed 60 percent');
+  fireEvent.blur(slider);
+  expect(fixture.calls).toEqual(
+    ['light.light_living_room_bulbs', 'light.living_room_led_strip'].map(id =>
+      expect.objectContaining({ target: { entity_id: [id] }, service_data: { brightness: 153 } })
+    )
+  );
+  await act(async () => {
+    fixture.publish('light.light_living_room_bulbs', 'on', { brightness: 153, supported_color_modes: ['brightness'] });
+    fixture.publish('light.living_room_led_strip', 'on', { brightness: 153, supported_color_modes: ['brightness'] });
+  });
+  await waitFor(() => expect(screen.getByLabelText('Reported brightness').textContent).toBe('60%'));
+});
+
+it('ignores off lights for Mixed and does not report a partial known brightness as uniform', async () => {
+  const fixture = ref.current!;
+  fixture.publish('light.light_living_room_bulbs', 'on', { brightness: 51, supported_color_modes: ['brightness'] });
+  fixture.publish('light.living_room_led_strip', 'off', { brightness: 204, supported_color_modes: ['brightness'] });
+  render(
+    <CanvasLightsProvider>
+      <CanvasLights onOpenAll={() => {}} />
+    </CanvasLightsProvider>
+  );
+  expect(screen.getByLabelText('Reported brightness').textContent).toBe('20%');
+  await act(async () => {
+    fixture.publish('light.living_room_led_strip', 'on', { supported_color_modes: ['brightness'] });
+  });
+  expect(screen.queryByLabelText('Reported brightness')).toBeNull();
+  expect(screen.getByLabelText('Proposed brightness').textContent).toBe('—');
+});
+
+it.each(['off', 'turned off before commit'])('changes brightness only on lights still on: %s', async scenario => {
+  const fixture = ref.current!;
+  fixture.publish('light.light_living_room_bulbs', 'on', { brightness: 100, supported_color_modes: ['brightness'] });
+  fixture.publish('light.living_room_led_strip', scenario === 'off' ? 'off' : 'on', {
+    brightness: 180,
+    supported_color_modes: ['brightness'],
+  });
+  render(
+    <CanvasLightsProvider>
+      <CanvasLights onOpenAll={() => {}} />
+    </CanvasLightsProvider>
+  );
+  const slider = screen.getByRole('slider', { name: 'Room brightness' });
+  fireEvent.change(slider, { target: { value: '60' } });
+  if (scenario !== 'off') {
+    await act(async () =>
+      fixture.publish('light.living_room_led_strip', 'off', { brightness: 180, supported_color_modes: ['brightness'] })
+    );
+  }
+  fireEvent.blur(slider);
+  expect(fixture.calls).toEqual([
+    expect.objectContaining({
+      service: 'turn_on',
+      target: { entity_id: ['light.light_living_room_bulbs'] },
+      service_data: { brightness: 153 },
+    }),
+  ]);
 });

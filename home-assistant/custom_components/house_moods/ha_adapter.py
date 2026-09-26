@@ -14,6 +14,8 @@ class HAIO:
         self.hass = hass
         self.contexts = {}
         self.closed = False
+        self.active_controls = set()
+        self.guard = lambda controls: False
 
     def origin(self, context):
         origin = self.contexts.get(context.id) or self.contexts.get(context.parent_id)
@@ -31,6 +33,8 @@ class HAIO:
 
     async def call(self, domain, service, targets, data, session_id=None, return_response=False):
         self.check_open()
+        if session_id and self.guard(self.active_controls):
+            raise RuntimeError('A manual command superseded this mood operation.')
         context = Context()
         if session_id:
             self.contexts[context.id] = session_id
@@ -124,6 +128,23 @@ class HAAdapter:
         self.bridge = LazyBridge(hass)
         self.lights = LightControls(self.io, self.bridge, DEVICE)
         self.sonos = SonosControls(self.io)
+        from .modes import ModeControls
+        self.modes = ModeControls(self.io)
+
+    async def preflight_mode(self, mode):
+        await self.modes.preflight(mode)
+
+    def mode_targets(self, mode):
+        return self.modes.targets(mode)
+
+    def mode_steps(self, mode):
+        return self.modes.steps(mode)
+
+    def mode_step_target(self, mode, step):
+        return self.modes.target(mode, step)
+
+    async def apply_mode_step(self, mode, step, session_id):
+        await self.modes.apply(mode, step, session_id)
 
     def control(self, target):
         if self.lights.owns(target):
@@ -152,10 +173,22 @@ class HAAdapter:
         return {t: await self.read(t) for t in targets}
 
     async def apply_write(self, write, session_id):
-        return await self.control(write.targets[0]).apply_write(write, session_id)
+        self.io.active_controls = set(write.targets)
+        try:
+            return await self.control(write.targets[0]).apply_write(write, session_id)
+        finally:
+            self.io.active_controls = set()
 
     async def restore(self, target, baseline, session_id):
-        return await self.control(target).restore(target, baseline, session_id)
+        self.io.active_controls = {target}
+        try:
+            return await self.control(target).restore(target, baseline, session_id)
+        finally:
+            self.io.active_controls = set()
+
+    def restore_requires_service_completion(self, target, baseline):
+        control = self.control(target)
+        return hasattr(control, 'restore_requires_service_completion') and control.restore_requires_service_completion(target, baseline)
 
     def restoration_state(self, target, baseline):
         return self.control(target).restoration_state(target, baseline)

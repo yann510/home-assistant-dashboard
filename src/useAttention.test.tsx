@@ -74,4 +74,24 @@ describe('attention subscription', () => {
     expect(result.current.busy).toBe(false);
     expect(result.current.error).toContain('Could not save');
   });
+
+  it('keeps a new reminder episode when an older dismissal finishes late', async () => {
+    let finish!: (value: unknown) => void;
+    store.entities = { 'sensor.dashboard_attention': { state: '2', attributes: { ready: true, items: [item, { ...item, id: 'washer', episode: 'washer-1', title: 'Washer finished' }] } } };
+    store.connection.sendMessagePromise.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+    const { result, rerender } = renderHook(() => useAttention());
+    let oldDismissal!: Promise<void>;
+    act(() => { oldDismissal = result.current.onAction('dismiss', result.current.items[0]); });
+    store.entities = { 'sensor.dashboard_attention': { state: '2', attributes: { ready: true, items: [{ ...item, episode: 'dryer-2' }, { ...item, id: 'washer', episode: 'washer-1', title: 'Washer finished' }] } } };
+    rerender();
+    expect(result.current.items.map(reminder => reminder.episode)).toEqual(['dryer-2', 'washer-1']);
+    await act(() => result.current.onAction('dismiss', result.current.items[0]));
+    expect(store.connection.sendMessagePromise).toHaveBeenCalledTimes(1);
+    await act(async () => { finish({}); await oldDismissal; });
+    expect(result.current.items.map(reminder => reminder.episode)).toEqual(['dryer-2', 'washer-1']);
+    await act(() => result.current.onAction('dismiss', result.current.items[0]));
+    expect(store.connection.sendMessagePromise).toHaveBeenLastCalledWith(expect.objectContaining({
+      service: 'dismiss', service_data: { id: 'dryer', episode: 'dryer-2' },
+    }));
+  });
 });

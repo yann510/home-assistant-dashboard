@@ -264,7 +264,7 @@ class IntegrationTests(unittest.IsolatedAsyncioTestCase):
             await self.hass.services.async_call('house_moods','activate',{'mood':'other'},blocking=True,return_response=True)
         runtime=self.hass.data['house_moods']
         self.assertEqual(runtime.adapter.writes,[])
-        self.assertEqual(set(self.hass.states.get('sensor.house_mood').attributes),{'success','session_id','active_mood','pending_mood','affected_devices','errors'})
+        self.assertEqual(set(self.hass.states.get('sensor.house_mood').attributes),{'success','session_id','active_mood','pending_mood','pending_mode','mode_control','affected_devices','errors'})
 
     async def test_native_bridge_attaches_when_entry_arrives_after_yaml_setup(self):
         from types import SimpleNamespace

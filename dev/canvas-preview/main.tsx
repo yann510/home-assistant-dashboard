@@ -5,6 +5,8 @@ import type { Connection, HassEntities } from 'home-assistant-js-websocket';
 import { DashboardViews } from '../../src/DashboardViews';
 import { rooms } from '../../src/useLightSummary';
 import '../../src/index.css';
+import { applySpeakerService } from './speaker-services';
+import { applyMoodService } from './mode-services';
 
 const params = new URLSearchParams(location.search);
 const scene = params.get('scene') ?? 'everyday';
@@ -61,6 +63,7 @@ publish('input_boolean.night_mode', 'off');
 publish('input_boolean.morning_mode', 'on');
 publish('sensor.house_mood', scene === 'busy' ? 'recovery_required' : 'active', {
   active_mood: 'unwind',
+  mode_control: 'coordinated-v1',
   errors: scene === 'busy' ? [{ target: 'Living room', message: 'One light could not be restored.' }] : [],
 });
 publish('weather.forecast_home', 'sunny', {
@@ -158,9 +161,34 @@ const connection = {
         })),
       };
     if (scene === 'busy') throw new Error('Controlled preview failure. Retry after changing scene.');
+    const moodResult = !params.has('unconfirmed') && applyMoodService(entities, message);
+    if (moodResult) {
+      Object.assign(entities, moodResult.updates);
+      useStore.setState({ entities: { ...entities } });
+      return { response: moodResult.response };
+    }
+    const speakerUpdates = !params.has('unconfirmed') && applySpeakerService(entities, message);
+    if (speakerUpdates) {
+      Object.assign(entities, speakerUpdates);
+      useStore.setState({ entities: { ...entities } });
+    }
+    if (message.type === 'call_service' && message.domain === 'light' && !params.has('unconfirmed')) {
+      const target = (message.target as { entity_id?: string | string[] }).entity_id;
+      const ids = Array.isArray(target) ? target : target ? [target] : [];
+      if (message.service === 'turn_on' || message.service === 'turn_off') {
+        for (const id of ids) {
+          const light = entities[id];
+          if (!light || light.state === 'unavailable' || light.state === 'unknown') continue;
+          publish(id, message.service === 'turn_on' ? 'on' : 'off', {
+            ...light.attributes,
+            ...(message.service === 'turn_on' ? message.service_data as Record<string, unknown> : {}),
+          });
+        }
+      }
+    }
     if (message.type === 'call_service' && message.domain === 'input_boolean' && !params.has('unconfirmed')) {
       const id = (message.target as { entity_id: string[] }).entity_id[0];
-      publish(id, 'on');
+      publish(id, message.service === 'turn_off' ? 'off' : message.service === 'toggle' && entities[id]?.state === 'on' ? 'off' : 'on');
     }
     if (message.type === 'call_service' && message.domain === 'dashboard_attention' && message.service === 'unsnooze') {
       const episode = (message.service_data as { episode: string }).episode;

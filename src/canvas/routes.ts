@@ -9,7 +9,6 @@ export type CanvasRoute =
   | { kind: 'player' }
   | { kind: 'speakers' }
   | { kind: 'weather' }
-  | { kind: 'moods' }
   | { kind: 'thermostats' }
   | { kind: 'appliances' }
   | { kind: 'vacuum' }
@@ -31,8 +30,6 @@ export function canvasRouteTitle(route: CanvasRoute): string {
       return 'Speakers';
     case 'weather':
       return 'Weather';
-    case 'moods':
-      return 'House Mood';
     case 'thermostats':
       return 'Thermostats';
     case 'appliances':
@@ -48,7 +45,7 @@ export function routeForAttention(item: AttentionItem): CanvasRoute {
   if (item.target === 'appliances') return { kind: 'appliances' };
   if (item.target === 'vacuum') return { kind: 'vacuum' };
   if (item.target === 'temperature') return { kind: 'thermostats' };
-  if (item.target === 'mood') return { kind: 'moods' };
+  if (item.target === 'mood') return { kind: 'overview' };
   if (item.target === 'speaker') return { kind: 'speakers' };
   return { kind: 'all-devices' };
 }

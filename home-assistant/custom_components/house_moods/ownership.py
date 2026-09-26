@@ -6,7 +6,7 @@ def matches(target, expected, observed):
         # Snapshot timestamps/freshness metadata are durable replay evidence,
         # not part of the device's writable effect configuration.
         return 'native' in observed and expected['native'] == observed['native']
-    ignored = PROGRESSION_FIELDS if target.endswith('#playback') else set()
+    ignored = PROGRESSION_FIELDS if target.endswith('#playback') else {'_mode_staging'} if target.startswith('light.') else set()
     for key, value in expected.items():
         if key in ignored:
             continue

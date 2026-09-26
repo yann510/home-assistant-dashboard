@@ -18,15 +18,20 @@ class Runtime:
         self.io = HAIO(hass)
         self.adapter = HAAdapter(hass, self.io)
         self.engine = MoodCoordinator(self.adapter, SessionStore(hass), on_status=self.publish)
+        self.io.guard = lambda controls: bool(controls & self.engine._manual_during_operation)
         self.tasks = set()
         self.unsubscribers = []
         self.pending = set()
         self.dirty = set()
         self.closed = False
+        from .modes import MODE_ENTITIES
+        self.mode_states = {entity: self.io.state(entity)["state"] for entity in MODE_ENTITIES.values()}
 
     def publish(self, status):
+        from .modes import ModeControls
         self.hass.states.async_set('sensor.house_mood', status['phase'],
-            {k: v for k, v in status.items() if k != 'phase'})
+            {**{k: v for k, v in status.items() if k != 'phase'},
+             'mode_control': 'coordinated-v1' if ModeControls(self.io).available() else None})
 
     def schedule(self, coroutine):
         if self.closed:
@@ -62,6 +67,13 @@ class Runtime:
         self.schedule(update())
 
     def state_changed(self, event):
+        from .modes import LEGACY_AUTOMATIONS, MODE_ENTITIES, ModeControls
+        entity = event.data['entity_id']
+        state = event.data.get('new_state')
+        if entity in MODE_ENTITIES.values() and state and (self.io.origin(state.context) or not ModeControls(self.io).available()):
+            self.mode_states[entity] = state.state
+        if event.data['entity_id'] in LEGACY_AUTOMATIONS:
+            self.publish(self.engine.status())
         for target in self.adapter.observation_targets(event.data['entity_id']):
             self.observe(target)
 
@@ -117,8 +129,34 @@ class Runtime:
                 targets.add(GROUPS)
             if service in ('play_media', 'media_play', 'media_pause', 'media_stop', 'media_play_pause', 'clear_playlist', 'turn_off', 'turn_on'):
                 targets.update(e + '#playback' for e in speakers & set(PLAYBACK_SOURCES))
+        if domain == 'localtuya' and service == 'set_dp':
+            from .modes import TUYA_LIGHTS
+            targets.update(entity for entity, device in TUYA_LIGHTS.items() if data.get('device_id') == device)
         for target in targets:
+            self.engine.note_external(target)
             self.observe(target, 'external:' + event.context.id)
+        from .modes import MODE_ENTITIES, ModeControls
+        if domain == 'input_boolean' and service in ('turn_on', 'toggle') and ModeControls(self.io).available():
+            for mode, entity in MODE_ENTITIES.items():
+                if entity in entities and (service == 'turn_on' or self.io.state(entity)['state'] == 'off'):
+                    self.schedule(self.apply_external_mode(mode))
+
+    async def apply_external_mode(self, mode):
+        from .modes import MODE_ENTITIES
+        result = await self.engine.apply_mode(mode)
+        if result['success']:
+            self.mode_states = {entity: self.io.state(entity)['state'] for entity in MODE_ENTITIES.values()}
+            return
+        # An external helper service may already have changed its boolean before
+        # arbitration rejects it. Repair helper truth after the current transaction,
+        # under the same lock, without replaying any physical mode routine.
+        async with self.engine._lock:
+            for entity, state in self.mode_states.copy().items():
+                if state in ('on', 'off') and self.io.state(entity)['state'] != state:
+                    await self.io.call('input_boolean', 'turn_on' if state == 'on' else 'turn_off', [entity], {}, 'mode-helper-repair')
+            status = self.engine.status(False)
+            status['errors'] = result['errors']
+            self.publish(status)
 
     async def handle(self, call):
         self.io.check_open()
@@ -143,6 +181,12 @@ class Runtime:
                     result = self.engine.status(False)
                     result['errors'] = [{'target': 'follow', 'message': str(err)}]
                     return result
+            if call.service == 'apply_mode':
+                result = await self.engine.apply_mode(call.data['mode'])
+                if result['success']:
+                    from .modes import MODE_ENTITIES
+                    self.mode_states = {entity: self.io.state(entity)['state'] for entity in MODE_ENTITIES.values()}
+                return result
             if call.service == 'activate':
                 return await self.engine.activate(call.data['mood'])
             return await getattr(self.engine, call.service)()
@@ -178,7 +222,7 @@ class Runtime:
         for task in tasks:
             task.cancel()
         await asyncio.gather(*tasks, return_exceptions=True)
-        for name in ('activate', 'end', 'retry_restoration', 'follow_join'):
+        for name in ('activate', 'end', 'retry_restoration', 'follow_join', 'apply_mode'):
             self.hass.services.async_remove('house_moods', name)
 
 async def async_setup(hass, config):
@@ -189,6 +233,7 @@ async def async_setup(hass, config):
     from .presets import NEON
     callback(Runtime.state_changed)
     callback(Runtime.service_called)
+    hass.data['house_moods_coordinated_modes'] = (config.get('house_moods') or {}).get('coordinated_modes', False) is True
     runtime = Runtime(hass)
     hass.data['house_moods'] = runtime
     runtime.publish(runtime.engine.status())
@@ -198,8 +243,8 @@ async def async_setup(hass, config):
         runtime.adapter.native_subscribe(lambda: runtime.observe(NEON)),
         hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, runtime.close),
     ])
-    for name in ('activate', 'end', 'retry_restoration', 'follow_join'):
-        schema = vol.Schema({vol.Required('mood'): vol.In(MOODS)}) if name == 'activate' else vol.Schema({vol.Required('room'): str}) if name == 'follow_join' else vol.Schema({})
+    for name in ('activate', 'end', 'retry_restoration', 'follow_join', 'apply_mode'):
+        schema = vol.Schema({vol.Required('mood'): vol.In(MOODS)}) if name == 'activate' else vol.Schema({vol.Required('room'): str}) if name == 'follow_join' else vol.Schema({vol.Required('mode'): vol.In(('day', 'night'))}) if name == 'apply_mode' else vol.Schema({})
         hass.services.async_register('house_moods', name, runtime.handle, schema=schema, supports_response=SupportsResponse.ONLY)
     async def started(event=None):
         runtime.unsubscribers.append(runtime.adapter.native_subscribe(lambda: runtime.observe(NEON)))
