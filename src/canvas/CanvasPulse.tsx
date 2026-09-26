@@ -50,7 +50,7 @@ export function CanvasPulse({
       activity.status === 'Finished' ||
       (activity.reported && ['Unavailable', 'Unknown'].includes(activity.status))
   );
-  if (vacuum.active || vacuum.status === 'Paused' || (entities['vacuum.roomba'] && ['Unavailable', 'Unknown'].includes(vacuum.status)))
+  if (entities['vacuum.roomba'] && vacuum.status !== 'Docked')
     shownActivities.push({ id: 'roomba', name: 'Roomba', ...vacuum, route: { kind: 'vacuum' } });
   const visible = attention.ready
     ? attention.items.filter(item => !item.snoozed_until || Date.parse(item.snoozed_until) <= attention.now)

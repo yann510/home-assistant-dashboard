@@ -61,6 +61,53 @@ it('shows running activity alongside actionable attention and opens its context'
   expect(screen.getByText(/Empty Roomba’s bin/)).toBeTruthy();
 });
 
+it.each([
+  ['idle', 'Idle', false],
+  ['paused', 'Paused', false],
+  ['cleaning', 'Cleaning', true],
+  ['returning', 'Returning to dock', true],
+  ['unavailable', 'Unavailable', false],
+  ['unknown', 'Unknown', false],
+  ['error', 'Unknown', false],
+])('shows reported Roomba %s in House pulse and opens its detail without commands', (state, label, active) => {
+  ref.current!.publish('vacuum.roomba', state);
+  render(<CanvasDashboard />);
+  const pulse = within(screen.getByRole('region', { name: 'House pulse' }));
+  const activity = pulse.getByRole('button', { name: `Roomba ${label}` });
+  expect(activity.classList.contains('appliance-animation')).toBe(active);
+  fireEvent.click(activity);
+  expect(screen.getByRole('dialog', { name: 'Roomba' })).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Close details' }));
+  expect(ref.current!.calls).toHaveLength(0);
+});
+
+it('hides docked Roomba, follows idle updates, and hides cached activity while disconnected', () => {
+  ref.current!.publish('vacuum.roomba', 'docked');
+  render(<CanvasDashboard />);
+  const pulse = within(screen.getByRole('region', { name: 'House pulse' }));
+  expect(pulse.queryByRole('button', { name: /Roomba/ })).toBeNull();
+  act(() => ref.current!.publish('vacuum.roomba', 'idle'));
+  expect(pulse.getByRole('button', { name: 'Roomba Idle' })).toBeTruthy();
+  act(() => ref.current!.disconnect());
+  expect(pulse.queryByRole('button', { name: /Roomba/ })).toBeNull();
+  expect(pulse.getByText('Live activity unavailable while disconnected.')).toBeTruthy();
+  act(() => ref.current!.reconnect());
+  expect(pulse.getByRole('button', { name: 'Roomba Idle' })).toBeTruthy();
+  act(() => ref.current!.publish('vacuum.roomba', 'docked'));
+  expect(pulse.queryByRole('button', { name: /Roomba/ })).toBeNull();
+  expect(ref.current!.calls).toHaveLength(0);
+});
+
+it('keeps a missing Roomba uncertain without inventing an activity entry', () => {
+  for (const prefix of ['washer_washer', 'dryer_dryer', 'dishwasher_dishwasher'])
+    ref.current!.publish(`sensor.${prefix}_machine_state`, 'stop');
+  ref.current!.publish('sensor.dashboard_attention', '0', { ready: true, items: [] });
+  render(<CanvasDashboard />);
+  const pulse = within(screen.getByRole('region', { name: 'House pulse' }));
+  expect(pulse.queryByRole('button', { name: /Roomba/ })).toBeNull();
+  expect(pulse.getByText('Activity status unavailable for some devices.')).toBeTruthy();
+});
+
 it('never treats missing activity sensors as an all-clear and keeps reminder episodes current', () => {
   const item = {
     id: 'hilo',
