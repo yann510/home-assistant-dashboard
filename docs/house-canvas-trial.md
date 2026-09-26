@@ -1,5 +1,11 @@
 # House Canvas deployment handoff
 
+## Colour wheel follow-up — September 26, 2026
+
+Release `79e8d98` is deployed to both `dashboard` and `canvas-trial`. Light colour settings use the circular wheel and Apply without a hex field. All 163 main and 94 trial manifest files passed LAN HTTP/SHA-256 verification. The authenticated live dashboard rendered the wheel without the hex field; no household commands were sent during this check. The 359-test suite, TypeScript and lint passed before release. Previous versions remain available through the existing rollback commands.
+
+Current link: **http://homeassistant.local:8123/local/dashboard/index.html?release=79e8d98**.
+
 ## Canvas-only rollout — September 26, 2026
 
 Canvas is now the only application view. Classic and Quiet Home entry components, exclusive controls and their obsolete UI tests have been removed; shared controllers and their tests remain. Old `view` query parameters resolve to Canvas. The main destination is **http://homeassistant.local:8123/local/dashboard/index.html**. The trial URL is also updated with the same application for existing bookmarks.
