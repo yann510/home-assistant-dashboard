@@ -43,11 +43,12 @@ export function CanvasLightDetails({
   const kelvinMax = numeric(attrs?.max_color_temp_kelvin);
   const miredMin = numeric(attrs?.min_mireds);
   const miredMax = numeric(attrs?.max_mireds);
+  // Bounds can linger on unsupported lights; capability and a usable range are both required.
   const temperature =
     modes.includes('color_temp') &&
-    (kelvinMin !== undefined && kelvinMax !== undefined
+    (kelvinMin !== undefined && kelvinMax !== undefined && kelvinMin > 0 && kelvinMax > kelvinMin
       ? { min: kelvinMin, max: kelvinMax, value: numeric(attrs?.color_temp_kelvin), key: 'color_temp_kelvin', unit: 'K' }
-      : miredMin !== undefined && miredMax !== undefined
+      : miredMin !== undefined && miredMax !== undefined && miredMin > 0 && miredMax > miredMin
         ? { min: miredMin, max: miredMax, value: numeric(attrs?.color_temp), key: 'color_temp', unit: 'mired' }
         : null);
   const [brightnessDraft, setBrightnessDraft] = useState<number | null>(null);

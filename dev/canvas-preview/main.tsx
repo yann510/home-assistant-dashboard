@@ -7,6 +7,7 @@ import { rooms } from '../../src/useLightSummary';
 import '../../src/index.css';
 import { applySpeakerService } from './speaker-services';
 import { applyMoodService } from './mode-services';
+import { lightCapabilities } from './light-capabilities';
 
 const params = new URLSearchParams(location.search);
 const scene = params.get('scene') ?? 'everyday';
@@ -27,12 +28,7 @@ for (const room of rooms)
   for (const id of room.lights)
     publish(id, 'on', {
       friendly_name: id.split('.')[1].replaceAll('_', ' '),
-      brightness: 166,
-      supported_color_modes: ['rgb', 'color_temp'],
-      color_temp_kelvin: 3000,
-      min_color_temp_kelvin: 2000,
-      max_color_temp_kelvin: 6500,
-      rgb_color: [240, 180, 120],
+      ...(lightCapabilities[id] ?? { supported_color_modes: ['onoff'] }),
     });
 for (const room of ['living_room', 'bathroom', 'bedroom', 'gym'])
   publish(

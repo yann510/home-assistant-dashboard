@@ -152,6 +152,86 @@ it('uses reported Kelvin range and submits the chosen temperature', () => {
   });
 });
 
+it.each([false, true])('requires advertised temperature support in light details (embedded: %s)', embedded => {
+  const fixture = ref.current!;
+  render(
+    <CanvasLightsProvider>
+      <CanvasLightDetails entityId='light.gym' embedded={embedded} />
+    </CanvasLightsProvider>
+  );
+  for (const modes of [undefined, [], ['onoff'], ['brightness'], ['rgb'], ['rgbww']]) {
+    act(() =>
+      fixture.publish('light.gym', 'on', {
+        supported_color_modes: modes,
+        color_mode: 'color_temp',
+        color_temp_kelvin: 3000,
+        min_color_temp_kelvin: 2000,
+        max_color_temp_kelvin: 6500,
+        min_mireds: 153,
+        max_mireds: 500,
+      })
+    );
+    expect(screen.queryByRole('button', { name: 'Warmth' })).toBeNull();
+    expect(screen.queryByRole('slider', { name: 'Light colour temperature' })).toBeNull();
+  }
+  expect(fixture.calls).toEqual([]);
+});
+
+it.each([false, true])('requires usable temperature bounds in light details (embedded: %s)', embedded => {
+  const fixture = ref.current!;
+  render(
+    <CanvasLightsProvider>
+      <CanvasLightDetails entityId='light.gym' embedded={embedded} />
+    </CanvasLightsProvider>
+  );
+  for (const [min, max] of [
+    [undefined, undefined],
+    [2000, undefined],
+    [0, 6500],
+    [-100, 6500],
+    [6500, 2000],
+    [3000, 3000],
+    [NaN, 6500],
+    [2000, Infinity],
+  ]) {
+    for (const unit of ['kelvin', 'mired']) {
+      act(() =>
+        fixture.publish('light.gym', 'on', {
+          supported_color_modes: ['color_temp'],
+          ...(unit === 'kelvin' ? { min_color_temp_kelvin: min, max_color_temp_kelvin: max } : { min_mireds: min, max_mireds: max }),
+        })
+      );
+      expect(screen.queryByRole('button', { name: 'Warmth' })).toBeNull();
+      expect(screen.queryByRole('slider', { name: 'Light colour temperature' })).toBeNull();
+    }
+  }
+  expect(fixture.calls).toEqual([]);
+});
+
+it('keeps warmth available in another current colour mode and falls back to valid legacy bounds', () => {
+  const fixture = ref.current!;
+  fixture.publish('light.gym', 'on', {
+    supported_color_modes: ['rgb', 'color_temp'],
+    color_mode: 'rgb',
+    min_color_temp_kelvin: 6500,
+    max_color_temp_kelvin: 2000,
+    min_mireds: 153,
+    max_mireds: 500,
+  });
+  render(
+    <CanvasLightsProvider>
+      <CanvasLightDetails entityId='light.gym' embedded />
+    </CanvasLightsProvider>
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Warmth' }));
+  const slider = screen.getByRole('slider', { name: 'Light colour temperature' });
+  expect(slider.getAttribute('min')).toBe('153');
+  expect(slider.getAttribute('max')).toBe('500');
+  fireEvent.change(slider, { target: { value: '300' } });
+  fireEvent.blur(slider);
+  expect(fixture.calls[0]).toMatchObject({ service_data: { color_temp: 300 } });
+});
+
 it('reports partial all-off rejection per target without claiming the whole house is off', async () => {
   const fixture = ref.current!;
   fixture.publish('light.light_living_room_bulbs', 'on');
