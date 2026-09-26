@@ -101,7 +101,7 @@ it('shows only reported detail capabilities and preserves a brightness draft dur
     </CanvasLightsProvider>
   );
   expect(screen.getByRole('slider', { name: 'Light colour temperature' }).getAttribute('min')).toBe('2000');
-  expect(screen.getByLabelText('Light colour')).toBeTruthy();
+  expect(screen.getByRole('slider', { name: 'Colour wheel' })).toBeTruthy();
   expect(screen.getByRole('combobox', { name: 'Light effect' })).toBeTruthy();
   fireEvent.change(screen.getByRole('slider', { name: 'Light brightness' }), { target: { value: '68' } });
   fireEvent.blur(screen.getByRole('slider', { name: 'Light brightness' }));
@@ -125,7 +125,7 @@ it('disables controls for unknown states and hides unsupported features', () => 
   );
   expect((screen.getByRole('button', { name: 'Turn on Gym' }) as HTMLButtonElement).disabled).toBe(true);
   expect(screen.queryByRole('slider', { name: 'Light brightness' })).toBeNull();
-  expect(screen.queryByLabelText('Light colour')).toBeNull();
+  expect(screen.queryByRole('slider', { name: 'Colour wheel' })).toBeNull();
 });
 
 it('uses reported Kelvin range and submits the chosen temperature', () => {
@@ -419,7 +419,8 @@ it.each([
     name: 'colour',
     attributes: { rgb_color: [255, 0, 0], supported_color_modes: ['rgb'] },
     choose: () => {
-      fireEvent.change(screen.getByLabelText('Light colour'), { target: { value: '#0000ff' } });
+      for (let step = 0; step < 12; step++)
+        fireEvent.keyDown(screen.getByRole('slider', { name: 'Colour wheel' }), { key: 'ArrowLeft', shiftKey: true });
       fireEvent.click(screen.getByRole('button', { name: 'Apply colour' }));
     },
     retained: { rgb_color: [0, 0, 255], supported_color_modes: ['rgb'] },
@@ -466,7 +467,7 @@ it('labels missing readings as unknown and initial slider positions as proposals
   expect(screen.getByText('Current colour unknown')).toBeTruthy();
   expect(screen.getByText('Proposed brightness 50%')).toBeTruthy();
   expect(screen.getByText('Proposed colour temperature 3500 K')).toBeTruthy();
-  expect(screen.getByText('Proposed colour #ffffff')).toBeTruthy();
+  expect(screen.getByRole('slider', { name: 'Colour wheel' }).getAttribute('aria-valuetext')).toContain('saturation 0 percent');
   expect(screen.getByRole('slider', { name: 'Light brightness' }).getAttribute('aria-valuetext')).toContain('proposed');
 });
 
@@ -987,33 +988,28 @@ it('shows only the chosen supported adjustment and preserves drafts until explic
     </CanvasLightsProvider>
   );
   expect(screen.getByRole('slider', { name: 'Light brightness' })).toBeTruthy();
-  expect(screen.queryByLabelText('Light colour')).toBeNull();
+  expect(screen.queryByRole('slider', { name: 'Colour wheel' })).toBeNull();
   fireEvent.click(screen.getByRole('button', { name: 'Colour' }));
   expect(screen.queryByRole('slider', { name: 'Light brightness' })).toBeNull();
   expect(screen.getByRole('slider', { name: 'Colour wheel' })).toBeTruthy();
-  const colour = screen.getByLabelText('Light colour') as HTMLInputElement;
-  fireEvent.keyDown(screen.getByRole('slider', { name: 'Colour wheel' }), { key: 'End' });
-  expect(fixture.calls).toEqual([]);
-  fireEvent.change(colour, { target: { value: '#123456' } });
-  fireEvent.change(colour, { target: { value: '#12' } });
-  expect(colour.value).toBe('#12');
-  expect(colour.getAttribute('aria-invalid')).toBe('true');
-  expect((screen.getByRole('button', { name: 'Apply' }) as HTMLButtonElement).disabled).toBe(true);
-  fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
-  expect(fixture.calls).toEqual([]);
-  fireEvent.change(colour, { target: { value: '#123456' } });
+  const colour = screen.getByRole('slider', { name: 'Colour wheel' });
+  expect(screen.queryByRole('textbox')).toBeNull();
+  fireEvent.keyDown(colour, { key: 'End' });
+  fireEvent.keyDown(colour, { key: 'ArrowRight', shiftKey: true });
   fireEvent.blur(colour);
   expect(fixture.calls).toEqual([]);
   fireEvent.click(screen.getByRole('button', { name: 'Effect' }));
   fireEvent.change(screen.getByRole('combobox'), { target: { value: 'Pulse' } });
-  expect(screen.queryByLabelText('Light colour')).toBeNull();
+  expect(screen.queryByRole('slider', { name: 'Colour wheel' })).toBeNull();
   fireEvent.click(screen.getByRole('button', { name: 'Warmth' }));
   expect(screen.getByRole('slider', { name: 'Light colour temperature' })).toBeTruthy();
   expect(screen.queryByRole('combobox')).toBeNull();
   fireEvent.click(screen.getByRole('button', { name: 'Effect' }));
   expect((screen.getByRole('combobox') as HTMLSelectElement).value).toBe('Pulse');
   fireEvent.click(screen.getByRole('button', { name: 'Colour' }));
-  expect((screen.getByLabelText('Light colour') as HTMLInputElement).value).toBe('#123456');
+  expect(screen.getByRole('slider', { name: 'Colour wheel' }).getAttribute('aria-valuetext')).toBe(
+    'Hue 10 degrees, saturation 100 percent'
+  );
   fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
   await waitFor(() =>
     expect(fixture.calls).toEqual([
@@ -1022,7 +1018,7 @@ it('shows only the chosen supported adjustment and preserves drafts until explic
         domain: 'light',
         service: 'turn_on',
         target: { entity_id: ['light.gym'] },
-        service_data: { rgb_color: [18, 52, 86] },
+        service_data: { rgb_color: [255, 42, 0] },
       },
     ])
   );
