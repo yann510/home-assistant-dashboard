@@ -1,4 +1,6 @@
 import { useRef, useState, type CSSProperties } from 'react';
+import { LightSettingsOverlay } from './LightSettingsOverlay';
+import { useLightSettings } from './useLightSettings';
 import { CanvasRoomPicker } from './CanvasRoomPicker';
 import { RoomArtwork } from './RoomArtwork';
 import { getRoomAccent } from './room-artwork';
@@ -244,43 +246,42 @@ function IndividualLights({
   );
 }
 
-export function CanvasLights({
-  onOpenAll,
-  onOpenLight,
-}: {
-  onOpenAll(trigger: HTMLElement): void;
-  onOpenLight?(entityId: string, trigger: HTMLElement): void;
-}) {
+export function CanvasLights({ onOpenAll }: { onOpenAll(trigger: HTMLElement): void }) {
+  const settings = useLightSettings();
   const { rooms, selectedRoom, setSelectedRoom, connected } = useCanvasLights();
   const room = rooms.find(item => item.name === selectedRoom) ?? rooms[0];
   return (
     <section
       className='canvas-lights canvas-lights--compact'
       aria-label='Lights'
+      onKeyDown={settings.onKeyDown}
       data-room={room.name}
       style={{ '--canvas-room-accent': getRoomAccent(room.name) } as CSSProperties}
       data-lit={connected && room.on > 0}
       data-unavailable={!connected || !room.available}
     >
-      <div className='canvas-lights__heading'>
-        <h2>Lights</h2>
-        <button type='button' className='canvas-lights__all-link' onClick={event => onOpenAll(event.currentTarget)}>
-          All lights <span aria-hidden='true'>↗</span>
-        </button>
-      </div>
-      <div className='canvas-lights__room-line'>
-        <RoomArtwork room={room.name} className='canvas-lights__room-artwork' />
-        <div className='canvas-lights__room-summary'>
-          <CanvasRoomPicker rooms={rooms} connected={connected} value={room.name} onChange={setSelectedRoom} />
-          {(!connected || room.available < room.lights.length) && (
-            <p className='canvas-lights__muted'>{!connected ? 'Reconnecting…' : `${room.lights.length - room.available} unavailable`}</p>
-          )}
+      <div inert={Boolean(settings.active)} aria-hidden={settings.active ? true : undefined}>
+        <div className='canvas-lights__heading'>
+          <h2>Lights</h2>
+          <button type='button' className='canvas-lights__all-link' onClick={event => onOpenAll(event.currentTarget)}>
+            All lights <span aria-hidden='true'>↗</span>
+          </button>
         </div>
-        <RoomPower room={room} compact />
+        <div className='canvas-lights__room-line'>
+          <RoomArtwork room={room.name} className='canvas-lights__room-artwork' />
+          <div className='canvas-lights__room-summary'>
+            <CanvasRoomPicker rooms={rooms} connected={connected} value={room.name} onChange={setSelectedRoom} />
+            {(!connected || room.available < room.lights.length) && (
+              <p className='canvas-lights__muted'>{!connected ? 'Reconnecting…' : `${room.lights.length - room.available} unavailable`}</p>
+            )}
+          </div>
+          <RoomPower room={room} compact />
+        </div>
+        <IndividualLights room={room} onOpenAll={onOpenAll} onOpenLight={settings.open} />
+        <RoomBrightness room={room} compact />
+        <CommandFeedback compact />
       </div>
-      <IndividualLights room={room} onOpenAll={onOpenAll} onOpenLight={onOpenLight} />
-      <RoomBrightness room={room} compact />
-      <CommandFeedback compact />
+      {settings.active && <LightSettingsOverlay entityId={settings.active.entityId} onClose={settings.close} />}
     </section>
   );
 }
@@ -306,16 +307,11 @@ export function CanvasAllLightsAction() {
   );
 }
 
-export function CanvasAllLights({
-  onOpenLight,
-  showGlobalAction = true,
-}: {
-  onOpenLight(entityId: string, trigger: HTMLElement): void;
-  showGlobalAction?: boolean;
-}) {
+export function CanvasAllLights({ showGlobalAction = true }: { showGlobalAction?: boolean }) {
   const { rooms, connected } = useCanvasLights();
+  const settings = useLightSettings();
   return (
-    <div className='canvas-lights canvas-lights--all'>
+    <div className='canvas-lights canvas-lights--all' onKeyDown={settings.onKeyDown}>
       {showGlobalAction && (
         <div className='canvas-lights__toolbar'>
           <CanvasAllLightsAction />
@@ -332,20 +328,23 @@ export function CanvasAllLights({
             data-unavailable={!connected || !room.available}
             style={{ '--canvas-room-accent': getRoomAccent(room.name) } as CSSProperties}
           >
-            <div className='canvas-lights__room-line'>
-              <RoomArtwork room={room.name} className='canvas-lights__room-artwork' />
-              <div className='canvas-lights__room-summary'>
-                <h3>{room.name}</h3>
-                {(!connected || room.available < room.lights.length) && (
-                  <p className='canvas-lights__muted'>
-                    {!connected ? 'Reconnecting…' : `${room.lights.length - room.available} unavailable`}
-                  </p>
-                )}
+            <div inert={Boolean(settings.active)} aria-hidden={settings.active ? true : undefined}>
+              <div className='canvas-lights__room-line'>
+                <RoomArtwork room={room.name} className='canvas-lights__room-artwork' />
+                <div className='canvas-lights__room-summary'>
+                  <h3>{room.name}</h3>
+                  {(!connected || room.available < room.lights.length) && (
+                    <p className='canvas-lights__muted'>
+                      {!connected ? 'Reconnecting…' : `${room.lights.length - room.available} unavailable`}
+                    </p>
+                  )}
+                </div>
+                <RoomPower room={room} compact />
               </div>
-              <RoomPower room={room} compact />
+              <RoomBrightness room={room} compact label={`${room.name} brightness`} />
+              <IndividualLights room={room} all onOpenLight={(entityId, trigger) => settings.open(entityId, trigger, room.name)} />
             </div>
-            <RoomBrightness room={room} compact label={`${room.name} brightness`} />
-            <IndividualLights room={room} all onOpenLight={onOpenLight} />
+            {settings.active?.room === room.name && <LightSettingsOverlay entityId={settings.active.entityId} onClose={settings.close} />}
           </section>
         ))}
       </div>

@@ -107,7 +107,7 @@ it('records partial all-light success and the exact failed target', async () => 
   const gymReply = deferred();
   fixture.respondWith(message => ((message as { target: { entity_id: string[] } }).target.entity_id[0] === living
     ? livingReply.promise : gymReply.promise));
-  render(<CanvasLightsProvider><CanvasAllLights onOpenLight={() => {}} /></CanvasLightsProvider>);
+  render(<CanvasLightsProvider><CanvasAllLights /></CanvasLightsProvider>);
   fireEvent.click(screen.getByRole('button', { name: 'Turn off all lights' }));
   expect(fixture.calls).toEqual([expected(living, 'turn_off'), expected(gym, 'turn_off')]);
   expect(screen.getByRole('status').textContent).toContain('Sending to 2 lights');

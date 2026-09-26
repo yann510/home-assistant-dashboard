@@ -4,7 +4,7 @@
 .canvas-dialog .canvas-lights--all .canvas-lights__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: var(--canvas-space-3); }
 .canvas-dialog .canvas-lights--all .canvas-lights__group { min-width: 0; padding: var(--canvas-space-3); background: var(--canvas-surface); border-color: var(--canvas-line); border-radius: 20px; }
 .canvas-dialog .canvas-lights--all .canvas-lights__room-line { display: grid; margin: 0 0 var(--canvas-space-2); gap: var(--canvas-space-2); }
-.canvas-dialog .canvas-lights--all .canvas-lights__group .canvas-lights__power { width: auto; min-width: 0; padding-inline: var(--canvas-space-2); font-size: .75rem; }
+.canvas-dialog .canvas-lights--all .canvas-lights__group .canvas-lights__power { width: auto; min-width: 78px; padding-inline: var(--canvas-space-2); font-size: .75rem; }
 .canvas-dialog .canvas-lights--all .canvas-lights__room-summary { min-width: 0; }
 .canvas-dialog .canvas-lights--all h3 { margin: 0; font-size: .95rem; }
 .canvas-dialog .canvas-lights--all .canvas-lights__muted { color: var(--canvas-muted); font-size: .75rem; }

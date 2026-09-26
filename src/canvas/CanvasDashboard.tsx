@@ -127,10 +127,7 @@ function CanvasDashboardContent(): React.JSX.Element {
           />
         </div>
         <section className='canvas__shortcuts' aria-label='Home controls'>
-          <CanvasLights
-            onOpenAll={trigger => open({ kind: 'all-lights' }, trigger)}
-            onOpenLight={(entityId, trigger) => open({ kind: 'light', entityId }, trigger)}
-          />
+          <CanvasLights onOpenAll={trigger => open({ kind: 'all-lights' }, trigger)} />
           <CanvasBlinds />
         </section>
       </div>
@@ -185,7 +182,7 @@ function CanvasDashboardContent(): React.JSX.Element {
             ) : route.kind === 'speakers' ? (
               <CanvasSpeakers />
             ) : route.kind === 'all-lights' ? (
-              <CanvasAllLights showGlobalAction={false} onOpenLight={(entityId, trigger) => open({ kind: 'light', entityId }, trigger)} />
+              <CanvasAllLights showGlobalAction={false} />
             ) : route.kind === 'light' ? (
               <CanvasLightDetails key={route.entityId} entityId={route.entityId} />
             ) : route.kind === 'blinds' ? (
