@@ -216,7 +216,7 @@
 .canvas .canvas-lights--compact .canvas-lights__room-summary select:hover { background: var(--canvas-bg); }
 .canvas .canvas-lights--compact .canvas-lights__room-summary option { background: var(--canvas-surface); color: var(--canvas-ink); }
 .canvas .canvas-lights--compact .canvas-lights__room-summary .canvas-lights__muted { margin: 4px 0 0; padding-left: 5px; font-size: .74rem; }
-.canvas .canvas-lights--compact .canvas-lights__power {
+:is(.canvas .canvas-lights--compact, .canvas-dialog .canvas-lights__group) .canvas-lights__power {
   width: 98px;
   min-width: 98px;
   padding: var(--canvas-space-2) var(--canvas-space-3);
@@ -227,27 +227,27 @@
   font-size: .8rem;
   font-weight: 600;
 }
-.canvas .canvas-lights--compact[data-lit='true'] .canvas-lights__power {
+:is(.canvas .canvas-lights--compact, .canvas-dialog .canvas-lights__group)[data-lit='true'] .canvas-lights__power {
   background: transparent;
   color: var(--canvas-ink);
   border-color: var(--canvas-line);
 }
-.canvas .canvas-lights--compact .canvas-lights__power:disabled { opacity: .45; }
-.canvas .canvas-lights--compact .canvas-lights__slider {
+:is(.canvas .canvas-lights--compact, .canvas-dialog .canvas-lights__group) .canvas-lights__power:disabled { opacity: .45; }
+:is(.canvas .canvas-lights--compact, .canvas-dialog .canvas-lights__group) .canvas-lights__slider {
   border-top: 1px solid var(--canvas-line);
   margin-top: var(--canvas-space-1);
   color: var(--canvas-muted);
   font-size: .75rem;
 }
-.canvas .canvas-lights--compact .canvas-lights__slider input { accent-color: var(--canvas-ink); min-width: 0; margin: 0; }
-.canvas .canvas-lights--compact .canvas-lights__slider output { min-width: 4ch; text-align: right; color: var(--canvas-ink); font-variant-numeric: tabular-nums; }
+:is(.canvas .canvas-lights--compact, .canvas-dialog .canvas-lights__group) .canvas-lights__slider input { accent-color: var(--canvas-ink); min-width: 0; margin: 0; }
+:is(.canvas .canvas-lights--compact, .canvas-dialog .canvas-lights__group) .canvas-lights__slider output { min-width: 4ch; text-align: right; color: var(--canvas-ink); font-variant-numeric: tabular-nums; }
 @media (max-width: 380px) {
   .canvas .canvas-lights--compact .canvas-lights__room-line { grid-template-columns: 44px minmax(0, 1fr) auto; gap: var(--canvas-space-2); }
   .canvas .canvas-lights--compact .canvas-lights__pendant { width: 44px; }
   .canvas .canvas-lights--compact .canvas-lights__room-summary select { font-size: .9rem; }
 }
 
-.canvas .canvas-lights--compact .canvas-lights__slider input[type='range'] {
+:is(.canvas .canvas-lights--compact, .canvas-dialog .canvas-lights__group) .canvas-lights__slider input[type='range'] {
   appearance: none;
   -webkit-appearance: none;
   height: 44px;
@@ -258,13 +258,13 @@
   box-shadow: none;
   cursor: pointer;
 }
-.canvas .canvas-lights--compact .canvas-lights__slider input::-webkit-slider-runnable-track {
+:is(.canvas .canvas-lights--compact, .canvas-dialog .canvas-lights__group) .canvas-lights__slider input::-webkit-slider-runnable-track {
   height: 4px;
   border: 0;
   border-radius: 4px;
   background: linear-gradient(to right, var(--canvas-ink) var(--canvas-light-level), var(--canvas-line) var(--canvas-light-level));
 }
-.canvas .canvas-lights--compact .canvas-lights__slider input::-webkit-slider-thumb {
+:is(.canvas .canvas-lights--compact, .canvas-dialog .canvas-lights__group) .canvas-lights__slider input::-webkit-slider-thumb {
   appearance: none;
   -webkit-appearance: none;
   width: 18px;
@@ -275,10 +275,10 @@
   background: var(--canvas-ink);
   box-shadow: 0 0 0 4px var(--canvas-surface);
 }
-.canvas .canvas-lights--compact .canvas-lights__slider input::-moz-range-track { height: 4px; border: 0; border-radius: 4px; background: var(--canvas-line); }
-.canvas .canvas-lights--compact .canvas-lights__slider input::-moz-range-progress { height: 4px; border-radius: 4px; background: var(--canvas-ink); }
-.canvas .canvas-lights--compact .canvas-lights__slider input::-moz-range-thumb { width: 18px; height: 18px; border: 0; border-radius: 50%; background: var(--canvas-ink); box-shadow: 0 0 0 4px var(--canvas-surface); }
-.canvas .canvas-lights--compact .canvas-lights__slider input:disabled { opacity: .4; cursor: not-allowed; }
+:is(.canvas .canvas-lights--compact, .canvas-dialog .canvas-lights__group) .canvas-lights__slider input::-moz-range-track { height: 4px; border: 0; border-radius: 4px; background: var(--canvas-line); }
+:is(.canvas .canvas-lights--compact, .canvas-dialog .canvas-lights__group) .canvas-lights__slider input::-moz-range-progress { height: 4px; border-radius: 4px; background: var(--canvas-ink); }
+:is(.canvas .canvas-lights--compact, .canvas-dialog .canvas-lights__group) .canvas-lights__slider input::-moz-range-thumb { width: 18px; height: 18px; border: 0; border-radius: 50%; background: var(--canvas-ink); box-shadow: 0 0 0 4px var(--canvas-surface); }
+:is(.canvas .canvas-lights--compact, .canvas-dialog .canvas-lights__group) .canvas-lights__slider input:disabled { opacity: .4; cursor: not-allowed; }
 
 .canvas .canvas-lights--compact .canvas-lights__room-picker { position: relative; }
 .canvas .canvas-lights--compact .canvas-lights__room-picker > svg {

@@ -145,13 +145,13 @@ it('shows partial all-light failure by friendly name and opens individual detail
   await act(async () => {});
   expect(within(screen.getByRole('dialog')).getByRole('alert').textContent).toContain('Sofa strip:');
   expect(within(screen.getByRole('dialog')).getByRole('alert').textContent).not.toContain('light.living_room');
-  const lightTrigger = screen.getByRole('button', { name: 'Sofa strip' });
+  const lightTrigger = within(screen.getByRole('dialog')).getByRole('button', { name: 'Sofa strip settings' });
   fireEvent.click(lightTrigger);
   act(() => fixture.publish('light.living_room_led_strip', 'off', { friendly_name: 'Sofa strip' }));
   expect(screen.getByRole('dialog', { name: 'Light' })).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: 'Back' }));
   expect(within(screen.getByRole('dialog')).getByRole('alert').textContent).toContain('Sofa strip:');
-  expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Sofa strip' }));
+  expect(document.activeElement).toBe(within(screen.getByRole('dialog')).getByRole('button', { name: 'Sofa strip settings' }));
 });
 
 it('captures selected blinds and retries only the failed room after a detail roundtrip', async () => {
@@ -240,7 +240,11 @@ it('dismisses a completed mood notice from the card', () => {
   const card = screen.getByRole('region', { name: 'House Mood' });
   fireEvent.click(within(card).getByRole('button', { name: 'Done' }));
   expect(fixture.calls).toContainEqual(
-    expect.objectContaining({ domain: 'dashboard_attention', service: 'dismiss', service_data: { id: 'mood-complete', episode: 'mood-complete-1' } })
+    expect.objectContaining({
+      domain: 'dashboard_attention',
+      service: 'dismiss',
+      service_data: { id: 'mood-complete', episode: 'mood-complete-1' },
+    })
   );
   expect(within(card).getByText('The room is ready')).toBeTruthy();
   act(() => fixture.publish('sensor.dashboard_attention', '1', { ready: true, items: [] }));

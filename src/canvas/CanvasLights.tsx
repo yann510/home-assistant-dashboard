@@ -3,6 +3,7 @@ import { CanvasRoomPicker } from './CanvasRoomPicker';
 import { RoomArtwork } from './RoomArtwork';
 import { getRoomAccent } from './room-artwork';
 import './canvas-lights-quick.css';
+import './canvas-lights-all.css';
 import { useCanvasLights, lightSupportsBrightness, type CanvasRoom } from './useCanvasLights';
 
 function quickLightName(name: string, room: string) {
@@ -20,7 +21,6 @@ function CommandFeedback({ compact = false }: { compact?: boolean }) {
   const failures = result.results.filter(item => item.phase === 'failed' || item.phase === 'unconfirmed');
   const pending = result.results.filter(item => item.phase === 'pending').length;
   const accepted = result.results.filter(item => item.phase === 'accepted').length;
-  const observed = result.results.filter(item => item.phase === 'observed').length;
   return (
     <>
       {failures.length > 0 && (
@@ -34,13 +34,11 @@ function CommandFeedback({ compact = false }: { compact?: boolean }) {
                 .join(' ')}
         </p>
       )}
-      {!compact && (pending > 0 || accepted > 0 || observed > 0) && (
+      {!compact && (pending > 0 || accepted > 0) && (
         <p className='canvas-lights__muted' role='status'>
           {pending
             ? `Sending to ${pending} light${pending === 1 ? '' : 's'}…`
-            : accepted
-              ? `Sent; waiting for ${accepted} light${accepted === 1 ? '' : 's'} to report state.`
-              : `${observed} light${observed === 1 ? '' : 's'} reported the requested state.`}
+            : `Sent; waiting for ${accepted} light${accepted === 1 ? '' : 's'} to report state.`}
         </p>
       )}
     </>
@@ -78,7 +76,7 @@ function RoomPower({ room, compact = false }: { room: CanvasRoom; compact?: bool
   );
 }
 
-function RoomBrightness({ room, compact = false }: { room: CanvasRoom; compact?: boolean }) {
+function RoomBrightness({ room, compact = false, label = 'Room brightness' }: { room: CanvasRoom; compact?: boolean; label?: string }) {
   const { brightness, busy, connected } = useCanvasLights();
   const supported = room.lights.some(light => light.state !== 'unavailable' && lightSupportsBrightness(light.entity));
   const hasOnDimmable = room.lights.some(light => light.state === 'on' && lightSupportsBrightness(light.entity));
@@ -129,7 +127,7 @@ function RoomBrightness({ room, compact = false }: { room: CanvasRoom; compact?:
         type='range'
         min='1'
         max='100'
-        aria-label='Room brightness'
+        aria-label={label}
         aria-busy={committing}
         aria-valuetext={
           draft === null && room.brightnessMixed
@@ -180,6 +178,72 @@ function RoomBrightness({ room, compact = false }: { room: CanvasRoom; compact?:
   );
 }
 
+function IndividualLights({
+  room,
+  all = false,
+  onOpenLight,
+  onOpenAll,
+}: {
+  room: CanvasRoom;
+  all?: boolean;
+  onOpenLight?(entityId: string, trigger: HTMLElement): void;
+  onOpenAll?(trigger: HTMLElement): void;
+}) {
+  const { connected, power, busy } = useCanvasLights();
+  const [quickPending, setQuickPending] = useState<Set<string>>(() => new Set());
+  const lights = all ? room.lights : room.lights.slice(0, 2);
+  return (
+    <div className='canvas-lights__quick' role='group' aria-label={`${room.name} individual lights`}>
+      {lights.map(light => (
+        <div key={light.id} className='canvas-lights__quick-light' data-on={light.state === 'on'}>
+          <button
+            type='button'
+            className='canvas-lights__quick-power'
+            aria-label={`Turn ${light.state === 'on' ? 'off' : 'on'} ${light.name}`}
+            aria-pressed={light.state === 'on'}
+            aria-busy={quickPending.has(light.id)}
+            disabled={!connected || light.state === 'unavailable' || busy.has(light.id)}
+            onClick={() => {
+              setQuickPending(current => new Set(current).add(light.id));
+              void power([light.id], light.state === 'on' ? 'off' : 'on').finally(() =>
+                setQuickPending(current => {
+                  const next = new Set(current);
+                  next.delete(light.id);
+                  return next;
+                })
+              );
+            }}
+          >
+            <span className='canvas-lights__quick-dot' aria-hidden='true' />
+            <span title={light.name}>{quickPending.has(light.id) ? 'Updating…' : quickLightName(light.name, room.name)}</span>
+          </button>
+          {onOpenLight && (
+            <button
+              type='button'
+              className='canvas-lights__quick-settings'
+              aria-label={`${light.name} settings`}
+              data-canvas-focus-key={all ? `light:${light.id}` : undefined}
+              onClick={event => onOpenLight(light.id, event.currentTarget)}
+            >
+              <svg viewBox='0 0 20 20' aria-hidden='true' focusable='false'>
+                <path d='M4 5h12M4 10h12M4 15h12' />
+                <circle cx='7' cy='5' r='2' />
+                <circle cx='13' cy='10' r='2' />
+                <circle cx='8' cy='15' r='2' />
+              </svg>
+            </button>
+          )}
+        </div>
+      ))}
+      {onOpenAll && room.lights.length > 2 && (
+        <button type='button' className='canvas-lights__quick-more' onClick={event => onOpenAll(event.currentTarget)}>
+          More
+        </button>
+      )}
+    </div>
+  );
+}
+
 export function CanvasLights({
   onOpenAll,
   onOpenLight,
@@ -187,9 +251,8 @@ export function CanvasLights({
   onOpenAll(trigger: HTMLElement): void;
   onOpenLight?(entityId: string, trigger: HTMLElement): void;
 }) {
-  const { rooms, selectedRoom, setSelectedRoom, connected, power, busy } = useCanvasLights();
+  const { rooms, selectedRoom, setSelectedRoom, connected } = useCanvasLights();
   const room = rooms.find(item => item.name === selectedRoom) ?? rooms[0];
-  const [quickPending, setQuickPending] = useState<Set<string>>(() => new Set());
   return (
     <section
       className='canvas-lights canvas-lights--compact'
@@ -215,53 +278,7 @@ export function CanvasLights({
         </div>
         <RoomPower room={room} compact />
       </div>
-      <div className='canvas-lights__quick' role='group' aria-label={`${room.name} individual lights`}>
-        {room.lights.slice(0, 2).map(light => (
-          <div key={light.id} className='canvas-lights__quick-light' data-on={light.state === 'on'}>
-            <button
-              type='button'
-              className='canvas-lights__quick-power'
-              aria-label={`Turn ${light.state === 'on' ? 'off' : 'on'} ${light.name}`}
-              aria-pressed={light.state === 'on'}
-              aria-busy={quickPending.has(light.id)}
-              disabled={!connected || light.state === 'unavailable' || busy.has(light.id)}
-              onClick={() => {
-                setQuickPending(current => new Set(current).add(light.id));
-                void power([light.id], light.state === 'on' ? 'off' : 'on').finally(() =>
-                  setQuickPending(current => {
-                    const next = new Set(current);
-                    next.delete(light.id);
-                    return next;
-                  })
-                );
-              }}
-            >
-              <span className='canvas-lights__quick-dot' aria-hidden='true' />
-              <span title={light.name}>{quickPending.has(light.id) ? 'Updating…' : quickLightName(light.name, room.name)}</span>
-            </button>
-            {onOpenLight && (
-              <button
-                type='button'
-                className='canvas-lights__quick-settings'
-                aria-label={`${light.name} settings`}
-                onClick={event => onOpenLight(light.id, event.currentTarget)}
-              >
-                <svg viewBox='0 0 20 20' aria-hidden='true' focusable='false'>
-                  <path d='M4 5h12M4 10h12M4 15h12' />
-                  <circle cx='7' cy='5' r='2' />
-                  <circle cx='13' cy='10' r='2' />
-                  <circle cx='8' cy='15' r='2' />
-                </svg>
-              </button>
-            )}
-          </div>
-        ))}
-        {room.lights.length > 2 && (
-          <button type='button' className='canvas-lights__quick-more' onClick={event => onOpenAll(event.currentTarget)}>
-            More
-          </button>
-        )}
-      </div>
+      <IndividualLights room={room} onOpenAll={onOpenAll} onOpenLight={onOpenLight} />
       <RoomBrightness room={room} compact />
       <CommandFeedback compact />
     </section>
@@ -274,7 +291,6 @@ export function CanvasAllLights({ onOpenLight }: { onOpenLight(entityId: string,
   return (
     <div className='canvas-lights canvas-lights--all'>
       <div className='canvas-lights__toolbar'>
-        <p>Choose a light for brightness and colour.</p>
         <button
           type='button'
           disabled={!connected || !all.some(light => light.state === 'on') || all.some(light => busy.has(light.id))}
@@ -291,37 +307,28 @@ export function CanvasAllLights({ onOpenLight }: { onOpenLight(entityId: string,
       <CommandFeedback />
       <div className='canvas-lights__grid'>
         {rooms.map(room => (
-          <section className='canvas-lights__group' key={room.name} aria-label={`${room.name} lights`}>
-            <div className='canvas-lights__heading'>
-              <h3>{room.name}</h3>
-              <RoomPower room={room} />
-            </div>
-            <p className='canvas-lights__muted'>
-              {room.on} on · {room.lights.length - room.available} unavailable
-            </p>
-            {room.lights.map(light => (
-              <div className='canvas-lights__light' key={light.id}>
-                <button
-                  type='button'
-                  className='canvas-lights__detail'
-                  data-canvas-focus-key={`light:${light.id}`}
-                  aria-label={light.name}
-                  onClick={event => onOpenLight(light.id, event.currentTarget)}
-                >
-                  <span>{light.name}</span>
-                  <small>{light.state === 'unavailable' ? 'Unavailable' : light.state === 'on' ? 'On' : 'Off'}</small>
-                </button>
-                <button
-                  type='button'
-                  aria-label={`Turn ${light.state === 'on' ? 'off' : 'on'} ${light.name}`}
-                  aria-pressed={light.state === 'on'}
-                  disabled={!connected || light.state === 'unavailable' || busy.has(light.id)}
-                  onClick={() => void power([light.id], light.state === 'on' ? 'off' : 'on')}
-                >
-                  {light.state === 'on' ? 'On' : 'Off'}
-                </button>
+          <section
+            className='canvas-lights__group'
+            key={room.name}
+            aria-label={`${room.name} lights`}
+            data-lit={connected && room.on > 0}
+            data-unavailable={!connected || !room.available}
+            style={{ '--canvas-room-accent': getRoomAccent(room.name) } as CSSProperties}
+          >
+            <div className='canvas-lights__room-line'>
+              <RoomArtwork room={room.name} className='canvas-lights__room-artwork' />
+              <div className='canvas-lights__room-summary'>
+                <h3>{room.name}</h3>
+                {(!connected || room.available < room.lights.length) && (
+                  <p className='canvas-lights__muted'>
+                    {!connected ? 'Reconnecting…' : `${room.lights.length - room.available} unavailable`}
+                  </p>
+                )}
               </div>
-            ))}
+              <RoomPower room={room} compact />
+            </div>
+            <RoomBrightness room={room} compact label={`${room.name} brightness`} />
+            <IndividualLights room={room} all onOpenLight={onOpenLight} />
           </section>
         ))}
       </div>

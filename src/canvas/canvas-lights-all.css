@@ -1,0 +1,18 @@
+/* Expanded room cards share the main Lights card's controls and room artwork. */
+.canvas-dialog .canvas-lights--all { color: var(--canvas-ink); }
+.canvas-dialog .canvas-lights--all .canvas-lights__toolbar { align-items: flex-end; justify-content: flex-end; }
+.canvas-dialog .canvas-lights--all .canvas-lights__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+.canvas-dialog .canvas-lights--all .canvas-lights__group { min-width: 0; background: var(--canvas-surface); border-color: var(--canvas-line); border-radius: 20px; }
+.canvas-dialog .canvas-lights--all .canvas-lights__room-line { display: grid; margin: 0; gap: var(--canvas-space-2); }
+.canvas-dialog .canvas-lights--all .canvas-lights__room-summary { min-width: 0; }
+.canvas-dialog .canvas-lights--all h3 { margin: 0; font-size: .95rem; }
+.canvas-dialog .canvas-lights--all .canvas-lights__muted { color: var(--canvas-muted); font-size: .75rem; }
+.canvas-dialog .canvas-lights--all .canvas-lights__slider { grid-template-columns: auto minmax(40px, 1fr) auto; gap: var(--canvas-space-2); }
+.canvas-dialog .canvas-lights--all .canvas-lights__slider input { grid-column: auto; grid-row: auto; }
+.canvas-dialog .canvas-lights--all .canvas-lights__quick { flex-direction: column; }
+.canvas-dialog .canvas-lights--all .canvas-lights__quick-light { flex: auto; }
+.canvas-dialog .canvas-lights--all .canvas-lights__quick button { font-size: .82rem; }
+.canvas-dialog .canvas-lights--all button { min-height: 44px; }
+@media (max-width: 600px) {
+  .canvas-dialog .canvas-lights--all .canvas-lights__grid { grid-template-columns: minmax(0, 1fr); }
+}

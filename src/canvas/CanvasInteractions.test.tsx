@@ -117,7 +117,7 @@ it('records partial all-light success and the exact failed target', async () => 
     gymReply.reject(new Error('Gym unavailable'));
   });
   expect(screen.getByRole('alert').textContent).toContain('Gym: Gym unavailable');
-  expect(screen.getByRole('status').textContent).toContain('1 light reported the requested state');
+  expect(screen.queryByRole('status')).toBeNull();
   expect(fixture.getState().entities[living].state).toBe('off');
   expect(fixture.getState().entities[gym].state).toBe('on');
   expect(fixture.calls).toHaveLength(2);

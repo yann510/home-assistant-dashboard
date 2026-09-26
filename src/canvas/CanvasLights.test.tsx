@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { createHaFixture } from './testing/haFixture';
@@ -752,4 +752,55 @@ it.each(['off', 'turned off before commit'])('changes brightness only on lights 
       service_data: { brightness: 153 },
     }),
   ]);
+});
+
+it('adjusts only the on dimmable lights of an expanded room and leaves other rooms alone', async () => {
+  const fixture = ref.current!;
+  fixture.publish('light.light_living_room_bulbs', 'on', { brightness: 128, supported_color_modes: ['brightness'] });
+  fixture.publish('light.living_room_led_strip', 'off', { supported_color_modes: ['brightness'] });
+  fixture.publish('light.light_kitchen', 'on', { brightness: 100, supported_color_modes: ['brightness'] });
+  render(
+    <CanvasLightsProvider>
+      <CanvasAllLights onOpenLight={() => {}} />
+    </CanvasLightsProvider>
+  );
+  const slider = screen.getByRole('slider', { name: 'Living Room brightness' });
+  fireEvent.change(slider, { target: { value: '68' } });
+  fireEvent.keyUp(slider, { key: 'ArrowRight' });
+  await waitFor(() => expect(fixture.calls).toHaveLength(1));
+  expect(fixture.calls[0]).toMatchObject({
+    service: 'turn_on',
+    target: { entity_id: ['light.light_living_room_bulbs'] },
+    service_data: { brightness: 173 },
+  });
+  expect((slider as HTMLInputElement).disabled).toBe(true);
+  expect((screen.getByRole('slider', { name: 'Kitchen brightness' }) as HTMLInputElement).disabled).toBe(false);
+});
+
+it('keeps every expanded room light controllable with settings available even when unavailable', async () => {
+  const fixture = ref.current!;
+  fixture.publish('light.light_living_room_bulbs', 'on', { friendly_name: 'Living bulbs' });
+  fixture.publish('light.living_room_led_strip', 'unavailable', { friendly_name: 'Sofa strip' });
+  const onOpenLight = vi.fn();
+  const ack = deferred();
+  fixture.respondWith(() => ack.promise);
+  render(
+    <CanvasLightsProvider>
+      <CanvasAllLights onOpenLight={onOpenLight} />
+    </CanvasLightsProvider>
+  );
+  const room = within(screen.getByRole('region', { name: 'Living Room lights' }));
+  expect((room.getByRole('button', { name: 'Turn on Sofa strip' }) as HTMLButtonElement).disabled).toBe(true);
+  const settings = room.getByRole('button', { name: 'Sofa strip settings' });
+  await userEvent.click(settings);
+  expect(onOpenLight).toHaveBeenCalledWith('light.living_room_led_strip', settings);
+  await userEvent.click(room.getByRole('button', { name: 'Turn off Living bulbs' }));
+  expect(fixture.calls[0]).toMatchObject({ service: 'turn_off', target: { entity_id: ['light.light_living_room_bulbs'] } });
+  expect(room.getByRole('button', { name: 'Turn off Living bulbs' }).getAttribute('aria-busy')).toBe('true');
+  expect((room.getByRole('button', { name: 'Turn off Living Room lights' }) as HTMLButtonElement).disabled).toBe(true);
+  await act(async () => {
+    fixture.publish('light.light_living_room_bulbs', 'off', { friendly_name: 'Living bulbs' });
+    ack.resolve({});
+  });
+  await waitFor(() => expect(room.getByRole('button', { name: 'Turn on Living bulbs' }).getAttribute('aria-busy')).toBe('false'));
 });
