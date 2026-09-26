@@ -64,21 +64,11 @@ export function CanvasMood({
             ? 'Restoration needs attention.'
             : null;
   return (
-    <section
-      className='canvas-mood'
-      style={{ background: current?.colour ?? '#cbb5ed' }}
-      aria-label='House Mood'
-      tabIndex={-1}
-    >
+    <section className='canvas-mood' style={{ background: current?.colour ?? '#cbb5ed' }} aria-label='House Mood' tabIndex={-1}>
       <div className='canvas-mood__copy'>
         <span className='canvas__eyebrow'>The feeling of home</span>
         <h2>{current?.name ?? 'Just be.'}</h2>
-        <p>{current?.caption ?? 'Your space. Your own pace.'}</p>
-        {message && (
-          <div className='canvas-mood__status' role='status'>
-            <span aria-hidden='true'>●</span> {message}
-          </div>
-        )}
+        <p role={message ? 'status' : undefined}>{message ?? current?.caption ?? 'Your space. Your own pace.'}</p>
         {status.errors.length > 0 && (
           <div role='alert' className='canvas-mood__error'>
             {status.errors.map((error, index) => (
@@ -97,7 +87,7 @@ export function CanvasMood({
           </div>
         )}
         {showActions && (
-          <div className={`canvas-mood__actions${message ? '' : ' canvas-mood__actions--solo'}`}>
+          <div className='canvas-mood__actions'>
             {recovery ? (
               <button type='button' disabled={!connected || !available || busy} onClick={onRetry}>
                 Retry restoration

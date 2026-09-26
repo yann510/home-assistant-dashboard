@@ -59,11 +59,24 @@ publish('input_text.speaker_follow_source', '');
 publish('script.speaker_follow_motion', 'off');
 publish('input_boolean.night_mode', 'off');
 publish('input_boolean.morning_mode', 'on');
-publish('sensor.house_mood', scene === 'busy' ? 'recovery_required' : 'active', {
-  active_mood: 'unwind',
-  mode_control: 'coordinated-v1',
-  errors: scene === 'busy' ? [{ target: 'Living room', message: 'One light could not be restored.' }] : [],
-});
+publish(
+  'sensor.house_mood',
+  scene === 'busy'
+    ? 'recovery_required'
+    : scene === 'mood-restoring'
+      ? 'restoring'
+      : scene === 'mood-idle'
+        ? 'idle'
+        : scene === 'mood-starting'
+          ? 'starting'
+          : 'active',
+  {
+    active_mood: ['mood-idle', 'mood-starting'].includes(scene) ? null : 'unwind',
+    pending_mood: scene === 'mood-starting' ? 'unwind' : null,
+    mode_control: 'coordinated-v1',
+    errors: scene === 'busy' ? [{ target: 'Living room', message: 'One light could not be restored.' }] : [],
+  }
+);
 publish('weather.forecast_home', 'sunny', {
   temperature: 18,
   temperature_unit: '°C',

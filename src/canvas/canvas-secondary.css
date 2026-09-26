@@ -32,11 +32,6 @@
 .canvas-dialog .canvas-mood p {
   margin: 0 0 7px;
 }
-.canvas .canvas-mood__status,
-.canvas-dialog .canvas-mood__status {
-  font-size: 0.8rem;
-  margin: 7px 0;
-}
 .canvas .canvas-mood__art,
 .canvas-dialog .canvas-mood__art {
   position: absolute;
@@ -194,17 +189,14 @@
  .canvas .canvas-mood__copy { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-content: start; align-items: center; }
  .canvas .canvas-mood__copy > :is(.canvas__eyebrow,h2,p,.canvas-mood__error,.canvas-mood__attention) { grid-column: 1 / -1; }
  .canvas .canvas-mood__copy h2 { font-size: 2.8rem; }
- .canvas .canvas-mood__status { grid-column: 1; }
- .canvas .canvas-mood__actions { grid-column: 2; margin-bottom: 0; }
- .canvas .canvas-mood__actions--solo { grid-column: 1; }
+ .canvas .canvas-mood__actions { grid-column: 1; margin-bottom: 0; }
 }
 @media (min-width: 701px) {
- .canvas .canvas-mood__status, .canvas .canvas-mood__actions { grid-row: 4; }
+ .canvas .canvas-mood__actions { grid-row: 4; }
  .canvas .canvas-mood__copy > .canvas-mood__error { grid-row: 5; }
  .canvas .canvas-mood__attention { grid-row: 6; }
 }
 @media (min-width: 701px) {
- .canvas .canvas-mood__status { margin-block: 0; }
  .canvas .canvas-mood__error p { margin-block: 2px; }
 }
 .canvas .canvas-mood__picker button { white-space: nowrap; font-size: .75rem; }
