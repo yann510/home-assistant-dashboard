@@ -7,13 +7,24 @@ export function applySpeakerService(entities: HassEntities, message: Record<stri
   const targets = (Array.isArray(target) ? target : target ? [target] : []).filter(id => entities[id]);
   const data = (message.service_data ?? {}) as Record<string, unknown>;
   const next = { ...entities };
+  const now = Date.now();
+  const timestamp = new Date(now).toISOString();
   const update = (id: string, attributes: Record<string, unknown>, state = next[id]?.state) => {
     if (!next[id]) return;
-    next[id] = { ...next[id], state, attributes: { ...next[id].attributes, ...attributes }, last_updated: new Date().toISOString() };
+    next[id] = { ...next[id], state, attributes: { ...next[id].attributes, ...attributes }, last_updated: timestamp };
   };
   const members = (id: string): string[] => {
     const group = next[id]?.attributes.group_members;
     return Array.isArray(group) && group.length ? group.filter(member => typeof member === 'string' && next[member]) : [id];
+  };
+  const position = (id: string): number | undefined => {
+    const entity = next[id];
+    const value = entity.attributes.media_position;
+    if (typeof value !== 'number' || !Number.isFinite(value)) return undefined;
+    const updated = Date.parse(entity.attributes.media_position_updated_at ?? '');
+    const elapsed = entity.state === 'playing' && Number.isFinite(updated) ? Math.max(0, (now - updated) / 1000) : 0;
+    const duration = entity.attributes.media_duration;
+    return Math.max(0, Math.min(typeof duration === 'number' && Number.isFinite(duration) && duration > 0 ? duration : Infinity, value + elapsed));
   };
   const detach = (id: string) => {
     const remaining = members(id).filter(member => member !== id);
@@ -49,11 +60,20 @@ export function applySpeakerService(entities: HassEntities, message: Record<stri
           break;
         case 'media_play':
         case 'media_pause':
-          members(id).forEach(member => update(member, {}, message.service === 'media_play' ? 'playing' : 'paused'));
+          members(id).forEach(member => update(member, {
+            media_position: position(member),
+            media_position_updated_at: timestamp,
+          }, message.service === 'media_play' ? 'playing' : 'paused'));
           break;
         case 'media_seek':
-          if (typeof data.seek_position === 'number')
-            update(id, { media_position: data.seek_position, media_position_updated_at: new Date().toISOString() });
+          if (typeof data.seek_position === 'number' && Number.isFinite(data.seek_position)) {
+            const requested = data.seek_position;
+            members(id).forEach(member => {
+              const duration = next[member].attributes.media_duration;
+              const limit = typeof duration === 'number' && Number.isFinite(duration) && duration > 0 ? duration : Infinity;
+              update(member, { media_position: Math.max(0, Math.min(limit, requested)), media_position_updated_at: timestamp });
+            });
+          }
           break;
       }
     }

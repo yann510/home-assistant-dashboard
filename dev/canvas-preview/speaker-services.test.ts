@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { HassEntities } from 'home-assistant-js-websocket';
 import { applySpeakerService } from './speaker-services';
 
@@ -29,6 +29,66 @@ const call = (service: string, entity_id: string[], service_data = {}) => ({
 });
 
 describe('local speaker service responses', () => {
+  afterEach(() => vi.useRealTimers());
+
+  it('freezes group progress on pause and resumes without counting paused time', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-26T12:00:00Z'));
+    const initial = fixtures();
+    Object.assign(initial['media_player.living_room'].attributes, {
+      media_position: 42, media_duration: 250, media_position_updated_at: new Date().toISOString(),
+    });
+    const grouped = applySpeakerService(initial, call('join', ['media_player.living_room'], { group_members: ['media_player.bathroom'] }))!;
+    vi.advanceTimersByTime(10000);
+    const paused = applySpeakerService(grouped, call('media_pause', ['media_player.living_room']))!;
+    for (const id of ['media_player.living_room', 'media_player.bathroom']) {
+      expect(paused[id].state).toBe('paused');
+      expect(paused[id].attributes.media_position).toBe(52);
+    }
+    vi.advanceTimersByTime(60000);
+    const resumed = applySpeakerService(paused, call('media_play', ['media_player.living_room']))!;
+    for (const id of ['media_player.living_room', 'media_player.bathroom']) {
+      expect(resumed[id].attributes.media_position).toBe(52);
+      expect(resumed[id].attributes.media_position_updated_at).toBe(new Date().toISOString());
+    }
+    vi.advanceTimersByTime(5000);
+    const stopped = applySpeakerService(resumed, call('media_pause', ['media_player.living_room']))!;
+    expect(stopped['media_player.living_room'].attributes.media_position).toBe(57);
+    expect(stopped['media_player.bathroom'].attributes.media_position).toBe(57);
+    expect(stopped['media_player.gym'].attributes.media_position).toBeUndefined();
+  });
+
+  it('seeks the group together and clamps progress to the track boundaries', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-26T12:00:00Z'));
+    const initial = fixtures();
+    Object.assign(initial['media_player.living_room'].attributes, {
+      media_position: 42, media_duration: 250, media_position_updated_at: new Date().toISOString(),
+    });
+    const grouped = applySpeakerService(initial, call('join', ['media_player.living_room'], { group_members: ['media_player.bathroom'] }))!;
+    const sought = applySpeakerService(grouped, call('media_seek', ['media_player.living_room'], { seek_position: 100 }))!;
+    vi.advanceTimersByTime(5000);
+    const paused = applySpeakerService(sought, call('media_pause', ['media_player.living_room']))!;
+    for (const id of ['media_player.living_room', 'media_player.bathroom']) expect(paused[id].attributes.media_position).toBe(105);
+    for (const [requested, expected] of [[-10, 0], [999, 250], [NaN, 105], [Infinity, 105]]) {
+      const result = applySpeakerService(paused, call('media_seek', ['media_player.living_room'], { seek_position: requested }))!;
+      for (const id of ['media_player.living_room', 'media_player.bathroom']) expect(result[id].attributes.media_position).toBe(expected);
+    }
+  });
+
+  it('does not invent a position for idle speakers or advance beyond a track duration', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-26T12:00:00Z'));
+    const initial = fixtures();
+    Object.assign(initial['media_player.living_room'].attributes, {
+      media_position: 248, media_duration: 250, media_position_updated_at: new Date().toISOString(),
+    });
+    vi.advanceTimersByTime(10000);
+    const paused = applySpeakerService(initial, call('media_pause', ['media_player.living_room', 'media_player.bathroom']))!;
+    expect(paused['media_player.living_room'].attributes.media_position).toBe(250);
+    expect(paused['media_player.bathroom'].attributes.media_position).toBeUndefined();
+  });
+
   it('reflects group mute and unmute without changing volume or unrelated speakers', () => {
     const original = fixtures();
     const targets = ['media_player.living_room', 'media_player.bathroom'];

@@ -51,6 +51,7 @@ for (const room of ['living_room', 'bathroom', 'bedroom', 'gym'])
         room === 'living_room' && (media === 'idle' || media === 'untitled') ? undefined : 'LP Giobbi · DJ Tennis · Joseph Ashworth',
       media_duration: room === 'living_room' && (media === 'idle' || media === 'untitled') ? undefined : 250,
       media_position: room === 'living_room' && (media === 'idle' || media === 'untitled') ? undefined : 42,
+      media_position_updated_at: new Date().toISOString(),
     }
   );
 publish('input_boolean.speaker_follow_motion', 'off');
@@ -184,7 +185,8 @@ const connection = {
               entity_picture: item.thumbnail,
               media_position: 0,
               media_position_updated_at: new Date().toISOString(),
-              media_duration: undefined,
+              // A simulated four-minute track lets the local preview exercise playback progress.
+              media_duration: 240,
             });
           }
         }
