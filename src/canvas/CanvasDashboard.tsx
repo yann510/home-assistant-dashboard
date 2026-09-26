@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useStore } from '@hakit/core';
 import { CanvasDialog } from './CanvasDialog';
 import { canvasRouteTitle, routeForAttention, type CanvasRoute } from './routes';
-import { CanvasLights, CanvasAllLights } from './CanvasLights';
+import { CanvasLights, CanvasAllLights, CanvasAllLightsAction } from './CanvasLights';
 import { CanvasLightDetails } from './CanvasLightDetails';
 import { CanvasLightsProvider } from './useCanvasLights';
 import { CanvasModes, CanvasModeFeedback } from './CanvasModes';
@@ -145,6 +145,7 @@ function CanvasDashboardContent(): React.JSX.Element {
         route.kind !== 'overview' && (
           <CanvasDialog
             title={canvasRouteTitle(route)}
+            headerAccessory={route.kind === 'all-lights' ? <CanvasAllLightsAction /> : undefined}
             onClose={close}
             onBack={routeHistory.length > 1 ? back : undefined}
             routeKey={JSON.stringify(route)}
@@ -184,7 +185,7 @@ function CanvasDashboardContent(): React.JSX.Element {
             ) : route.kind === 'speakers' ? (
               <CanvasSpeakers />
             ) : route.kind === 'all-lights' ? (
-              <CanvasAllLights onOpenLight={(entityId, trigger) => open({ kind: 'light', entityId }, trigger)} />
+              <CanvasAllLights showGlobalAction={false} onOpenLight={(entityId, trigger) => open({ kind: 'light', entityId }, trigger)} />
             ) : route.kind === 'light' ? (
               <CanvasLightDetails key={route.entityId} entityId={route.entityId} />
             ) : route.kind === 'blinds' ? (

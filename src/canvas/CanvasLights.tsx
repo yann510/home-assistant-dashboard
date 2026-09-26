@@ -285,25 +285,42 @@ export function CanvasLights({
   );
 }
 
-export function CanvasAllLights({ onOpenLight }: { onOpenLight(entityId: string, trigger: HTMLElement): void }) {
+export function CanvasAllLightsAction() {
   const { rooms, power, busy, connected } = useCanvasLights();
   const all = rooms.flatMap(room => room.lights);
   return (
+    <button
+      type='button'
+      className='canvas-lights__all-off'
+      aria-label='Turn off all lights'
+      disabled={!connected || !all.some(light => light.state === 'on') || all.some(light => busy.has(light.id))}
+      onClick={() =>
+        void power(
+          all.map(light => light.id),
+          'off'
+        )
+      }
+    >
+      All off
+    </button>
+  );
+}
+
+export function CanvasAllLights({
+  onOpenLight,
+  showGlobalAction = true,
+}: {
+  onOpenLight(entityId: string, trigger: HTMLElement): void;
+  showGlobalAction?: boolean;
+}) {
+  const { rooms, connected } = useCanvasLights();
+  return (
     <div className='canvas-lights canvas-lights--all'>
-      <div className='canvas-lights__toolbar'>
-        <button
-          type='button'
-          disabled={!connected || !all.some(light => light.state === 'on') || all.some(light => busy.has(light.id))}
-          onClick={() =>
-            void power(
-              all.map(light => light.id),
-              'off'
-            )
-          }
-        >
-          Turn off all lights
-        </button>
-      </div>
+      {showGlobalAction && (
+        <div className='canvas-lights__toolbar'>
+          <CanvasAllLightsAction />
+        </div>
+      )}
       <CommandFeedback />
       <div className='canvas-lights__grid'>
         {rooms.map(room => (
