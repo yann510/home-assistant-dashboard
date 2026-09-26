@@ -83,6 +83,11 @@
 .canvas .canvas-music p { color: #514b3e; margin: 4px 0 0; font-size: .75rem; }
 .canvas .canvas-music__bottom, .canvas .canvas-music__settings { display: flex; justify-content: space-between; align-items: center; gap: var(--canvas-space-2); }
 .canvas .canvas-music__settings { border-top: 1px solid #51473444; padding-top: var(--canvas-space-2); }
+/* The track itself replaces this divider whenever playback has a known duration. */
+.canvas .canvas-music > .speaker-seek + .canvas-music__settings { border-top: 0; padding-top: 0; }
+/* Clip the offset artwork in its own layer, so it cannot make the card scroll
+   internally when a playback control receives focus. */
+.canvas .canvas-music > .canvas-music__decoration { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
 .canvas .canvas-music__follow { min-width: 0; }
 .canvas .canvas-music__follow > button { align-items: center; min-height: 44px; gap: var(--canvas-space-2); padding: 3px 0; border: 0; font-size: .8rem; font-weight: 600; white-space: nowrap; }
 .canvas .canvas-music__follow > button:disabled { opacity: .55; }

@@ -106,13 +106,6 @@ export function CanvasMusic({
       <button className='canvas-music__favourites' aria-label='Open favourites' onClick={event => onOpenPlayer(event.currentTarget)}>
         <svg viewBox='0 0 24 24' aria-hidden='true'><path d='M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z' /></svg>
       </button>
-      {!idle && !disabled && Number.isFinite(attributes?.media_position) && (
-        <SpeakerSeek
-          key={`${session.entityId}:${attributes?.media_content_id ?? ''}:${attributes?.media_title ?? ''}`}
-          entityId={session.entityId}
-          disabled={disabled}
-        />
-      )}
       <div className='canvas-music__bottom'>
         <CanvasTransport />
         <SpeakerVolume
@@ -123,6 +116,13 @@ export function CanvasMusic({
           onOpenSettings={openSpeakers}
         />
       </div>
+      {!idle && !disabled && Number.isFinite(attributes?.media_position) && (
+        <SpeakerSeek
+          key={`${session.entityId}:${attributes?.media_content_id ?? ''}:${attributes?.media_title ?? ''}`}
+          entityId={session.entityId}
+          disabled={disabled}
+        />
+      )}
       <div className='canvas-music__settings'>
         <CanvasFollow />
         <button className='canvas-music__room' aria-label='Open speakers' onClick={event => openSpeakers(event.currentTarget)}>
@@ -130,11 +130,13 @@ export function CanvasMusic({
           {session.targets.length > 1 ? ` +${session.targets.length - 1}` : ''} →
         </button>
       </div>
-      <svg className='canvas-music__art' viewBox='0 0 200 160' aria-hidden='true'>
-        <circle cx='140' cy='80' r='70' />
-        <circle cx='140' cy='80' r='45' />
-        <circle cx='140' cy='80' r='20' />
-      </svg>
+      <div className='canvas-music__decoration' aria-hidden='true'>
+        <svg className='canvas-music__art' viewBox='0 0 200 160'>
+          <circle cx='140' cy='80' r='70' />
+          <circle cx='140' cy='80' r='45' />
+          <circle cx='140' cy='80' r='20' />
+        </svg>
+      </div>
     </section>
   );
 }

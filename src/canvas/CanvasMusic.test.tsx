@@ -350,7 +350,10 @@ describe('Canvas music', () => {
     expect(screen.queryByRole('button', { name: 'Open player' })).toBeNull();
     const seek = screen.getByRole('slider', { name: 'Track position' });
     expect(seek.getAttribute('aria-valuetext')).toBe('0:40 of 3:20');
-    expect(seek.closest('.speaker-seek')?.nextElementSibling?.contains(screen.getByRole('button', { name: 'Pause' }))).toBe(true);
+    const divider = seek.closest('.speaker-seek');
+    expect(divider?.previousElementSibling?.contains(screen.getByRole('button', { name: 'Pause' }))).toBe(true);
+    expect(divider?.nextElementSibling?.contains(screen.getByRole('switch', { name: 'Follow me' }))).toBe(true);
+    expect(divider?.nextElementSibling?.contains(screen.getByRole('button', { name: 'Open speakers' }))).toBe(true);
     fireEvent.change(seek, { target: { value: '70' } });
     expect(sendMessagePromise).toHaveBeenCalledWith(
       expect.objectContaining({ service: 'media_seek', target: { entity_id: ['media_player.living_room'] }, service_data: { seek_position: 70 } })
