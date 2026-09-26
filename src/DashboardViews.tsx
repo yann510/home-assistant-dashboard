@@ -3,8 +3,9 @@ import Dashboard from './Dashboard';
 import { QuietHome } from './QuietHome';
 import { CanvasDashboard } from './canvas/CanvasDashboard';
 import './quiet-home.css';
+import type { QuietPulsePresentation } from './canvas/CanvasPulse';
 
-export function DashboardViews() {
+export function DashboardViews({ canvasQuietPulse }: { canvasQuietPulse?: QuietPulsePresentation } = {}) {
   const url = new URL(window.location.href);
   const view = url.searchParams.get('view');
   const quiet = view === 'quiet';
@@ -34,7 +35,7 @@ export function DashboardViews() {
           Canvas
         </a>
       </nav>
-      {quiet ? <QuietHome /> : canvas ? <CanvasDashboard /> : <Dashboard />}
+      {quiet ? <QuietHome /> : canvas ? <CanvasDashboard quietPulse={canvasQuietPulse} /> : <Dashboard />}
     </>
   );
 }

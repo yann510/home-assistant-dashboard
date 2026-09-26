@@ -113,3 +113,8 @@ export function useCanvasModes() {
     };
   });
 }
+
+export function hasVisibleModeFeedback(mode: ReturnType<typeof useCanvasModes>[number]): boolean {
+  const phase = mode.feedback?.phase;
+  return Boolean(phase && phase !== 'observed' && phase !== 'accepted');
+}

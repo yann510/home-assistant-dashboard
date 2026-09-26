@@ -164,7 +164,12 @@ const connection = {
       Object.assign(entities, speakerUpdates);
       useStore.setState({ entities: { ...entities } });
     }
-    if (message.type === 'call_service' && message.domain === 'media_player' && message.service === 'play_media' && !params.has('unconfirmed')) {
+    if (
+      message.type === 'call_service' &&
+      message.domain === 'media_player' &&
+      message.service === 'play_media' &&
+      !params.has('unconfirmed')
+    ) {
       const data = (message.service_data ?? {}) as Record<string, unknown>;
       const item = previewFavourites.find((_, index) => data.media_content_id === `fixture:${index}`);
       const target = (message.target as { entity_id?: string | string[] } | undefined)?.entity_id;
@@ -194,7 +199,12 @@ const connection = {
         }
       }
     }
-    if (message.type === 'call_service' && message.domain === 'climate' && message.service === 'set_temperature' && !params.has('unconfirmed')) {
+    if (
+      message.type === 'call_service' &&
+      message.domain === 'climate' &&
+      message.service === 'set_temperature' &&
+      !params.has('unconfirmed')
+    ) {
       const target = (message.target as { entity_id?: string | string[] } | undefined)?.entity_id;
       const ids = Array.isArray(target) ? target : target ? [target] : [];
       const temperature = (message.service_data as { temperature?: number } | undefined)?.temperature;
@@ -215,7 +225,7 @@ const connection = {
           if (!light || light.state === 'unavailable' || light.state === 'unknown') continue;
           publish(id, message.service === 'turn_on' ? 'on' : 'off', {
             ...light.attributes,
-            ...(message.service === 'turn_on' ? message.service_data as Record<string, unknown> : {}),
+            ...(message.service === 'turn_on' ? (message.service_data as Record<string, unknown>) : {}),
           });
         }
       }
@@ -271,6 +281,6 @@ const context = {
 createRoot(document.getElementById('root')!).render(
   <HassContext.Provider value={context}>
     <ThemeProvider />
-    <DashboardViews />
+    <DashboardViews canvasQuietPulse={params.get('pulse') === 'art' ? 'art' : params.get('pulse') === 'hidden' ? 'hidden' : undefined} />
   </HassContext.Provider>
 );

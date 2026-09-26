@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import type { AttentionItem } from '../attention';
+import { CanvasPulse, type AttentionController } from './CanvasPulse';
 import { CanvasDashboard } from './CanvasDashboard';
 import { classifyAppliance, classifyVacuum } from './activity';
 import { createHaFixture, deferred } from './testing/haFixture';
@@ -704,4 +706,76 @@ it('restores a searched directory position and trigger focus after nested naviga
   expect(body.scrollTop).toBe(260);
   expect((screen.getByRole('searchbox', { name: 'Find a device or room' }) as HTMLInputElement).value).toBe('Bedroom');
   expect(document.activeElement).toBe(within(screen.getByRole('dialog')).getByRole('button', { name: 'Bedroom blinds' }));
+});
+
+it.each(['art', 'hidden'] as const)('only uses the %s quiet prototype when all activity is known and settled', variant => {
+  for (const prefix of ['washer_washer', 'dryer_dryer', 'dishwasher_dishwasher'])
+    ref.current!.publish(`sensor.${prefix}_machine_state`, 'stop');
+  ref.current!.publish('vacuum.roomba', 'docked');
+  const base: AttentionController = {
+    connected: true,
+    ready: true,
+    disconnected: false,
+    night: false,
+    items: [],
+    now: Date.now(),
+    busy: false,
+    error: null,
+    onAction: vi.fn().mockResolvedValue(undefined),
+  };
+  const draw = (attention = base, feedback?: React.ReactNode) => (
+    <CanvasPulse quietPresentation={variant} attention={attention} feedback={feedback} onOpen={vi.fn()} onSelect={vi.fn()} />
+  );
+  const view = render(draw());
+  const expectQuiet = () => {
+    if (variant === 'hidden') expect(screen.queryByRole('region', { name: 'House pulse' })).toBeNull();
+    else expect(screen.getByRole('region', { name: 'House pulse' }).classList.contains('canvas-pulse--quiet-art')).toBe(true);
+  };
+  const expectNormal = () =>
+    expect(screen.getByRole('region', { name: 'House pulse' }).classList.contains('canvas-pulse--quiet-art')).toBe(false);
+  expectQuiet();
+  for (const change of [{ connected: false }, { ready: false }, { busy: true }, { error: 'Could not save' }]) {
+    view.rerender(draw({ ...base, ...change }));
+    expectNormal();
+  }
+  view.rerender(draw(base, <p role='status'>Day mode sending…</p>));
+  expectNormal();
+  expect(screen.getByText('Day mode sending…')).toBeTruthy();
+  const reminder: AttentionItem = {
+    id: 'bin',
+    episode: 'bin-1',
+    title: 'Empty bin',
+    detail: 'Bin full',
+    target: 'vacuum',
+    tone: 'amber',
+    icon: 'bin',
+    kind: 'condition',
+    occurred_at: new Date().toISOString(),
+    snooze_seconds: 3600,
+    snoozed_until: new Date(Date.now() + 3600000).toISOString(),
+  };
+  view.rerender(draw({ ...base, items: [reminder] }));
+  expectNormal();
+  expect(screen.getByRole('button', { name: /Snoozed/ })).toBeTruthy();
+  view.rerender(draw({ ...base, items: [{ ...reminder, snoozed_until: null }] }));
+  expectNormal();
+  expect(screen.getByRole('button', { name: 'View: Empty bin' })).toBeTruthy();
+  view.rerender(draw(base));
+  expectQuiet();
+  act(() => ref.current!.publish('vacuum.roomba', 'cleaning'));
+  expectNormal();
+  expect(screen.getByRole('button', { name: 'Roomba Cleaning' })).toBeTruthy();
+  act(() => ref.current!.publish('vacuum.roomba', 'unavailable'));
+  expectNormal();
+  act(() => ref.current!.publish('vacuum.roomba', 'docked'));
+  expectQuiet();
+  act(() => ref.current!.publish('sensor.washer_washer_machine_state', 'unknown'));
+  expectNormal();
+});
+
+it('keeps missing device status visible in the quiet prototype', () => {
+  ref.current!.publish('sensor.dashboard_attention', '0', { ready: true, items: [] });
+  render(<CanvasDashboard quietPulse='hidden' />);
+  expect(screen.getByRole('region', { name: 'House pulse' })).toBeTruthy();
+  expect(screen.getByText('Activity status unavailable for some devices.')).toBeTruthy();
 });

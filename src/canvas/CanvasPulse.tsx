@@ -8,6 +8,8 @@ import { applianceSensors, classifyAppliance, classifyVacuum } from './activity'
 import { routeForAttention, type CanvasRoute } from './routes';
 import './canvas-pulse.css';
 
+export type QuietPulsePresentation = 'current' | 'art' | 'hidden';
+
 export type AttentionController = ReturnType<typeof useAttention>;
 
 export function CanvasPulse({
@@ -15,10 +17,12 @@ export function CanvasPulse({
   attention,
   onSelect,
   feedback,
+  quietPresentation = 'current',
 }: {
   onOpen(route: CanvasRoute, trigger: HTMLElement): void;
   attention: AttentionController;
   feedback?: ReactNode;
+  quietPresentation?: QuietPulsePresentation;
   onSelect(item: AttentionItem | null): void;
 }) {
   const entities = useStore(state => state.entities);
@@ -61,14 +65,47 @@ export function CanvasPulse({
     : [];
   const missingStatus = activities.some(activity => !activity.reported) || !entities['vacuum.roomba'];
 
+  const quiet =
+    attention.connected &&
+    attention.ready &&
+    !attention.error &&
+    !attention.busy &&
+    !missingStatus &&
+    !shownActivities.length &&
+    !visible.length &&
+    !snoozed.length &&
+    !feedback;
+
+  if (quiet && quietPresentation === 'hidden') return null;
+  if (quiet && quietPresentation === 'art')
+    return (
+      <section className='canvas-pulse canvas-pulse--quiet-art' aria-label='House pulse'>
+        <div className='canvas-pulse__quiet-copy'>
+          <span>House pulse</span>
+          <p>All quiet at home.</p>
+        </div>
+        <QuietLandscape />
+        <QuietLandscape compact />
+      </section>
+    );
+
   return (
     <section className='canvas-pulse' aria-label='House pulse'>
       <span className='canvas-pulse__heading'>
         <svg className='canvas-pulse__signature' viewBox='0 0 40 40' fill='none' aria-hidden='true'>
-          <path d='M20 3v8m0 18v8M3 20h8m18 0h8M8 8l6 6m12 12 6 6M8 32l6-6m12-12 6-6' stroke='currentColor' strokeWidth='2.5' strokeLinecap='round' />
+          <path
+            d='M20 3v8m0 18v8M3 20h8m18 0h8M8 8l6 6m12 12 6 6M8 32l6-6m12-12 6-6'
+            stroke='currentColor'
+            strokeWidth='2.5'
+            strokeLinecap='round'
+          />
           <circle cx='20' cy='20' r='6' fill='currentColor' />
         </svg>
-        <span>House<br />pulse</span>
+        <span>
+          House
+          <br />
+          pulse
+        </span>
       </span>
       {!attention.connected ? (
         <p role='status'>Live activity unavailable while disconnected.</p>
@@ -149,7 +186,9 @@ export function CanvasPulse({
                   <strong>{item.title}</strong>
                   <small>{item.detail}</small>
                 </span>
-                <span className='canvas-pulse__arrow' aria-hidden='true'>↗</span>
+                <span className='canvas-pulse__arrow' aria-hidden='true'>
+                  ↗
+                </span>
               </button>
             ))}
             {snoozed.length > 0 && (
@@ -182,5 +221,26 @@ export function CanvasPulse({
         </>
       )}
     </section>
+  );
+}
+
+function QuietLandscape({ compact = false }: { compact?: boolean }) {
+  return (
+    <svg
+      className={`canvas-pulse__quiet-landscape${compact ? ' canvas-pulse__quiet-landscape--compact' : ''}`}
+      viewBox={compact ? '195 0 270 100' : '0 0 620 100'}
+      fill='none'
+      aria-hidden='true'
+    >
+      <path d='M5 100C74 46 126 64 185 100Z' className='canvas-pulse__quiet-hill' />
+      <path d='M391 100c58-68 138-77 229-18v18Z' className='canvas-pulse__quiet-hill' />
+      <circle cx='442' cy='30' r='21' className='canvas-pulse__quiet-sun' />
+      <g stroke='currentColor' strokeWidth='1.7' strokeLinecap='round' strokeLinejoin='round'>
+        <path d='M138 79h357M215 78V40l40-29 40 29v38M204 48l51-37 51 37M231 78V51h18v27M265 48h15v15h-15z' />
+        <path d='M297 78V48h46v30M309 58h20v10h-20M187 78V46m0 16c-18-3-20-13-15-19 12 0 17 9 15 19Zm0-9c2-15 11-22 19-17 1 12-6 17-19 17Z' />
+        <path d='M379 78V51m0 11c-13-2-17-11-12-16 10 0 14 7 12 16Zm0-8c2-11 9-16 15-12 0 9-5 12-15 12Z' />
+        <path d='M350 18v8m-4-4h8M123 36v6m-3-3h6M484 54v6m-3-3h6' />
+      </g>
+    </svg>
   );
 }

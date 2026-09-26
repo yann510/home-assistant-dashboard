@@ -6,7 +6,7 @@ import { CanvasLights, CanvasAllLights, CanvasAllLightsAction } from './CanvasLi
 import { CanvasLightDetails } from './CanvasLightDetails';
 import { CanvasLightsProvider } from './useCanvasLights';
 import { CanvasModes, CanvasModeFeedback } from './CanvasModes';
-import { useCanvasModes } from './useCanvasModes';
+import { useCanvasModes, hasVisibleModeFeedback } from './useCanvasModes';
 import { CanvasBlinds } from './CanvasBlinds';
 import { CanvasBlindsProvider } from './useCanvasBlinds';
 import { CanvasMusicProvider } from './CanvasMusicProvider';
@@ -14,7 +14,7 @@ import { CanvasMusic } from './CanvasMusic';
 import { CanvasPlayer } from './CanvasPlayer';
 import { CanvasSpeakers } from './CanvasSpeakers';
 import { CanvasMood } from './CanvasMood';
-import { CanvasPulse } from './CanvasPulse';
+import { CanvasPulse, type QuietPulsePresentation } from './CanvasPulse';
 import { CanvasDevices } from './CanvasDevices';
 import { useHouseMood } from '../useHouseMood';
 import { useAttention } from '../useAttention';
@@ -28,7 +28,7 @@ import './canvas-music.css';
 import './canvas-secondary.css';
 import './canvas-appliances-vacuum.css';
 
-function CanvasDashboardContent(): React.JSX.Element {
+function CanvasDashboardContent({ quietPulse }: { quietPulse?: QuietPulsePresentation }): React.JSX.Element {
   const connected = useStore(state => Boolean(state.connection?.connected && state.connectionStatus === 'connected'));
   const [route, setRoute] = useState<CanvasRoute>({ kind: 'overview' });
   const [routeHistory, setRouteHistory] = useState<{ route: CanvasRoute; trigger: string | null; scrollTop: number }[]>([]);
@@ -118,7 +118,13 @@ function CanvasDashboardContent(): React.JSX.Element {
             </button>
           </div>
         </header>
-        <CanvasPulse onOpen={open} attention={attention} onSelect={setSelectedAttention} feedback={<CanvasModeFeedback modes={modes} />} />
+        <CanvasPulse
+          onOpen={open}
+          attention={attention}
+          onSelect={setSelectedAttention}
+          quietPresentation={quietPulse}
+          feedback={modes.some(hasVisibleModeFeedback) ? <CanvasModeFeedback modes={modes} /> : undefined}
+        />
         <div className='canvas__feature-band'>
           <CanvasMood
             controller={mood}
@@ -210,14 +216,14 @@ function CanvasDashboardContent(): React.JSX.Element {
   );
 }
 
-export function CanvasDashboard(): React.JSX.Element {
+export function CanvasDashboard({ quietPulse }: { quietPulse?: QuietPulsePresentation } = {}): React.JSX.Element {
   return (
     <CanvasLightsProvider>
       <CanvasBlindsProvider>
         <CanvasVacuumProvider>
           <CanvasMusicProvider>
             <CanvasThermostatsProvider>
-              <CanvasDashboardContent />
+              <CanvasDashboardContent quietPulse={quietPulse} />
             </CanvasThermostatsProvider>
           </CanvasMusicProvider>
         </CanvasVacuumProvider>

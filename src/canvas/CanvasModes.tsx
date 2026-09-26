@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react';
-import type { useCanvasModes } from './useCanvasModes';
+import { hasVisibleModeFeedback, type useCanvasModes } from './useCanvasModes';
 
 type Modes = ReturnType<typeof useCanvasModes>;
+
 export function CanvasModes({ modes }: { modes: Modes }) {
   return (
     <div className='canvas-modes' role='group' aria-label='Home modes'>
@@ -24,7 +25,7 @@ export function CanvasModes({ modes }: { modes: Modes }) {
 function ModeFeedback({ mode }: { mode: Modes[number] }) {
   const item = useRef<HTMLDivElement>(null);
   const phase = mode.feedback?.phase;
-  const visible = phase && phase !== 'observed' && phase !== 'accepted';
+  const visible = hasVisibleModeFeedback(mode);
   useEffect(() => {
     // Reveal new feedback within the pulse strip without moving the page.
     if (visible && item.current?.parentElement) item.current.parentElement.scrollLeft = 0;
@@ -34,12 +35,7 @@ function ModeFeedback({ mode }: { mode: Modes[number] }) {
   return (
     <div ref={item} className='canvas-modes__feedback'>
       <span role={failure ? 'alert' : 'status'} title={mode.feedback?.message}>
-        {mode.label}:{' '}
-        {phase === 'failed'
-          ? 'failed. Try again.'
-          : phase === 'unconfirmed'
-            ? 'not confirmed. Check state.'
-            : 'sending…'}
+        {mode.label}: {phase === 'failed' ? 'failed. Try again.' : phase === 'unconfirmed' ? 'not confirmed. Check state.' : 'sending…'}
         {failure && <span className='canvas-modes__detail'> {mode.feedback?.message}</span>}
       </span>
       {failure && (
