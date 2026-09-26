@@ -1,5 +1,11 @@
 # House Canvas deployment handoff
 
+## Mood layout and washer follow-up — September 26, 2026
+
+Release `2e3c56e` is deployed to both targets. It hides the washer's explicit unavailable state from House Pulse, removes redundant idle mood text, and reuses the mood caption for restoration progress to avoid card growth. All 363 tests and the production build passed; independent review found no blockers. All 165 main and 96 trial manifest files passed LAN HTTP/SHA-256 verification. Authenticated live rendering confirmed the idle mood text and empty pulse are absent; no household commands were sent. Restoration geometry was verified in local phone/tablet previews, not by triggering a live mood. Previous releases remain available for rollback.
+
+Current link: **http://homeassistant.local:8123/local/dashboard/index.html?release=2e3c56e**.
+
 ## Colour wheel follow-up — September 26, 2026
 
 Release `79e8d98` is deployed to both `dashboard` and `canvas-trial`. Light colour settings use the circular wheel and Apply without a hex field. All 163 main and 94 trial manifest files passed LAN HTTP/SHA-256 verification. The authenticated live dashboard rendered the wheel without the hex field; no household commands were sent during this check. The 359-test suite, TypeScript and lint passed before release. Previous versions remain available through the existing rollback commands.
