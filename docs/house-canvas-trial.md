@@ -1,5 +1,11 @@
 # House Canvas trial handoff
 
+## Current release — September 26, 2026
+
+Canvas trial release `4b2dcfe` is deployed at **http://homeassistant.local:8123/local/canvas-trial/index.html?view=canvas**. All 90 published manifest files passed LAN HTTP/SHA-256 verification; the existing dashboard index is unchanged. The reviewed [live test plan](canvas-qa/live-hardware-test-plan.md) and [execution results](canvas-qa/live-hardware-results.md) are the current acceptance record. Live API probes passed with restoration; authenticated browser, physical-device and coordinated-backend acceptance remain blocked/pending as recorded there. No backend rollout was performed.
+
+## Historical September 23 handoff
+
 Status: dedicated trial deployed and verified over SSH and LAN HTTP. The normal Home Assistant login screen is reachable. Authenticated live entity updates and physical-device observations remain **pending**. No physical home commands were issued during deployment verification.
 
 Live trial URL: **http://homeassistant.local:8123/local/canvas-trial/index.html?view=canvas**.

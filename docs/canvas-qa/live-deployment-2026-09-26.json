@@ -1,0 +1,459 @@
+{
+  "release": "4b2dcfe",
+  "files": 90,
+  "allPassed": true,
+  "originalDashboardUnchanged": true,
+  "checkedAt": "2026-09-26T20:53:43.453Z",
+  "results": [
+    {
+      "path": "assets/af-CFIVWDPC.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/ar-Bvvw28gp.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/bg-BmzYInJk.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/bn-DqOHnm8j.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/bs-nx78sfsT.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/ca-DlSjP5K3.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/cs-txcCS0u2.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/cy-BWLXupmb.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/da-lB5nY53l.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/de-C3G9GmS8.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/dinner-DU3F_C5q.jpg",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/el-Ebct8UA1.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/en-DUS83YpE.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/en-GB-DGmKn5jS.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/eo-Ct8PHwwh.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/es-419-oYNXqHx-.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/es-D6QTpYNY.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/et-DyewXKQ2.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/eu-CD0rPh45.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/fa-CB2EEgqq.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/fi-HCLTSBWo.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/fr-DFhL8fQb.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/fy-CPBpqmzQ.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/ga-CrX0FsiI.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/gl-B1tXNftd.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/gsw-CX2gJXRE.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/gym-BOeKMgmq.jpg",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/he-DMT_EuVt.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/hi-D6SjHAaY.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/hls.light-B2iPb-fX-B44oKSB6.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/hr-DIauWAKW.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/hu-jT7WyMa6.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/hy-DiSX86wp.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/id-BYvQ6rh6.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/index-C7utO_5l.css",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/index-D62Oql9o.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/is-CMCH3DFk.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/it-CCQMRXhC.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/ja-DPvAlj2G.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/ka-CaLqAbur.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/ko-D6wCXC6e.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/lb-BKpnU7pG.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/love-M2XbLVvk.jpg",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/lt-Dm581vlg.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/lv-DTWNzuXm.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/mk-VrfTxhsO.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/ml-BZCZDtu3.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/nb-CxQmCRyT.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/nl-mN2pWUKi.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/nn-ChRqtm8G.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/party-ClK9exVy.jpg",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/pl-BxWLzj7D.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/pt-09LjGE4N.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/pt-BR-B96N0_Ns.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/ro-CFBea_Nr.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/ru-BLdBdQbb.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/sk-CK3r25cq.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/sl-BNeaqlPT.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/sq-B5twX_P3.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/sr-DpCM09f2.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/sr-Latn-mmrxIrqs.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/sv-DuLKC5lx.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/ta-BOFjVrIv.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/te-DnDP1QGE.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/th-BZVdQNNZ.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/tr-C4GxezvB.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/uk-D7u-GIu5.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/unwind-BnOBuinQ.jpg",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/ur-C1W359A7.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/vi-C3jEi0xi.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/zh-Hans-D29Fiwtz.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/zh-Hant-BeJxDtkH.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "index.html",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "release-info.json",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/index-BuCNakCb.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/index-CpwYSRpd.css",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/index-DlQzOo4f.css",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/index-b4S0SuJs.css",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/index-BQr8dt7R.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/index-C0-sOsAJ.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/index-CcBotb4C.css",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/index-CbFkEsjg.css",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/index-Bagk2Q4L.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/index-CFL2bwnb.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/index-B0yJSnOW.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/index-nBWCODos.css",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/index-DQmBCxDs.css",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/index-C33O2k4O.js",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/index-BnXSeax8.css",
+      "status": 200,
+      "match": true
+    },
+    {
+      "path": "assets/index-sxnqIGhU.js",
+      "status": 200,
+      "match": true
+    }
+  ]
+}
