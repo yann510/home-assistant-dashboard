@@ -13,33 +13,29 @@ export function RoomArtwork({ room, className }: { room: string; className?: str
       style={{ '--canvas-room-accent': getRoomAccent(room) } as CSSProperties}
     >
       {kind === 'living' ? (
-        <>
-          <circle className='canvas-room-artwork__solid' cx='26' cy='10' r='4' />
+        <g transform='translate(0 -7.5)'>
           <rect className='canvas-room-artwork__wash' x='7' y='19' width='22' height='15' rx='4' />
           <path d='M7 27v-4q0-4 4-4h14q4 0 4 4v4M7 39v3M29 39v3M8 32h20M18 21v10' />
-          <path d='M3 38V28a3 3 0 0 1 6 0v5h18v-5a3 3 0 0 1 6 0v10ZM26 2v1M18 10h-1M33 10h1' />
-        </>
+          <path d='M3 38V28a3 3 0 0 1 6 0v5h18v-5a3 3 0 0 1 6 0v10Z' />
+        </g>
       ) : kind === 'bedroom' ? (
-        <>
-          <path className='canvas-room-artwork__solid' d='M26 3a7 7 0 1 0 3 12 8 8 0 0 1-3-12Z' />
+        <g transform='translate(0 -8.5)'>
           <rect className='canvas-room-artwork__wash' x='4' y='28' width='28' height='10' rx='2' />
           <path d='M4 42V22M32 42V28M4 38h28M4 29h28M8 28v-5q0-2 2-2h5q2 0 2 2v5M20 28v-5q0-2 2-2h5q2 0 2 2v5' />
-        </>
+        </g>
       ) : kind === 'gym' ? (
-        <>
-          <circle className='canvas-room-artwork__solid' cx='18' cy='9' r='4' />
-          <path d='M18 2V1M11 9H9M25 9h2M18 16v1M10 27h16M10 31h16' />
+        <g transform='translate(0 -6.5)'>
+          <path d='M10 27h16M10 31h16' />
           <rect className='canvas-room-artwork__wash' x='5' y='21' width='5' height='17' rx='1.5' />
           <rect className='canvas-room-artwork__wash' x='26' y='21' width='5' height='17' rx='1.5' />
           <path d='M5 21h5v17H5ZM26 21h5v17h-5ZM2 25v9M34 25v9' />
-        </>
+        </g>
       ) : kind === 'office' ? (
-        <>
+        <g transform='translate(0 -3)'>
           <rect className='canvas-room-artwork__wash' x='6' y='10' width='24' height='17' rx='2' />
           <rect x='6' y='10' width='24' height='17' rx='2' />
           <path d='M18 27v6M12 33h12M3 35h30M6 35v7M30 35v7M10 14h8' />
-          <circle className='canvas-room-artwork__solid' cx='28' cy='4' r='2' />
-        </>
+        </g>
       ) : kind === 'kitchen' ? (
         <>
           <path className='canvas-room-artwork__wash' d='M9 21h16l3 16q0 4-4 4H10q-4 0-4-4Z' />
