@@ -213,7 +213,10 @@ it('shows mood attention and recovery actions on the card without opening detail
   expect(screen.queryByRole('dialog', { name: 'House Mood' })).toBeNull();
   fireEvent.click(within(card).getByRole('button', { name: 'Retry restoration' }));
   await act(async () => {});
-  expect(within(card).getByText('No mood active')).toBeTruthy();
+  expect(within(card).queryByText('No mood active')).toBeNull();
+  expect(within(card).queryByRole('status')).toBeNull();
+  expect(within(card).getByRole('heading', { name: 'Just be.' })).toBeTruthy();
+  expect(within(card).queryByRole('button', { name: 'Retry restoration' })).toBeNull();
   fireEvent.click(within(card).getByRole('button', { name: 'Snooze reminder' }));
   expect(fixture.calls).toContainEqual(
     expect.objectContaining({ domain: 'dashboard_attention', service: 'snooze', service_data: { id: 'mood', episode: 'mood-1' } })

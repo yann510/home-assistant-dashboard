@@ -62,9 +62,7 @@ export function CanvasMood({
           ? 'Restoring previous settings…'
           : recovery
             ? 'Restoration needs attention.'
-            : status.activeMood
-              ? null
-              : 'No mood active';
+            : null;
   return (
     <section
       className='canvas-mood'
