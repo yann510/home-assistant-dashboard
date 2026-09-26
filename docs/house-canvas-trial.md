@@ -14,7 +14,7 @@ npm run rollback:dashboard
 
 The reviewed release mechanism now explicitly allows either `dashboard` or `canvas-trial`, with matching build-base validation and separate locks, staging, previous-release backups and manifests. Existing assets are retained for open clients. The generic `npm run deploy -- RELEASE_ID` now uses this safe dashboard publisher. Use the rollback command above to recover the previous main dashboard; the historical trial rollback remains separate.
 
-Deployment evidence is recorded in `canvas-qa/canvas-only-deployment.json` after publication. This frontend rollout does not upgrade the House Mood backend. Physical Fire/iPhone acceptance and the coordinated mode/mood backend limitations in the live hardware results remain separate from deployment verification.
+Release `a7c0941` is deployed to both targets. All **161** canonical and **92** trial manifest files passed LAN HTTP/SHA-256 checks. The authenticated live browser showed connected device data, category navigation, thermostats and hourly forecast. Use **http://homeassistant.local:8123/local/dashboard/index.html?release=a7c0941** to bypass a cached old index. Deployment evidence is recorded in [canvas-only-deployment.json](canvas-qa/canvas-only-deployment.json). This frontend rollout does not upgrade the House Mood backend. Physical Fire/iPhone acceptance and the coordinated mode/mood backend limitations in the live hardware results remain separate from deployment verification.
 
 ## Previous trial release — September 26, 2026
 
