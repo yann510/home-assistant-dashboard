@@ -1,0 +1,75 @@
+/* Room accents and illustrations match the lights and blinds controls. */
+.canvas-dialog .canvas-thermostats {
+  color: var(--canvas-ink, #f6f0e6);
+}
+.canvas-dialog .canvas-thermostats__rooms {
+  display: grid;
+  gap: var(--canvas-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.canvas-dialog .canvas-thermostats__room {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--canvas-space-4);
+  padding: var(--canvas-space-4);
+  border: 1px solid var(--canvas-line, #48444e);
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--canvas-room-accent) 6%, var(--canvas-surface, #2e2c33));
+}
+.canvas-dialog .canvas-thermostats__artwork {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 72px;
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--canvas-room-accent) 13%, transparent);
+}
+.canvas-dialog .canvas-thermostats__artwork svg { width: 40px; height: 52px; }
+.canvas-dialog .canvas-thermostats__info { min-width: 0; }
+.canvas-dialog .canvas-thermostats__heading { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; }
+.canvas-dialog .canvas-thermostats__name { font-size: 1.15rem; font-weight: 650; }
+.canvas-dialog .canvas-thermostats__state { font-size: .75rem; color: var(--canvas-muted, #b6b0bb); }
+.canvas-dialog .canvas-thermostats__room[data-state='heating'] .canvas-thermostats__state { color: var(--canvas-room-accent); }
+.canvas-dialog .canvas-thermostats__current { display: block; margin-top: 6px; color: var(--canvas-muted, #b6b0bb); font-size: .85rem; }
+.canvas-dialog .canvas-thermostats__adjust { display: grid; gap: 4px; }
+.canvas-dialog .canvas-thermostats__target-label { text-align: center; color: var(--canvas-muted, #b6b0bb); font-size: .7rem; }
+.canvas-dialog .canvas-thermostats__stepper {
+  display: grid;
+  grid-template-columns: 44px minmax(56px, auto) 44px;
+  align-items: center;
+  padding: 4px;
+  border: 1px solid color-mix(in srgb, var(--canvas-room-accent) 40%, var(--canvas-line, #48444e));
+  border-radius: 18px;
+  background: var(--canvas-surface, #2e2c33);
+}
+.canvas-dialog .canvas-thermostats__stepper button {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--canvas-room-accent) 13%, transparent);
+  color: var(--canvas-room-accent);
+}
+.canvas-dialog .canvas-thermostats__stepper button svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+.canvas-dialog .canvas-thermostats__stepper button:disabled { opacity: .4; cursor: not-allowed; }
+.canvas-dialog .canvas-thermostats__stepper button:active:not(:disabled) { background: var(--canvas-room-accent); color: var(--canvas-surface, #2e2c33); }
+.canvas-dialog .canvas-thermostats__stepper output { text-align: center; font-size: 1.35rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.canvas-dialog .canvas-thermostats__feedback { grid-column: 2 / -1; margin: 0; font-size: .8rem; color: var(--canvas-muted, #b6b0bb); }
+.canvas-dialog .canvas-thermostats__feedback[role='alert'] { color: #ffc8bd; }
+@media (hover: hover) {
+  .canvas-dialog .canvas-thermostats__stepper button:hover:not(:disabled) { background: color-mix(in srgb, var(--canvas-room-accent) 24%, transparent); }
+}
+@media (max-width: 560px) {
+  .canvas-dialog .canvas-thermostats__room { grid-template-columns: 44px minmax(0, 1fr); gap: 12px; padding: 12px; }
+  .canvas-dialog .canvas-thermostats__artwork { width: 44px; height: 52px; border-radius: 12px; }
+  .canvas-dialog .canvas-thermostats__artwork svg { width: 30px; height: 40px; }
+  .canvas-dialog .canvas-thermostats__adjust { grid-column: 1 / -1; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; }
+  .canvas-dialog .canvas-thermostats__target-label { text-align: left; font-size: .8rem; }
+  .canvas-dialog .canvas-thermostats__feedback { grid-column: 1 / -1; }
+}

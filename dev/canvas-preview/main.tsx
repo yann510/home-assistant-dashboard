@@ -93,6 +93,8 @@ for (const room of ['office', 'gym', 'bedroom'])
     min_temp: 5,
     max_temp: 30,
     target_temp_step: 0.5,
+    supported_features: 1,
+    hvac_action: room === 'bedroom' ? 'idle' : 'heating',
   });
 const snoozedItems = ['Empty Roomba bin', 'Check the dishwasher rinse aid and salt levels', 'Clean the washer filter'].map(
   (title, index) => ({
@@ -189,6 +191,18 @@ const connection = {
               media_duration: 240,
             });
           }
+        }
+      }
+    }
+    if (message.type === 'call_service' && message.domain === 'climate' && message.service === 'set_temperature' && !params.has('unconfirmed')) {
+      const target = (message.target as { entity_id?: string | string[] } | undefined)?.entity_id;
+      const ids = Array.isArray(target) ? target : target ? [target] : [];
+      const temperature = (message.service_data as { temperature?: number } | undefined)?.temperature;
+      if (typeof temperature === 'number' && Number.isFinite(temperature)) {
+        for (const id of ids) {
+          const thermostat = entities[id];
+          if (!thermostat || ['unknown', 'unavailable', 'off'].includes(thermostat.state)) continue;
+          publish(id, thermostat.state, { ...thermostat.attributes, temperature });
         }
       }
     }

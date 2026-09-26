@@ -1,6 +1,8 @@
-import { createContext, useContext, useRef, type ReactNode } from 'react';
+import { createContext, useContext, useRef, type CSSProperties, type ReactNode } from 'react';
 import { useStore } from '@hakit/core';
-import { HeatIcon } from '../TemperatureCard';
+import { RoomArtwork } from './RoomArtwork';
+import { getRoomAccent } from './room-artwork';
+import './canvas-thermostats.css';
 import { useDeviceCommand } from './useDeviceCommand';
 
 const rooms = [
@@ -76,37 +78,41 @@ export function CanvasThermostats() {
   const controllers = useContext(ThermostatsContext);
   if (!controllers) throw new Error('CanvasThermostatsProvider is required.');
   return (
-    <section className='appliances-card temperature-card' aria-labelledby='canvas-temperature-title'>
-      <h2 id='canvas-temperature-title'>
-        Room temperature <span>°C</span>
-      </h2>
-      <ul>
+    <section className='canvas-thermostats' aria-label='Room temperatures'>
+      <ul className='canvas-thermostats__rooms'>
         {controllers.map(({ room, target, current, unavailable, state, disabled, next, change, pending, feedback }) => (
-          <li className='temperature-room' key={room.id}>
-            <span className='temperature-symbol'>
-              <HeatIcon state={state.toLowerCase()} />
+          <li
+            className='canvas-thermostats__room'
+            key={room.id}
+            data-state={state.toLowerCase()}
+            style={{ '--canvas-room-accent': getRoomAccent(room.name) } as CSSProperties}
+          >
+            <span className='canvas-thermostats__artwork'>
+              <RoomArtwork room={room.name} />
             </span>
-            <div className='temperature-room-info'>
-              <div className='temperature-room-heading'>
-                <span className='temperature-room-name'>{room.name}</span>
-                <span className='temperature-room-state'>{state}</span>
+            <div className='canvas-thermostats__info'>
+              <div className='canvas-thermostats__heading'>
+                <span className='canvas-thermostats__name'>{room.name}</span>
+                <span className='canvas-thermostats__state'>{state}</span>
               </div>
-              <span className='temperature-current'>
+              <span className='canvas-thermostats__current'>
                 {!unavailable && numeric(current) ? `Currently ${format(current)}°C` : 'Temperature unavailable'}
               </span>
             </div>
-            <div className='temperature-adjust'>
-              <span className='temperature-target-label' role='status'>
+            <div className='canvas-thermostats__adjust'>
+              <span className='canvas-thermostats__target-label' role='status'>
                 {pending ? 'Updating…' : 'Set to'}
               </span>
-              <div className='temperature-stepper'>
+              <div className='canvas-thermostats__stepper'>
                 <button
                   type='button'
                   aria-label={`Lower ${room.name} target temperature`}
                   disabled={disabled || next(-1) === target}
                   onClick={() => void change(-1)}
                 >
-                  −
+                  <svg viewBox='0 0 24 24' aria-hidden='true' focusable='false'>
+                    <path d='M6 12h12' />
+                  </svg>
                 </button>
                 <output aria-label={`${room.name} target temperature`} aria-live='polite'>
                   {!unavailable && numeric(target) ? `${format(target)}°` : '—'}
@@ -117,17 +123,19 @@ export function CanvasThermostats() {
                   disabled={disabled || next(1) === target}
                   onClick={() => void change(1)}
                 >
-                  +
+                  <svg viewBox='0 0 24 24' aria-hidden='true' focusable='false'>
+                    <path d='M6 12h12M12 6v12' />
+                  </svg>
                 </button>
               </div>
             </div>
             {feedback?.phase === 'accepted' && (
-              <p className='temperature-error' role='status'>
+              <p className='canvas-thermostats__feedback' role='status'>
                 Service accepted; waiting for the reported target.
               </p>
             )}
             {(feedback?.phase === 'failed' || feedback?.phase === 'unconfirmed') && (
-              <p className='temperature-error' role='alert'>
+              <p className='canvas-thermostats__feedback' role='alert'>
                 {feedback.message}
               </p>
             )}
