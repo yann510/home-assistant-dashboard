@@ -28,10 +28,10 @@ it('restores the directory trigger on Back, traps keyboard focus, and restores o
   render(<CanvasDashboard />);
   const overview = screen.getByRole('button', { name: 'All devices' });
   fireEvent.click(overview);
-  const trigger = screen.getByRole('button', { name: 'Weather' });
+  const trigger = screen.getByRole('button', { name: 'Speakers' });
   fireEvent.click(trigger);
   fireEvent.click(screen.getByRole('button', { name: 'Back' }));
-  expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Weather' }));
+  expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Speakers' }));
   const dialog = screen.getByRole('dialog');
   const close = screen.getByRole('button', { name: 'Close details' });
   close.focus();
@@ -58,11 +58,18 @@ function speaker() {
 it('opens every directory destination with one modal owner and returns to the searched trigger', async () => {
   render(<CanvasDashboard />);
   fireEvent.click(screen.getByRole('button', { name: 'All devices' }));
-  for (const name of ['All lights', 'Blinds', 'Favourites', 'Speakers', 'Weather', 'Thermostats', 'Appliances', 'Roomba']) {
+  for (const [name, title] of [
+    ['Lights', 'All lights'],
+    ['Blinds', 'Blinds'],
+    ['Speakers', 'Speakers'],
+    ['Climate', 'Thermostats'],
+    ['Appliances', 'Appliances'],
+    ['Vacuum', 'Roomba'],
+  ]) {
     const button = within(screen.getByRole('dialog')).getByRole('button', { name });
     fireEvent.click(button);
     expect(screen.getAllByRole('dialog')).toHaveLength(1);
-    expect(screen.getByRole('dialog', { name })).toBeTruthy();
+    expect(screen.getByRole('dialog', { name: title })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Back' }));
     expect(document.activeElement).toBe(within(screen.getByRole('dialog')).getByRole('button', { name }));
   }
@@ -347,6 +354,7 @@ it('restores an activity trigger without relying on focus and keeps directory id
   fireEvent.click(screen.getByRole('button', { name: 'Close details' }));
   expect(document.activeElement).toBe(activity);
   fireEvent.click(screen.getByRole('button', { name: 'All devices' }));
+  fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'living' } });
   fireEvent.click(screen.getByRole('button', { name: 'Living Room · First name' }));
   act(() => fixture.publish('light.light_living_room_bulbs', 'off', { friendly_name: 'Renamed light' }));
   fireEvent.click(screen.getByRole('button', { name: 'Back' }));
@@ -356,6 +364,7 @@ it('restores an activity trigger without relying on focus and keeps directory id
 it.each(['Washer', 'Dryer'])('restores the distinct %s directory trigger while both laundry destinations are visible', name => {
   render(<CanvasDashboard />);
   fireEvent.click(screen.getByRole('button', { name: 'All devices' }));
+  fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'laundry' } });
   const directory = within(screen.getByRole('dialog'));
   expect(directory.getByRole('button', { name: 'Washer' })).toBeTruthy();
   expect(directory.getByRole('button', { name: 'Dryer' })).toBeTruthy();

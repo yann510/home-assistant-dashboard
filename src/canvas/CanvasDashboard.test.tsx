@@ -60,9 +60,9 @@ it('uses one dialog and returns from a detail route to the device directory', ()
   render(<CanvasDashboard />);
   fireEvent.click(screen.getByRole('button', { name: 'All devices' }));
   expect(screen.getAllByRole('dialog')).toHaveLength(1);
-  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Weather' }));
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Speakers' }));
   expect(screen.getAllByRole('dialog')).toHaveLength(1);
-  expect(screen.getByRole('dialog', { name: 'Weather' })).toBeTruthy();
+  expect(screen.getByRole('dialog', { name: 'Speakers' })).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: 'Back' }));
   expect(screen.getByRole('dialog', { name: 'All devices' })).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: 'Close details' }));

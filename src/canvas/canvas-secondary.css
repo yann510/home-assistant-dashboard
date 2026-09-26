@@ -350,3 +350,49 @@
 .canvas .canvas-pulse__notice small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .canvas-dialog .canvas-attention-context > button { margin: 4px 6px 0 0; }
 @media (max-width: 700px) { .canvas .canvas-pulse__notice { flex-shrink: 0; } }
+
+/* A small collection of device families, before the searchable inventory. */
+.canvas-dialog .canvas-devices__search-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+.canvas-dialog .canvas-devices__categories {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--canvas-space-3);
+  padding: var(--canvas-focus-gutter);
+}
+.canvas-dialog .canvas-devices__category {
+  --category-accent: #f1aa8e;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--canvas-space-2);
+  position: relative;
+  min-height: 174px;
+  padding: var(--canvas-space-4);
+  border: 1px solid #48444e;
+  border-radius: 20px;
+  background: #343138;
+  text-align: left;
+}
+.canvas-dialog .canvas-devices__category--blinds { --category-accent: #cbb5ed; }
+.canvas-dialog .canvas-devices__category--speakers { --category-accent: #e7dfbd; }
+.canvas-dialog .canvas-devices__category--thermostats { --category-accent: #bdD6af; }
+.canvas-dialog .canvas-devices__category--appliances { --category-accent: #abc9db; }
+.canvas-dialog .canvas-devices__category--vacuum { --category-accent: #d7b1ca; }
+.canvas-dialog .canvas-devices__category svg { width: 76px; height: 68px; color: var(--category-accent); grid-column: 1 / -1; }
+.canvas-dialog .canvas-devices__category strong { display: block; font-size: 1.1rem; }
+.canvas-dialog .canvas-devices__category small { display: block; margin-top: 4px; color: #c0bac4; font-size: .78rem; line-height: 1.35; }
+.canvas-dialog .canvas-devices__arrow { align-self: center; color: var(--category-accent); font-size: 1.4rem; }
+@media (hover: hover) {
+  .canvas-dialog .canvas-devices__category:hover { border-color: var(--category-accent); background: #3c3741; }
+}
+.canvas-dialog .canvas-devices__category:active { border-color: var(--category-accent); background: #403a46; }
+@media (max-width: 560px) {
+  .canvas-dialog .canvas-devices__categories { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--canvas-space-2); }
+  .canvas-dialog .canvas-devices__category { min-height: 146px; padding: var(--canvas-space-3); }
+  .canvas-dialog .canvas-devices__category svg { width: 60px; height: 54px; }
+}

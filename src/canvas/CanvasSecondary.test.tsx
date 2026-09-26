@@ -148,8 +148,17 @@ it('keeps simultaneous appliance activity and a new completion episode while an 
   ref.current!.publish('sensor.dryer_dryer_machine_state', 'run');
   ref.current!.publish('sensor.dryer_dryer_job_state', 'drying');
   const reminder = (id: string, episode: string, title: string) => ({
-    id, episode, title, detail: 'Cycle complete', tone: 'blue', icon: 'washer', target: 'appliances',
-    kind: 'completion', occurred_at: new Date().toISOString(), snoozed_until: null, snooze_seconds: 3600,
+    id,
+    episode,
+    title,
+    detail: 'Cycle complete',
+    tone: 'blue',
+    icon: 'washer',
+    target: 'appliances',
+    kind: 'completion',
+    occurred_at: new Date().toISOString(),
+    snoozed_until: null,
+    snooze_seconds: 3600,
   });
   const dryer = reminder('dryer-finished', 'dryer-1', 'Dryer finished');
   const washer = reminder('washer-finished', 'washer-1', 'Washer finished');
@@ -159,15 +168,19 @@ it('keeps simultaneous appliance activity and a new completion episode while an 
   expect(screen.getByRole('button', { name: /Dryer.*Drying/ })).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: 'View: Washer finished' }));
   fireEvent.click(screen.getByRole('button', { name: 'Done: Washer finished' }));
-  expect(ref.current!.calls).toContainEqual(expect.objectContaining({
-    service: 'dismiss', service_data: { id: 'washer-finished', episode: 'washer-1' },
-  }));
+  expect(ref.current!.calls).toContainEqual(
+    expect.objectContaining({
+      service: 'dismiss',
+      service_data: { id: 'washer-finished', episode: 'washer-1' },
+    })
+  );
   act(() => ref.current!.publish('sensor.washer_washer_job_state', 'finished'));
   expect(screen.getByRole('button', { name: /Washer.*Finished/ })).toBeTruthy();
   act(() => {
     ref.current!.publish('sensor.washer_washer_job_state', 'wash');
     ref.current!.publish('sensor.dashboard_attention', '2', {
-      ready: true, items: [reminder('washer-finished', 'washer-2', 'Washer finished again'), dryer],
+      ready: true,
+      items: [reminder('washer-finished', 'washer-2', 'Washer finished again'), dryer],
     });
   });
   expect(screen.getByRole('button', { name: /Washer.*Washing/ })).toBeTruthy();
@@ -206,32 +219,43 @@ it('finds real devices by name and room and reaches every secondary category', (
   expect(within(dialog).getByRole('button', { name: /Bedroom blinds/ })).toBeTruthy();
   expect(within(dialog).getByRole('button', { name: /Bedroom thermostat/ })).toBeTruthy();
   fireEvent.change(search, { target: { value: '' } });
-  for (const destination of [
-    'All lights',
-    'Blinds',
-    'Favourites',
-    'Speakers',
-    'Weather',
-    'Thermostats',
-    'Appliances',
-    'Roomba',
-  ]) {
-    expect(within(dialog).getByRole('button', { name: destination })).toBeTruthy();
-  }
-  for (const destination of [
-    'All lights',
-    'Blinds',
-    'Favourites',
-    'Speakers',
-    'Weather',
-    'Thermostats',
-    'Appliances',
-    'Roomba',
+  const categories = within(dialog).getByRole('navigation', { name: 'Device categories' });
+  expect(within(categories).getAllByRole('button')).toHaveLength(6);
+  expect(within(dialog).queryByRole('button', { name: 'Weather' })).toBeNull();
+  expect(within(dialog).queryByRole('button', { name: 'Favourites' })).toBeNull();
+  expect(within(dialog).queryByRole('button', { name: 'Bedroom thermostat' })).toBeNull();
+  for (const [destination, title] of [
+    ['Lights', 'All lights'],
+    ['Blinds', 'Blinds'],
+    ['Speakers', 'Speakers'],
+    ['Climate', 'Thermostats'],
+    ['Appliances', 'Appliances'],
+    ['Vacuum', 'Roomba'],
   ]) {
     fireEvent.click(within(screen.getByRole('dialog', { name: 'All devices' })).getByRole('button', { name: destination }));
-    expect(screen.getByRole('dialog', { name: destination })).toBeTruthy();
+    expect(screen.getByRole('dialog', { name: title })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect(document.activeElement).toBe(within(screen.getByRole('dialog')).getByRole('button', { name: destination }));
   }
+  fireEvent.change(screen.getByRole('searchbox'), { target: { value: '   ' } });
+  expect(screen.getByRole('navigation', { name: 'Device categories' })).toBeTruthy();
+});
+
+it('searches a vacuum by its actual name and recovers from an empty search', () => {
+  ref.current!.publish('vacuum.roomba', 'docked', { friendly_name: 'Downstairs helper' });
+  render(<CanvasDashboard />);
+  fireEvent.click(screen.getByRole('button', { name: 'All devices' }));
+  fireEvent.change(screen.getByRole('searchbox'), { target: { value: '  DOWNSTAIRS  ' } });
+  expect(screen.queryByRole('navigation', { name: 'Device categories' })).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Downstairs helper' }));
+  expect(screen.getByRole('dialog', { name: 'Roomba' })).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+  expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Downstairs helper' }));
+  fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'not-a-device' } });
+  expect(screen.getByText('No devices found. Try another room or shorter name.')).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Clear search' }));
+  expect(within(screen.getByRole('navigation', { name: 'Device categories' })).getAllByRole('button')).toHaveLength(6);
+  expect(ref.current!.calls).toHaveLength(0);
 });
 
 it('opens a searched blind room with only that room selected for commands', () => {
@@ -294,7 +318,7 @@ it('mounts and reconnects Roomba detail without sending a command, filtering uns
   });
   render(<CanvasDashboard />);
   fireEvent.click(screen.getByRole('button', { name: 'All devices' }));
-  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Roomba' }));
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Vacuum' }));
   const detail = screen.getByRole('dialog', { name: 'Roomba' });
   expect(within(detail).getByRole('button', { name: 'Start cleaning' })).toBeTruthy();
   expect(within(detail).getByRole('button', { name: 'Locate Roomba' })).toBeTruthy();
@@ -310,7 +334,7 @@ it('shows an unavailable Roomba as uncertain and sends no command from read-only
   ref.current!.publish('vacuum.roomba', 'unavailable', { supported_features: 8192 | 4 | 16 });
   render(<CanvasDashboard />);
   fireEvent.click(screen.getByRole('button', { name: 'All devices' }));
-  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Roomba' }));
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Vacuum' }));
   const detail = within(screen.getByRole('dialog', { name: 'Roomba' }));
   expect(detail.getByText('Reconnect or wait for a reliable Roomba state to use controls.')).toBeTruthy();
   expect(detail.queryByRole('button', { name: 'Start cleaning' })).toBeNull();
@@ -328,7 +352,7 @@ it('reports a rejected Roomba command and requires an explicit fan-speed apply',
   ref.current!.respondWith(() => Promise.reject(new Error('Vacuum denied')));
   render(<CanvasDashboard />);
   fireEvent.click(screen.getByRole('button', { name: 'All devices' }));
-  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Roomba' }));
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Vacuum' }));
   expect(ref.current!.calls).toHaveLength(0);
   fireEvent.change(screen.getByRole('combobox', { name: 'Roomba fan speed' }), { target: { value: 'Quiet' } });
   expect(ref.current!.calls).toHaveLength(0);
@@ -346,7 +370,7 @@ it('sends one Roomba command while pending and waits for the reported state', as
   ref.current!.respondWith(() => starting.promise);
   render(<CanvasDashboard />);
   fireEvent.click(screen.getByRole('button', { name: 'All devices' }));
-  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Roomba' }));
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Vacuum' }));
   const start = screen.getByRole('button', { name: 'Start cleaning' });
   fireEvent.click(start);
   fireEvent.click(start);
@@ -363,11 +387,11 @@ it('retains a pending Roomba command and its later rejection after closing and r
   ref.current!.respondWith(() => starting.promise);
   render(<CanvasDashboard />);
   fireEvent.click(screen.getByRole('button', { name: 'All devices' }));
-  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Roomba' }));
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Vacuum' }));
   fireEvent.click(screen.getByRole('button', { name: 'Start cleaning' }));
   expect(ref.current!.calls).toHaveLength(1);
   fireEvent.click(screen.getByRole('button', { name: 'Back' }));
-  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Roomba' }));
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Vacuum' }));
   expect(screen.getByRole('button', { name: 'Start cleaning' }).hasAttribute('disabled')).toBe(true);
   fireEvent.click(screen.getByRole('button', { name: 'Start cleaning' }));
   expect(ref.current!.calls).toHaveLength(1);
@@ -381,10 +405,10 @@ it('retains Roomba observation after reopening a pending detail', async () => {
   ref.current!.respondWith(() => starting.promise);
   render(<CanvasDashboard />);
   fireEvent.click(screen.getByRole('button', { name: 'All devices' }));
-  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Roomba' }));
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Vacuum' }));
   fireEvent.click(screen.getByRole('button', { name: 'Start cleaning' }));
   fireEvent.click(screen.getByRole('button', { name: 'Back' }));
-  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Roomba' }));
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Vacuum' }));
   await act(async () => starting.resolve({}));
   expect(screen.getByText(/Service accepted; device response is not yet verified/)).toBeTruthy();
   act(() => ref.current!.publish('vacuum.roomba', 'cleaning', { supported_features: 8192 }));
@@ -405,7 +429,7 @@ it('keeps thermostat capability limits and reports a rejected command', async ()
   ref.current!.respondWith(() => Promise.reject(new Error('Denied')));
   render(<CanvasDashboard />);
   fireEvent.click(screen.getByRole('button', { name: 'All devices' }));
-  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Thermostats' }));
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Climate' }));
   fireEvent.click(screen.getByRole('button', { name: 'Raise Office target temperature' }));
   expect(ref.current!.calls).toContainEqual(
     expect.objectContaining({ domain: 'climate', service: 'set_temperature', service_data: { temperature: 21 } })
@@ -416,7 +440,7 @@ it('keeps thermostat capability limits and reports a rejected command', async ()
 
 function openThermostats() {
   fireEvent.click(screen.getByRole('button', { name: 'All devices' }));
-  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Thermostats' }));
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Climate' }));
 }
 const thermostatAttrs = {
   temperature: 20,
@@ -568,10 +592,14 @@ it('honours fractional thermostat steps while off and unsupported rooms remain r
   for (const room of ['Gym', 'Bedroom'])
     expect(screen.getByRole('button', { name: `Raise ${room} target temperature` }).hasAttribute('disabled')).toBe(true);
   fireEvent.click(screen.getByRole('button', { name: 'Raise Office target temperature' }));
-  expect(ref.current!.calls).toEqual([expect.objectContaining({
-    domain: 'climate', service: 'set_temperature', target: { entity_id: ['climate.thermostat_office'] },
-    service_data: { temperature: 20.5 },
-  })]);
+  expect(ref.current!.calls).toEqual([
+    expect.objectContaining({
+      domain: 'climate',
+      service: 'set_temperature',
+      target: { entity_id: ['climate.thermostat_office'] },
+      service_data: { temperature: 20.5 },
+    }),
+  ]);
 });
 
 it('restores the chosen snoozed episode from the contained pulse row and locks restores while saving', async () => {
