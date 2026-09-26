@@ -42,3 +42,6 @@
 :is(.canvas, .canvas-dialog) .canvas-light-settings .canvas-lights__muted { font-size: .75rem; margin: 4px 0; }
 .canvas-lights--all { overflow-anchor: none; }
 .canvas-light-settings__sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* Make room for an in-card editor without overlapping neighbouring rooms. */
+.canvas-dialog .canvas-lights--all .canvas-lights__group--settings { min-height: 228px; }

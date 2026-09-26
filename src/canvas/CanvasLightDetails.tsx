@@ -1,5 +1,6 @@
 import { useId, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { useStore, type LightEntity } from '@hakit/core';
+import { ColourWheel } from './ColourWheel';
 import { lightSupportsBrightness, useCanvasLights } from './useCanvasLights';
 
 function numeric(value: unknown): number | undefined {
@@ -56,6 +57,7 @@ export function CanvasLightDetails({
   const brightnessPointerCancelled = useRef(false);
   const [temperatureDraft, setTemperatureDraft] = useState<number | null>(null);
   const [colourDraft, setColourDraft] = useState<string | null>(null);
+  const [colourInput, setColourInput] = useState<string | null>(null);
   const [effectDraft, setEffectDraft] = useState<string | null>(null);
   const [committing, setCommitting] = useState(false);
   const colourDescriptionId = useId();
@@ -114,12 +116,15 @@ export function CanvasLightDetails({
     );
   };
   const commitColour = () => {
-    if (colourDraft === null) return;
+    if (colourDraft === null || (colourInput !== null && !/^#[0-9a-f]{6}$/i.test(colourInput))) return;
     const rgb = rgbFromHex(colourDraft);
     void sendValue(
       { rgb_color: rgb },
       next => next.attributes.rgb_color?.every((value, index) => Math.abs(value - rgb[index]) <= 1) === true,
-      () => setColourDraft(null)
+      () => {
+        setColourDraft(null);
+        setColourInput(null);
+      }
     );
   };
   const commitEffect = () => {
@@ -222,27 +227,51 @@ export function CanvasLightDetails({
           </label>
         )}
         {colour && showControl('Colour') && (
-          <label className='canvas-lights__field'>
-            {!embedded && 'Colour'}
-            <input
-              aria-label='Light colour'
-              aria-describedby={colourDescriptionId}
-              type='color'
+          <div className='canvas-light-colour'>
+            <ColourWheel
               value={colourValue}
               disabled={!available || working || committing}
-              onChange={event => setColourDraft(event.target.value)}
-              onBlur={embedded ? undefined : commitColour}
+              onChange={hex => {
+                setColourDraft(hex);
+                setColourInput(null);
+              }}
             />
-            <button type='button' disabled={!available || working || committing || colourDraft === null} onClick={commitColour}>
-              {embedded ? 'Apply' : 'Apply colour'}
-            </button>
+            <div className='canvas-light-colour__actions'>
+              <input
+                aria-label='Light colour'
+                aria-describedby={colourDescriptionId}
+                type='text'
+                maxLength={7}
+                spellCheck={false}
+                value={colourInput ?? colourValue}
+                aria-invalid={colourInput !== null && !/^#[0-9a-f]{6}$/i.test(colourInput)}
+                disabled={!available || working || committing}
+                onChange={event => {
+                  setColourInput(event.target.value);
+                  if (/^#[0-9a-f]{6}$/i.test(event.target.value)) setColourDraft(event.target.value);
+                }}
+              />
+              <button
+                type='button'
+                disabled={
+                  !available ||
+                  working ||
+                  committing ||
+                  colourDraft === null ||
+                  (colourInput !== null && !/^#[0-9a-f]{6}$/i.test(colourInput))
+                }
+                onClick={commitColour}
+              >
+                {embedded ? 'Apply' : 'Apply colour'}
+              </button>
+            </div>
             <span id={colourDescriptionId} className={embedded ? 'canvas-light-settings__sr-only' : 'canvas-lights__reading'}>
               {reportedColour === undefined ? 'Current colour unknown' : `Reported colour ${hexFromRgb(reportedColour)}`}
             </span>
             <output className={embedded ? 'canvas-light-settings__sr-only' : undefined}>
               {colourDraft !== null || reportedColour === undefined ? 'Proposed' : 'Reported'} colour {colourValue}
             </output>
-          </label>
+          </div>
         )}
         {temperature && showControl('Warmth') && (
           <label className='canvas-lights__slider'>

@@ -321,7 +321,7 @@ export function CanvasAllLights({ showGlobalAction = true }: { showGlobalAction?
       <div className='canvas-lights__grid'>
         {rooms.map(room => (
           <section
-            className='canvas-lights__group'
+            className={`canvas-lights__group${settings.active?.room === room.name ? ' canvas-lights__group--settings' : ''}`}
             key={room.name}
             aria-label={`${room.name} lights`}
             data-lit={connected && room.on > 0}

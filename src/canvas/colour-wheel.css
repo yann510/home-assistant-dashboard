@@ -1,0 +1,21 @@
+.canvas-colour-wheel {
+  position: relative;
+  width: 176px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: radial-gradient(circle closest-side, #fff, transparent), conic-gradient(from 90deg, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00);
+  touch-action: none;
+  cursor: crosshair;
+}
+.canvas-colour-wheel:focus-visible { outline: 3px solid var(--canvas-ink); outline-offset: 3px; }
+.canvas-colour-wheel[aria-disabled='true'] { opacity: .4; cursor: not-allowed; }
+.canvas-colour-wheel__marker { position: absolute; width: 15px; height: 15px; border: 2px solid white; border-radius: 50%; box-shadow: 0 1px 4px #0009; transform: translate(-50%, -50%); pointer-events: none; }
+:is(.canvas, .canvas-dialog) .canvas-light-colour { display: flex; align-items: center; justify-content: center; gap: 24px; }
+.canvas-light-colour__actions { display: grid; gap: 8px; min-width: 0; }
+:is(.canvas, .canvas-dialog) .canvas-light-colour__actions input { width: 112px; min-width: 0; min-height: 44px; text-align: center; font: inherit; border: 1px solid var(--canvas-line); border-radius: 12px; color: var(--canvas-ink); background: var(--canvas-surface); }
+:is(.canvas, .canvas-dialog) .canvas-light-settings .canvas-colour-wheel { width: 96px; }
+:is(.canvas, .canvas-dialog) .canvas-light-settings .canvas-light-colour { gap: 20px; padding: 4px; }
+:is(.canvas, .canvas-dialog) .canvas-light-colour { flex-wrap: wrap; }
+.canvas-light-colour > .canvas-lights__reading,
+.canvas-light-colour > output:not(.canvas-light-settings__sr-only) { flex-basis: 100%; text-align: center; }
