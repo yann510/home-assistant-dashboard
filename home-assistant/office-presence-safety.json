@@ -1,0 +1,48 @@
+{
+  "id": "1689080467859",
+  "alias": "Close all the lights when leaving home",
+  "description": "Turn lights off only after known away status and confirmed office vacancy both hold continuously for five minutes. Unknown or unavailable presence is fail-safe; later confirmed vacancy starts a fresh countdown.",
+  "triggers": [
+    {
+      "trigger": "template",
+      "value_template": "{{ states('person.yann_thibodeau') not in ['home', 'unknown', 'unavailable', ''] and is_state('binary_sensor.aqara_fp2_presence_motion_sensor_presence_sensor_2', 'off') }}",
+      "for": {
+        "minutes": 5
+      }
+    }
+  ],
+  "conditions": [
+    {
+      "condition": "template",
+      "value_template": "{{ states('person.yann_thibodeau') not in ['home', 'unknown', 'unavailable', ''] }}"
+    },
+    {
+      "condition": "state",
+      "entity_id": "binary_sensor.aqara_fp2_presence_motion_sensor_presence_sensor_2",
+      "state": "off"
+    }
+  ],
+  "actions": [
+    {
+      "action": "light.turn_off",
+      "metadata": {},
+      "data": {},
+      "target": {
+        "device_id": [
+          "22a4e0eca1e50875413bddf04365dcb0",
+          "dc8eaa8c6e55143a1347e826847279a5",
+          "babb1ec925ded5695898ab1cb1de3372",
+          "91ecaa6212352c7d28e3579391ce9578",
+          "081512c655edcdc6d667c9bc9740bd56",
+          "3d9c5d5434446aecd6107d3ed40e8656",
+          "82f801507ff069b860bb3bb3b49fdbc9",
+          "6a2c2024a3abcc9a712b0eea75cbb38e",
+          "57a9d54094cdf89e9b4af6786698013b",
+          "df3e3a5244316a9f6ea8762be5ecffb7",
+          "52ca846eade12f266e6db4bc5c4b6af9"
+        ]
+      }
+    }
+  ],
+  "mode": "single"
+}

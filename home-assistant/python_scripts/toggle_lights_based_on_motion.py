@@ -12,14 +12,6 @@ def mood_owns_light(entity_id):
             and (mood.attributes.get("active_mood") in ("love", "party")
                  or mood.attributes.get("pending_mood") in ("love", "party")))
 
-def parse_time(time_str, default):
-    if time_str:
-        parts = [int(x) for x in time_str.split(":")]
-        hours, minutes = parts[0], parts[1]
-        seconds = parts[2] if len(parts) > 2 else 0
-        return datetime.time(hours, minutes, seconds)
-    return default
-
 # Inputs
 person_detected_entity = data.get("person_detected_entity")
 lumen_sensor = data.get("lumen_sensor")
@@ -36,8 +28,10 @@ gate_entity = data.get("gate_entity", "input_boolean.morning_mode")
 # light to turn on. Only blocks turn-on; auto-off keeps working regardless.
 block_entity = data.get("block_entity")
 
-light_state = hass.states.get(light_target_one).state
-motion_state = hass.states.get(person_detected_entity).state
+light = hass.states.get(light_target_one)
+light_state = light.state if light else None
+motion = hass.states.get(person_detected_entity)
+motion_state = motion.state if motion else None
 
 if motion_state == "on":
     logger.info(f"Motion detected, setting turn off time to null")
@@ -64,21 +58,32 @@ if motion_state == "on":
             hass.services.call("light", "turn_on", {"entity_id": light_target_two})
     else:
         logger.info("Light already on or lumen threshold exceeded")
-else:
-    future_off_time = datetime.datetime.now() + datetime.timedelta(seconds=no_motion_wait - 1)
+elif motion_state == "off":
+    # Preserve the helper's display format, but compare full dates locally so a
+    # wait crossing midnight is safe. Each waiter belongs to one vacancy episode.
+    vacancy_started = motion.last_changed
+    future_off_time = datetime.datetime.now() + datetime.timedelta(seconds=no_motion_wait)
     future_time_off_formatted = f"{future_off_time.hour:02}:{future_off_time.minute:02}:{future_off_time.second:02}"
     logger.info(f"No motion detected, will turn off light in {no_motion_wait} seconds at {future_time_off_formatted}")
     hass.services.call("input_text", "set_value", {"entity_id": time_off_text_entity, "value": future_time_off_formatted})
 
     time.sleep(no_motion_wait)
 
-    current_time = datetime.datetime.now().time()
-    motion_off_time_str = hass.states.get(time_off_text_entity).state
-    motion_time_off = parse_time(motion_off_time_str, None)
-    logger.info(f"Current time: {current_time}, motion off time: {motion_off_time_str}")
-    if motion_time_off != None and current_time > motion_time_off:
-      logger.info("Turning off light")
-      if not mood_owns_light(light_target_one):
-          hass.services.call("light", "turn_off", {"entity_id": light_target_one})
-      if light_target_two and not mood_owns_light(light_target_two):
-          hass.services.call("light", "turn_off", {"entity_id": light_target_two})
+    def vacancy_still_due():
+        current_motion = hass.states.get(person_detected_entity)
+        deadline = hass.states.get(time_off_text_entity)
+        return (current_motion is not None and current_motion.state == "off"
+                and current_motion.last_changed == vacancy_started
+                and deadline is not None and deadline.state == future_time_off_formatted
+                and datetime.datetime.now() >= future_off_time)
+
+    # Recheck before each write: restarting an automation need not cancel its
+    # already-running Python sleep. Never trust a surviving deadline alone.
+    if vacancy_still_due() and not mood_owns_light(light_target_one):
+        hass.services.call("light", "turn_off", {"entity_id": light_target_one})
+    if light_target_two and vacancy_still_due() and not mood_owns_light(light_target_two):
+        hass.services.call("light", "turn_off", {"entity_id": light_target_two})
+else:
+    # Missing/unknown/unavailable presence is not evidence that the room is empty.
+    hass.services.call("input_text", "set_value", {"entity_id": time_off_text_entity, "value": ""})
+    logger.info("Presence is unavailable; cancelling automatic light shutdown")
