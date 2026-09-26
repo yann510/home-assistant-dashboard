@@ -6,6 +6,7 @@ import type { AttentionItem } from '../attention';
 import type { useAttention } from '../useAttention';
 import { applianceSensors, classifyAppliance, classifyVacuum } from './activity';
 import { routeForAttention, type CanvasRoute } from './routes';
+import './canvas-pulse.css';
 
 export type AttentionController = ReturnType<typeof useAttention>;
 
@@ -62,8 +63,12 @@ export function CanvasPulse({
 
   return (
     <section className='canvas-pulse' aria-label='House pulse'>
-      <span className='canvas__eyebrow canvas-pulse__heading'>
-        House pulse{shownActivities.length > 0 && <small>{shownActivities.length} devices →</small>}
+      <span className='canvas-pulse__heading'>
+        <svg className='canvas-pulse__signature' viewBox='0 0 40 40' fill='none' aria-hidden='true'>
+          <path d='M20 3v8m0 18v8M3 20h8m18 0h8M8 8l6 6m12 12 6 6M8 32l6-6m12-12 6-6' stroke='currentColor' strokeWidth='2.5' strokeLinecap='round' />
+          <circle cx='20' cy='20' r='6' fill='currentColor' />
+        </svg>
+        <span>House<br />pulse</span>
       </span>
       {!attention.connected ? (
         <p role='status'>Live activity unavailable while disconnected.</p>
@@ -76,18 +81,28 @@ export function CanvasPulse({
                 key={item.id}
                 type='button'
                 className={`canvas-pulse__activity${item.active ? ' appliance-animation' : ''}`}
+                data-device={item.id}
+                data-state={item.iconState}
                 aria-label={`${item.name} ${item.status}`}
                 onClick={event => {
                   onSelect(null);
                   onOpen(item.route, event.currentTarget);
                 }}
               >
-                {item.id === 'roomba' ? (
-                  <span aria-hidden='true'>◉</span>
-                ) : (
-                  <ApplianceIcon kind={item.id as 'washer' | 'dryer' | 'dishwasher'} state={item.iconState} />
-                )}
-                <span>
+                <span className='canvas-pulse__art' aria-hidden='true'>
+                  {item.id === 'roomba' ? (
+                    <svg className='canvas-pulse__roomba' viewBox='0 0 36 36' fill='none' stroke='currentColor' strokeWidth='1.6'>
+                      <circle cx='18' cy='18' r='13' />
+                      <path d='M8 13a11 11 0 0 1 20 0M12 27h12' strokeLinecap='round' />
+                      <circle cx='18' cy='17' r='4' />
+                      <circle cx='18' cy='9' r='1' fill='currentColor' stroke='none' />
+                      <path className='canvas-pulse__brush' d='m7 27-3 3m1-5-2 1m7 3-1 3' strokeLinecap='round' />
+                    </svg>
+                  ) : (
+                    <ApplianceIcon kind={item.id as 'washer' | 'dryer' | 'dishwasher'} state={item.iconState} />
+                  )}
+                </span>
+                <span className='canvas-pulse__copy'>
                   <strong>{item.name}</strong>
                   <small>{item.status}</small>
                 </span>
@@ -120,11 +135,21 @@ export function CanvasPulse({
                   onOpen(routeForAttention(item), event.currentTarget);
                 }}
               >
-                <span>
+                <span className='canvas-pulse__notice-art' aria-hidden='true'>
+                  <svg viewBox='0 0 32 32' fill='none'>
+                    <path d='m16 2 3.4 7 7.6-2-2 7.5 5 5.5-7.5 1.5-2 7.5-5.5-5-7.5 2L9 18.4 2 15l7-3.4L8 4l7 4Z' fill='currentColor' />
+                    {item.tone === 'blue' ? (
+                      <circle cx='16' cy='16' r='3' fill='var(--canvas-bg)' />
+                    ) : (
+                      <path d='M16 10v7m0 4v.1' stroke='var(--canvas-bg)' strokeWidth='2' strokeLinecap='round' />
+                    )}
+                  </svg>
+                </span>
+                <span className='canvas-pulse__copy'>
                   <strong>{item.title}</strong>
                   <small>{item.detail}</small>
                 </span>
-                <span aria-hidden='true'>→</span>
+                <span className='canvas-pulse__arrow' aria-hidden='true'>↗</span>
               </button>
             ))}
             {snoozed.length > 0 && (
