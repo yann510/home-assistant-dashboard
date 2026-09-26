@@ -112,12 +112,16 @@
 #root.canvas-view > .dashboard-view-switch { order: 2; margin: auto 20px 0; min-height: 44px; justify-content: flex-end; gap: 4px; }
 #root.canvas-view > .dashboard-view-switch a { min-height: 44px; display: inline-flex; align-items: center; font-size: .7rem; padding: 4px 10px; background: transparent; border: 0; }
 
-.canvas .canvas__header { min-height: 52px; }
+.canvas .canvas__header { min-height: 52px; flex-wrap: wrap; }
 .canvas .canvas__header h1 { font-size: clamp(1.45rem, 2.1vw, 2rem); margin-top: 5px; }
 .canvas .canvas__header em { color: inherit; }
 .canvas .canvas__eyebrow { font-size: .6rem; letter-spacing: .18em; }
 .canvas .canvas__header-actions { --canvas-header-control-height: 52px; flex-wrap: nowrap; gap: var(--canvas-space-2); }
 .canvas .canvas__header-actions > button { min-height: var(--canvas-header-control-height); }
+.canvas .canvas__all-devices { display: inline-flex; align-items: center; justify-content: center; gap: var(--canvas-space-2); flex: none; border-color: transparent; border-radius: 30px; background: color-mix(in srgb, var(--canvas-ink) 6%, transparent); font-size: .8rem; white-space: nowrap; }
+.canvas .canvas__all-devices svg { width: 18px; height: 18px; color: var(--canvas-lilac); }
+.canvas .canvas__all-devices:hover { background: color-mix(in srgb, var(--canvas-ink) 10%, transparent); }
+.canvas .canvas__all-devices:active { background: color-mix(in srgb, var(--canvas-lilac) 15%, transparent); }
 .canvas .canvas__connection { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 .canvas .canvas__connection:has(+ *) { pointer-events: none; }
 .canvas .canvas__shortcuts { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: var(--canvas-space-4); }

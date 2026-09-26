@@ -107,7 +107,13 @@ function CanvasDashboardContent(): React.JSX.Element {
               {connected ? 'Connected' : 'Disconnected'}
             </span>
             <CanvasWeatherNow onOpen={trigger => open({ kind: 'weather' }, trigger)} />
-            <button type='button' onClick={event => open({ kind: 'all-devices' }, event.currentTarget)}>
+            <button type='button' className='canvas__all-devices' onClick={event => open({ kind: 'all-devices' }, event.currentTarget)}>
+              <svg viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='1.5' aria-hidden='true'>
+                <rect x='4' y='4' width='6' height='6' rx='1.5' />
+                <rect x='14' y='4' width='6' height='6' rx='1.5' />
+                <rect x='4' y='14' width='6' height='6' rx='1.5' />
+                <rect x='14' y='14' width='6' height='6' rx='1.5' />
+              </svg>
               All devices
             </button>
           </div>

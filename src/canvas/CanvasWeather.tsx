@@ -163,12 +163,17 @@ export function CanvasWeatherNow({ onOpen }: { onOpen(trigger: HTMLElement): voi
   const live = connected && available;
   const unit = entity?.attributes.temperature_unit ?? configUnit;
   const condition = live ? conditionLabel(entity?.state) : connected ? 'Weather unavailable' : 'Reconnecting';
+  const currentTemperature = live ? temperature(entity?.attributes.temperature, unit) : '—';
   return (
-    <button type='button' className='canvas-weather-now' onClick={event => onOpen(event.currentTarget)}>
+    <button
+      type='button'
+      className='canvas-weather-now'
+      aria-label={`Weather ${currentTemperature} ${condition}`}
+      onClick={event => onOpen(event.currentTarget)}
+    >
       <WeatherGlyph condition={live ? entity?.state : undefined} />
-      <span className='canvas-weather-now__label'>Weather</span>
-      <strong>{live ? temperature(entity?.attributes.temperature, unit) : '—'}</strong>
-      <span>{condition}</span>
+      <strong>{currentTemperature}</strong>
+      <span className='canvas-weather-now__condition'>{condition}</span>
     </button>
   );
 }
