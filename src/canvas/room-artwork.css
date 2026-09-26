@@ -21,15 +21,3 @@
   stroke: none;
   opacity: .8;
 }
-
-.canvas .canvas-room-picker__option {
-  gap: 10px;
-  padding: 6px 12px;
-}
-.canvas .canvas-room-picker__option .canvas-room-artwork {
-  width: 22px;
-  height: 28px;
-}
-.canvas .canvas-room-picker__option[aria-selected='true'] .canvas-room-artwork {
-  color: inherit;
-}

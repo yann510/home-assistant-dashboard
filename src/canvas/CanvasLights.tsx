@@ -152,8 +152,13 @@ function RoomBrightness({ room, compact = false }: { room: CanvasRoom; compact?:
           pointerActive.current = false;
           if (!cancelledPointer.current) commit();
         }}
-        onKeyUp={() => { if (!pointerActive.current) commit(); }}
-        onBlur={() => { if (pointerActive.current) cancelPointer(); else if (!cancelledPointer.current) commit(); }}
+        onKeyUp={() => {
+          if (!pointerActive.current) commit();
+        }}
+        onBlur={() => {
+          if (pointerActive.current) cancelPointer();
+          else if (!cancelledPointer.current) commit();
+        }}
       />
       <output
         aria-label={
@@ -203,7 +208,7 @@ export function CanvasLights({
       <div className='canvas-lights__room-line'>
         <RoomArtwork room={room.name} className='canvas-lights__room-artwork' />
         <div className='canvas-lights__room-summary'>
-          <CanvasRoomPicker rooms={rooms.map(item => item.name)} value={room.name} onChange={setSelectedRoom} />
+          <CanvasRoomPicker rooms={rooms} connected={connected} value={room.name} onChange={setSelectedRoom} />
           {(!connected || room.available < room.lights.length) && (
             <p className='canvas-lights__muted'>{!connected ? 'Reconnecting…' : `${room.lights.length - room.available} unavailable`}</p>
           )}

@@ -49,7 +49,11 @@ export function CanvasDialog({
     <div
       className='canvas-dialog'
       onMouseDown={event => {
-        if (event.target === event.currentTarget) onClose();
+        if (event.target === event.currentTarget) {
+          // Avoid moving focus to the backdrop after cleanup restores the trigger.
+          event.preventDefault();
+          onClose();
+        }
       }}
     >
       <section

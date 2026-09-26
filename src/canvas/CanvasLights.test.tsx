@@ -235,7 +235,11 @@ it('targets only currently-on dimmable lights when a room brightness drag ends',
   const fixture = ref.current!;
   fixture.publish('light.light_bedroom', 'on', { brightness: 100, supported_color_modes: ['brightness'] });
   fixture.publish('light.bedroom_closet', 'off', { brightness: 100, supported_color_modes: ['brightness'] });
-  render(<CanvasLightsProvider><CanvasLights onOpenAll={() => {}} /></CanvasLightsProvider>);
+  render(
+    <CanvasLightsProvider>
+      <CanvasLights onOpenAll={() => {}} />
+    </CanvasLightsProvider>
+  );
   await userEvent.click(screen.getByRole('button', { name: 'Lights room' }));
   await userEvent.click(screen.getByRole('option', { name: 'Bedroom' }));
   const slider = screen.getByRole('slider', { name: 'Room brightness' });
@@ -249,7 +253,11 @@ it('targets only currently-on dimmable lights when a room brightness drag ends',
 it.each(['pointerCancel', 'blur'])('cancels a room pointer brightness drag on %s', eventName => {
   const fixture = ref.current!;
   fixture.publish('light.light_living_room_bulbs', 'on', { brightness: 100, supported_color_modes: ['brightness'] });
-  render(<CanvasLightsProvider><CanvasLights onOpenAll={() => {}} /></CanvasLightsProvider>);
+  render(
+    <CanvasLightsProvider>
+      <CanvasLights onOpenAll={() => {}} />
+    </CanvasLightsProvider>
+  );
   const slider = screen.getByRole('slider', { name: 'Room brightness' });
   fireEvent.pointerDown(slider);
   fireEvent.change(slider, { target: { value: '68' } });
@@ -263,7 +271,11 @@ it.each(['pointerCancel', 'blur'])('cancels a room pointer brightness drag on %s
 it('cancels a detail pointer brightness drag without a write', () => {
   const fixture = ref.current!;
   fixture.publish('light.gym', 'on', { brightness: 100, supported_color_modes: ['brightness'] });
-  render(<CanvasLightsProvider><CanvasLightDetails entityId='light.gym' /></CanvasLightsProvider>);
+  render(
+    <CanvasLightsProvider>
+      <CanvasLightDetails entityId='light.gym' />
+    </CanvasLightsProvider>
+  );
   const slider = screen.getByRole('slider', { name: 'Light brightness' });
   fireEvent.pointerDown(slider);
   fireEvent.change(slider, { target: { value: '68' } });
@@ -533,7 +545,7 @@ it('supports keyboard room selection and returns focus after selection and Escap
   expect(screen.queryByRole('listbox')).toBeNull();
 });
 
-it('dismisses the room menu on outside click and resumes normal keyboard navigation on Tab', async () => {
+it('dismisses the room popup on its backdrop and traps Tab within the modal', async () => {
   ref.current!.publish('light.light_living_room_bulbs', 'on');
   render(
     <CanvasLightsProvider>
@@ -542,12 +554,97 @@ it('dismisses the room menu on outside click and resumes normal keyboard navigat
   );
   const trigger = screen.getByRole('button', { name: 'Lights room' });
   await userEvent.click(trigger);
-  await userEvent.click(screen.getByRole('heading', { name: 'Lights' }));
+  const dialog = screen.getByRole('dialog', { name: 'Choose a room' });
+  expect(dialog.getAttribute('aria-modal')).toBe('true');
+  await userEvent.click(dialog.parentElement!);
   expect(screen.queryByRole('listbox')).toBeNull();
+  expect(document.activeElement).toBe(trigger);
   await userEvent.click(trigger);
   await userEvent.tab();
-  expect(screen.queryByRole('listbox')).toBeNull();
-  expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Turn off Living Room lights' }));
+  const close = screen.getByRole('button', { name: 'Close details' });
+  expect(document.activeElement).toBe(close);
+  await userEvent.tab();
+  expect(document.activeElement).toBe(screen.getByRole('listbox'));
+  await userEvent.tab({ shift: true });
+  expect(document.activeElement).toBe(close);
+  await userEvent.click(close);
+  expect(screen.queryByRole('dialog')).toBeNull();
+  expect(document.activeElement).toBe(trigger);
+});
+
+it('shows live room counts and selects a tile without sending light commands', async () => {
+  const fixture = ref.current!;
+  fixture.publish('light.light_living_room_bulbs', 'on');
+  fixture.publish('light.living_room_led_strip', 'off');
+  render(
+    <CanvasLightsProvider>
+      <CanvasLights onOpenAll={() => {}} />
+    </CanvasLightsProvider>
+  );
+  const trigger = screen.getByRole('button', { name: 'Lights room' });
+  await userEvent.click(trigger);
+  const living = screen.getByRole('option', { name: 'Living Room' });
+  expect(living.textContent).toBe('Living Room1 on');
+  expect(living.getAttribute('aria-selected')).toBe('true');
+  expect(living.querySelector('.canvas-room-artwork')).not.toBeNull();
+  await act(async () => fixture.publish('light.living_room_led_strip', 'on'));
+  expect(living.textContent).toBe('Living Room2 on');
+  await userEvent.click(screen.getByRole('option', { name: 'Kitchen' }));
+  expect(trigger.textContent).toContain('Kitchen');
+  expect(screen.queryByRole('dialog')).toBeNull();
+  expect(document.activeElement).toBe(trigger);
+  expect(fixture.calls).toEqual([]);
+  await userEvent.click(trigger);
+  expect(screen.getByRole('option', { name: 'Kitchen' }).getAttribute('aria-selected')).toBe('true');
+});
+
+it('returns to the room trigger when pointer activation did not focus it', async () => {
+  render(
+    <CanvasLightsProvider>
+      <CanvasLights onOpenAll={() => {}} />
+    </CanvasLightsProvider>
+  );
+  screen.getByRole('button', { name: /All lights/ }).focus();
+  const trigger = screen.getByRole('button', { name: 'Lights room' });
+  // Unlike userEvent.click, this mirrors browsers that do not focus a tapped button.
+  fireEvent.click(trigger);
+  await userEvent.click(screen.getByRole('option', { name: 'Kitchen' }));
+  expect(document.activeElement).toBe(trigger);
+});
+
+it.each([2, 3])('moves by the rendered %s-column room grid with arrow keys', async columns => {
+  render(
+    <CanvasLightsProvider>
+      <CanvasLights onOpenAll={() => {}} />
+    </CanvasLightsProvider>
+  );
+  await userEvent.click(screen.getByRole('button', { name: 'Lights room' }));
+  const grid = screen.getByRole('listbox');
+  grid.style.gridTemplateColumns = Array(columns).fill('100px').join(' ');
+  const options = screen.getAllByRole('option');
+  await userEvent.keyboard('{ArrowDown}');
+  expect(grid.getAttribute('aria-activedescendant')).toBe(options[columns].id);
+  await userEvent.keyboard('{ArrowRight}');
+  expect(grid.getAttribute('aria-activedescendant')).toBe(options[columns + 1].id);
+  await userEvent.keyboard('{ArrowUp}{ArrowLeft}');
+  expect(grid.getAttribute('aria-activedescendant')).toBe(options[0].id);
+  expect(ref.current!.calls).toEqual([]);
+});
+
+it('distinguishes unavailable and disconnected room counts from lights reported off', async () => {
+  const fixture = ref.current!;
+  fixture.publish('light.light_living_room_bulbs', 'off');
+  render(
+    <CanvasLightsProvider>
+      <CanvasLights onOpenAll={() => {}} />
+    </CanvasLightsProvider>
+  );
+  await userEvent.click(screen.getByRole('button', { name: 'Lights room' }));
+  expect(screen.getByRole('option', { name: 'Living Room' }).textContent).toBe('Living Room0 on · 1 unavailable');
+  expect(screen.getByRole('option', { name: 'Kitchen' }).textContent).toBe('KitchenUnavailable');
+  await act(async () => fixture.disconnect());
+  for (const tile of screen.getAllByRole('option')) expect(tile.textContent).toContain('Reconnecting…');
+  expect(fixture.calls).toEqual([]);
 });
 
 it('toggles one quick light only and opens its separate settings without a power command', async () => {
