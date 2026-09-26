@@ -38,7 +38,14 @@ export function CanvasPulse({
       now,
       attention.connected
     );
-    return { ...appliance, ...status, reported: machine !== undefined, route: { kind: 'appliances' } as CanvasRoute };
+    return {
+      ...appliance,
+      ...status,
+      reported: machine !== undefined,
+      // This washer goes unavailable when powered off; keep other uncertainty visible.
+      hideUnavailableWasher: appliance.id === 'washer' && machine === 'unavailable',
+      route: { kind: 'appliances' } as CanvasRoute,
+    };
   });
   const vacuum = classifyVacuum(entities['vacuum.roomba']?.state, attention.connected);
   const shownActivities: {
@@ -50,10 +57,11 @@ export function CanvasPulse({
     route: CanvasRoute;
   }[] = activities.filter(
     activity =>
-      activity.active ||
-      activity.status === 'Paused' ||
-      activity.status === 'Finished' ||
-      (activity.reported && ['Unavailable', 'Unknown'].includes(activity.status))
+      !activity.hideUnavailableWasher &&
+      (activity.active ||
+        activity.status === 'Paused' ||
+        activity.status === 'Finished' ||
+        (activity.reported && ['Unavailable', 'Unknown'].includes(activity.status)))
   );
   if (entities['vacuum.roomba'] && vacuum.status !== 'Docked')
     shownActivities.push({ id: 'roomba', name: 'Roomba', ...vacuum, route: { kind: 'vacuum' } });

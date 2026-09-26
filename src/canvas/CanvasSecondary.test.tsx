@@ -780,7 +780,6 @@ it('keeps missing device status visible with the default quiet presentation', ()
   expect(screen.getByText('Activity status unavailable for some devices.')).toBeTruthy();
 });
 
-
 it('hides the settled pulse by default and brings it back for live activity', () => {
   for (const prefix of ['washer_washer', 'dryer_dryer', 'dishwasher_dishwasher'])
     ref.current!.publish(`sensor.${prefix}_machine_state`, 'stop');
@@ -794,4 +793,58 @@ it('hides the settled pulse by default and brings it back for live activity', ()
   expect(screen.queryByRole('region', { name: 'House pulse' })).toBeNull();
   act(() => ref.current!.disconnect());
   expect(screen.getByText('Live activity unavailable while disconnected.')).toBeTruthy();
+});
+
+it('hides a powered-off unavailable washer from pulse and restores its activity as it runs', () => {
+  const fixture = ref.current!;
+  for (const prefix of ['dryer_dryer', 'dishwasher_dishwasher']) fixture.publish(`sensor.${prefix}_machine_state`, 'stop');
+  fixture.publish('sensor.washer_washer_machine_state', 'unavailable');
+  fixture.publish('vacuum.roomba', 'docked');
+  fixture.publish('sensor.dashboard_attention', '0', { ready: true, items: [] });
+  render(<CanvasDashboard />);
+  expect(screen.queryByRole('region', { name: 'House pulse' })).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'All devices' }));
+  fireEvent.click(within(screen.getByRole('dialog', { name: 'All devices' })).getByRole('button', { name: 'Appliances' }));
+  expect(within(screen.getByRole('dialog', { name: 'Appliances' })).getByText('Unavailable')).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Close details' }));
+  act(() => {
+    fixture.publish('sensor.washer_washer_machine_state', 'run');
+    fixture.publish('sensor.washer_washer_job_state', 'wash');
+  });
+  expect(screen.getByRole('button', { name: 'Washer Washing' })).toBeTruthy();
+  act(() => fixture.publish('sensor.washer_washer_machine_state', 'pause'));
+  expect(screen.getByRole('button', { name: 'Washer Paused' })).toBeTruthy();
+  act(() => fixture.publish('sensor.washer_washer_job_state', 'finished'));
+  expect(screen.getByRole('button', { name: 'Washer Finished' })).toBeTruthy();
+  act(() => fixture.publish('sensor.washer_washer_machine_state', 'unavailable'));
+  expect(screen.queryByRole('region', { name: 'House pulse' })).toBeNull();
+  act(() => fixture.publish('sensor.washer_washer_machine_state', 'unknown'));
+  expect(screen.getByRole('button', { name: 'Washer Unknown' })).toBeTruthy();
+  expect(fixture.calls).toEqual([]);
+});
+
+it('keeps other appliance outages and disconnection visible when the washer is off', () => {
+  const fixture = ref.current!;
+  fixture.publish('sensor.washer_washer_machine_state', 'unavailable');
+  fixture.publish('sensor.dryer_dryer_machine_state', 'unavailable');
+  fixture.publish('sensor.dishwasher_dishwasher_machine_state', 'unavailable');
+  fixture.publish('vacuum.roomba', 'docked');
+  fixture.publish('sensor.dashboard_attention', '0', { ready: true, items: [] });
+  render(<CanvasDashboard />);
+  const pulse = within(screen.getByRole('region', { name: 'House pulse' }));
+  expect(pulse.queryByRole('button', { name: 'Washer Unavailable' })).toBeNull();
+  expect(pulse.getByRole('button', { name: 'Dryer Unavailable' })).toBeTruthy();
+  expect(pulse.getByRole('button', { name: 'Dishwasher Unavailable' })).toBeTruthy();
+  act(() => fixture.disconnect());
+  expect(screen.getByText('Live activity unavailable while disconnected.')).toBeTruthy();
+});
+
+it('does not confuse a missing washer sensor with its expected unavailable state', () => {
+  const fixture = ref.current!;
+  for (const prefix of ['dryer_dryer', 'dishwasher_dishwasher']) fixture.publish(`sensor.${prefix}_machine_state`, 'stop');
+  fixture.publish('vacuum.roomba', 'docked');
+  fixture.publish('sensor.dashboard_attention', '0', { ready: true, items: [] });
+  render(<CanvasDashboard />);
+  expect(screen.getByText('Activity status unavailable for some devices.')).toBeTruthy();
+  expect(screen.queryByRole('button', { name: 'Washer Unavailable' })).toBeNull();
 });
