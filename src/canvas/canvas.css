@@ -239,6 +239,7 @@
   color: var(--canvas-muted);
   font-size: .75rem;
 }
+.canvas .canvas-lights--compact .canvas-lights__slider { border-top: 0; }
 :is(.canvas .canvas-lights--compact, .canvas-dialog .canvas-lights__group) .canvas-lights__slider input { accent-color: var(--canvas-ink); min-width: 0; margin: 0; }
 :is(.canvas .canvas-lights--compact, .canvas-dialog .canvas-lights__group) .canvas-lights__slider output { min-width: 4ch; text-align: right; color: var(--canvas-ink); font-variant-numeric: tabular-nums; }
 @media (max-width: 380px) {
@@ -302,7 +303,6 @@
   align-items: center;
   min-height: 45px;
   margin: var(--canvas-space-1) 0 0;
-  border-top: 1px solid var(--canvas-line);
 }
 
 /* Room selection stays on the control baseline; the caption sits below it. */

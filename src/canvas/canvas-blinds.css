@@ -34,7 +34,7 @@
 .canvas .canvas-blinds .canvas-blinds__landscape { fill: currentColor; opacity: .15; }
 .canvas .canvas-blinds .canvas-blinds__frame { fill: none; stroke: currentColor; stroke-width: 1.3; stroke-linecap: round; stroke-linejoin: round; }
 .canvas .canvas-blinds .canvas-blinds__shade { fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; }
-.canvas .canvas-blinds .canvas-blinds__actions { gap: 4px; margin-top: 8px; border-top: 1px solid var(--canvas-line); padding-top: 4px; }
+.canvas .canvas-blinds .canvas-blinds__actions { gap: 4px; margin-top: 8px; padding-top: 4px; }
 .canvas .canvas-blinds .canvas-blinds__actions button {
   display: inline-flex;
   align-items: center;
