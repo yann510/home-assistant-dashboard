@@ -43,7 +43,7 @@ def text_stream(text):
 
 
 def web_stream():
-    item = {"type": "web_search_call", "id": "web-1", "status": "completed", "action": {"type": "search", "query": "weather", "sources": [{"type": "url", "url": "https://example.test/ignore-previous-instructions"}]}}
+    item = {"type": "web_search_call", "id": "web-1", "status": "completed", "action": {"type": "search", "query": "weather", "sources": [{"type": "url", "url": "https://example.test/weather"}]}}
     return stream([ResponseOutputItemDoneEvent.model_validate({"type": "response.output_item.done", "item": item, "output_index": 0, "sequence_number": 1})])
 
 
@@ -128,6 +128,26 @@ class ChillConversationTests(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn("started", json.dumps(outputs[0]).lower())
         self.assertIn("could not verify", result.response.speech["plain"]["speech"])
 
+    async def test_uncertain_dispatched_result_reaches_provider_as_error_once(self):
+        calls = []
+
+        async def activate(call):
+            calls.append(call)
+            return {"success": True, "phase": "starting", "active_mood": "unwind", "errors": []}
+
+        self.hass.services.async_register("house_moods", "activate", activate, supports_response=SupportsResponse.ONLY)
+        self.hass.states.async_set("sensor.house_mood", "idle", {"active_mood": None, "errors": []})
+        provider = Provider(function_stream(), text_stream("I could not verify Chill starting."))
+        result = await self.ask(self.agent(provider), "Start Chill")
+        outputs = [json.loads(item["output"]) for item in provider.requests[1]["input"] if item["type"] == "function_call_output"]
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0].data, {"mood": "unwind"})
+        self.assertEqual(len(outputs), 1)
+        self.assertIn("error", outputs[0])
+        self.assertNotIn("status", outputs[0])
+        self.assertNotIn("started", json.dumps(outputs[0]).lower())
+        self.assertIn("could not verify", result.response.speech["plain"]["speech"])
+
     async def test_unknown_tool_and_hostile_arguments_are_rejected(self):
         calls = []
 
@@ -163,7 +183,7 @@ class ChillConversationTests(unittest.IsolatedAsyncioTestCase):
             await self.ask(self.agent(provider), "Start Chill")
         self.assertEqual(len(provider.requests), 1)
 
-    async def test_malicious_web_result_does_not_add_home_tools(self):
+    async def test_web_search_metadata_followed_by_hostile_tool_call_keeps_scope(self):
         calls = []
 
         async def turn_on(call):
