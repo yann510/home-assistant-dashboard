@@ -152,7 +152,11 @@ class IntegrationTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn('light.test', store.value.owned)
         # An unchanged report cannot prove that a timed-out command had no effect.
         self.assertEqual((await engine.retry_restoration())['phase'], 'recovery_required')
+        engine._clock = lambda: 10**20
         adapter.states['light.test'] = {'state': 'on'}
+        await engine.observe('light.test')
+        self.assertIn('light.test', engine.session.owned)
+        self.assertNotIn('light.test', engine.session.overridden)
         self.assertTrue((await engine.retry_restoration())['success'])
         self.assertEqual(adapter.states['light.test'], {'state': 'off'})
 

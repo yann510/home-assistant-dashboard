@@ -126,13 +126,13 @@ class MoodCoordinator:
                 self._publish()
                 return self.status(False)
 
-    async def _finish_mode(self):
+    async def _finish_mode(self, allow_uncertain=False):
         s = self.session
         mode = s.mode_intent
         await self.adapter.preflight_mode(mode)
         # Stop/restore remaining owned controls (music, Follow me, other lights).
         # Any mode-controlled light was relinquished before this phase.
-        await self._resolve_planned()
+        await self._resolve_planned(allow_uncertain=allow_uncertain)
         blocked, failed = await self._prepare_restoration(s.owned.copy())
         await self._restore_targets(s.owned - blocked)
         if s.owned or self._pending_targets() or failed:
@@ -531,7 +531,7 @@ class MoodCoordinator:
                     return self.status()
                 self.session.errors = []
                 if self.session.mode_intent:
-                    return await self._finish_mode()
+                    return await self._finish_mode(allow_uncertain=True)
                 await self._resolve_planned(allow_uncertain=True)
                 await self._finish_restoration()
                 return self.status(self.session is None)

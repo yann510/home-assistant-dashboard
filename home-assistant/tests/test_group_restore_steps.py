@@ -126,3 +126,54 @@ class GroupRestoreTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(engine._pending_targets(), {GROUPS})
         self.assertEqual(io.calls, [])
         self.assertEqual((await adapter.read(FOLLOW))['state'], 'off')
+
+    async def test_mode_retry_resolves_timed_out_group_cleanup(self):
+        from custom_components.house_moods.model import OperationTimeout
+        io, adapter, store, engine = await self.seeded()
+        store.value.mode_intent = 'night'
+        async def preflight(mode):
+            pass
+        adapter.preflight_mode = preflight
+        adapter.mode_steps = lambda mode: []
+        original = io.call
+        async def timeout_join(domain, service, targets, data, session_id, return_response=False):
+            if service == 'join':
+                raise OperationTimeout('Join timed out')
+            return await original(domain, service, targets, data, session_id, return_response)
+        io.call = timeout_join
+        self.assertEqual((await engine.end())['phase'], 'recovery_required')
+        baseline = deepcopy(store.value.baseline)
+        io.groups(baseline[GROUPS]['groups'])
+        # Read-only automatic reconciliation still must not finish uncertainty.
+        await engine.reconcile()
+        self.assertIn(GROUPS, engine._pending_targets())
+        io.call = original
+        io.fail_join = False
+        self.assertTrue((await engine.retry_restoration())['success'])
+        self.assertIsNone(store.value)
+        self.assertEqual(await adapter.read(FOLLOW), baseline[FOLLOW])
+
+    async def test_explicit_manual_command_still_relinquishes_uncertain_groups(self):
+        from custom_components.house_moods.model import OperationTimeout
+        io, adapter, store, engine = await self.seeded()
+        original = io.call
+        async def timeout_join(domain, service, targets, data, session_id, return_response=False):
+            if service == 'join':
+                raise OperationTimeout('Join timed out')
+            return await original(domain, service, targets, data, session_id, return_response)
+        io.call = timeout_join
+        await engine.end()
+        io.groups([[SPEAKERS[0], SPEAKERS[3]], [SPEAKERS[1]], [SPEAKERS[2]]])
+        current = await adapter.read(GROUPS)
+        engine._clock = lambda: 10**20
+        # Unattributed telemetry alone cannot resolve uncertain physical effects.
+        await engine.observe(GROUPS)
+        self.assertIn(GROUPS, engine.session.owned)
+        self.assertIn(GROUPS, engine._pending_targets())
+        # Explicit external command evidence must still win.
+        await engine.observe(GROUPS, context_id='external-command')
+        self.assertNotIn(GROUPS, engine.session.owned)
+        count = len([c for c in io.calls if c[1] in ('join', 'unjoin')])
+        self.assertTrue((await engine.retry_restoration())['success'])
+        self.assertEqual(await adapter.read(GROUPS), current)
+        self.assertEqual(len([c for c in io.calls if c[1] in ('join', 'unjoin')]), count)

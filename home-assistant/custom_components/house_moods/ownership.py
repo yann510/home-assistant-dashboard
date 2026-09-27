@@ -41,6 +41,13 @@ def classify(target, observed, expected, journal, session_id, context_id, now):
         return 'ack'
     if context_id is not None:
         return 'external'
+    # A timed-out command may report its physical effect long after the normal
+    # transition window. Only explicit command attribution can relinquish it;
+    # Retry reconciles fresh before/requested evidence without guessing intent.
+    if any(entry.get('uncertain') and entry['status'] == 'planned'
+           and target in entry['targets'] and target not in entry['resolved']
+           for entry in journal):
+        return 'pending'
     if matches(target, expected, observed):
         return 'ack'
     if any(target in entry['targets'] and now <= entry.get('until', 0) for entry in journal):
