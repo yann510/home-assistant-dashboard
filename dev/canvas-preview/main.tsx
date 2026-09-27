@@ -5,13 +5,13 @@ import type { Connection, HassEntities } from 'home-assistant-js-websocket';
 import { DashboardViews } from '../../src/DashboardViews';
 import { rooms } from '../../src/useLightSummary';
 import '../../src/index.css';
-import { applySpeakerService } from './speaker-services';
-import { applyMoodService } from './mode-services';
+import { applyPreviewService, previewFailures } from './preview-services';
 import { lightCapabilities } from './light-capabilities';
 import { previewFavourites } from './favourites';
 
 const params = new URLSearchParams(location.search);
 const scene = params.get('scene') ?? 'everyday';
+const failures = previewFailures(params);
 const media = params.get('media');
 const entities: HassEntities = {};
 function publish(id: string, state: string, attributes: Record<string, unknown> = {}) {
@@ -61,7 +61,7 @@ publish('input_boolean.night_mode', 'off');
 publish('input_boolean.morning_mode', 'on');
 publish(
   'sensor.house_mood',
-  scene === 'busy'
+  scene === 'mood-recovery'
     ? 'recovery_required'
     : scene === 'mood-restoring'
       ? 'restoring'
@@ -74,7 +74,7 @@ publish(
     active_mood: ['mood-idle', 'mood-starting'].includes(scene) ? null : 'unwind',
     pending_mood: scene === 'mood-starting' ? 'unwind' : null,
     mode_control: 'coordinated-v1',
-    errors: scene === 'busy' ? [{ target: 'Living room', message: 'One light could not be restored.' }] : [],
+    errors: scene === 'mood-recovery' ? [{ target: 'Living room', message: 'One light could not be restored.' }] : [],
   }
 );
 publish('weather.forecast_home', 'sunny', {
@@ -89,7 +89,7 @@ for (const kind of ['washer', 'dryer', 'dishwasher']) {
     `sensor.${kind}_${kind}_machine_state`,
     scene === 'pulse-single' && kind === 'washer' ? 'unavailable' : scene === 'busy' ? 'run' : 'stop'
   );
-  publish(`sensor.${kind}_${kind}_job_state`, params.has('long') ? 'wrinkle_prevent' : 'wash');
+  publish(`sensor.${kind}_${kind}_job_state`, params.has('long') ? 'wrinkle_prevent' : kind === 'dryer' ? 'drying' : 'wash');
   if (params.has('long')) publish(`sensor.${kind}_${kind}_completion_time`, new Date(Date.now() + 7200000).toISOString());
 }
 publish('vacuum.roomba', scene === 'busy' ? 'returning' : 'docked', {
@@ -165,101 +165,14 @@ const connection = {
           thumbnail: index === 2 && params.has('brokenArt') ? '/missing-favourite-cover.jpg' : item.thumbnail,
         })),
       };
-    if (scene === 'busy') throw new Error('Controlled preview failure. Retry after changing scene.');
-    const moodResult = !params.has('unconfirmed') && applyMoodService(entities, message);
-    if (moodResult) {
-      Object.assign(entities, moodResult.updates);
-      useStore.setState({ entities: { ...entities } });
-      return { response: moodResult.response };
-    }
-    const speakerUpdates = !params.has('unconfirmed') && applySpeakerService(entities, message);
-    if (speakerUpdates) {
-      Object.assign(entities, speakerUpdates);
-      useStore.setState({ entities: { ...entities } });
-    }
-    if (
-      message.type === 'call_service' &&
-      message.domain === 'media_player' &&
-      message.service === 'play_media' &&
-      !params.has('unconfirmed')
-    ) {
-      const data = (message.service_data ?? {}) as Record<string, unknown>;
-      const item = previewFavourites.find((_, index) => data.media_content_id === `fixture:${index}`);
-      const target = (message.target as { entity_id?: string | string[] } | undefined)?.entity_id;
-      const ids = Array.isArray(target) ? target : target ? [target] : [];
-      if (item) {
-        for (const id of ids) {
-          const speaker = entities[id];
-          if (!speaker || speaker.state === 'unavailable' || speaker.state === 'unknown') continue;
-          const members = speaker.attributes.group_members;
-          const group = Array.isArray(members) && members.length ? members : [id];
-          for (const member of group) {
-            if (!entities[member]) continue;
-            publish(member, 'playing', {
-              ...entities[member].attributes,
-              media_content_id: data.media_content_id,
-              media_content_type: data.media_content_type,
-              media_title: item.title,
-              media_playlist: item.title,
-              media_artist: undefined,
-              entity_picture: item.thumbnail,
-              media_position: 0,
-              media_position_updated_at: new Date().toISOString(),
-              // A simulated four-minute track lets the local preview exercise playback progress.
-              media_duration: 240,
-            });
-          }
-        }
-      }
-    }
-    if (
-      message.type === 'call_service' &&
-      message.domain === 'climate' &&
-      message.service === 'set_temperature' &&
-      !params.has('unconfirmed')
-    ) {
-      const target = (message.target as { entity_id?: string | string[] } | undefined)?.entity_id;
-      const ids = Array.isArray(target) ? target : target ? [target] : [];
-      const temperature = (message.service_data as { temperature?: number } | undefined)?.temperature;
-      if (typeof temperature === 'number' && Number.isFinite(temperature)) {
-        for (const id of ids) {
-          const thermostat = entities[id];
-          if (!thermostat || ['unknown', 'unavailable', 'off'].includes(thermostat.state)) continue;
-          publish(id, thermostat.state, { ...thermostat.attributes, temperature });
-        }
-      }
-    }
-    if (message.type === 'call_service' && message.domain === 'light' && !params.has('unconfirmed')) {
-      const target = (message.target as { entity_id?: string | string[] }).entity_id;
-      const ids = Array.isArray(target) ? target : target ? [target] : [];
-      if (message.service === 'turn_on' || message.service === 'turn_off') {
-        for (const id of ids) {
-          const light = entities[id];
-          if (!light || light.state === 'unavailable' || light.state === 'unknown') continue;
-          publish(id, message.service === 'turn_on' ? 'on' : 'off', {
-            ...light.attributes,
-            ...(message.service === 'turn_on' ? (message.service_data as Record<string, unknown>) : {}),
-          });
-        }
-      }
-    }
-    if (message.type === 'call_service' && message.domain === 'input_boolean' && !params.has('unconfirmed')) {
-      const id = (message.target as { entity_id: string[] }).entity_id[0];
-      publish(id, message.service === 'turn_off' ? 'off' : message.service === 'toggle' && entities[id]?.state === 'on' ? 'off' : 'on');
-    }
-    if (message.type === 'call_service' && message.domain === 'dashboard_attention' && message.service === 'unsnooze') {
-      const episode = (message.service_data as { episode: string }).episode;
-      publish('sensor.dashboard_attention', '0', {
-        ready: true,
-        items: (entities['sensor.dashboard_attention'].attributes.items as typeof snoozedItems).map(item =>
-          item.episode === episode ? { ...item, snoozed_until: null } : item
-        ),
-      });
-    }
-    return { response: { success: true } };
+    if (failures.commands) throw new Error('Controlled preview failure. Choose an interactive scene to retry.');
+    const result = applyPreviewService(entities, message, params.has('unconfirmed'));
+    Object.assign(entities, result.updates);
+    useStore.setState({ entities: { ...entities } });
+    return { response: result.response };
   },
   async subscribeMessage(callback: (event: unknown) => void, message: Record<string, unknown>) {
-    if (scene === 'busy') throw new Error('Controlled forecast failure');
+    if (failures.forecast) throw new Error('Controlled forecast failure');
     const daily = message.forecast_type === 'daily';
     queueMicrotask(() =>
       callback({

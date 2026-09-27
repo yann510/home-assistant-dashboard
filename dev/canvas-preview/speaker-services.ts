@@ -44,7 +44,7 @@ export function applySpeakerService(entities: HassEntities, message: Record<stri
       : [];
     joining.forEach(detach);
     const group = [...new Set([source, ...members(source), ...joining])];
-    const audio = Object.fromEntries(Object.entries(next[source].attributes).filter(([key]) => key.startsWith('media_')));
+    const audio = Object.fromEntries(Object.entries(next[source].attributes).filter(([key]) => key.startsWith('media_') || key === 'entity_picture'));
     group.forEach(id => update(id, { ...audio, group_members: group }, next[source].state));
   } else if (message.service === 'unjoin') {
     targets.forEach(detach);

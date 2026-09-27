@@ -1,0 +1,9 @@
+/* Development-only tooling, deliberately separate from the dashboard bundle. */
+.preview-controls { position: fixed; bottom: max(8px, env(safe-area-inset-bottom)); right: max(8px, env(safe-area-inset-right)); z-index: 90; font: 13px/1.4 system-ui, sans-serif; color: #f6f0e6; }
+.preview-controls > summary { cursor: pointer; list-style: none; display: grid; place-items: center; min-height: 44px; padding: 0 14px; background: #34313d; border: 1px solid #686171; border-radius: 24px; }
+.preview-controls > summary::-webkit-details-marker { display: none; }
+.preview-controls__panel { position: absolute; bottom: 52px; right: 0; width: min(280px, calc(100vw - 24px)); padding: 16px; background: #2e2c33; border: 1px solid #686171; border-radius: 18px; box-shadow: 0 8px 24px #0005; display: grid; gap: 10px; }
+.preview-controls__panel p { margin: 0; color: #c9c1d0; }
+.preview-controls :is(button,select) { box-sizing: border-box; min-height: 44px; width: 100%; padding: 8px 12px; font: inherit; background: #403a49; color: inherit; border: 1px solid #82778f; border-radius: 10px; }
+.preview-controls :focus-visible { outline: 2px solid #e7dba3; outline-offset: 3px; }
+body:has(.canvas-dialog:not(.canvas-motion-exit)) .preview-controls { visibility: hidden; }
