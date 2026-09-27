@@ -409,3 +409,16 @@ it('keeps All lights and its scroll position mounted while settings open and Esc
   expect(document.activeElement).toBe(settings);
   expect(fixture.calls).toEqual([]);
 });
+
+it('renders navigation arrows as decorative vectors without changing accessible labels', () => {
+  render(<CanvasDashboard />);
+  const lights = screen.getByRole('button', { name: 'All lights' });
+  expect(lights.textContent?.trim()).toBe('All lights');
+  expect(lights.querySelector('svg[aria-hidden="true"][focusable="false"]')).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'All devices' }));
+  for (const name of ['Lights', 'Blinds', 'Speakers', 'Climate', 'Appliances', 'Vacuum']) {
+    const category = screen.getByRole('button', { name });
+    expect(category.textContent).not.toContain('↗');
+    expect(category.querySelector('.canvas-devices__arrow svg[aria-hidden="true"][focusable="false"]')).toBeTruthy();
+  }
+});

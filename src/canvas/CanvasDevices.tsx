@@ -1,3 +1,4 @@
+import { CanvasActionIcon } from './CanvasActionIcon';
 import { useStore } from '@hakit/core';
 import { speakerIds } from '../useSpeakerSession';
 import { useCanvasLights } from './useCanvasLights';
@@ -238,7 +239,7 @@ export function CanvasDevices({
                 <small>{entry.detail}</small>
               </span>
               <span className='canvas-devices__arrow' aria-hidden='true'>
-                ↗
+                <CanvasActionIcon action='open' />
               </span>
             </button>
           ))}
@@ -257,7 +258,9 @@ export function CanvasDevices({
                 <strong>{entry.name}</strong>
                 <small>{entry.detail}</small>
               </span>
-              <span aria-hidden='true'>→</span>
+              <span aria-hidden='true'>
+                <CanvasActionIcon action='forward' />
+              </span>
             </button>
           ))}
         </nav>

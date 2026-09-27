@@ -1,3 +1,4 @@
+import { CanvasActionIcon } from './CanvasActionIcon';
 import { SpeakerSeek } from '../SpeakerSeek';
 import { SpeakerVolume } from '../SpeakerVolume';
 import { useHass } from '@hakit/core';
@@ -52,21 +53,21 @@ export function CanvasTransport() {
         disabled={disabled || playback.busy || !(features & 16)}
         onClick={() => void playback.transport('media_previous_track', 'play the previous track')}
       >
-        ⏮
+        <CanvasActionIcon action='previous' size={20} />
       </button>
       <button
         aria-label={playing ? 'Pause' : 'Resume'}
         disabled={disabled || playback.busy || !(features & (playing ? 1 : 16384))}
         onClick={() => void playback.transport(playing ? 'media_pause' : 'media_play', playing ? 'pause playback' : 'start playback')}
       >
-        {playing ? 'Ⅱ' : '▶'}
+        <CanvasActionIcon action={playing ? 'pause' : 'play'} size={20} />
       </button>
       <button
         aria-label='Next track'
         disabled={disabled || playback.busy || !(features & 32)}
         onClick={() => void playback.transport('media_next_track', 'play the next track')}
       >
-        ⏭
+        <CanvasActionIcon action='next' size={20} />
       </button>
       {playback.error && <p role='alert'>{playback.error}</p>}
     </div>
@@ -127,7 +128,7 @@ export function CanvasMusic({
         <CanvasFollow />
         <button className='canvas-music__room' aria-label='Open speakers' onClick={event => openSpeakers(event.currentTarget)}>
           {attributes?.friendly_name ?? 'Speakers'}
-          {session.targets.length > 1 ? ` +${session.targets.length - 1}` : ''} →
+          {session.targets.length > 1 ? ` +${session.targets.length - 1}` : ''} <CanvasActionIcon action='forward' />
         </button>
       </div>
       <div className='canvas-music__decoration' aria-hidden='true'>

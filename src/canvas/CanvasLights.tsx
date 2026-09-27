@@ -1,3 +1,4 @@
+import { CanvasActionIcon } from './CanvasActionIcon';
 import { useRef, useState, type CSSProperties } from 'react';
 import { LightSettingsOverlay } from './LightSettingsOverlay';
 import { useLightSettings } from './useLightSettings';
@@ -264,7 +265,10 @@ export function CanvasLights({ onOpenAll }: { onOpenAll(trigger: HTMLElement): v
         <div className='canvas-lights__heading'>
           <h2>Lights</h2>
           <button type='button' className='canvas-lights__all-link' onClick={event => onOpenAll(event.currentTarget)}>
-            All lights <span aria-hidden='true'>↗</span>
+            All lights{' '}
+            <span aria-hidden='true'>
+              <CanvasActionIcon action='open' />
+            </span>
           </button>
         </div>
         <div className='canvas-lights__room-line'>

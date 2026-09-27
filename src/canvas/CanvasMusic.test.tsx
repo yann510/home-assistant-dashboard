@@ -874,3 +874,17 @@ it('shows all-muted, partly muted and unknown states truthfully and keeps openin
   expect(screen.queryByRole('button', { name: 'Apply rooms' })).toBeNull();
   expect(sendMessagePromise).not.toHaveBeenCalled();
 });
+
+it('renders playback symbols as decorative vectors rather than platform emoji', () => {
+  mount();
+  for (const name of ['Previous track', 'Pause', 'Next track']) {
+    const control = screen.getByRole('button', { name });
+    expect(control.textContent?.trim()).toBe('');
+    expect(control.querySelector('svg[aria-hidden="true"][focusable="false"]')).toBeTruthy();
+  }
+  updateEntity('media_player.living_room', { state: 'paused' });
+  const resume = screen.getByRole('button', { name: 'Resume' });
+  expect(resume.textContent?.trim()).toBe('');
+  expect(resume.querySelector('svg[aria-hidden="true"][focusable="false"]')).toBeTruthy();
+  expect(sendMessagePromise).not.toHaveBeenCalled();
+});

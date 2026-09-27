@@ -234,7 +234,7 @@
 .canvas-dialog .canvas-devices__category--thermostats { --category-accent: #bdD6af; }
 .canvas-dialog .canvas-devices__category--appliances { --category-accent: #abc9db; }
 .canvas-dialog .canvas-devices__category--vacuum { --category-accent: #d7b1ca; }
-.canvas-dialog .canvas-devices__category svg { width: 76px; height: 68px; color: var(--category-accent); grid-column: 1 / -1; }
+.canvas-dialog .canvas-devices__category > svg { width: 76px; height: 68px; color: var(--category-accent); grid-column: 1 / -1; }
 .canvas-dialog .canvas-devices__category strong { display: block; font-size: 1.1rem; }
 .canvas-dialog .canvas-devices__category small { display: block; margin-top: 4px; color: #c0bac4; font-size: .78rem; line-height: 1.35; }
 .canvas-dialog .canvas-devices__arrow { align-self: center; color: var(--category-accent); font-size: 1.4rem; }
@@ -245,5 +245,5 @@
 @media (max-width: 560px) {
   .canvas-dialog .canvas-devices__categories { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--canvas-space-2); }
   .canvas-dialog .canvas-devices__category { min-height: 146px; padding: var(--canvas-space-3); }
-  .canvas-dialog .canvas-devices__category svg { width: 60px; height: 54px; }
+  .canvas-dialog .canvas-devices__category > svg { width: 60px; height: 54px; }
 }

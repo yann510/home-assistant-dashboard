@@ -1,3 +1,4 @@
+import { CanvasActionIcon } from './CanvasActionIcon';
 import { useState, type ReactNode } from 'react';
 import { useStore } from '@hakit/core';
 import { ApplianceIcon } from '../ApplianceIcon';
@@ -195,7 +196,7 @@ export function CanvasPulse({
                   <small>{item.detail}</small>
                 </span>
                 <span className='canvas-pulse__arrow' aria-hidden='true'>
-                  ↗
+                  <CanvasActionIcon action='open' />
                 </span>
               </button>
             ))}

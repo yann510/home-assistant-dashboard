@@ -57,7 +57,9 @@ it('shows running activity alongside actionable attention and opens its context'
   });
   render(<CanvasDashboard />);
   expect(screen.getByRole('button', { name: /Washer.*Washing/ })).toBeTruthy();
-  expect(screen.getByRole('button', { name: /View.*Empty Roomba bin/ })).toBeTruthy();
+  const notice = screen.getByRole('button', { name: /View.*Empty Roomba bin/ });
+  expect(notice.textContent).not.toContain('↗');
+  expect(notice.querySelector('.canvas-pulse__arrow svg[aria-hidden="true"][focusable="false"]')).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: /View.*Empty Roomba bin/ }));
   expect(screen.getByRole('dialog', { name: 'Roomba' })).toBeTruthy();
   expect(screen.getByText(/Empty Roomba’s bin/)).toBeTruthy();
