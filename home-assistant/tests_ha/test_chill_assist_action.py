@@ -8,6 +8,7 @@ import unittest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from homeassistant.core import Context, HomeAssistant, SupportsResponse
+from homeassistant.const import EVENT_STATE_CHANGED
 from homeassistant.exceptions import HomeAssistantError
 from custom_components.chill_assist.action import ChillAction
 
@@ -137,6 +138,76 @@ class ChillActionTests(unittest.IsolatedAsyncioTestCase):
             await self.action.async_start(None)
         self.assertEqual(len(self.calls), 1)
 
+    async def test_completed_service_remains_owned_until_response_is_validated(self):
+        for response, succeeds in ((dict(SUCCESS), True), (None, False)):
+            with self.subTest(response=response):
+                await self.action.async_close()
+                self.action = ChillAction(self.hass, response_timeout=.02)
+                self.calls.clear()
+                self.status()
+                self.response = response
+                self.hold = True
+                self.started.clear()
+                self.release.clear()
+                first = asyncio.create_task(self.action.async_start(None))
+                await self.started.wait()
+                competing = []
+                self.action._operation.add_done_callback(
+                    lambda _: competing.append(asyncio.create_task(
+                        self.action.async_start(None), eager_start=True)))
+                self.release.set()
+                await asyncio.sleep(0)
+                await asyncio.sleep(0)
+                await asyncio.sleep(0)
+                self.assertEqual(len(competing), 1)
+                with self.assertRaises(HomeAssistantError):
+                    await competing[0]
+                if succeeds:
+                    self.assertEqual((await first)['status'], 'activated')
+                else:
+                    with self.assertRaises(HomeAssistantError):
+                        await first
+                self.assertEqual(len(self.calls), 1)
+
+    async def test_queued_pre_dispatch_event_cannot_reconcile_timeout(self):
+        self.status('active', 'unwind')
+        stale = self.hass.states.get('sensor.house_mood')
+        self.status()
+        self.hold = True
+        first = asyncio.create_task(self.action.async_start(None))
+        await self.started.wait()
+        self.hass.bus.async_fire(EVENT_STATE_CHANGED, {
+            'entity_id': 'sensor.house_mood', 'new_state': stale,
+        })
+        with self.assertRaises(HomeAssistantError):
+            await first
+        self.release.set()
+        await asyncio.sleep(0)
+        with self.assertRaises(HomeAssistantError):
+            await self.action.async_start(None)
+        self.assertEqual(len(self.calls), 1)
+
+    async def test_delayed_older_event_cannot_replace_fresh_recovery(self):
+        self.status()
+        self.hold = True
+        first = asyncio.create_task(self.action.async_start(None))
+        await self.started.wait()
+        with self.assertRaises(HomeAssistantError):
+            await first
+        self.release.set()
+        await asyncio.sleep(0)
+        self.status('active', 'unwind')
+        old_active = self.hass.states.get('sensor.house_mood')
+        self.status('recovery_required')
+        await self.hass.async_block_till_done()
+        self.hass.bus.async_fire(EVENT_STATE_CHANGED, {
+            'entity_id': 'sensor.house_mood', 'new_state': old_active,
+        })
+        await self.hass.async_block_till_done()
+        with self.assertRaises(HomeAssistantError):
+            await self.action.async_start(None)
+        self.assertEqual(len(self.calls), 1)
+
     async def test_uncertain_completion_requires_fresh_authoritative_status(self):
         self.status()
         self.hold = True
@@ -181,3 +252,19 @@ class ChillActionTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(HomeAssistantError):
             await self.action.async_start(None)
         self.assertEqual(len(self.calls), 1)
+
+    async def test_cancelled_caller_keeps_service_owned_until_shutdown(self):
+        self.status()
+        self.hold = True
+        caller = asyncio.create_task(self.action.async_start(None))
+        await self.started.wait()
+        operation = self.action._operation
+        caller.cancel()
+        with self.assertRaises(asyncio.CancelledError):
+            await caller
+        self.assertFalse(operation.done())
+        with self.assertRaises(HomeAssistantError):
+            await self.action.async_start(None)
+        self.assertEqual(len(self.calls), 1)
+        await self.action.async_close()
+        self.assertTrue(operation.cancelled())

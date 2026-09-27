@@ -4,7 +4,7 @@ import asyncio
 from typing import Any
 
 from homeassistant.const import EVENT_STATE_CHANGED
-from homeassistant.core import Context, HomeAssistant
+from homeassistant.core import Context, HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 
 
@@ -17,13 +17,22 @@ class ChillAction:
         self._operation: asyncio.Task[Any] | None = None
         self._uncertain = False
         self._fresh_state = None
+        self._dispatch_state = None
         self._dispatched = False
+        self._validating = False
         self._closed = False
         self._unlisten = hass.bus.async_listen(EVENT_STATE_CHANGED, self._state_changed)
 
+    @callback
     def _state_changed(self, event: Any) -> None:
-        if self._dispatched and event.data.get('entity_id') == 'sensor.house_mood':
-            self._fresh_state = event.data.get('new_state')
+        if not self._dispatched or event.data.get('entity_id') != 'sensor.house_mood':
+            return
+        state = event.data.get('new_state')
+        # A queued pre-dispatch event or an older delivery cannot confirm the
+        # result of this request. Only the current, newly published state can.
+        if (state is not None and state is not self._dispatch_state
+                and state is self._hass.states.get('sensor.house_mood')):
+            self._fresh_state = state
 
     @staticmethod
     def _state_status(state: Any) -> tuple[str, Any, Any]:
@@ -69,6 +78,8 @@ class ChillAction:
     async def async_start(self, context: Context | None) -> dict[str, Any]:
         if self._closed:
             raise HomeAssistantError('Chill action is unavailable.')
+        if self._validating:
+            raise HomeAssistantError('Chill activation is still in progress.')
 
         if self._operation is not None:
             if not self._operation.done():
@@ -89,34 +100,40 @@ class ChillAction:
             return {'status': 'already_active', 'mood': 'Chill'}
 
         # Recheck immediately before issuing the single supported service call.
-        if self._check_available(self._hass.states.get('sensor.house_mood')):
+        dispatch_state = self._hass.states.get('sensor.house_mood')
+        if self._check_available(dispatch_state):
             return {'status': 'already_active', 'mood': 'Chill'}
         self._fresh_state = None
+        self._dispatch_state = dispatch_state
         self._dispatched = True
+        self._validating = True
         self._operation = asyncio.create_task(self._hass.services.async_call(
             'house_moods', 'activate', {'mood': 'unwind'},
             blocking=True, context=context, return_response=True,
         ))
         self._operation.add_done_callback(self._operation_finished)
         try:
-            result = await asyncio.wait_for(asyncio.shield(self._operation), self._response_timeout)
-        except TimeoutError as err:
-            self._uncertain = True
-            raise HomeAssistantError('Chill activation timed out; its outcome is not yet confirmed.') from err
-        except asyncio.CancelledError:
-            self._uncertain = True
-            raise
-        except Exception as err:
-            self._uncertain = True
-            raise HomeAssistantError('Chill activation could not be confirmed.') from err
-        try:
+            try:
+                result = await asyncio.wait_for(asyncio.shield(self._operation), self._response_timeout)
+            except TimeoutError as err:
+                self._uncertain = True
+                raise HomeAssistantError('Chill activation timed out; its outcome is not yet confirmed.') from err
+            except asyncio.CancelledError:
+                self._uncertain = True
+                raise
+            except Exception as err:
+                self._uncertain = True
+                raise HomeAssistantError('Chill activation could not be confirmed.') from err
             self._check_response(result)
+            self._operation = None
+            self._dispatched = False
+            self._dispatch_state = None
+            return {'status': 'activated', 'mood': 'Chill'}
         except HomeAssistantError:
             self._uncertain = True
             raise
-        self._operation = None
-        self._dispatched = False
-        return {'status': 'activated', 'mood': 'Chill'}
+        finally:
+            self._validating = False
 
     async def async_close(self) -> None:
         if self._closed:
