@@ -30,9 +30,11 @@ class ChillAction:
         state = event.data.get('new_state')
         # A queued pre-dispatch event or an older delivery cannot confirm the
         # result of this request. Only the current, newly published state can.
-        if (state is not None and state is not self._dispatch_state
-                and state is self._hass.states.get('sensor.house_mood')):
-            self._fresh_state = state
+        if state is self._hass.states.get('sensor.house_mood'):
+            if state is None:
+                self._fresh_state = None
+            elif state is not self._dispatch_state:
+                self._fresh_state = state
 
     @staticmethod
     def _state_status(state: Any) -> tuple[str, Any, Any]:
@@ -85,7 +87,8 @@ class ChillAction:
             if not self._operation.done():
                 raise HomeAssistantError('Chill activation is still in progress.')
             if self._uncertain:
-                if self._fresh_state is None:
+                if (self._fresh_state is None or self._fresh_state
+                        is not self._hass.states.get('sensor.house_mood')):
                     raise HomeAssistantError('Chill activation could not be confirmed; wait for House Mood status.')
                 if self._check_available(self._fresh_state):
                     self._uncertain = False

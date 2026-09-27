@@ -208,6 +208,23 @@ class ChillActionTests(unittest.IsolatedAsyncioTestCase):
             await self.action.async_start(None)
         self.assertEqual(len(self.calls), 1)
 
+    async def test_removed_sensor_cannot_confirm_uncertain_activation(self):
+        self.status()
+        self.hold = True
+        first = asyncio.create_task(self.action.async_start(None))
+        await self.started.wait()
+        with self.assertRaises(HomeAssistantError):
+            await first
+        self.release.set()
+        await asyncio.sleep(0)
+        self.status('active', 'unwind')
+        await self.hass.async_block_till_done()
+        self.hass.states.async_remove('sensor.house_mood')
+        await self.hass.async_block_till_done()
+        with self.assertRaises(HomeAssistantError):
+            await self.action.async_start(None)
+        self.assertEqual(len(self.calls), 1)
+
     async def test_uncertain_completion_requires_fresh_authoritative_status(self):
         self.status()
         self.hold = True
