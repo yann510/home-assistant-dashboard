@@ -5,7 +5,7 @@ import { attentionExplanation, type AttentionItem } from '../attention';
 
 const moods: { id: MoodId; name: string; colour: string; caption: string }[] = [
   { id: 'love', name: 'Love', colour: '#efa5a5', caption: 'A little closer.' },
-  { id: 'unwind', name: 'Unwind', colour: '#cbb5ed', caption: 'Let the day drift away.' },
+  { id: 'unwind', name: 'Chill', colour: '#cbb5ed', caption: 'Let the day drift away.' },
   { id: 'dinner', name: 'Dinner', colour: '#efbe83', caption: 'Good food. Better company.' },
   { id: 'party', name: 'Party', colour: '#c5d68c', caption: 'Turn a little louder.' },
   { id: 'gym', name: 'Gym', colour: '#9ccfd1', caption: 'Find your rhythm.' },
@@ -16,6 +16,12 @@ function MoodArt({ id }: { id: MoodId | null }) {
     <svg className='canvas-mood__art' viewBox='0 0 320 260' fill='none' stroke='currentColor' strokeWidth='18' aria-hidden='true'>
       {id === 'love' ? (
         <path d='M160 214C130 180 40 135 40 76a62 62 0 01120-17 62 62 0 01120 17c0 59-90 104-120 138z' />
+      ) : id === 'unwind' ? (
+        <g strokeLinecap='round'>
+          <path d='M24 80C58 50 92 50 126 80S194 110 228 80S280 50 296 65' />
+          <path d='M24 130C58 100 92 100 126 130S194 160 228 130S280 100 296 115' />
+          <path d='M24 180C58 150 92 150 126 180S194 210 228 180S280 150 296 165' />
+        </g>
       ) : id === 'dinner' ? (
         <>
           <circle cx='160' cy='130' r='91' />

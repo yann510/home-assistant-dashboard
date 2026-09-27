@@ -245,7 +245,7 @@ it('keeps simultaneous appliance activity and a new completion episode while an 
 it('keeps mood selection, End, and recovery retry available on the overview', async () => {
   ref.current!.publish('sensor.house_mood', 'active', { active_mood: 'love' });
   render(<CanvasDashboard />);
-  for (const name of ['Love', 'Unwind', 'Dinner', 'Party', 'Gym'])
+  for (const name of ['Love', 'Chill', 'Dinner', 'Party', 'Gym'])
     expect(screen.getByRole('button', { name: `${name} mood` })).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: 'End mood' }));
   expect(ref.current!.calls).toContainEqual(expect.objectContaining({ domain: 'house_moods', service: 'end' }));

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { CanvasMood } from './CanvasMood';
 import type { HouseMoodCardProps } from '../moodTypes';
@@ -79,4 +79,24 @@ it('animates confirmed mood changes once without replacing controls or celebrati
   view.rerender(<CanvasMood controller={{ ...active, status: { ...active.status, phase: 'restoring' } }} />);
   expect(card.getAttribute('data-mood')).toBe('neutral');
   expect(screen.getByRole('heading', { name: 'Just be.' })).toBeTruthy();
+});
+
+it('names Chill consistently while retaining its backend ID and distinct artwork', () => {
+  const base: HouseMoodCardProps = {
+    status: { phase: 'idle', activeMood: null, pendingMood: null, errors: [] },
+    connected: true,
+    available: true,
+    onActivate: vi.fn(),
+    onEnd: vi.fn(),
+    onRetry: vi.fn(),
+  };
+  const view = render(<CanvasMood controller={base} />);
+  const paths = () => Array.from(view.container.querySelectorAll('.canvas-mood__art path')).map(path => path.getAttribute('d'));
+  const neutralArtwork = paths();
+  fireEvent.click(screen.getByRole('button', { name: 'Chill mood' }));
+  expect(base.onActivate).toHaveBeenCalledExactlyOnceWith('unwind');
+  view.rerender(<CanvasMood controller={{ ...base, status: { ...base.status, phase: 'active', activeMood: 'unwind' } }} />);
+  expect(screen.getByRole('heading', { name: 'Chill' })).toBeTruthy();
+  expect(screen.queryByText('Unwind')).toBeNull();
+  expect(paths()).not.toEqual(neutralArtwork);
 });
