@@ -21,6 +21,7 @@ vi.mock('@hakit/core', () => ({
       ref.current!.useStore(select),
     {
       getState: () => ref.current!.getState(),
+      setState: (partial: Parameters<ReturnType<typeof createHaFixture>['setState']>[0]) => ref.current!.setState(partial),
       subscribe: (listener: () => void) => ref.current!.subscribe(listener),
     }
   ),

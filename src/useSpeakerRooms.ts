@@ -93,24 +93,42 @@ export function useSpeakerRooms({ source, members, disabled, onSourceChanged, pi
   const [conflict, setConflict] = useState<{ signature: string; message: string } | null>(null);
   const pending = useRef(false);
   const active = useRef<AbortController | null>(null);
+  const previousSource = useRef(source);
   const current = [...new Set([source, ...members])];
   const locked = disabled || busy || following || cleanupPending || scriptBusy;
   const changed = signature(selected) !== signature(current);
 
   useEffect(() => {
+    if (previousSource.current === source) return;
+    previousSource.current = source;
+    active.current?.abort();
+    active.current = null;
+    pending.current = false;
+    setBusy(false);
+    setBusyRoom(null);
+    setConflict(null);
+    setStatus('');
+    setSelected(membersOf(source));
+    original.current = signature(membersOf(source));
+  }, [source]);
+
+  useEffect(() => {
     const unsubscribe = onSpeakerDisconnect(() => {
       const wasPending = pending.current;
       active.current?.abort();
+      active.current = null;
       setBusy(false);
+      setBusyRoom(null);
       pending.current = false;
       if (wasPending) setError('Connection interrupted. Reload current rooms before retrying.');
     });
     return () => {
       active.current?.abort();
+      active.current = null;
       pending.current = false;
       unsubscribe();
     };
-  }, [source]);
+  }, []);
   const begin = useCallback((preserveFeedback: unknown = false) => {
     setBusy(false);
     setConflict(null);

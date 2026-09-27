@@ -154,6 +154,7 @@ const connection = {
   removeEventListener() {},
   sendMessage() {},
   async sendMessagePromise(message: Record<string, unknown>) {
+    if (message.type === 'get_states') return Object.values(entities);
     if (message.type === 'media_player/browse_media')
       return {
         children: previewFavourites.map((item, index) => ({

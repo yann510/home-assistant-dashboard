@@ -75,6 +75,9 @@ export function createHaFixture() {
       return [...socketListeners.values()].reduce((sum, listeners) => sum + listeners.size, 0);
     },
     getState: getSnapshot,
+    setState(partial: Partial<HaState>) {
+      publishSnapshot({ ...snapshot, ...partial });
+    },
     subscribe,
     get listenerCount() {
       return listeners.size;

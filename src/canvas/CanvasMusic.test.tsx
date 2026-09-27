@@ -944,3 +944,18 @@ it('keeps source controls stable for one popup session and discovers new audio o
   updateEntity('media_player.bathroom', { state: 'idle' });
   expect(screen.getByRole('button', { name: 'Change source' })).toBeTruthy();
 });
+
+it('releases an old grouping spinner when the source changes while Speakers is closed', async () => {
+  sendMessagePromise.mockImplementation(() => new Promise(() => {}));
+  mount();
+  await userEvent.click(screen.getByRole('button', { name: 'Open speakers' }));
+  await userEvent.click(screen.getByRole('checkbox', { name: /bathroom/ }));
+  expect(sendMessagePromise).toHaveBeenCalledTimes(1);
+  await userEvent.click(screen.getByRole('button', { name: 'Close detail' }));
+  updateEntity('media_player.living_room', { state: 'idle' }, { group_members: ['media_player.living_room'] });
+  updateEntity('media_player.gym', {}, { group_members: ['media_player.gym'] });
+  await userEvent.click(screen.getByRole('button', { name: 'Open speakers' }));
+  expect((screen.getByRole('checkbox', { name: /bathroom/ }) as HTMLInputElement).disabled).toBe(false);
+  await userEvent.click(screen.getByRole('checkbox', { name: /bathroom/ }));
+  expect(sendMessagePromise).toHaveBeenCalledTimes(2);
+});

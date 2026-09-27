@@ -39,14 +39,19 @@ function ModeFeedback({ mode }: { mode: Modes[number] }) {
     // Reveal new feedback within the pulse strip without moving the page.
     if (visible && item.current?.parentElement) item.current.parentElement.scrollLeft = 0;
   }, [phase, visible]);
-  if (!visible) return null;
+  if (!visible && !mode.recoveryRequired) return null;
   const failure = phase === 'failed' || phase === 'unconfirmed';
   return (
     <div ref={item} className='canvas-modes__feedback'>
       <span role={failure ? 'alert' : 'status'} title={mode.feedback?.message}>
-        {mode.label}: {phase === 'failed' ? 'failed. Try again.' : phase === 'unconfirmed' ? 'not confirmed. Check state.' : 'sending…'}
+        {mode.label}: {phase === 'failed' ? 'failed. Try again.' : phase === 'unconfirmed' || mode.recoveryRequired ? 'not confirmed. Check state.' : 'sending…'}
         {failure && <span className='canvas-modes__detail'> {mode.feedback?.message}</span>}
       </span>
+      {mode.recoveryRequired && (
+        <button type='button' className='canvas-modes__check' aria-label={`Check ${mode.label} mode status`} disabled={mode.checking} onClick={mode.checkStatus}>
+          {mode.checking ? 'Checking…' : 'Check status'}
+        </button>
+      )}
       {failure && (
         <button type='button' aria-label={`Dismiss ${mode.label} mode message`} onClick={mode.dismiss}>
           ×
