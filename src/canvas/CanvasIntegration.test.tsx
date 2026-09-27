@@ -136,7 +136,7 @@ it('recovers forecast failure through retry without replacing the dialog', async
   expect(within(dialog).getByText('19°C')).toBeTruthy();
 });
 
-it('shows partial all-light failure by friendly name and opens individual details without losing outcomes', async () => {
+it('shows partial all-light failure by compact label and opens individual details without losing outcomes', async () => {
   fixture.publish('light.light_living_room_bulbs', 'on', { friendly_name: 'Living bulbs' });
   fixture.publish('light.living_room_led_strip', 'on', { friendly_name: 'Sofa strip' });
   fixture.respondWith(async message => {
@@ -149,7 +149,7 @@ it('shows partial all-light failure by friendly name and opens individual detail
   fireEvent.click(screen.getByRole('button', { name: 'All lights' }));
   fireEvent.click(screen.getByRole('button', { name: 'Turn off all lights' }));
   await act(async () => {});
-  expect(within(screen.getByRole('dialog')).getByRole('alert').textContent).toContain('Sofa strip:');
+  expect(within(screen.getByRole('dialog')).getByRole('alert').textContent).toContain('Living Room · LED strip: Light did not respond');
   expect(within(screen.getByRole('dialog')).getByRole('alert').textContent).not.toContain('light.living_room');
   const lightTrigger = within(screen.getByRole('dialog')).getByRole('button', { name: 'Sofa strip settings' });
   fireEvent.click(lightTrigger);
@@ -157,8 +157,8 @@ it('shows partial all-light failure by friendly name and opens individual detail
   expect(screen.getByRole('dialog', { name: 'All lights' })).toBeTruthy();
   expect(screen.getByRole('region', { name: 'Sofa strip settings' })).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: 'Close light settings' }));
-  expect(within(screen.getByRole('dialog')).getByRole('alert').textContent).toContain('Sofa strip:');
-  expect(document.activeElement).toBe(within(screen.getByRole('dialog')).getByRole('button', { name: 'Sofa strip settings' }));
+  expect(within(screen.getByRole('dialog')).getByRole('alert').textContent).toContain('Living Room · LED strip: Light did not respond');
+  expect(document.activeElement).toBe(lightTrigger);
 });
 
 it('captures selected blinds and retries only the failed room after a detail roundtrip', async () => {
@@ -348,18 +348,22 @@ it('restores an unfocused weather trigger and an attention chip after updated la
 it('restores an activity trigger without relying on focus and keeps directory identity across renamed telemetry', () => {
   fixture.publish('sensor.washer_washer_machine_state', 'run');
   fixture.publish('sensor.washer_washer_job_state', 'wash');
-  fixture.publish('light.light_living_room_bulbs', 'on', { friendly_name: 'First name' });
+  fixture.publish('vacuum.roomba', 'docked', { friendly_name: 'First name' });
   render(<CanvasDashboard />);
   const activity = screen.getByRole('button', { name: /Washer.*Washing/ });
   fireEvent.click(activity);
   fireEvent.click(screen.getByRole('button', { name: 'Close details' }));
   expect(document.activeElement).toBe(activity);
   fireEvent.click(screen.getByRole('button', { name: 'All devices' }));
-  fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'living' } });
-  fireEvent.click(screen.getByRole('button', { name: 'Living Room · First name' }));
-  act(() => fixture.publish('light.light_living_room_bulbs', 'off', { friendly_name: 'Renamed light' }));
+  fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'vacuum' } });
+  const vacuumTrigger = screen.getByRole('button', { name: 'First name' });
+  expect(vacuumTrigger.getAttribute('data-canvas-focus-key')).toBe('vacuum.roomba');
+  fireEvent.click(vacuumTrigger);
+  act(() => fixture.publish('vacuum.roomba', 'docked', { friendly_name: 'Renamed vacuum' }));
   fireEvent.click(screen.getByRole('button', { name: 'Back' }));
-  expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Living Room · Renamed light' }));
+  const renamedTrigger = screen.getByRole('button', { name: 'Renamed vacuum' });
+  expect(renamedTrigger.getAttribute('data-canvas-focus-key')).toBe('vacuum.roomba');
+  expect(document.activeElement).toBe(renamedTrigger);
 });
 
 it.each(['Washer', 'Dryer'])('restores the distinct %s directory trigger while both laundry destinations are visible', name => {
