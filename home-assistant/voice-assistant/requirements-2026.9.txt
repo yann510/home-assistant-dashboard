@@ -1,0 +1,6 @@
+# Offline test additions for the Home Assistant 2026.9.3 environment.
+# Install with: uv pip install --python .venv-ha-2026/bin/python -r home-assistant/voice-assistant/requirements-2026.9.txt
+openai==2.45.0
+gazetteer-matcher==1.1.0
+hassil==3.12.1
+home-assistant-intents==2026.8.28
