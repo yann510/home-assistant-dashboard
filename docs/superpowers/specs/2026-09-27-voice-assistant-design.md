@@ -1,6 +1,6 @@
 # iPhone voice assistant MVP
 
-Status: written design approved by the user September 27, 2026. Implementation plan written and awaiting review; implementation has not started.
+Status: written design approved by the user September 27, 2026. Implementation plan approved; implementation is in progress.
 
 ## Intent and agreed scope
 
