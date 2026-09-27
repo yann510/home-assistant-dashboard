@@ -1,7 +1,4 @@
 // @vitest-environment jsdom
-// Run: cp /tmp/ha-audit-speaker-recovery.test.tsx src/ha-audit-speaker-recovery.test.tsx
-// npx vitest run src/ha-audit-speaker-recovery.test.tsx
-// rm src/ha-audit-speaker-recovery.test.tsx
 import { act, cleanup, renderHook } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { useStore } from '@hakit/core';
@@ -36,4 +33,36 @@ it('an old completion cannot release a newer source operation', async () => {
   expect(result.current.busy).toBe(true);
   expect(result.current.pending.current).toBe(true);
   expect(send).toHaveBeenCalledTimes(2);
+});
+
+it('releases only its own pinned source after interrupted removal', async () => {
+  let resolveOld!: (value: unknown) => void;
+  const oldRequest = new Promise(resolve => { resolveOld = resolve; });
+  const send = vi.fn().mockReturnValueOnce(oldRequest).mockImplementation(() => new Promise(() => {}));
+  const pinSource = vi.fn();
+  const onSourceChanged = vi.fn();
+  const entity = (room: string, group: string[]) => ({ entity_id: `media_player.${room}`, state: 'playing', attributes: { group_members: group.map(id => `media_player.${id}`) } });
+  const connection = { connected: true, sendMessagePromise: send, addEventListener: vi.fn(), removeEventListener: vi.fn() } as unknown as Connection;
+  useStore.setState({ connection, connectionStatus: 'connected', entities: {
+    'media_player.living_room': entity('living_room', ['living_room', 'gym']),
+    'media_player.gym': entity('gym', ['living_room', 'gym']),
+    'media_player.bathroom': entity('bathroom', ['bathroom']),
+  } as unknown as HassEntities });
+  const { result, rerender } = renderHook(({source}) => useSpeakerRooms({source,members:[source],disabled:false,pinSource,onSourceChanged}), {initialProps:{source:'media_player.living_room' as 'media_player.living_room' | 'media_player.gym'}});
+  act(() => { void result.current.toggleRoom('media_player.living_room'); });
+  expect(pinSource).toHaveBeenLastCalledWith('media_player.living_room');
+  act(() => { useStore.setState({connectionStatus:'disconnected'}); });
+  expect(pinSource).toHaveBeenLastCalledWith(null);
+  act(() => { useStore.setState({connectionStatus:'connected',entities:{
+    ...useStore.getState().entities,
+    'media_player.living_room': entity('living_room', ['living_room']),
+    'media_player.gym': entity('gym', ['gym', 'bathroom']),
+    'media_player.bathroom': entity('bathroom', ['gym', 'bathroom']),
+  } as unknown as HassEntities}); });
+  await act(async () => { rerender({source:'media_player.gym'}); });
+  act(() => { void result.current.toggleRoom('media_player.gym'); });
+  expect(pinSource).toHaveBeenLastCalledWith('media_player.gym');
+  await act(async () => resolveOld({}));
+  expect(pinSource).toHaveBeenLastCalledWith('media_player.gym');
+  expect(result.current.pending.current).toBe(true);
 });

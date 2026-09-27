@@ -220,3 +220,45 @@ it('removes status-check listeners when the mode surface unmounts', async () => 
   expect(ref.current!.socketListenerCount).toBe(0);
   await act(async () => {});
 });
+
+it('uses fetched mode state when cached helpers disagree', async () => {
+  ref.current!.respondWith(async () => ({ response: { success: true } }));
+  render(<Surface/>);
+  await userEvent.click(screen.getByRole('button', { name: 'Night mode' }));
+  expect(screen.getByRole('button', { name: 'Night mode' }).getAttribute('aria-pressed')).toBe('true');
+  ref.current!.respondWith(async () => Object.values(ref.current!.getState().entities).map(entity =>
+    entity.entity_id === 'input_boolean.night_mode' ? { ...entity, state: 'off' } :
+    entity.entity_id === 'input_boolean.morning_mode' ? { ...entity, state: 'on' } : entity
+  ));
+  await userEvent.click(screen.getByRole('button', { name: 'Check Night mode status' }));
+  expect(screen.getByRole('button', { name: 'Night mode' }).getAttribute('aria-pressed')).toBe('false');
+  expect(screen.getByRole('button', { name: 'Day mode' }).getAttribute('aria-pressed')).toBe('true');
+  expect(ref.current!.calls).toHaveLength(2);
+});
+
+it('keeps the lock when the same socket reconnects during a status check', async () => {
+  ref.current!.respondWith(async () => ({ response: { success: true } }));
+  render(<Surface/>);
+  await userEvent.click(screen.getByRole('button', { name: 'Night mode' }));
+  const check = deferred();
+  ref.current!.respondWith(() => check.promise);
+  await userEvent.click(screen.getByRole('button', { name: 'Check Night mode status' }));
+  act(() => { ref.current!.socketDisconnect(); ref.current!.socketReconnect(); });
+  await act(async () => check.resolve(Object.values(ref.current!.getState().entities)));
+  expect((screen.getByRole('button', { name: 'Day mode' }) as HTMLButtonElement).disabled).toBe(true);
+  expect(screen.getByRole('alert').textContent).toContain('Connection changed');
+  expect(screen.getByRole('button', { name: 'Check Night mode status' })).toBeTruthy();
+});
+
+it('deduplicates status taps while a check is pending', async () => {
+  ref.current!.respondWith(async () => ({ response: { success: true } }));
+  render(<Surface/>);
+  await userEvent.click(screen.getByRole('button', { name: 'Night mode' }));
+  const check = deferred();
+  ref.current!.respondWith(() => check.promise);
+  const button = screen.getByRole('button', { name: 'Check Night mode status' });
+  act(() => { button.click(); button.click(); });
+  expect(ref.current!.calls).toHaveLength(2);
+  await act(async () => check.resolve(Object.values(ref.current!.getState().entities)));
+  expect((screen.getByRole('button', { name: 'Day mode' }) as HTMLButtonElement).disabled).toBe(false);
+});

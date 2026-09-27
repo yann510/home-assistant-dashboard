@@ -53,7 +53,7 @@ function updateEntity(id: string, patch: Partial<ReturnType<typeof speaker>>, at
 
 function CleanupProbe() {
   const { session } = useCanvasMusic();
-  return <button onClick={() => void session.updateFollowing('disable')}>Request cleanup directly</button>;
+  return <><button onClick={() => void session.updateFollowing('disable')}>Request cleanup directly</button><output data-testid='speaker-coordinator'>{session.entityId}</output></>;
 }
 function Surface() {
   const [panel, setPanel] = useState('overview');
@@ -566,6 +566,7 @@ describe('Canvas music', () => {
     });
     expect(screen.getByRole('alert').textContent).toContain('Connection interrupted');
     expect(sendMessagePromise).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('speaker-coordinator').textContent).toBe('media_player.gym');
   });
 
   it('does not pause newly changed audio on the detached source', async () => {

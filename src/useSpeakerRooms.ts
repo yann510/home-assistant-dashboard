@@ -93,15 +93,24 @@ export function useSpeakerRooms({ source, members, disabled, onSourceChanged, pi
   const [conflict, setConflict] = useState<{ signature: string; message: string } | null>(null);
   const pending = useRef(false);
   const active = useRef<AbortController | null>(null);
+  const pinOwner = useRef<AbortController | null>(null);
   const previousSource = useRef(source);
   const current = [...new Set([source, ...members])];
   const locked = disabled || busy || following || cleanupPending || scriptBusy;
   const changed = signature(selected) !== signature(current);
+  const releaseOwnedPin = useCallback((controller: AbortController | null) => {
+    if (controller && pinOwner.current === controller) {
+      pinOwner.current = null;
+      pinSource?.(null);
+    }
+  }, [pinSource]);
 
   useEffect(() => {
     if (previousSource.current === source) return;
     previousSource.current = source;
-    active.current?.abort();
+    const controller = active.current;
+    controller?.abort();
+    releaseOwnedPin(controller);
     active.current = null;
     pending.current = false;
     setBusy(false);
@@ -110,12 +119,14 @@ export function useSpeakerRooms({ source, members, disabled, onSourceChanged, pi
     setStatus('');
     setSelected(membersOf(source));
     original.current = signature(membersOf(source));
-  }, [source]);
+  }, [source, releaseOwnedPin]);
 
   useEffect(() => {
     const unsubscribe = onSpeakerDisconnect(() => {
       const wasPending = pending.current;
-      active.current?.abort();
+      const controller = active.current;
+      controller?.abort();
+      releaseOwnedPin(controller);
       active.current = null;
       setBusy(false);
       setBusyRoom(null);
@@ -123,12 +134,14 @@ export function useSpeakerRooms({ source, members, disabled, onSourceChanged, pi
       if (wasPending) setError('Connection interrupted. Reload current rooms before retrying.');
     });
     return () => {
-      active.current?.abort();
+      const controller = active.current;
+      controller?.abort();
+      releaseOwnedPin(controller);
       active.current = null;
       pending.current = false;
       unsubscribe();
     };
-  }, []);
+  }, [releaseOwnedPin]);
   const begin = useCallback((preserveFeedback: unknown = false) => {
     setBusy(false);
     setConflict(null);
@@ -265,14 +278,15 @@ export function useSpeakerRooms({ source, members, disabled, onSourceChanged, pi
     const remaining = before.filter(id => id !== source);
     if (!onSourceChanged || !pinSource || !remaining.length || locked || pending.current) return;
     pending.current = true;
+    const controller = new AbortController();
+    active.current = controller;
+    pinOwner.current = controller;
     pinSource(source);
     setBusy(true);
     setBusyRoom(source);
     setError(null);
     setStatus('Moving playback…');
     setConflict(null);
-    const controller = new AbortController();
-    active.current = controller;
     let nextSource: string | undefined;
     const originalEntity = useStore.getState().entities[source];
     const wasPlaying = ['playing', 'buffering'].includes(originalEntity?.state ?? '');
@@ -347,7 +361,8 @@ export function useSpeakerRooms({ source, members, disabled, onSourceChanged, pi
           setSelected(membersOf(nextSource));
           onSourceChanged(nextSource);
         }
-        pinSource(null);
+        releaseOwnedPin(controller);
+        active.current = null;
         pending.current = false;
         setBusyRoom(null);
         setBusy(false);
