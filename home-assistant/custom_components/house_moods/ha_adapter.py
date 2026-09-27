@@ -2,12 +2,17 @@
 import asyncio
 from copy import deepcopy
 from homeassistant.core import Context, CoreState
+from .model import OperationTimeout
 from .lights import LightControls
 from .presets import NEON
 from .sonos import SonosControls, SPEAKERS, SOURCE, PLAYBACK_SOURCES, FOLLOW, FOLLOW_SOURCE, FOLLOW_SCRIPT, GROUPS
 
 DEVICE = '754063076'
 ENTRY = '01M20KMKHSQVZTTT0QVQC109JS'
+
+# Bound cooperative HA handlers, including read-only queue and favorite requests.
+SERVICE_TIMEOUT = 30
+BROWSE_TIMEOUT = 30
 
 class HAIO:
     def __init__(self, hass):
@@ -39,9 +44,12 @@ class HAIO:
         if session_id:
             self.contexts[context.id] = session_id
         try:
-            return await self.hass.services.async_call(domain, service, deepcopy(data),
-                target={'entity_id': targets} if targets else None, blocking=True,
-                context=context, return_response=return_response)
+            async with asyncio.timeout(SERVICE_TIMEOUT):
+                return await self.hass.services.async_call(domain, service, deepcopy(data),
+                    target={'entity_id': targets} if targets else None, blocking=True,
+                    context=context, return_response=return_response)
+        except TimeoutError:
+            raise OperationTimeout(f'{domain}.{service} timed out; its device effect is unconfirmed.') from None
         except Exception:
             raise RuntimeError(f'{domain}.{service} did not complete.') from None
 
@@ -60,13 +68,15 @@ class HAIO:
         return result[entity]
 
     async def browse(self, entity, kind, ident):
+        self.check_open()
         from homeassistant.components.media_player import DATA_COMPONENT
         component = self.hass.data.get(DATA_COMPONENT)
         player = component.get_entity(entity) if component else None
         if player is None:
             raise ValueError('Living Room media browser is unavailable.')
         try:
-            return (await player.async_browse_media(kind, ident)).as_dict()
+            async with asyncio.timeout(BROWSE_TIMEOUT):
+                return (await player.async_browse_media(kind, ident)).as_dict()
         except Exception:
             raise RuntimeError('Sonos favorites could not be read.') from None
 
@@ -178,6 +188,11 @@ class HAAdapter:
             return await self.control(write.targets[0]).apply_write(write, session_id)
         finally:
             self.io.active_controls = set()
+
+    async def plan_restore(self, target, baseline):
+        if target == GROUPS:
+            return await self.sonos.plan_restore(target, baseline)
+        return None
 
     async def restore(self, target, baseline, session_id):
         self.io.active_controls = {target}

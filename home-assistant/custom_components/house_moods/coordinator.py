@@ -3,7 +3,7 @@ import asyncio
 import copy
 import time
 import uuid
-from .model import MOODS, Session
+from .model import OperationTimeout, MOODS, Session
 from .ownership import classify, matches
 
 class PersistenceError(Exception):
@@ -317,7 +317,11 @@ class MoodCoordinator:
             entry['status'], entry['resolved'] = 'failed', list(write.targets)
             await self._save()
             return
-        observations = await self.adapter.apply_write(write, s.session_id)
+        try:
+            observations = await self.adapter.apply_write(write, s.session_id)
+        except OperationTimeout:
+            await self._record_uncertain(entry)
+            raise
         for target in write.targets:
             if target not in observations or not matches(target, write.requested[target], observations[target]):
                 raise RuntimeError('Device did not confirm requested state: ' + target)
@@ -334,7 +338,17 @@ class MoodCoordinator:
                 'status': 'planned', 'observed': {}, 'resolved': [],
                 'until': self._clock() + max(0, transition) + 5}
 
-    async def _resolve_planned(self):
+    async def _record_uncertain(self, entry):
+        # A deadline bounds local waiting, not the lifetime of a remote command.
+        # Never interpret an unchanged report as proof it had no physical effect.
+        entry['uncertain'] = True
+        for target in entry['targets']:
+            if target not in self.session.overridden:
+                self.session.owned.add(target)
+                self.session.expected[target] = copy.deepcopy(entry['before'][target])
+        await self._save()
+
+    async def _resolve_planned(self, allow_uncertain=False):
         s = self.session
         for entry in s.journal:
             if entry['status'] != 'planned':
@@ -347,6 +361,8 @@ class MoodCoordinator:
                     entry['observed'][target] = copy.deepcopy(current)
                     if target in s.overridden:
                         s.owned.discard(target)
+                    elif entry.get('uncertain') and (not allow_uncertain or not matches(target, entry['requested'][target], current)):
+                        raise RuntimeError('A timed-out command has an unconfirmed device effect. Retry after its requested state is reported, or use a manual command to take control.')
                     elif matches(target, entry['requested'][target], current):
                         if entry['action'] == 'restore':
                             if entry.get('requires_service_completion'):
@@ -382,6 +398,8 @@ class MoodCoordinator:
         for target in sorted(targets & s.owned, key=lambda t: (2 if t == 'input_boolean.speaker_follow_motion' else 0 if t.endswith('#playback') else 1, t)):
             if target in pending or target in s.overridden:
                 continue
+            if target == 'input_boolean.speaker_follow_motion' and 'sonos#groups' in (s.owned | self._pending_targets()):
+                continue
             try:
                 current = await self.adapter.read(target)
                 if not matches(target, s.expected[target], current):
@@ -392,6 +410,26 @@ class MoodCoordinator:
                 destination = copy.deepcopy(s.baseline[target])
                 if hasattr(self.adapter, 'restoration_state'):
                     destination = self.adapter.restoration_state(target, destination)
+                steps = await self.adapter.plan_restore(target, copy.deepcopy(s.baseline[target])) if hasattr(self.adapter, 'plan_restore') else None
+                if steps is not None:
+                    for write in steps:
+                        if set(write.targets) != {target}:
+                            raise ValueError('Restoration steps must affect only their owned target')
+                        if target in s.overridden or target in self._manual_during_operation:
+                            break
+                        observed = await self.adapter.read(target)
+                        if not matches(target, s.expected[target], observed):
+                            s.overridden.add(target)
+                            s.owned.discard(target)
+                            break
+                        await self._apply_write(write)
+                    if target not in s.overridden:
+                        current = await self.adapter.read(target)
+                        if not matches(target, destination, current):
+                            raise RuntimeError('Restoration not confirmed')
+                        s.owned.discard(target)
+                    await self._save()
+                    continue
                 entry = self._entry(str(uuid.uuid4()), 'restore', [target], {target: destination}, {target: current})
                 if hasattr(self.adapter, 'restore_requires_service_completion') and self.adapter.restore_requires_service_completion(target, s.baseline[target]):
                     entry['requires_service_completion'] = True
@@ -402,7 +440,11 @@ class MoodCoordinator:
                     s.owned.discard(target)
                     await self._save()
                     continue
-                await self.adapter.restore(target, copy.deepcopy(s.baseline[target]), s.session_id)
+                try:
+                    await self.adapter.restore(target, copy.deepcopy(s.baseline[target]), s.session_id)
+                except OperationTimeout:
+                    await self._record_uncertain(entry)
+                    raise
                 current = await self.adapter.read(target)
                 if not matches(target, destination, current):
                     raise RuntimeError('Restoration not confirmed')
@@ -490,7 +532,7 @@ class MoodCoordinator:
                 self.session.errors = []
                 if self.session.mode_intent:
                     return await self._finish_mode()
-                await self._resolve_planned()
+                await self._resolve_planned(allow_uncertain=True)
                 await self._finish_restoration()
                 return self.status(self.session is None)
             except PersistenceError as err:

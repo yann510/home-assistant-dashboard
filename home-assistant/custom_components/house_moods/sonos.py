@@ -256,7 +256,7 @@ class SonosControls:
             await self.io.wait(lambda: self.io.state(FOLLOW)['state'] == 'off' and self.io.state(FOLLOW_SCRIPT)['state'] == 'off')
         elif action in ('sonos.join', 'sonos.unjoin'):
             join = action.endswith('.join')
-            await call('media_player', 'join' if join else 'unjoin', [SOURCE] if join else [data['entity']], {'group_members': [data['entity']]} if join else {}, session_id)
+            await call('media_player', 'join' if join else 'unjoin', [data.get('coordinator', SOURCE)] if join else [data['entity']], {'group_members': data.get('members', [data['entity']])} if join else {}, session_id)
         else:
             raise ValueError('Unsupported Sonos mood action')
         if GROUPS in write.targets:
@@ -274,6 +274,26 @@ class SonosControls:
             return [self._write('sonos.freeze_follow', {FOLLOW: dict(follow, state='off')}, {})]
         return []
 
+    async def plan_restore(self, target, baseline):
+        if target != GROUPS:
+            return None
+        desired = baseline['groups']
+        groups = self._groups()
+        writes = []
+        unchanged = [group for group in groups if group in desired]
+        for group in list(groups):
+            if group in unchanged:
+                continue
+            for member in group[1:]:
+                groups = _remove(groups, member)
+                writes.append(self._write('sonos.unjoin', {GROUPS: {'groups': deepcopy(groups)}}, {'entity': member}))
+        for group in desired:
+            if len(group) > 1 and group not in unchanged:
+                groups = _canonical([g for g in groups if not set(g) & set(group)] + [group])
+                writes.append(self._write('sonos.join', {GROUPS: {'groups': deepcopy(groups)}},
+                                          {'entity': group[1], 'coordinator': group[0], 'members': group[1:]}))
+        return writes
+
     async def restore(self, target, baseline, session_id):
         call = self.io.call
         if target == FOLLOW:
@@ -286,20 +306,10 @@ class SonosControls:
                 await call('input_boolean', 'turn_on', [FOLLOW], {}, session_id)
             await self.io.wait(lambda: self._follow() == baseline)
         elif target == GROUPS:
-            desired = baseline['groups']
-            if self._groups() == desired:
-                return
-            # All group mutations are one explicitly journaled aggregate control.
-            unchanged = [group for group in self._groups() if group in desired]
-            for group in self._groups():
-                if group in unchanged:
-                    continue
-                for member in group[1:]:
-                    await call('media_player', 'unjoin', [member], {}, session_id)
-            for group in desired:
-                if len(group) > 1 and group not in unchanged:
-                    await call('media_player', 'join', [group[0]], {'group_members': group[1:]}, session_id)
-            await self.io.wait(lambda: self._groups() == desired)
+            # Direct callers use the same confirmed steps. The coordinator uses
+            # plan_restore to persist each step before issuing its physical I/O.
+            for write in await self.plan_restore(target, baseline):
+                await self.apply_write(write, session_id)
         elif target.endswith('#volume'):
             if baseline['volume_level'] is None:
                 raise ValueError('The previous speaker volume was unavailable.')

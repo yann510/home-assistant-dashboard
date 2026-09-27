@@ -124,6 +124,76 @@ class IntegrationTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaisesRegex(RuntimeError,r'^light.turn_on did not complete\.$'):
             await io.call('light','turn_on',[],{},'session')
 
+    async def test_hung_service_deadline_preserves_uncertain_write_until_observed(self):
+        from custom_components.house_moods.coordinator import MoodCoordinator
+        sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'tests'))
+        from test_coordinator import MemoryStore
+        adapter = Adapter()
+        io = HAIO(self.hass)
+        cancelled = asyncio.Event()
+        async def blocked(call):
+            try:
+                await asyncio.Event().wait()
+            finally:
+                cancelled.set()
+        self.hass.services.async_register('light', 'turn_on', blocked)
+        async def apply(write, session_id):
+            await io.call('light', 'turn_on', write.targets, {}, session_id)
+            return deepcopy(write.requested)
+        adapter.apply_write = apply
+        store = MemoryStore()
+        engine = MoodCoordinator(adapter, store)
+        with patch('custom_components.house_moods.ha_adapter.SERVICE_TIMEOUT', .01, create=True):
+            result = await asyncio.wait_for(engine.activate('love'), .5)
+        self.assertEqual(result['phase'], 'recovery_required')
+        self.assertTrue(cancelled.is_set())
+        self.assertFalse(engine._lock.locked())
+        self.assertEqual(store.value.journal[-1]['status'], 'planned')
+        self.assertIn('light.test', store.value.owned)
+        # An unchanged report cannot prove that a timed-out command had no effect.
+        self.assertEqual((await engine.retry_restoration())['phase'], 'recovery_required')
+        adapter.states['light.test'] = {'state': 'on'}
+        self.assertTrue((await engine.retry_restoration())['success'])
+        self.assertEqual(adapter.states['light.test'], {'state': 'off'})
+
+    async def test_production_service_cancellation_is_not_converted_to_timeout(self):
+        io = HAIO(self.hass)
+        entered = asyncio.Event()
+        async def blocked(call):
+            entered.set()
+            await asyncio.Event().wait()
+        self.hass.services.async_register('light', 'turn_on', blocked)
+        task = asyncio.create_task(io.call('light', 'turn_on', ['light.test'], {}, 'session'))
+        await entered.wait()
+        task.cancel()
+        with self.assertRaises(asyncio.CancelledError):
+            await task
+        io.closed = True
+        with self.assertRaises(asyncio.CancelledError):
+            await io.call('light', 'turn_on', [], {}, 'session')
+
+    async def test_browse_deadline_and_cancellation(self):
+        from types import SimpleNamespace
+        from homeassistant.components.media_player import DATA_COMPONENT
+        started = asyncio.Event()
+        async def blocked(*args):
+            started.set()
+            await asyncio.Event().wait()
+        self.hass.data[DATA_COMPONENT] = SimpleNamespace(get_entity=lambda _: SimpleNamespace(async_browse_media=blocked))
+        io = HAIO(self.hass)
+        with patch('custom_components.house_moods.ha_adapter.BROWSE_TIMEOUT', .01, create=True):
+            with self.assertRaisesRegex(RuntimeError, 'favorites could not be read'):
+                await asyncio.wait_for(io.browse('media_player.living_room', 'favorites', ''), .5)
+        started.clear()
+        task = asyncio.create_task(io.browse('media_player.living_room', 'favorites', ''))
+        await started.wait()
+        task.cancel()
+        with self.assertRaises(asyncio.CancelledError):
+            await task
+        io.closed = True
+        with self.assertRaises(asyncio.CancelledError):
+            await io.browse('media_player.living_room', 'favorites', '')
+
     async def test_real_service_event_relinquishes_identical_manual_light(self):
         with patch('custom_components.house_moods.HAAdapter',Adapter):await async_setup(self.hass,{})
         runtime=self.hass.data['house_moods']

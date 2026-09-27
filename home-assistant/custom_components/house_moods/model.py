@@ -6,6 +6,10 @@ MoodId = Literal['love', 'unwind', 'dinner', 'party', 'gym']
 Phase = Literal['idle', 'starting', 'active', 'restoring', 'recovery_required']
 MOODS = ('love', 'unwind', 'dinner', 'party', 'gym')
 
+class OperationTimeout(RuntimeError):
+    """The HA call expired; a remote side effect may still arrive."""
+
+
 @dataclass
 class NativeSnapshot:
     version: int
@@ -68,6 +72,8 @@ class Session:
             if not isinstance(value.get(name), list) or any(not isinstance(e, dict) for e in value[name]):
                 raise ValueError('Invalid session records')
         for entry in value['journal']:
+            if not isinstance(entry.get('uncertain', False), bool):
+                raise ValueError('Invalid journal uncertainty')
             if entry.get('status') not in ('planned', 'confirmed', 'failed') or entry.get('action') not in ('apply', 'restore'):
                 raise ValueError('Invalid journal status/action')
             if not isinstance(entry.get('operation_id'), str) or not isinstance(entry.get('until'), (int, float)):
@@ -118,6 +124,7 @@ class Adapter(Protocol):
     def restore_dependencies(self) -> set[str]: ...
     async def prepare_restore(self, session: Session) -> list[ControlWrite]: ...
     def restoration_state(self, target: str, baseline: dict[str, Any]) -> dict[str, Any]: ...
+    async def plan_restore(self, target: str, baseline: dict[str, Any]) -> list[ControlWrite] | None: ...
     async def restore(self, target: str, state: dict[str, Any], session_id: str) -> None: ...
 
 class SessionStore(Protocol):
