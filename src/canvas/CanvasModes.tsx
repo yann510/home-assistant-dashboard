@@ -1,11 +1,20 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type CSSProperties } from 'react';
+import './canvas-controls-motion.css';
 import { hasVisibleModeFeedback, type useCanvasModes } from './useCanvasModes';
 
 type Modes = ReturnType<typeof useCanvasModes>;
 
 export function CanvasModes({ modes }: { modes: Modes }) {
+  const selected = modes.findIndex(mode => mode.state === 'on');
+  const singleSelected = modes.filter(mode => mode.state === 'on').length === 1;
   return (
-    <div className='canvas-modes' role='group' aria-label='Home modes'>
+    <div
+      className='canvas-modes'
+      role='group'
+      aria-label='Home modes'
+      data-single-selected={singleSelected}
+      style={{ '--mode-index': Math.max(0, selected), '--mode-count': modes.length } as CSSProperties}
+    >
       {modes.map(mode => (
         <button
           key={mode.label}

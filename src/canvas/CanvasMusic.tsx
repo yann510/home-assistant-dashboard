@@ -1,3 +1,5 @@
+import { useFeatureMotion } from './useFeatureMotion';
+import './canvas-feature-motion.css';
 import { CanvasActionIcon } from './CanvasActionIcon';
 import { SpeakerSeek } from '../SpeakerSeek';
 import { SpeakerVolume } from '../SpeakerVolume';
@@ -45,6 +47,7 @@ export function CanvasFollow() {
 export function CanvasTransport() {
   const { playback, disabled, playing, idle, attributes } = useCanvasMusic();
   const features = attributes?.supported_features ?? 0;
+  const playbackMotion = useFeatureMotion(playing ? 'playing' : 'paused');
   if (idle) return null;
   return (
     <div className='canvas-music__transport' aria-label='Playback controls' aria-busy={playback.busy}>
@@ -60,7 +63,9 @@ export function CanvasTransport() {
         disabled={disabled || playback.busy || !(features & (playing ? 1 : 16384))}
         onClick={() => void playback.transport(playing ? 'media_pause' : 'media_play', playing ? 'pause playback' : 'start playback')}
       >
-        <CanvasActionIcon action={playing ? 'pause' : 'play'} size={20} />
+        <span key={playbackMotion.revision} className='canvas-music__play-motion' data-feature-motion={playbackMotion.animate}>
+          <CanvasActionIcon action={playing ? 'pause' : 'play'} size={20} />
+        </span>
       </button>
       <button
         aria-label='Next track'
@@ -84,13 +89,21 @@ export function CanvasMusic({
   const { joinHassUrl } = useHass();
   const [failedArtwork, setFailedArtwork] = useState<string>();
   const picture = !idle && !disabled ? attributes?.entity_picture : undefined;
+  const trackMotion = useFeatureMotion(
+    JSON.stringify([
+      attributes?.media_content_id ?? null,
+      attributes?.media_title ?? attributes?.media_playlist ?? null,
+      attributes?.media_artist ?? null,
+      attributes?.entity_picture ?? null,
+    ])
+  );
   function openSpeakers(trigger: HTMLElement) {
     if (!rooms.busy) rooms.begin();
     onOpenSpeakers(trigger);
   }
   return (
     <section className='canvas__music canvas-music' aria-label='Music'>
-      <div className='canvas-music__track'>
+      <div key={trackMotion.revision} className='canvas-music__track' data-feature-motion={trackMotion.animate}>
         <div className='canvas-music__cover' aria-hidden='true'>
           {picture && failedArtwork !== picture ? (
             <img src={joinHassUrl(picture)} alt='' onError={() => setFailedArtwork(picture)} />
@@ -105,7 +118,9 @@ export function CanvasMusic({
         </div>
       </div>
       <button className='canvas-music__favourites' aria-label='Open favourites' onClick={event => onOpenPlayer(event.currentTarget)}>
-        <svg viewBox='0 0 24 24' aria-hidden='true'><path d='M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z' /></svg>
+        <svg viewBox='0 0 24 24' aria-hidden='true'>
+          <path d='M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z' />
+        </svg>
       </button>
       <div className='canvas-music__bottom'>
         <CanvasTransport />

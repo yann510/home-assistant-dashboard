@@ -1,0 +1,34 @@
+/* Only decorative layers are keyed. Controls retain their focus and geometry. */
+:is(.canvas, .canvas-dialog) .canvas-mood { transition: background-color 420ms ease; }
+.canvas-mood__title-motion { display: inline-block; }
+.canvas-mood[data-feature-motion='true'] .canvas-mood__title-motion { animation: canvas-feature-reveal 320ms ease both; }
+.canvas-mood[data-feature-motion='true'] .canvas-mood__art { animation: canvas-art-reveal 420ms ease both; }
+.canvas-mood__art > * { transform-box: fill-box; transform-origin: center; }
+.canvas-mood[data-feature-motion='true'][data-mood='love'] .canvas-mood__art > * { animation: canvas-love-arrive 650ms ease-out both; }
+.canvas-mood[data-feature-motion='true'][data-mood='unwind'] .canvas-mood__art > * { animation: canvas-unwind-arrive 900ms ease-out both; }
+.canvas-mood[data-feature-motion='true'][data-mood='dinner'] .canvas-mood__art > circle { animation: canvas-dinner-arrive 650ms ease-out both; }
+.canvas-mood[data-feature-motion='true'][data-mood='dinner'] .canvas-mood__art > circle:nth-child(2) { animation-delay: 80ms; }
+.canvas-mood[data-feature-motion='true'][data-mood='party'] .canvas-mood__art > * { animation: canvas-party-arrive 550ms ease-out both; }
+.canvas-mood[data-feature-motion='true'][data-mood='gym'] .canvas-mood__art > * { animation: canvas-gym-arrive 550ms ease-out both; }
+.canvas-music__track[data-feature-motion='true'] > :is(.canvas-music__cover, .canvas-music__metadata) { animation: canvas-feature-reveal 320ms ease both; }
+.canvas-music__play-motion { display: grid; place-items: center; width: 20px; height: 20px; }
+.canvas-music__play-motion[data-feature-motion='true'] { animation: canvas-play-change 200ms ease-out both; }
+.canvas-music__transport button > svg { transition: transform 160ms ease; }
+.canvas-music__transport button:first-of-type:active:not(:disabled) > svg { transform: translateX(-3px); }
+.canvas-music__transport button:nth-of-type(3):active:not(:disabled) > svg { transform: translateX(3px); }
+@keyframes canvas-art-reveal { from { opacity: .15; } to { opacity: .55; } }
+@keyframes canvas-feature-reveal { from { opacity: .35; } to { opacity: 1; } }
+@keyframes canvas-love-arrive { 0% { transform: scale(.92); } 60% { transform: scale(1.025); } 100% { transform: scale(1); } }
+@keyframes canvas-unwind-arrive { from { transform: translateX(-8px); } to { transform: translateX(0); } }
+@keyframes canvas-dinner-arrive { from { transform: scale(.9); } to { transform: scale(1); } }
+@keyframes canvas-party-arrive { 0% { transform: scale(.85); } 60% { transform: scale(1.05); } 100% { transform: scale(1); } }
+@keyframes canvas-gym-arrive { from { transform: translateX(-10px); } to { transform: translateX(0); } }
+@keyframes canvas-play-change { from { opacity: .4; transform: scale(.85); } to { opacity: 1; transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) {
+  :is(.canvas, .canvas-dialog) .canvas-mood,
+  .canvas-music__transport button > svg { transition: none; }
+  .canvas-mood[data-feature-motion='true'] :is(.canvas-mood__title-motion, .canvas-mood__art, .canvas-mood__art > *),
+  .canvas-music__track[data-feature-motion='true'] > :is(.canvas-music__cover, .canvas-music__metadata),
+  .canvas-music__play-motion[data-feature-motion='true'] { animation: none; }
+  .canvas-music__transport button:is(:first-of-type, :nth-of-type(3)):active:not(:disabled) > svg { transform: none; }
+}

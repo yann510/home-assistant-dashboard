@@ -1,0 +1,48 @@
+/* State changes decorate existing controls; commands and focus remain immediate. */
+.canvas .canvas-modes.canvas-modes {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  grid-template-columns: repeat(var(--mode-count), 1fr);
+}
+.canvas .canvas-modes::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  pointer-events: none;
+  top: 3px;
+  bottom: 3px;
+  left: 3px;
+  width: calc((100% - 6px - (var(--mode-count) - 1) * 6px) / var(--mode-count));
+  border-radius: inherit;
+  background: #e7dba3;
+  opacity: 0;
+  transform: translateX(calc(var(--mode-index) * (100% + 6px)));
+  transition: transform 220ms ease, opacity 150ms ease;
+}
+.canvas .canvas-modes[data-single-selected='true']::before { opacity: 1; }
+.canvas .canvas-modes[data-single-selected='true'] button[aria-pressed='true'] { background: transparent; border-color: transparent; }
+.canvas .canvas-modes button { transition: color 150ms ease; }
+.canvas .canvas-lights[data-lit],
+.canvas .canvas-lights__quick-light,
+.canvas .canvas-lights__quick-dot,
+.canvas .canvas-lights__power,
+:is(.canvas, .canvas-dialog) .canvas-blinds .canvas-blinds__rooms button,
+:is(.canvas, .canvas-dialog) .canvas-blinds .canvas-blinds__window {
+  transition: background-color 180ms ease, border-color 180ms ease, color 180ms ease, fill 180ms ease;
+}
+:is(.canvas, .canvas-dialog) .canvas-blinds .canvas-blinds__actions button svg { transition: transform 130ms ease-out; }
+:is(.canvas, .canvas-dialog) .canvas-blinds .canvas-blinds__actions button[data-direction='open']:active:not(:disabled) svg { transform: translateY(-2px); }
+:is(.canvas, .canvas-dialog) .canvas-blinds .canvas-blinds__actions button[data-direction='close']:active:not(:disabled) svg { transform: translateY(2px); }
+@media (prefers-reduced-motion: reduce) {
+  .canvas .canvas-modes::before,
+  .canvas .canvas-modes button,
+  .canvas .canvas-lights[data-lit],
+  .canvas .canvas-lights__quick-light,
+  .canvas .canvas-lights__quick-dot,
+  .canvas .canvas-lights__power,
+  :is(.canvas, .canvas-dialog) .canvas-blinds .canvas-blinds__rooms button,
+  :is(.canvas, .canvas-dialog) .canvas-blinds .canvas-blinds__window,
+  :is(.canvas, .canvas-dialog) .canvas-blinds .canvas-blinds__actions button svg { transition: none; }
+  :is(.canvas, .canvas-dialog) .canvas-blinds .canvas-blinds__actions button[data-direction]:active:not(:disabled) svg { transform: none; }
+}

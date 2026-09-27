@@ -888,3 +888,25 @@ it('renders playback symbols as decorative vectors rather than platform emoji', 
   expect(resume.querySelector('svg[aria-hidden="true"][focusable="false"]')).toBeTruthy();
   expect(sendMessagePromise).not.toHaveBeenCalled();
 });
+
+it('fades only reported track changes and keeps transport controls mounted across playback changes', () => {
+  const view = mount();
+  const initialTrack = view.container.querySelector('.canvas-music__track');
+  const pause = screen.getByRole('button', { name: 'Pause' });
+  const initialPlayIcon = pause.querySelector('.canvas-music__play-motion');
+  expect(initialTrack?.getAttribute('data-feature-motion')).toBe('false');
+  updateEntity('media_player.living_room', {}, { media_position: 45, volume_level: .5 });
+  expect(view.container.querySelector('.canvas-music__track')).toBe(initialTrack);
+  expect(pause.querySelector('.canvas-music__play-motion')).toBe(initialPlayIcon);
+  updateEntity('media_player.living_room', {}, { media_title: 'A new reported track' });
+  const newTrack = view.container.querySelector('.canvas-music__track');
+  expect(newTrack).not.toBe(initialTrack);
+  expect(newTrack?.getAttribute('data-feature-motion')).toBe('true');
+  expect(screen.getByRole('button', { name: 'Pause' })).toBe(pause);
+  updateEntity('media_player.living_room', { state: 'paused' });
+  expect(screen.getByRole('button', { name: 'Resume' })).toBe(pause);
+  expect(pause.querySelector('.canvas-music__play-motion')).not.toBe(initialPlayIcon);
+  expect(view.container.querySelector('.canvas-music__track')).toBe(newTrack);
+  updateEntity('media_player.living_room', {}, { media_position: 46 });
+  expect(view.container.querySelector('.canvas-music__track')).toBe(newTrack);
+});

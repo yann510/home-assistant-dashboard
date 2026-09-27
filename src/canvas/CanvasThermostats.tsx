@@ -3,6 +3,7 @@ import { useStore } from '@hakit/core';
 import { RoomArtwork } from './RoomArtwork';
 import { getRoomAccent } from './room-artwork';
 import './canvas-thermostats.css';
+import { useControlChangeFade } from './useControlChangeFade';
 import { useDeviceCommand } from './useDeviceCommand';
 
 const rooms = [
@@ -74,6 +75,14 @@ export function CanvasThermostatsProvider({ children }: { children: ReactNode })
   const bedroom = useThermostat(rooms[2]);
   return <ThermostatsContext.Provider value={[office, gym, bedroom]}>{children}</ThermostatsContext.Provider>;
 }
+function ReportedTarget({ room, value }: { room: string; value: string }) {
+  const ref = useControlChangeFade<HTMLOutputElement>(value);
+  return (
+    <output ref={ref} aria-label={`${room} target temperature`} aria-live='polite'>
+      {value}
+    </output>
+  );
+}
 export function CanvasThermostats() {
   const controllers = useContext(ThermostatsContext);
   if (!controllers) throw new Error('CanvasThermostatsProvider is required.');
@@ -114,9 +123,7 @@ export function CanvasThermostats() {
                     <path d='M6 12h12' />
                   </svg>
                 </button>
-                <output aria-label={`${room.name} target temperature`} aria-live='polite'>
-                  {!unavailable && numeric(target) ? `${format(target)}°` : '—'}
-                </output>
+                <ReportedTarget room={room.name} value={!unavailable && numeric(target) ? `${format(target)}°` : '—'} />
                 <button
                   type='button'
                   aria-label={`Raise ${room.name} target temperature`}

@@ -49,3 +49,34 @@ it('reuses the caption for progress and recovery without adding status rows', ()
   expect(screen.getByRole('alert').textContent).toContain('Could not restore light');
   expect(screen.getByRole('button', { name: 'Retry restoration' })).toBeTruthy();
 });
+
+it('animates confirmed mood changes once without replacing controls or celebrating pending requests', () => {
+  const base: HouseMoodCardProps = {
+    status: { phase: 'idle', activeMood: null, pendingMood: null, errors: [] },
+    connected: true,
+    available: true,
+    onActivate: vi.fn(),
+    onEnd: vi.fn(),
+    onRetry: vi.fn(),
+  };
+  const view = render(<CanvasMood controller={base} />);
+  const card = screen.getByRole('region', { name: 'House Mood' });
+  const initialArt = card.querySelector('.canvas-mood__art');
+  const button = screen.getByRole('button', { name: 'Love mood' });
+  expect(card.getAttribute('data-feature-motion')).toBe('false');
+  view.rerender(<CanvasMood controller={{ ...base, status: { ...base.status, phase: 'starting', pendingMood: 'love' } }} />);
+  expect(card.getAttribute('data-mood')).toBe('neutral');
+  expect(card.querySelector('.canvas-mood__art')).toBe(initialArt);
+  const active: HouseMoodCardProps = { ...base, status: { ...base.status, phase: 'active', activeMood: 'love' } };
+  view.rerender(<CanvasMood controller={active} />);
+  const loveArt = card.querySelector('.canvas-mood__art');
+  expect(loveArt).not.toBe(initialArt);
+  expect(card.getAttribute('data-feature-motion')).toBe('true');
+  expect(card.getAttribute('data-mood')).toBe('love');
+  expect(screen.getByRole('button', { name: 'Love mood' })).toBe(button);
+  view.rerender(<CanvasMood controller={{ ...active, status: { ...active.status } }} />);
+  expect(card.querySelector('.canvas-mood__art')).toBe(loveArt);
+  view.rerender(<CanvasMood controller={{ ...active, status: { ...active.status, phase: 'restoring' } }} />);
+  expect(card.getAttribute('data-mood')).toBe('neutral');
+  expect(screen.getByRole('heading', { name: 'Just be.' })).toBeTruthy();
+});

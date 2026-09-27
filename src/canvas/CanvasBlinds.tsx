@@ -8,6 +8,7 @@ import {
 } from './useCanvasBlinds';
 import type { TargetResult } from './commands';
 import './canvas-blinds.css';
+import './canvas-controls-motion.css';
 
 const label = (room: BlindRoom) => (room === 'living room' ? 'Living room' : room === 'bedroom' ? 'Bedroom' : 'Gym');
 const actions: readonly BlindAction[] = ['open', 'stop', 'close'];
@@ -33,8 +34,8 @@ export function CanvasBlinds({ initialRoom }: { initialRoom?: BlindRoom } = {}) 
 
 function CanvasBlindsView({ initialRoom }: { initialRoom?: BlindRoom }) {
   const { selection, toggleRoom, run, retryFailed, failedRooms, results, pending, movingRooms, connected } = useCanvasBlinds(initialRoom);
-  const differentStopTargets = movingRooms.length > 0 &&
-    (movingRooms.length !== selection.length || movingRooms.some(room => !selection.includes(room)));
+  const differentStopTargets =
+    movingRooms.length > 0 && (movingRooms.length !== selection.length || movingRooms.some(room => !selection.includes(room)));
   return (
     <section className='canvas-blinds' aria-label='Blinds'>
       <div className='canvas-blinds__heading'>
@@ -82,6 +83,7 @@ function CanvasBlindsView({ initialRoom }: { initialRoom?: BlindRoom }) {
         {actions.map(action => (
           <button
             key={action}
+            data-direction={action}
             type='button'
             aria-label={
               action === 'stop' && movingRooms.length
@@ -114,11 +116,7 @@ function CanvasBlindsView({ initialRoom }: { initialRoom?: BlindRoom }) {
           {!connected ? 'Home Assistant is disconnected. Reconnect to control blinds.' : 'Select one or more rooms above'}
         </p>
       )}
-      {differentStopTargets && (
-        <p className='canvas-blinds__caption'>
-          Stop targets {movingRooms.map(label).join(' + ')}.
-        </p>
-      )}
+      {differentStopTargets && <p className='canvas-blinds__caption'>Stop targets {movingRooms.map(label).join(' + ')}.</p>}
       {actions.map(
         action =>
           results[action] && (

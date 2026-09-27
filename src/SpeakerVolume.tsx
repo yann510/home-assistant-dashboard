@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { useEntity, useIcon, useStore, type EntityName, type FilterByDomain } from '@hakit/core';
 import { useSpeakerCommand } from './useSpeakerCommand';
+import { animateCanvasChange } from './canvas/motion';
 import { onSpeakerDisconnect } from './speakerConnection';
 
 type SpeakerId = FilterByDomain<EntityName, 'media_player'>;
@@ -57,6 +58,14 @@ export function SpeakerVolume({
   const plus = useIcon('mdi:plus');
   const muteIcon = useIcon(muted ? 'mdi:volume-off' : 'mdi:volume-high');
   const level = draft ?? reported;
+  const volumeOutput = useRef<HTMLOutputElement>(null);
+  const previousReported = useRef(reported);
+  useEffect(() => {
+    if (previousReported.current === reported) return;
+    previousReported.current = reported;
+    if (draft !== null || !volumeOutput.current?.closest('.canvas, .canvas-dialog')) return;
+    return animateCanvasChange(volumeOutput.current, [{ opacity: .45 }, { opacity: 1 }], 160);
+  }, [reported, draft]);
   const label = accessibleLabel ?? (room ? `${room} volume` : 'Volume');
   const heading = room ?? (targets.length > 1 ? 'Group volume' : `${attributes?.friendly_name ?? 'Speaker'} volume`);
 
@@ -220,7 +229,7 @@ export function SpeakerVolume({
     <>
       <div className='speaker-volume-heading'>
         <label htmlFor={id}>{heading}</label>
-        <output htmlFor={id}>
+        <output ref={volumeOutput} htmlFor={id}>
           {muted ? 'Muted · ' : ''}
           {Number.isFinite(attributes?.volume_level) ? `${level}%` : '—'}
         </output>

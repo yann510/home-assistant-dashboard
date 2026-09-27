@@ -4,6 +4,7 @@ import { useStore } from '@hakit/core';
 import { finite, useQuietForecast, useQuietWeather, type ForecastEntry, type ForecastType } from '../useQuietForecast';
 import { conditionLabel, forecastDateKey, forecastHourLabel, upcomingHours, weatherIcon, type WeatherIconName } from './weather';
 import './canvas-weather.css';
+import { useControlChangeFade } from './useControlChangeFade';
 
 function WeatherGlyph({ condition, isDaytime }: { condition?: string; isDaytime?: boolean }) {
   const name: WeatherIconName = weatherIcon(condition, isDaytime);
@@ -277,6 +278,7 @@ export function CanvasWeather({ dialogProps }: { dialogProps?: WeatherDialogProp
     if (period) controlsRef.current?.querySelector<HTMLButtonElement>(`[data-forecast-period="${period}"]`)?.focus({ preventScroll: true });
   }, [wide]);
   const forecast = useQuietForecast(requested);
+  const forecastRef = useControlChangeFade<HTMLDivElement>(forecast.type);
   const { entity } = useQuietWeather();
   const config = useStore(state => state.config);
   const timeZone = config?.time_zone;
@@ -375,7 +377,7 @@ export function CanvasWeather({ dialogProps }: { dialogProps?: WeatherDialogProp
             <p role='status'>No upcoming forecast entries are available yet.</p>
           ) : (
             <>
-              <div className='canvas-weather__table'>
+              <div ref={forecastRef} className='canvas-weather__table'>
                 <div className={`canvas-weather__column-head canvas-weather__column-head--${forecast.type}`} aria-hidden='true'>
                   <span>Time</span>
                   <span className='canvas-weather__condition-heading'>Conditions</span>

@@ -1,5 +1,6 @@
 import { CanvasActionIcon } from './CanvasActionIcon';
-import { useState, type ReactNode } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
+import { usePulseMotion } from './usePulseMotion';
 import { useStore } from '@hakit/core';
 import { ApplianceIcon } from '../ApplianceIcon';
 import { useApplianceClock } from '../useApplianceClock';
@@ -85,6 +86,14 @@ export function CanvasPulse({
     !snoozed.length &&
     !feedback;
 
+  const itemsRef = useRef<HTMLDivElement>(null);
+  usePulseMotion(
+    itemsRef,
+    attention.connected
+      ? [...shownActivities.map(item => `device:${item.id}`), ...visible.map(item => `notice:${item.id}:${item.episode}`)]
+      : []
+  );
+
   if (quiet && quietPresentation === 'hidden') return null;
   if (quiet && quietPresentation === 'art')
     return (
@@ -120,13 +129,14 @@ export function CanvasPulse({
         <p role='status'>Live activity unavailable while disconnected.</p>
       ) : (
         <>
-          <div className='canvas-pulse__items'>
+          <div className='canvas-pulse__items' ref={itemsRef}>
             {feedback}
             {shownActivities.map(item => (
               <button
                 key={item.id}
                 type='button'
                 className={`canvas-pulse__activity${item.active ? ' appliance-animation' : ''}`}
+                data-pulse-key={`device:${item.id}`}
                 data-device={item.id}
                 data-state={item.iconState}
                 aria-label={`${item.name} ${item.status}`}
@@ -165,7 +175,8 @@ export function CanvasPulse({
             )}
             {visible.map(item => (
               <button
-                key={item.episode}
+                key={`${item.id}:${item.episode}`}
+                data-pulse-key={`notice:${item.id}:${item.episode}`}
                 type='button'
                 className='canvas-pulse__notice'
                 data-tone={item.tone}
@@ -175,7 +186,10 @@ export function CanvasPulse({
                   if (item.target === 'mood') {
                     const moodCard = document.querySelector<HTMLElement>('.canvas-mood');
                     moodCard?.focus({ preventScroll: true });
-                    moodCard?.scrollIntoView?.({ behavior: 'smooth', block: 'nearest' });
+                    moodCard?.scrollIntoView?.({
+                      behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+                      block: 'nearest',
+                    });
                     return;
                   }
                   onOpen(routeForAttention(item), event.currentTarget);

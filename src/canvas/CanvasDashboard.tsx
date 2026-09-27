@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useStore } from '@hakit/core';
 import { CanvasDialog } from './CanvasDialog';
+import { animateCanvasExit } from './motion';
 import { canvasRouteTitle, routeForAttention, type CanvasRoute } from './routes';
 import { CanvasLights, CanvasAllLights, CanvasAllLightsAction } from './CanvasLights';
 import { CanvasLightDetails } from './CanvasLightDetails';
@@ -24,6 +25,7 @@ import { AppliancesCard } from '../AppliancesCard';
 import { CanvasVacuum, CanvasVacuumProvider } from './CanvasVacuum';
 import { CanvasWeatherDialog, CanvasWeatherNow } from './CanvasWeather';
 import './canvas.css';
+import './canvas-motion.css';
 import './canvas-music.css';
 import './canvas-secondary.css';
 import './canvas-appliances-vacuum.css';
@@ -75,6 +77,7 @@ function CanvasDashboardContent({ quietPulse }: { quietPulse?: QuietPulsePresent
     setRoute(next);
   }
   function close() {
+    animateCanvasExit(document.querySelector<HTMLElement>('main.canvas .canvas-dialog__panel'));
     setRouteHistory([]);
     setRoute({ kind: 'overview' });
     setSelectedAttention(null);

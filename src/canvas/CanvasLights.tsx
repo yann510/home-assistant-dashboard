@@ -7,6 +7,8 @@ import { RoomArtwork } from './RoomArtwork';
 import { getRoomAccent } from './room-artwork';
 import './canvas-lights-quick.css';
 import './canvas-lights-all.css';
+import './canvas-controls-motion.css';
+import { useControlChangeFade } from './useControlChangeFade';
 import { useCanvasLights, lightSupportsBrightness, type CanvasRoom } from './useCanvasLights';
 
 function quickLightName(name: string, room: string) {
@@ -251,8 +253,10 @@ export function CanvasLights({ onOpenAll }: { onOpenAll(trigger: HTMLElement): v
   const settings = useLightSettings();
   const { rooms, selectedRoom, setSelectedRoom, connected } = useCanvasLights();
   const room = rooms.find(item => item.name === selectedRoom) ?? rooms[0];
+  const contentRef = useControlChangeFade<HTMLElement>(room.name, '.canvas-lights__room-artwork, .canvas-lights__quick-light span');
   return (
     <section
+      ref={contentRef}
       className='canvas-lights canvas-lights--compact'
       aria-label='Lights'
       onKeyDown={settings.onKeyDown}

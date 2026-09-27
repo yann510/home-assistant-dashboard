@@ -1,5 +1,7 @@
 import { useEffect, useId, useLayoutEffect, useRef, type ReactNode } from 'react';
 
+import { animateCanvasChange, animateCanvasExit } from './motion';
+
 const focusable =
   'summary, a[href], button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])';
 
@@ -23,6 +25,14 @@ export function CanvasDialog({
   const titleId = useId();
   const panel = useRef<HTMLElement>(null);
   const body = useRef<HTMLDivElement>(null);
+  const previousRoute = useRef(routeKey);
+  useLayoutEffect(() => {
+    if (previousRoute.current !== routeKey) {
+      previousRoute.current = routeKey;
+      return animateCanvasChange(body.current, [{ opacity: .35 }, { opacity: 1 }]);
+    }
+  }, [routeKey]);
+  const close = () => { animateCanvasExit(panel.current); onClose(); };
   useLayoutEffect(() => {
     if (body.current) body.current.scrollTop = scrollTop;
   }, [routeKey, scrollTop]);
@@ -52,7 +62,7 @@ export function CanvasDialog({
         if (event.target === event.currentTarget) {
           // Avoid moving focus to the backdrop after cleanup restores the trigger.
           event.preventDefault();
-          onClose();
+          close();
         }
       }}
     >
@@ -66,7 +76,7 @@ export function CanvasDialog({
         onKeyDown={event => {
           if (event.key === 'Escape') {
             event.stopPropagation();
-            onClose();
+            close();
             return;
           }
           if (event.key !== 'Tab') return;
@@ -99,7 +109,7 @@ export function CanvasDialog({
           )}
           <h2 id={titleId}>{title}</h2>
           {headerAccessory}
-          <button type='button' onClick={onClose} aria-label='Close details' className='canvas-dialog__close'>
+          <button type='button' onClick={close} aria-label='Close details' className='canvas-dialog__close'>
             ×
           </button>
         </header>

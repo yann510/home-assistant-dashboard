@@ -1,0 +1,25 @@
+/* Motion changes presentation only: controls keep their original hit areas. */
+@media (prefers-reduced-motion: no-preference) {
+  :is(.canvas, .canvas-dialog) button,
+  :is(.canvas, .canvas-dialog) [role='option'],
+  .canvas-dialog .canvas-speakers__room {
+    transition: background-color 180ms ease, border-color 180ms ease, color 180ms ease, scale 120ms ease;
+  }
+  :is(.canvas, .canvas-dialog) button:not(:disabled):active,
+  :is(.canvas, .canvas-dialog) [role='option']:active,
+  .canvas-dialog .canvas-speakers__room-select:not(:has(:disabled)):active { scale: .97; }
+  .canvas-dialog__panel { animation: canvas-panel-enter 200ms cubic-bezier(.2,.7,.3,1) both; }
+  .canvas-light-settings { animation: canvas-settings-enter 180ms ease both; }
+  :is(.canvas, .canvas-dialog) button[aria-busy='true'] { animation: canvas-command-wait 1100ms ease-in-out infinite alternate; }
+}
+@keyframes canvas-panel-enter { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes canvas-settings-enter { from { opacity: 0; } to { opacity: 1; } }
+@keyframes canvas-command-wait { from { opacity: .65; } to { opacity: 1; } }
+/* Include portalled speaker settings as well as the main dashboard. */
+@media (prefers-reduced-motion: reduce) {
+  :is(.canvas, .canvas-dialog) *, :is(.canvas, .canvas-dialog) *::before, :is(.canvas, .canvas-dialog) *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}

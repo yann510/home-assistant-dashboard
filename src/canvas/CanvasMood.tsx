@@ -1,3 +1,5 @@
+import { useFeatureMotion } from './useFeatureMotion';
+import './canvas-feature-motion.css';
 import type { HouseMoodCardProps, MoodId } from '../moodTypes';
 import { attentionExplanation, type AttentionItem } from '../attention';
 
@@ -49,7 +51,10 @@ export function CanvasMood({
   const { status, connected, available, onActivate, onEnd, onRetry } = controller;
   const busy = status.phase === 'starting' || status.phase === 'restoring';
   const recovery = status.phase === 'recovery_required';
-  const current = moods.find(mood => mood.id === (status.pendingMood ?? status.activeMood));
+  // A requested mood is not yet a reported result. Restoration returns to neutral.
+  const confirmedMood = status.phase === 'active' || status.phase === 'starting' ? status.activeMood : null;
+  const current = moods.find(mood => mood.id === confirmedMood);
+  const { revision, animate } = useFeatureMotion(confirmedMood);
   const locked = !connected || !available || busy || recovery;
   const showActions = recovery || Boolean(status.activeMood);
   const message = !connected
@@ -64,10 +69,21 @@ export function CanvasMood({
             ? 'Restoration needs attention.'
             : null;
   return (
-    <section className='canvas-mood' style={{ background: current?.colour ?? '#cbb5ed' }} aria-label='House Mood' tabIndex={-1}>
+    <section
+      data-mood={current?.id ?? 'neutral'}
+      data-feature-motion={animate}
+      className='canvas-mood'
+      style={{ background: current?.colour ?? '#cbb5ed' }}
+      aria-label='House Mood'
+      tabIndex={-1}
+    >
       <div className='canvas-mood__copy'>
         <span className='canvas__eyebrow'>The feeling of home</span>
-        <h2>{current?.name ?? 'Just be.'}</h2>
+        <h2>
+          <span key={revision} className='canvas-mood__title-motion'>
+            {current?.name ?? 'Just be.'}
+          </span>
+        </h2>
         <p role={message ? 'status' : undefined}>{message ?? current?.caption ?? 'Your space. Your own pace.'}</p>
         {status.errors.length > 0 && (
           <div role='alert' className='canvas-mood__error'>
@@ -102,7 +118,7 @@ export function CanvasMood({
           </div>
         )}
       </div>
-      <MoodArt id={current?.id ?? null} />
+      <MoodArt key={revision} id={current?.id ?? null} />
       <div className='canvas-mood__picker' role='group' aria-label='Choose a house mood'>
         {moods.map(mood => (
           <button
