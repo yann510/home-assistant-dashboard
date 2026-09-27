@@ -9,7 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from homeassistant.core import Context, HomeAssistant, SupportsResponse
 from homeassistant.exceptions import HomeAssistantError
-from custom_components.house_moods.action import ChillAction
+from custom_components.chill_assist.action import ChillAction
 
 
 SUCCESS = {'success': True, 'phase': 'active', 'active_mood': 'unwind', 'errors': []}
