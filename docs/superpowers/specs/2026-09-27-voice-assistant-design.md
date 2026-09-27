@@ -1,6 +1,6 @@
 # iPhone voice assistant MVP
 
-Status: written design approved by the user September 27, 2026. Implementation plan approved; implementation is in progress.
+Status: written design approved by the user September 27, 2026. Implementation plan approved; the reviewed Chill component is deployed. OpenAI configuration and live iPhone acceptance await private API-key entry.
 
 ## Intent and agreed scope
 
