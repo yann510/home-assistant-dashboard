@@ -25,14 +25,7 @@ export function CanvasLightDetails({
   const { rooms, power, send, busy, connected, result } = useCanvasLights();
   const light = rooms.flatMap(room => room.lights).find(item => item.id === entityId);
   const roomName = rooms.find(room => room.lights.some(item => item.id === entityId))?.name;
-  let title = light?.name ?? 'Light';
-  if (embedded) {
-    title = title.replace(/^light[ _-]+/i, '');
-    if (roomName && title.toLowerCase().startsWith(roomName.toLowerCase()) && /^[ _-]/.test(title.slice(roomName.length))) {
-      title = title.slice(roomName.length).replace(/^[ _-]+/, '');
-    }
-    title = (title[0]?.toUpperCase() + title.slice(1)).replace(/\bled\b/gi, 'LED');
-  }
+  const title = light ? (embedded ? light.label : `${roomName} · ${light.label}`) : 'Light';
   const entity = light?.entity;
   const attrs = entity?.attributes;
   const available = Boolean(connected && light && light.state !== 'unavailable');
@@ -139,7 +132,10 @@ export function CanvasLightDetails({
     <section className='canvas-lights canvas-lights--detail' aria-label={`${light.name} controls`}>
       <div className='canvas-lights__heading'>
         <div>
-          <h3 title={light.name}>{title}</h3>
+          <details className='canvas-lights__full-name'>
+            <summary aria-label={`${light.name} — show full name`} title={light.name}><h3>{title}</h3></summary>
+            <p>{light.name}</p>
+          </details>
           {!embedded && (
             <p className='canvas-lights__muted'>{light.state === 'unavailable' ? 'Unavailable' : light.state === 'on' ? 'On' : 'Off'}</p>
           )}

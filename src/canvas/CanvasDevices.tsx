@@ -147,11 +147,11 @@ export function CanvasDevices({
     ...rooms.flatMap(room =>
       room.lights.map(light => ({
         id: light.id,
-        name: `${room.name} · ${light.name}`,
+        name: `${room.name} · ${light.label}`,
         detail: `${light.state === 'unavailable' ? 'Unavailable' : light.state === 'on' ? 'On' : 'Off'} · Power, brightness and colour when supported`,
         category: 'Lights',
         room: room.name,
-        search: `${room.name} ${light.name} light bulb brightness colour color`,
+        search: `${room.name} ${light.name} ${light.label} light bulb brightness colour color`,
         route: { kind: 'light', entityId: light.id } as CanvasRoute,
       }))
     ),

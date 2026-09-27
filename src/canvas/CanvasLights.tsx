@@ -11,15 +11,6 @@ import './canvas-controls-motion.css';
 import { useControlChangeFade } from './useControlChangeFade';
 import { useCanvasLights, lightSupportsBrightness, type CanvasRoom } from './useCanvasLights';
 
-function quickLightName(name: string, room: string) {
-  let short = name.replace(/^light[ _-]+/i, '');
-  if (short.toLowerCase().startsWith(room.toLowerCase()) && /^[ _-]/.test(short.slice(room.length))) {
-    short = short.slice(room.length).replace(/^[ _-]+/, '');
-  }
-  if (!short.trim()) short = name;
-  return (short[0].toUpperCase() + short.slice(1)).replace(/\bled\b/gi, 'LED');
-}
-
 function CommandFeedback({ compact = false }: { compact?: boolean }) {
   const { result, rooms } = useCanvasLights();
   if (!result) return null;
@@ -34,7 +25,11 @@ function CommandFeedback({ compact = false }: { compact?: boolean }) {
             ? `${failures.length} light${failures.length === 1 ? ' needs' : 's need'} attention. Open All lights for details.`
             : failures
                 .map(
-                  item => `${rooms.flatMap(room => room.lights).find(light => light.id === item.target)?.name ?? 'Light'}: ${item.message}`
+                  item => {
+                    const room = rooms.find(room => room.lights.some(light => light.id === item.target));
+                    const light = room?.lights.find(light => light.id === item.target);
+                    return `${room && light ? `${room.name} · ${light.label}` : 'Light'}: ${item.message}`;
+                  }
                 )
                 .join(' ')}
         </p>
@@ -220,7 +215,7 @@ function IndividualLights({
             }}
           >
             <span className='canvas-lights__quick-dot' aria-hidden='true' />
-            <span title={light.name}>{quickPending.has(light.id) ? 'Updating…' : quickLightName(light.name, room.name)}</span>
+            <span title={light.name}>{quickPending.has(light.id) ? 'Updating…' : light.label}</span>
           </button>
           {onOpenLight && (
             <button

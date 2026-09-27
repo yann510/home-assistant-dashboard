@@ -45,3 +45,13 @@
 
 /* Make room for an in-card editor without overlapping neighbouring rooms. */
 .canvas-dialog .canvas-lights--all .canvas-lights__group--settings { min-height: 228px; }
+
+:is(.canvas, .canvas-dialog) .canvas-lights__full-name { position: relative; font-size: .7rem; color: var(--canvas-muted); }
+:is(.canvas, .canvas-dialog) .canvas-lights__full-name summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; }
+:is(.canvas, .canvas-dialog) .canvas-lights__full-name p { margin: 0 0 8px; overflow-wrap: anywhere; }
+
+:is(.canvas, .canvas-dialog) .canvas-light-settings .canvas-lights__full-name p { position: absolute; top: 100%; left: 0; right: 0; z-index: 2; padding: 8px; border: 1px solid var(--canvas-line); border-radius: 8px; background: var(--canvas-surface); box-shadow: 0 4px 12px var(--canvas-line); }
+:is(.canvas, .canvas-dialog) .canvas-lights__full-name summary { gap: 6px; }
+:is(.canvas, .canvas-dialog) .canvas-lights__full-name summary h3 { min-width: 0; }
+:is(.canvas, .canvas-dialog) .canvas-lights__full-name summary::after { content: '+'; flex-shrink: 0; font-size: .85rem; }
+:is(.canvas, .canvas-dialog) .canvas-lights__full-name[open] summary::after { content: '−'; }

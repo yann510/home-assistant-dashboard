@@ -246,7 +246,7 @@ it('reports partial all-off rejection per target without claiming the whole hous
     </CanvasLightsProvider>
   );
   await userEvent.click(screen.getByRole('button', { name: 'Turn off all lights' }));
-  expect(await screen.findByRole('alert')).toHaveProperty('textContent', expect.stringContaining('Gym: Gym denied'));
+  expect(await screen.findByRole('alert')).toHaveProperty('textContent', expect.stringContaining('Gym · Main light: Gym denied'));
   expect(screen.getByRole('button', { name: 'Turn off all lights' })).toBeTruthy();
 });
 
@@ -1034,4 +1034,19 @@ it('omits unsupported adjustment choices and keeps missing brightness visibly un
   expect(screen.getByRole('group', { name: 'Light adjustments' }).querySelectorAll('button')).toHaveLength(1);
   expect(screen.getByText('—')).toBeTruthy();
   expect(screen.getByRole('slider').getAttribute('aria-valuetext')).toContain('current brightness unknown');
+});
+
+it('shows compact dashboard labels while keeping the full name available in settings', async () => {
+  const fullName = 'Smart WiFi music LED Strip Living Room Led Strip';
+  ref.current!.publish('light.living_room_led_strip', 'on', { friendly_name: fullName });
+  render(<CanvasLightsProvider><CanvasLights onOpenAll={() => {}} /></CanvasLightsProvider>);
+  expect(screen.getByRole('button', { name: `Turn off ${fullName}` }).textContent).toBe('LED strip');
+  await userEvent.click(screen.getByRole('button', { name: `${fullName} settings` }));
+  expect(screen.getByRole('heading', { name: 'LED strip' })).toBeTruthy();
+  const disclosure = screen.getByText('LED strip', { selector: 'h3' }).closest('details')!;
+  expect(disclosure.open).toBe(false);
+  await userEvent.click(disclosure.querySelector('summary')!);
+  expect(disclosure.open).toBe(true);
+  expect(disclosure.querySelector('p')?.textContent).toBe(fullName);
+  expect(ref.current!.calls).toHaveLength(0);
 });

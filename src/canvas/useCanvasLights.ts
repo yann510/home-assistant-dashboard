@@ -1,10 +1,11 @@
 import { createContext, createElement, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useStore, type LightEntity } from '@hakit/core';
 import { rooms as inventory } from '../useLightSummary';
+import { lightLabel } from './lightLabels';
 import { useDeviceCommand } from './useDeviceCommand';
 import type { CommandResult, DeviceIntent, TargetResult } from './commands';
 
-export type CanvasLight = { id: string; name: string; state: 'on' | 'off' | 'unavailable'; entity?: LightEntity };
+export type CanvasLight = { id: string; name: string; label: string; state: 'on' | 'off' | 'unavailable'; entity?: LightEntity };
 export type CanvasRoom = {
   name: string;
   lights: CanvasLight[];
@@ -41,6 +42,7 @@ function useCanvasLightsController() {
           return {
             id,
             name: readableName(id, entity),
+            label: lightLabel(id, readableName(id, entity), room.name),
             state: usable(entity) ? (entity!.state as 'on' | 'off') : ('unavailable' as const),
             entity,
           };
