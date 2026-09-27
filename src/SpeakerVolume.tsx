@@ -12,6 +12,7 @@ export function SpeakerVolume({
   disabled,
   room,
   accessibleLabel,
+  headingLabel,
   onOpenSettings,
   children,
 }: {
@@ -20,6 +21,7 @@ export function SpeakerVolume({
   disabled: boolean;
   room?: string;
   accessibleLabel?: string;
+  headingLabel?: string;
   onOpenSettings?: (trigger: HTMLElement) => void;
   children?: ReactNode;
 }) {
@@ -67,7 +69,7 @@ export function SpeakerVolume({
     return animateCanvasChange(volumeOutput.current, [{ opacity: .45 }, { opacity: 1 }], 160);
   }, [reported, draft]);
   const label = accessibleLabel ?? (room ? `${room} volume` : 'Volume');
-  const heading = room ?? (targets.length > 1 ? 'Group volume' : `${attributes?.friendly_name ?? 'Speaker'} volume`);
+  const heading = headingLabel ?? room ?? (targets.length > 1 ? 'Group volume' : `${attributes?.friendly_name ?? 'Speaker'} volume`);
 
   useEffect(() => {
     const panel = popup.current;

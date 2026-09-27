@@ -404,6 +404,8 @@ describe('Canvas music', () => {
     mount();
     await userEvent.click(screen.getByRole('switch', { name: 'Follow me' }));
     await userEvent.click(screen.getByRole('button', { name: 'Open speakers' }));
+    expect(screen.queryByRole('switch', { name: 'Follow me' })).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'Close detail' }));
     expect((screen.getByRole('switch', { name: 'Follow me' }) as HTMLButtonElement).disabled).toBe(true);
     expect(sendMessagePromise).toHaveBeenCalledTimes(1);
     await act(async () => resolve({ response: { success: true } }));
@@ -440,7 +442,7 @@ describe('Canvas music', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Open speakers' }));
     await userEvent.click(screen.getByRole('checkbox', { name: /bathroom/ }));
     expect(sendMessagePromise).toHaveBeenCalledWith(expect.objectContaining({ service: 'join' }));
-    expect(screen.getByRole('checkbox', { name: /bathroom/ }).closest('label')?.textContent).toContain('Joining…');
+    expect(screen.getByRole('checkbox', { name: /bathroom/ }).closest('label')?.textContent).toContain('Updating…');
     expect((screen.getByRole('checkbox', { name: /bathroom/ }) as HTMLInputElement).checked).toBe(false);
     expect(screen.queryByRole('button', { name: 'Apply rooms' })).toBeNull();
     updateEntity('media_player.living_room', {}, { group_members: ['media_player.living_room', 'media_player.gym', 'media_player.bathroom'] });
@@ -467,6 +469,7 @@ describe('Canvas music', () => {
     expect((screen.getByRole('checkbox', { name: /Gym/ }) as HTMLInputElement).disabled).toBe(true);
     expect(screen.queryByRole('alert')).toBeNull();
     sendMessagePromise.mockResolvedValue({ response: { success: true } });
+    await userEvent.click(screen.getByRole('button', { name: 'Close detail' }));
     await userEvent.click(screen.getByRole('switch', { name: 'Follow me' }));
     expect(sendMessagePromise).toHaveBeenLastCalledWith(expect.objectContaining({ service_data: { command: 'enable', source_entity: 'media_player.gym' } }));
   });
@@ -750,8 +753,8 @@ describe('Canvas music', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Change source' }));
     expect(screen.getByLabelText('Use audio from')).toBeTruthy();
     updateEntity('media_player.bathroom', { state: 'idle' });
-    expect(screen.queryByRole('button', { name: 'Done' })).toBeNull();
-    expect(screen.queryByLabelText('Use audio from')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Done' })).toBeTruthy();
+    expect(screen.getByLabelText('Use audio from')).toBeTruthy();
     updateEntity('media_player.bathroom', { state: 'paused' });
     await userEvent.click(screen.getByRole('button', { name: 'Done' }));
     expect(screen.queryByLabelText('Use audio from')).toBeNull();
@@ -811,9 +814,7 @@ describe('Canvas music', () => {
     expect(sendMessagePromise).toHaveBeenCalledTimes(2);
     await userEvent.click(screen.getByRole('button', { name: 'Request cleanup directly' }));
     expect(sendMessagePromise).toHaveBeenCalledTimes(2);
-    const retry = screen.getByRole('button', { name: 'Retry ungrouping' }) as HTMLButtonElement;
-    expect(retry.disabled).toBe(true);
-    await userEvent.click(retry);
+    expect(screen.queryByRole('button', { name: 'Retry ungrouping' })).toBeNull();
     expect(sendMessagePromise).toHaveBeenCalledTimes(2);
   });
   it.each(['join', 'unjoin'])(
@@ -909,4 +910,37 @@ it('fades only reported track changes and keeps transport controls mounted acros
   expect(view.container.querySelector('.canvas-music__track')).toBe(newTrack);
   updateEntity('media_player.living_room', {}, { media_position: 46 });
   expect(view.container.querySelector('.canvas-music__track')).toBe(newTrack);
+});
+
+it('keeps Follow me on the music card and a stable group-volume heading across membership changes', async () => {
+  mount();
+  expect(screen.getByRole('switch', { name: 'Follow me' })).toBeTruthy();
+  await userEvent.click(screen.getByRole('button', { name: 'Open speakers' }));
+  expect(screen.queryByRole('switch', { name: 'Follow me' })).toBeNull();
+  expect(screen.queryByRole('region', { name: 'Follow me settings' })).toBeNull();
+  expect(screen.getByText('Group volume', { selector: 'label' })).toBeTruthy();
+  const room = screen.getByRole('checkbox', { name: /bathroom/ }).closest('label')!;
+  const stateSlot = room.querySelector('small');
+  expect(stateSlot).toBeTruthy();
+  await userEvent.click(screen.getByRole('checkbox', { name: /bathroom/ }));
+  expect(room.querySelector('small')).toBe(stateSlot);
+  expect(stateSlot?.textContent).toBe('Updating…');
+  updateEntity('media_player.living_room', {}, { group_members: ['media_player.living_room', 'media_player.gym', 'media_player.bathroom'] });
+  await screen.findByText('Rooms updated.');
+  updateEntity('media_player.living_room', {}, { group_members: ['media_player.living_room'] });
+  expect(screen.getByText('Group volume', { selector: 'label' })).toBeTruthy();
+  expect(screen.getByRole('slider', { name: 'Group volume' })).toBeTruthy();
+});
+
+it('keeps source controls stable for one popup session and discovers new audio on reopen', async () => {
+  mount();
+  await userEvent.click(screen.getByRole('button', { name: 'Open speakers' }));
+  expect(screen.queryByRole('button', { name: 'Change source' })).toBeNull();
+  updateEntity('media_player.bathroom', { state: 'playing' });
+  expect(screen.queryByRole('button', { name: 'Change source' })).toBeNull();
+  await userEvent.click(screen.getByRole('button', { name: 'Close detail' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Open speakers' }));
+  expect(screen.getByRole('button', { name: 'Change source' })).toBeTruthy();
+  updateEntity('media_player.bathroom', { state: 'idle' });
+  expect(screen.getByRole('button', { name: 'Change source' })).toBeTruthy();
 });
