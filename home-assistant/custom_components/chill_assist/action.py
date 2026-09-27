@@ -77,6 +77,13 @@ class ChillAction:
         if not task.cancelled():
             task.exception()  # Consume a late service failure after the caller timed out.
 
+    def _clear_completed_operation(self) -> None:
+        self._uncertain = False
+        self._operation = None
+        self._fresh_state = None
+        self._dispatch_state = None
+        self._dispatched = False
+
     async def async_start(self, context: Context | None) -> dict[str, Any]:
         if self._closed:
             raise HomeAssistantError('Chill action is unavailable.')
@@ -90,12 +97,16 @@ class ChillAction:
                 if (self._fresh_state is None or self._fresh_state
                         is not self._hass.states.get('sensor.house_mood')):
                     raise HomeAssistantError('Chill activation could not be confirmed; wait for House Mood status.')
+                phase, mood, _ = self._state_status(self._fresh_state)
+                if phase == 'active' and (not isinstance(mood, str) or not mood):
+                    raise HomeAssistantError('Chill activation could not be confirmed from House Mood status.')
                 if self._check_available(self._fresh_state):
-                    self._uncertain = False
-                    self._operation = None
-                    self._dispatched = False
+                    self._clear_completed_operation()
                     return {'status': 'already_active', 'mood': 'Chill'}
-                raise HomeAssistantError('Chill activation could not be confirmed from House Mood status.')
+                self._clear_completed_operation()
+                if phase == 'idle':
+                    raise HomeAssistantError('Chill did not start; House Mood is idle.')
+                raise HomeAssistantError('Chill did not start; another House Mood is active.')
             self._operation = None
 
         state = self._hass.states.get('sensor.house_mood')

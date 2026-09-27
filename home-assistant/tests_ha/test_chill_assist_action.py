@@ -258,6 +258,45 @@ class ChillActionTests(unittest.IsolatedAsyncioTestCase):
             await self.action.async_start(None)
         self.assertEqual(len(self.calls), 1)
 
+    async def test_failed_activation_recovery_then_clean_idle_allows_later_request(self):
+        self.status()
+        self.response = {
+            'success': False, 'phase': 'recovery_required', 'active_mood': None,
+            'errors': [{'target': 'speaker', 'message': 'Speaker unavailable'}],
+        }
+        with self.assertRaises(HomeAssistantError):
+            await self.action.async_start(None)
+        self.status('recovery_required')
+        await self.hass.async_block_till_done()
+        with self.assertRaises(HomeAssistantError):
+            await self.action.async_start(None)
+        self.status('idle')
+        await self.hass.async_block_till_done()
+        with self.assertRaisesRegex(HomeAssistantError, 'did not start'):
+            await self.action.async_start(None)
+        self.assertEqual(len(self.calls), 1)
+        self.response = dict(SUCCESS)
+        self.assertEqual((await self.action.async_start(None))['status'], 'activated')
+        self.assertEqual(len(self.calls), 2)
+
+    async def test_uncertainty_then_clean_other_mood_allows_later_request(self):
+        self.status()
+        self.hold = True
+        first = asyncio.create_task(self.action.async_start(None))
+        await self.started.wait()
+        with self.assertRaises(HomeAssistantError):
+            await first
+        self.release.set()
+        await asyncio.sleep(0)
+        self.status('active', 'love')
+        await self.hass.async_block_till_done()
+        with self.assertRaisesRegex(HomeAssistantError, 'did not start'):
+            await self.action.async_start(None)
+        self.assertEqual(len(self.calls), 1)
+        self.hold = False
+        self.assertEqual((await self.action.async_start(None))['status'], 'activated')
+        self.assertEqual(len(self.calls), 2)
+
     async def test_shutdown_cancels_retained_operation(self):
         self.status()
         self.hold = True
