@@ -7,3 +7,4 @@
 .preview-controls :is(button,select) { box-sizing: border-box; min-height: 44px; width: 100%; padding: 8px 12px; font: inherit; background: #403a49; color: inherit; border: 1px solid #82778f; border-radius: 10px; }
 .preview-controls :focus-visible { outline: 2px solid #e7dba3; outline-offset: 3px; }
 body:has(.canvas-dialog:not(.canvas-motion-exit)) .preview-controls { visibility: hidden; }
+.preview-controls button[aria-pressed='true'] { background: #cbb5ed; border-color: #cbb5ed; color: #26212d; }
