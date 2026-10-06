@@ -94,4 +94,11 @@
   .canvas .canvas-blinds .canvas-blinds__window { width: 26px; flex-basis: 26px; }
 }
 
+/* Small phones keep full room names below the artwork instead of beside it. */
+@media (max-width: 360px) {
+  .canvas .canvas-blinds .canvas-blinds__rooms button { flex-direction: column; justify-content: center; gap: 4px; min-height: 80px; text-align: center; }
+  .canvas .canvas-blinds .canvas-blinds__window { flex-basis: auto; }
+  .canvas .canvas-blinds .canvas-blinds__rooms button > span { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
+}
+
 .canvas .canvas-blinds .canvas-blinds__glyph-fill { fill: currentColor; opacity: .4; }
