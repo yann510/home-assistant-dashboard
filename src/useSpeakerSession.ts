@@ -11,6 +11,7 @@ export function useSpeakerSession(allowIdleSource = false) {
     useEntity('media_player.bedroom', { returnNullIfNotFound: true }),
     useEntity('media_player.gym', { returnNullIfNotFound: true }),
   ];
+  const mood = useStore(state => state.entities['sensor.house_mood']);
   const followMode = useEntity('input_boolean.speaker_follow_motion', { returnNullIfNotFound: true });
   const followSource = useEntity('input_text.speaker_follow_source', { returnNullIfNotFound: true });
   const followScript = useEntity('script.speaker_follow_motion', { returnNullIfNotFound: true });
@@ -56,9 +57,21 @@ export function useSpeakerSession(allowIdleSource = false) {
   // Keep controlling the saved source while following, even if another room starts audio.
   const [preferredSource, setPreferredSource] = useState<string | null>(null);
   const [pinnedSource, pinSource] = useState<string | null>(null);
+  // The server reports the controls still owned by the active mood. Prefer its
+  // playback, including a paused queue, over unrelated sessions such as TV, while
+  // retaining explicit room choices and Follow me ownership.
+  const moodTargets = mood?.state === 'active' && Array.isArray(mood.attributes.affected_devices)
+    ? mood.attributes.affected_devices : [];
+  const moodSource = available.find(speaker =>
+    ['playing', 'buffering', 'paused'].includes(speaker.state) && moodTargets.includes(`${speaker.entity_id}#playback`)
+  );
+  const preferred = speakers.find(speaker => speaker?.entity_id === preferredSource);
+  const preferredBeforeMood = preferred && !['idle', 'unavailable', 'unknown'].includes(preferred.state) ? preferred : undefined;
   const selected =
     (following || cleanupPending ? speakers.find(speaker => speaker?.entity_id === savedSource) : undefined) ??
-    speakers.find(speaker => speaker?.entity_id === preferredSource) ??
+    preferredBeforeMood ??
+    moodSource ??
+    preferred ??
     available.find(speaker => ['playing', 'buffering'].includes(speaker.state)) ??
     available.find(speaker => (speaker.attributes.group_members?.length ?? 0) > 1) ??
     available.find(speaker => speaker.state === 'paused') ??

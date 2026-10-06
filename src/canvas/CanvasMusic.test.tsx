@@ -164,6 +164,163 @@ afterEach(() => {
 });
 
 describe('Canvas music', () => {
+  function publishGymMood(state = 'active', affectedDevices: unknown = ['light.gym', 'media_player.gym#playback']) {
+    const entities = useStore.getState().entities;
+    useStore.setState({ entities: { ...entities, 'sensor.house_mood': {
+      ...speaker('mood', state, []), entity_id: 'sensor.house_mood',
+      attributes: { active_mood: 'gym', affected_devices: affectedDevices },
+    } } });
+  }
+
+  function separatePlayback() {
+    updateEntity('media_player.living_room', {}, { group_members: ['media_player.living_room'], media_title: 'TV', source: 'TV' });
+    updateEntity('media_player.gym', {}, { group_members: ['media_player.gym'], media_title: 'Gym song', media_artist: 'Gym artist' });
+  }
+
+  it('shows the active mood playback while living room TV is also playing', async () => {
+    separatePlayback();
+    mount();
+    expect(screen.getByText('TV')).toBeTruthy();
+    act(() => publishGymMood());
+    expect(screen.getByText('Gym song')).toBeTruthy();
+    expect(screen.getByText('Gym artist')).toBeTruthy();
+    updateEntity('media_player.gym', {}, { media_title: 'Next Gym song' });
+    expect(screen.getByText('Next Gym song')).toBeTruthy();
+    expect(screen.queryByText('Gym song')).toBeNull();
+    expect(screen.getByTestId('speaker-coordinator').textContent).toBe('media_player.gym');
+    await userEvent.click(screen.getByRole('button', { name: 'Pause' }));
+    expect(sendMessagePromise).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+      service: 'media_pause', target: { entity_id: ['media_player.gym'] },
+    }));
+  });
+
+  it.each(['idle', 'starting', 'restoring', 'recovery_required', 'unavailable'])('ignores retained mood playback targets in %s phase', phase => {
+    separatePlayback();
+    publishGymMood(phase);
+    mount();
+    expect(screen.getByTestId('speaker-coordinator').textContent).toBe('media_player.living_room');
+  });
+
+  it.each([null, 'media_player.gym#playback', ['media_player.gym#volume'], ['media_player.unknown#playback']])('ignores unusable mood playback targets %j', targets => {
+    separatePlayback();
+    publishGymMood('active', targets);
+    mount();
+    expect(screen.getByTestId('speaker-coordinator').textContent).toBe('media_player.living_room');
+  });
+
+  it.each(['idle', 'unavailable', 'unknown'])('does not select a mood speaker that is %s over playing audio', state => {
+    separatePlayback();
+    publishGymMood();
+    updateEntity('media_player.gym', { state });
+    mount();
+    expect(screen.getByTestId('speaker-coordinator').textContent).toBe('media_player.living_room');
+  });
+
+  it('keeps the paused mood audio and resumes Gym while TV continues playing', async () => {
+    separatePlayback();
+    publishGymMood();
+    mount();
+    await userEvent.click(screen.getByRole('button', { name: 'Pause' }));
+    updateEntity('media_player.gym', { state: 'paused' });
+    act(() => publishGymMood('active', ['light.gym']));
+    expect(screen.getByText('Gym song')).toBeTruthy();
+    expect(screen.getByTestId('speaker-coordinator').textContent).toBe('media_player.gym');
+    await userEvent.click(screen.getByRole('button', { name: 'Resume' }));
+    expect(sendMessagePromise).toHaveBeenLastCalledWith(expect.objectContaining({
+      service: 'media_play', target: { entity_id: ['media_player.gym'] },
+    }));
+  });
+
+  it('keeps favourite confirmation on Gym after the manual playback releases mood ownership', async () => {
+    separatePlayback();
+    publishGymMood();
+    browseMedia.mockResolvedValue({
+      children: [{ title: 'Gym favourite', media_content_id: 'gym-favourite', media_content_type: 'playlist', can_play: true }],
+    });
+    mount();
+    await userEvent.click(screen.getByRole('button', { name: 'Open favourites' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Play Gym favourite' }));
+    expect(sendMessagePromise).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+      service: 'play_media', target: { entity_id: ['media_player.gym'] },
+    }));
+    act(() => publishGymMood('active', ['light.gym']));
+    expect(screen.getByTestId('speaker-coordinator').textContent).toBe('media_player.gym');
+    updateEntity('media_player.gym', {}, { media_title: 'New Gym favourite track', media_content_id: 'gym-favourite-track' });
+    expect(await screen.findByRole('button', { name: 'Open favourites' })).toBeTruthy();
+    expect(screen.getByText('New Gym favourite track')).toBeTruthy();
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it.each(['on', 'off'])('preserves saved follow source ownership with mode %s while a mood plays elsewhere', mode => {
+    separatePlayback();
+    publishGymMood();
+    updateEntity('input_boolean.speaker_follow_motion', { state: mode });
+    updateEntity('input_text.speaker_follow_source', { state: 'media_player.living_room' });
+    mount();
+    expect(screen.getByTestId('speaker-coordinator').textContent).toBe('media_player.living_room');
+  });
+
+  it('follows the mood playback group coordinator and falls back when the mood ends', () => {
+    separatePlayback();
+    updateEntity('media_player.gym', {}, { group_members: ['media_player.bathroom', 'media_player.gym'] });
+    updateEntity('media_player.bathroom', { state: 'playing' }, {
+      group_members: ['media_player.bathroom', 'media_player.gym'], media_title: 'Mood coordinator song',
+    });
+    publishGymMood();
+    mount();
+    expect(screen.getByText('Mood coordinator song')).toBeTruthy();
+    expect(screen.getByTestId('speaker-coordinator').textContent).toBe('media_player.bathroom');
+    act(() => publishGymMood('idle'));
+    expect(screen.getByTestId('speaker-coordinator').textContent).toBe('media_player.living_room');
+  });
+
+  it.each(['idle', 'unavailable', 'unknown'])('lets active mood playback replace a stale %s manual source', async state => {
+    separatePlayback();
+    mount();
+    await userEvent.click(screen.getByRole('button', { name: 'Open speakers' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Change source' }));
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'media_player.living_room' } });
+    act(() => publishGymMood());
+    expect(screen.getByTestId('speaker-coordinator').textContent).toBe('media_player.living_room');
+    updateEntity('media_player.living_room', { state });
+    expect(screen.getByTestId('speaker-coordinator').textContent).toBe('media_player.gym');
+  });
+
+  it('retains a deliberately paused manual source and its resume target during an active mood', async () => {
+    separatePlayback();
+    publishGymMood();
+    mount();
+    await userEvent.click(screen.getByRole('button', { name: 'Open speakers' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Change source' }));
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'media_player.living_room' } });
+    updateEntity('media_player.living_room', { state: 'paused' });
+    await userEvent.click(screen.getByRole('button', { name: 'Close detail' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Resume' }));
+    expect(sendMessagePromise).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+      service: 'media_play', target: { entity_id: ['media_player.living_room'] },
+    }));
+  });
+
+  it('keeps the pending handoff pin when active mood playback appears in another room', async () => {
+    mount();
+    await userEvent.click(screen.getByRole('button', { name: 'Open speakers' }));
+    await userEvent.click(screen.getByRole('checkbox', { name: /Living Room/ }));
+    updateEntity('media_player.living_room', { state: 'idle' }, { group_members: ['media_player.living_room'] });
+    act(() => publishGymMood());
+    expect(screen.getByTestId('speaker-coordinator').textContent).toBe('media_player.living_room');
+    expect(sendMessagePromise).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps an explicit source choice while an active mood plays elsewhere', async () => {
+    separatePlayback();
+    publishGymMood();
+    mount();
+    await userEvent.click(screen.getByRole('button', { name: 'Open speakers' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Change source' }));
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'media_player.living_room' } });
+    expect(screen.getByTestId('speaker-coordinator').textContent).toBe('media_player.living_room');
+  });
+
   it.each(Array.from({ length: 15 }, (_, index) => {
     const rooms = ['living_room', 'bathroom', 'bedroom', 'gym'].filter((_, bit) => Boolean((index + 1) & (1 << bit)));
     return [rooms.join(', '), rooms] as const;

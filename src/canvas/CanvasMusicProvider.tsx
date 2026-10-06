@@ -26,12 +26,24 @@ function useCanvasMusicController() {
     if (rooms.pending.current) return;
     await session.updateFollowing(command);
   }
+  async function transport(...args: Parameters<typeof playback.transport>) {
+    if (disabled || rooms.busy || playback.busy || rooms.pending.current) return;
+    // A manual transport command releases mood ownership on the server. Keep
+    // the chosen player so its paused queue remains available to resume.
+    session.setPreferredSource(entityId);
+    await playback.transport(...args);
+  }
+  async function playFavourite(...args: Parameters<typeof favouritePlayback.play>) {
+    if (disabled || rooms.busy || favouritePlayback.pending || rooms.pending.current) return false;
+    session.setPreferredSource(entityId);
+    return favouritePlayback.play(...args);
+  }
   return {
     session: { ...session, updateFollowing },
     rooms,
-    playback,
+    playback: { ...playback, transport },
     favourites,
-    favouritePlayback,
+    favouritePlayback: { ...favouritePlayback, play: playFavourite },
     setLibraryOpen,
     disabled: disabled || rooms.busy,
     playing,
