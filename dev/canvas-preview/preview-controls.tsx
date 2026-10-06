@@ -12,13 +12,6 @@ const scenarios = [
 export function PreviewControls() {
   const params = new URLSearchParams(location.search);
   const scene = params.get('scene') ?? 'everyday';
-  const tablet = params.get('tablet') === '1';
-  function toggleTablet() {
-    const url = new URL(location.href);
-    if (tablet) url.searchParams.delete('tablet');
-    else url.searchParams.set('tablet', '1');
-    location.assign(url.href);
-  }
   function selectScene(value: string) {
     const url = new URL(location.href);
     url.searchParams.set('scene', value);
@@ -43,9 +36,6 @@ export function PreviewControls() {
             </option>
           ))}
         </select>
-        <button type='button' aria-pressed={tablet} onClick={toggleTablet}>
-          Tablet layout: {tablet ? 'on' : 'off'}
-        </button>
         <button type='button' onClick={() => location.reload()}>
           Reset this preview
         </button>

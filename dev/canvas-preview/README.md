@@ -14,28 +14,12 @@ Selecting a scenario clears fault flags and resets simulated state. Refreshing r
 
 This is an interaction preview, not a hardware emulator. Blind commands are accepted without fabricated position readings; appliance cycle timing, actual audio playback, physical motion-following, and real mood snapshot restoration require live hardware/backend testing.
 
-## Tablet layout experiment
+## Tablet layout
 
-Use the **Tablet layout** button in Preview tools, or append `tablet=1`, to opt into the local tablet layout prototype, for example:
+The production dashboard automatically uses tablet typography and viewport rhythm at CSS viewport widths of at least 800px and heights of at least 540px. No query flag is needed; the former `tablet=1` option is retired. The preview uses the same production stylesheet.
 
-- `/dev/canvas-preview/index.html?tablet=1&scene=everyday` — illustrated quiet House Pulse (the dashboard default).
-- `/dev/canvas-preview/index.html?tablet=1&scene=everyday&pulse=hidden` — optional hidden quiet presentation.
-- `/dev/canvas-preview/index.html?tablet=1&scene=everyday&pulse=current` — plain quiet status strip.
-- `/dev/canvas-preview/index.html?tablet=1&scene=busy` — reminders and appliance activity.
+Android status and navigation bars reduce the available CSS viewport. The overview shares that available height between feature cards and home controls, including short 960×540 viewports, while preserving 44px touch targets. Safe-area insets are respected. Error and accessibility content may grow naturally and remain scrollable; dialogs retain independently scrollable bodies.
 
-Compare the same URLs without `tablet=1` for the existing layout. The preview entry alone imports `tablet-layout.css` and toggles the `preview-tablet-layout` root class; production entry points and styles are unchanged. Scenario changes preserve this URL option.
-
-The experiment activates at widths of at least 800px and heights of at least 540px, excluding ordinary phone portrait and short phone landscape viewports. It scopes a consistent type hierarchy to the overview: 24–26px welcome text, 20px card headings, a 36–40px mood title, 24px track titles, 15px control labels, 13px secondary text, and 10px eyebrows. Root typography and dialog sizing stay unchanged. Available vertical space is shared between feature cards and controls, while room artwork and blind tiles stay compact and light controls remain grouped. Controls retain comfortable 44px touch targets at every tablet height. Content can still grow and scroll for errors, enlarged accessibility text, or unusually long content; there is no viewport clipping or scroll lock.
-
-Check 960×600, 1280×800, a taller tablet, and a phone with quiet, illustrated quiet, and busy pulse scenes. Verify room selection, quick light toggles/settings, brightness, blind commands, mood changes, playback, favourites, and dialogs; include disconnected and command-failure scenes for disabled and error states.
-
-Verified prototype results:
-
-- Busy scenes at 800×600, 960×600, and 1024×600 fit the 600px viewport.
-- Quiet, illustrated quiet, and busy scenes at 1280×800 fill the 800px viewport.
-- The 800×1280 portrait layout fills the viewport; the 393px phone layout remains unchanged.
-- Typecheck, production build, and lint pass. The production build excludes the tablet prototype; its stylesheet is imported only by this local preview.
-
-These checks use simulated devices. Verification on the physical tablet, including its browser chrome and safe-area behavior, and live hardware interactions remain pending.
+See `docs/canvas-qa/fire-hd-10-2026-10-06.md` for measured scenarios, interaction checks, and physical-device limitations.
 
 `?scene=health` shows curated speaker/light/presence offline cards after a simulated 15-minute outage and undocked Roomba low-battery guidance plus a noninteractive dashboard tablet charge reminder. Cards open existing controls without backend reminder actions.

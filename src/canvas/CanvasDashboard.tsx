@@ -29,6 +29,7 @@ import './canvas-motion.css';
 import './canvas-music.css';
 import './canvas-secondary.css';
 import './canvas-appliances-vacuum.css';
+import './canvas-tablet.css';
 
 function CanvasDashboardContent({ quietPulse }: { quietPulse?: QuietPulsePresentation }): React.JSX.Element {
   const connected = useStore(state => Boolean(state.connection?.connected && state.connectionStatus === 'connected'));

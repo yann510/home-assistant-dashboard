@@ -5,13 +5,11 @@ import type { Connection, HassEntities } from 'home-assistant-js-websocket';
 import { DashboardViews } from '../../src/DashboardViews';
 import { rooms } from '../../src/useLightSummary';
 import '../../src/index.css';
-import './tablet-layout.css';
 import { applyPreviewService, previewFailures } from './preview-services';
 import { lightCapabilities } from './light-capabilities';
 import { previewFavourites } from './favourites';
 
 const params = new URLSearchParams(location.search);
-document.documentElement.classList.toggle('preview-tablet-layout', params.get('tablet') === '1');
 const scene = params.get('scene') ?? 'everyday';
 const failures = previewFailures(params);
 const media = params.get('media');
