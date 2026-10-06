@@ -1,7 +1,7 @@
 {
-  "releaseId": "756c58a",
-  "checkedAt": "2026-10-06T15:31:58.322Z",
-  "files": 189,
+  "releaseId": "fb5db1b",
+  "checkedAt": "2026-10-06T15:43:09.000Z",
+  "files": 191,
   "localBuildFiles": 68,
   "checks": [
     {
@@ -197,13 +197,13 @@
       "localBuildMatch": true
     },
     {
-      "path": "assets/index-90BNrAzO.css",
-      "sha256": "274bcec616c3a085122c374e0c31bb8880fb04a687492648942a1a74cbbd10d4",
+      "path": "assets/index-BDrq5IfK.css",
+      "sha256": "d60939dcf6442ac6e602ec10f7cd794ed613a6b1a969bff8d29fc10cbd29fa11",
       "manifestMatch": true,
       "localBuildMatch": true
     },
     {
-      "path": "assets/index-BvAkxH04.js",
+      "path": "assets/index-CmkgYGcA.js",
       "sha256": "67c973a258497c002765aedd924356f2b7a69fcc6b8b932cd4a191536e8001f0",
       "manifestMatch": true,
       "localBuildMatch": true
@@ -408,13 +408,13 @@
     },
     {
       "path": "index.html",
-      "sha256": "c321b570ffca124ec5f6a6897efa8a3bd2fc63d30aa754ea7027ff9a7df582d2",
+      "sha256": "d5a73805418ab2f84481893f644cbb7be9d08a70fa996e3f0d5add2f175bbdd4",
       "manifestMatch": true,
       "localBuildMatch": true
     },
     {
       "path": "release-info.json",
-      "sha256": "63d4d1a2743f36979f8f7bd40bcd6d30798263edf2bf41115c1585ab913058a1",
+      "sha256": "a74befab3c856cea978617c74778a900b0b8617a7d701de483fac751a9554690",
       "manifestMatch": true,
       "localBuildMatch": null
     },
@@ -731,6 +731,12 @@
       "localBuildMatch": null
     },
     {
+      "path": "assets/index-BvAkxH04.js",
+      "sha256": "67c973a258497c002765aedd924356f2b7a69fcc6b8b932cd4a191536e8001f0",
+      "manifestMatch": true,
+      "localBuildMatch": null
+    },
+    {
       "path": "assets/index-CnNSnXcK.css",
       "sha256": "c1d25a97c9361239749c98498f7717cb88c2271a48ba1dd6506d2740daaf5e14",
       "manifestMatch": true,
@@ -919,6 +925,12 @@
     {
       "path": "assets/._ga-CrX0FsiI.js",
       "sha256": "f5b80b9363288d21a293550e24b8104b4bb4d37b868c1659b6dc649b182e14a3",
+      "manifestMatch": true,
+      "localBuildMatch": null
+    },
+    {
+      "path": "assets/index-90BNrAzO.css",
+      "sha256": "274bcec616c3a085122c374e0c31bb8880fb04a687492648942a1a74cbbd10d4",
       "manifestMatch": true,
       "localBuildMatch": null
     },

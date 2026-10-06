@@ -64,7 +64,9 @@ These were left unchanged because product intent or physical feedback is needed:
 
 ## Acceptance limits
 
-The production URL is reachable, but this automated browser reaches the normal Home Assistant authorization/login screen. Authenticated live UI/device commands for this audit are not passed. Actual Fire/iPhone/Safari behavior, virtual keyboard/safe-area behavior, background/sleep recovery, audible speaker handoff, physical illumination, vacuum movement, and blind movement/Stop require a signed-in client and physical observer. The user was asked whether that final session is available while software checks continued.
+The separate Playwright browser reached Home Assistant login. A subsequent check found the existing signed-in Codex in-app browser session and verified the deployed dashboard there: Connected live subscriptions, all six device categories/Back/Close, case/whitespace Office search and retained query/focus, real hourly12/daily6 forecasts, all seven actual favourites, and live thermostat/appliance/vacuum/light/speaker readouts. These navigation/read-only checks sent no device commands. At 1440×900,960×540,393×852,320×568, live overview, search and favourites had no horizontal overflow; normal short-tablet overview fit exactly. Native browser console had no warnings/errors. Temporary viewport overrides were reset.
+
+Actual Fire/iPhone/Safari behavior, virtual keyboard/safe-area behavior, background/sleep recovery, audible speaker handoff, physical illumination, vacuum movement, and blind movement/Stop require physical clients and an observer. State-changing authenticated live/device tests for this audit remain unexecuted. The user was asked whether that final session is available while software checks continued; sign-in is now available through the existing in-app session.
 
 Read-only HA API readiness confirmed HA 2026.9.3, an idle mood, house_moods activate/end/retry_restoration/follow_join/apply_mode services, and reminder dismiss/snooze/unsnooze services. The mood sensor does **not** advertise coordinated-v1 mode control, so the dashboard retains its guarded legacy mode behavior and prevents mode changes over an active mood. No backend opt-in/configuration migration was performed.
 
@@ -72,6 +74,12 @@ This report establishes a reviewed software release with no known remaining acti
 
 ## Release
 
-Guarded deployment staged, hash-verified and promoted frontend release `756c58a`, retaining the previous dashboard for rollback. Fresh HTTP verification matched all **189 manifest files**, including **68 local build files**. Exact hashes and timestamp are in [release verification](comprehensive-interactions-release-2026-10-06.json). No backend changes or real hardware commands were issued.
+Guarded deployment staged, hash-verified and promoted frontend release `fb5db1b`, retaining the previous dashboard for rollback. Fresh HTTP verification matched all **191 manifest files**, including **68 local build files**. Exact hashes and timestamp are in [release verification](comprehensive-interactions-release-2026-10-06.json). No backend changes or real hardware commands were issued.
 
-Completed source and evidence are published directly to `origin/main` through a normal fast-forward after fetching. Other checkouts remain untouched. [Refresh the dashboard](http://homeassistant.local:8123/local/dashboard/index.html?release=756c58a) to load the fixes. Authenticated live and physical-device acceptance remains pending as described above.
+Completed source and evidence are published directly to `origin/main` through a normal fast-forward after fetching. Other checkouts remain untouched. [Refresh the dashboard](http://homeassistant.local:8123/local/dashboard/index.html?release=fb5db1b) to load the fixes. Physical-device and state-changing live acceptance remains pending as described above.
+
+## Final visual follow-up
+
+The signed-in in-app browser's default viewport near 788px exposed a blind-room label splitting “Bedroom” across two lines inside the paired overview layout, outside the tablet CSS's ≥800px band. Local reproduction measured label width42px and two word fragments. The paired cards now stack their artwork above room labels from 701–799px. A further narrow-phone check found Bedroom text outside its button at 320px and multiple labels overflowing at 280px; room tiles now use a stacked layout at ≤360px. Final geometry checks cover 280,320,360,361,375,393,701,720,768,788,799,800,960 and1440px. Each tile retains at least44px in both dimensions. Independent task and broad code reviews passed with no actionable findings. The full 528-test frontend suite, lint and production build passed again. These changes are included in the final deployed revision.
+
+Final authenticated production check on release `fb5db1b`: Connected, no warning/error logs, and blind labels contained at 280, 320, 788 and 960px. Bedroom remains a whole word at every size; 280px Living room wraps between words. Temporary viewport overrides reset. Fresh HTTP verification matched all 191 manifest files and all 68 local build files.
