@@ -177,3 +177,12 @@
   .canvas .canvas-lights--compact,
   .canvas .canvas__shortcuts > .canvas-blinds { padding-block: 0 4px; }
 }
+
+/* Narrow tablet cards need the illustrated room above its readable label. */
+@media (min-width: 800px) and (min-height: 540px) {
+  .canvas .canvas-blinds .canvas-blinds__rooms button > span { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
+}
+@media (min-width: 800px) and (max-width: 1000px) and (min-height: 720px) {
+  .canvas .canvas-blinds .canvas-blinds__rooms button { flex-direction: column; justify-content: center; gap: 4px; min-height: 104px; text-align: center; }
+  .canvas .canvas-blinds .canvas-blinds__window { flex-basis: auto; }
+}
