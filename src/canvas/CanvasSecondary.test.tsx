@@ -245,8 +245,7 @@ it('keeps simultaneous appliance activity and a new completion episode while an 
 it('keeps mood selection, End, and recovery retry available on the overview', async () => {
   ref.current!.publish('sensor.house_mood', 'active', { active_mood: 'love' });
   render(<CanvasDashboard />);
-  for (const name of ['Love', 'Chill', 'Dinner', 'Party', 'Gym'])
-    expect(screen.getByRole('button', { name: `${name} mood` })).toBeTruthy();
+  for (const name of ['Love', 'Chill', 'Dinner', 'Party', 'Gym']) expect(screen.getByRole('button', { name: `${name} mood` })).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: 'End mood' }));
   expect(ref.current!.calls).toContainEqual(expect.objectContaining({ domain: 'house_moods', service: 'end' }));
   expect(screen.queryByRole('button', { name: 'Explore moods' })).toBeNull();
@@ -710,69 +709,176 @@ it('restores a searched directory position and trigger focus after nested naviga
   expect(document.activeElement).toBe(within(screen.getByRole('dialog')).getByRole('button', { name: 'Bedroom blinds' }));
 });
 
-it.each(['art', 'hidden', undefined] as const)('only uses the %s quiet presentation when all activity is known and settled', variant => {
-  for (const prefix of ['washer_washer', 'dryer_dryer', 'dishwasher_dishwasher'])
-    ref.current!.publish(`sensor.${prefix}_machine_state`, 'stop');
-  ref.current!.publish('vacuum.roomba', 'docked');
-  const base: AttentionController = {
-    connected: true,
-    ready: true,
-    disconnected: false,
-    night: false,
-    items: [],
-    now: Date.now(),
-    busy: false,
-    error: null,
-    onAction: vi.fn().mockResolvedValue(undefined),
-  };
-  const draw = (attention = base, feedback?: React.ReactNode) => (
-    <CanvasPulse quietPresentation={variant} attention={attention} feedback={feedback} onOpen={vi.fn()} onSelect={vi.fn()} />
-  );
-  const view = render(draw());
-  const expectQuiet = () => {
-    if (variant !== 'art') expect(screen.queryByRole('region', { name: 'House pulse' })).toBeNull();
-    else expect(screen.getByRole('region', { name: 'House pulse' }).classList.contains('canvas-pulse--quiet-art')).toBe(true);
-  };
-  const expectNormal = () =>
-    expect(screen.getByRole('region', { name: 'House pulse' }).classList.contains('canvas-pulse--quiet-art')).toBe(false);
-  expectQuiet();
-  for (const change of [{ connected: false }, { ready: false }, { busy: true }, { error: 'Could not save' }]) {
-    view.rerender(draw({ ...base, ...change }));
+it.each(['art', 'hidden', 'current', undefined] as const)(
+  'only uses the %s quiet presentation when all activity is known and settled',
+  variant => {
+    for (const prefix of ['washer_washer', 'dryer_dryer', 'dishwasher_dishwasher'])
+      ref.current!.publish(`sensor.${prefix}_machine_state`, 'stop');
+    ref.current!.publish('vacuum.roomba', 'docked');
+    const base: AttentionController = {
+      connected: true,
+      ready: true,
+      disconnected: false,
+      night: false,
+      items: [],
+      now: Date.now(),
+      busy: false,
+      error: null,
+      onAction: vi.fn().mockResolvedValue(undefined),
+    };
+    const draw = (attention = base, feedback?: React.ReactNode) => (
+      <CanvasPulse quietPresentation={variant} attention={attention} feedback={feedback} onOpen={vi.fn()} onSelect={vi.fn()} />
+    );
+    const view = render(draw());
+    const expectQuiet = () => {
+      if (variant === 'hidden') expect(screen.queryByRole('region', { name: 'House pulse' })).toBeNull();
+      else {
+        const pulse = screen.getByRole('region', { name: 'House pulse' });
+        expect(pulse.classList.contains('canvas-pulse--quiet-art')).toBe(variant !== 'current');
+        expect(within(pulse).getByText('All quiet at home.')).toBeTruthy();
+      }
+    };
+    const expectNormal = () =>
+      expect(screen.getByRole('region', { name: 'House pulse' }).classList.contains('canvas-pulse--quiet-art')).toBe(false);
+    expectQuiet();
+    for (const change of [{ connected: false }, { ready: false }, { busy: true }, { error: 'Could not save' }]) {
+      view.rerender(draw({ ...base, ...change }));
+      expectNormal();
+    }
+    view.rerender(draw(base, <p role='status'>Day mode sending…</p>));
+    expectNormal();
+    expect(screen.getByText('Day mode sending…')).toBeTruthy();
+    const reminder: AttentionItem = {
+      id: 'bin',
+      episode: 'bin-1',
+      title: 'Empty bin',
+      detail: 'Bin full',
+      target: 'vacuum',
+      tone: 'amber',
+      icon: 'bin',
+      kind: 'condition',
+      occurred_at: new Date().toISOString(),
+      snooze_seconds: 3600,
+      snoozed_until: new Date(Date.now() + 3600000).toISOString(),
+    };
+    view.rerender(draw({ ...base, items: [reminder] }));
+    expectNormal();
+    expect(screen.getByRole('button', { name: /Snoozed/ })).toBeTruthy();
+    view.rerender(draw({ ...base, items: [{ ...reminder, snoozed_until: null }] }));
+    expectNormal();
+    expect(screen.getByRole('button', { name: 'View: Empty bin' })).toBeTruthy();
+    view.rerender(draw(base));
+    expectQuiet();
+    act(() => ref.current!.publish('vacuum.roomba', 'cleaning'));
+    expectNormal();
+    expect(screen.getByRole('button', { name: 'Roomba Cleaning' })).toBeTruthy();
+    act(() => ref.current!.publish('vacuum.roomba', 'unavailable'));
+    expectNormal();
+    act(() => ref.current!.publish('vacuum.roomba', 'docked'));
+    expectQuiet();
+    act(() => ref.current!.publish('sensor.washer_washer_machine_state', 'unknown'));
     expectNormal();
   }
-  view.rerender(draw(base, <p role='status'>Day mode sending…</p>));
-  expectNormal();
-  expect(screen.getByText('Day mode sending…')).toBeTruthy();
-  const reminder: AttentionItem = {
-    id: 'bin',
-    episode: 'bin-1',
-    title: 'Empty bin',
-    detail: 'Bin full',
-    target: 'vacuum',
-    tone: 'amber',
-    icon: 'bin',
-    kind: 'condition',
-    occurred_at: new Date().toISOString(),
-    snooze_seconds: 3600,
-    snoozed_until: new Date(Date.now() + 3600000).toISOString(),
-  };
-  view.rerender(draw({ ...base, items: [reminder] }));
-  expectNormal();
-  expect(screen.getByRole('button', { name: /Snoozed/ })).toBeTruthy();
-  view.rerender(draw({ ...base, items: [{ ...reminder, snoozed_until: null }] }));
-  expectNormal();
-  expect(screen.getByRole('button', { name: 'View: Empty bin' })).toBeTruthy();
-  view.rerender(draw(base));
-  expectQuiet();
-  act(() => ref.current!.publish('vacuum.roomba', 'cleaning'));
-  expectNormal();
-  expect(screen.getByRole('button', { name: 'Roomba Cleaning' })).toBeTruthy();
-  act(() => ref.current!.publish('vacuum.roomba', 'unavailable'));
-  expectNormal();
-  act(() => ref.current!.publish('vacuum.roomba', 'docked'));
-  expectQuiet();
-  act(() => ref.current!.publish('sensor.washer_washer_machine_state', 'unknown'));
-  expectNormal();
+);
+
+it('updates appliance remaining times and suppresses cached cycle details while disconnected', () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date('2026-10-06T12:00:00Z'));
+  try {
+    const fixture = ref.current!;
+    for (const [kind, job, minutes] of [
+      ['washer', 'wash', 12],
+      ['dryer', 'drying', 24],
+      ['dishwasher', 'wash', 36],
+    ] as const) {
+      fixture.publish(`sensor.${kind}_${kind}_machine_state`, 'run');
+      fixture.publish(`sensor.${kind}_${kind}_job_state`, job);
+      fixture.publish(`sensor.${kind}_${kind}_completion_time`, new Date(Date.now() + minutes * 60_000).toISOString());
+    }
+    fixture.publish('vacuum.roomba', 'cleaning', { battery_level: 84 });
+    fixture.publish('sensor.dashboard_attention', '0', { ready: true, items: [] });
+    render(<CanvasDashboard />);
+    const pulse = within(screen.getByRole('region', { name: 'House pulse' }));
+    expect(pulse.getByRole('button', { name: 'Washer Washing · ~12 min left' })).toBeTruthy();
+    expect(pulse.getByRole('button', { name: 'Dryer Drying · ~24 min left' })).toBeTruthy();
+    expect(pulse.getByRole('button', { name: 'Dishwasher Washing · ~36 min left' })).toBeTruthy();
+    expect(pulse.getByRole('button', { name: 'Roomba Cleaning · Battery 84%' })).toBeTruthy();
+    act(() => vi.advanceTimersByTime(60_000));
+    expect(pulse.getByRole('button', { name: 'Washer Washing · ~11 min left' })).toBeTruthy();
+    expect(pulse.getByRole('button', { name: 'Dryer Drying · ~23 min left' })).toBeTruthy();
+    expect(pulse.getByRole('button', { name: 'Dishwasher Washing · ~35 min left' })).toBeTruthy();
+    act(() => fixture.disconnect());
+    expect(pulse.queryAllByRole('button')).toHaveLength(0);
+    expect(pulse.queryByText(/min left|Battery/)).toBeNull();
+    expect(pulse.getByText('Live activity unavailable while disconnected.')).toBeTruthy();
+    act(() => fixture.reconnect());
+    expect(pulse.getByRole('button', { name: 'Roomba Cleaning · Battery 84%' })).toBeTruthy();
+    act(() => fixture.publish('sensor.washer_washer_completion_time', 'unknown'));
+    expect(pulse.getByRole('button', { name: 'Washer Washing' })).toBeTruthy();
+    expect(fixture.calls).toEqual([]);
+  } finally {
+    cleanup();
+    vi.useRealTimers();
+  }
+});
+
+it.each([0, 23, 100])('shows reported Roomba battery %s through cleaning, returning and paused states without an ETA', battery => {
+  const fixture = ref.current!;
+  fixture.publish('vacuum.roomba', 'cleaning', { battery_level: battery });
+  render(<CanvasDashboard />);
+  const pulse = within(screen.getByRole('region', { name: 'House pulse' }));
+  for (const [state, label] of [
+    ['cleaning', 'Cleaning'],
+    ['returning', 'Returning to dock'],
+    ['paused', 'Paused'],
+  ] as const) {
+    act(() => fixture.publish('vacuum.roomba', state, { battery_level: battery }));
+    const activity = pulse.getByRole('button', { name: `Roomba ${label} · Battery ${battery}%` });
+    expect(within(activity).getByText(`Battery ${battery}%`)).toBeTruthy();
+    expect(activity.textContent).not.toMatch(/min|left|ETA/);
+  }
+  for (const state of ['unavailable', 'unknown']) {
+    act(() => fixture.publish('vacuum.roomba', state, { battery_level: battery }));
+    expect(pulse.queryByText(/Battery/)).toBeNull();
+  }
+});
+
+it('prefers the dedicated Roomba battery sensor and updates its reading without commands', () => {
+  const fixture = ref.current!;
+  fixture.publish('vacuum.roomba', 'cleaning', { battery_level: 84 });
+  fixture.publish('sensor.roomba_battery_level', '67', { unit_of_measurement: '%' });
+  render(<CanvasDashboard />);
+  const pulse = within(screen.getByRole('region', { name: 'House pulse' }));
+  expect(pulse.getByRole('button', { name: 'Roomba Cleaning · Battery 67%' })).toBeTruthy();
+  act(() => fixture.publish('sensor.roomba_battery_level', '66'));
+  expect(pulse.getByRole('button', { name: 'Roomba Cleaning · Battery 66%' })).toBeTruthy();
+  act(() => fixture.publish('sensor.roomba_battery_level', 'unknown'));
+  expect(pulse.getByRole('button', { name: 'Roomba Cleaning' })).toBeTruthy();
+  expect(pulse.queryByText(/Battery/)).toBeNull();
+  act(() => fixture.publish('sensor.roomba_battery_level', '66'));
+  act(() => fixture.publish('vacuum.roomba', 'returning'));
+  expect(pulse.getByRole('button', { name: 'Roomba Returning to dock · Battery 66%' })).toBeTruthy();
+  act(() => fixture.publish('sensor.roomba_battery_level', 'unavailable'));
+  expect(pulse.getByRole('button', { name: 'Roomba Returning to dock' })).toBeTruthy();
+  expect(pulse.queryByText(/Battery/)).toBeNull();
+  expect(fixture.calls).toEqual([]);
+});
+
+it.each(['unknown', 'unavailable', '', '-1', '101'])('rejects an invalid dedicated Roomba battery sensor %s', battery => {
+  ref.current!.publish('vacuum.roomba', 'cleaning');
+  ref.current!.publish('sensor.roomba_battery_level', battery);
+  render(<CanvasDashboard />);
+  const pulse = within(screen.getByRole('region', { name: 'House pulse' }));
+  expect(pulse.getByRole('button', { name: 'Roomba Cleaning' })).toBeTruthy();
+  expect(pulse.queryByText(/Battery/)).toBeNull();
+});
+
+it.each([undefined, null, '84', -1, 101, NaN, Infinity])('omits an invalid Roomba battery reading %s', battery => {
+  ref.current!.publish('vacuum.roomba', 'cleaning', { battery_level: battery });
+  render(<CanvasDashboard />);
+  const pulse = within(screen.getByRole('region', { name: 'House pulse' }));
+  expect(pulse.getByRole('button', { name: 'Roomba Cleaning' })).toBeTruthy();
+  expect(pulse.queryByText(/Battery/)).toBeNull();
 });
 
 it('keeps missing device status visible with the default quiet presentation', () => {
@@ -782,17 +888,20 @@ it('keeps missing device status visible with the default quiet presentation', ()
   expect(screen.getByText('Activity status unavailable for some devices.')).toBeTruthy();
 });
 
-it('hides the settled pulse by default and brings it back for live activity', () => {
+it('keeps illustrated House pulse visible by default through quiet, active and disconnected states', () => {
   for (const prefix of ['washer_washer', 'dryer_dryer', 'dishwasher_dishwasher'])
     ref.current!.publish(`sensor.${prefix}_machine_state`, 'stop');
   ref.current!.publish('vacuum.roomba', 'docked');
   ref.current!.publish('sensor.dashboard_attention', '0', { ready: true, items: [] });
   render(<CanvasDashboard />);
-  expect(screen.queryByRole('region', { name: 'House pulse' })).toBeNull();
+  expect(screen.getByRole('region', { name: 'House pulse' }).classList.contains('canvas-pulse--quiet-art')).toBe(true);
+  expect(screen.getByText('All quiet at home.')).toBeTruthy();
+  expect(document.querySelectorAll('.canvas-pulse__quiet-landscape')).toHaveLength(2);
   act(() => ref.current!.publish('vacuum.roomba', 'cleaning'));
   expect(screen.getByRole('button', { name: 'Roomba Cleaning' })).toBeTruthy();
   act(() => ref.current!.publish('vacuum.roomba', 'docked'));
-  expect(screen.queryByRole('region', { name: 'House pulse' })).toBeNull();
+  expect(screen.getByRole('region', { name: 'House pulse' }).classList.contains('canvas-pulse--quiet-art')).toBe(true);
+  expect(screen.getByText('All quiet at home.')).toBeTruthy();
   act(() => ref.current!.disconnect());
   expect(screen.getByText('Live activity unavailable while disconnected.')).toBeTruthy();
 });
@@ -804,7 +913,8 @@ it('hides a powered-off unavailable washer from pulse and restores its activity 
   fixture.publish('vacuum.roomba', 'docked');
   fixture.publish('sensor.dashboard_attention', '0', { ready: true, items: [] });
   render(<CanvasDashboard />);
-  expect(screen.queryByRole('region', { name: 'House pulse' })).toBeNull();
+  expect(screen.getByRole('region', { name: 'House pulse' }).classList.contains('canvas-pulse--quiet-art')).toBe(true);
+  expect(screen.getByText('All quiet at home.')).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: 'All devices' }));
   fireEvent.click(within(screen.getByRole('dialog', { name: 'All devices' })).getByRole('button', { name: 'Appliances' }));
   expect(within(screen.getByRole('dialog', { name: 'Appliances' })).getByText('Unavailable')).toBeTruthy();
@@ -819,7 +929,8 @@ it('hides a powered-off unavailable washer from pulse and restores its activity 
   act(() => fixture.publish('sensor.washer_washer_job_state', 'finished'));
   expect(screen.getByRole('button', { name: 'Washer Finished' })).toBeTruthy();
   act(() => fixture.publish('sensor.washer_washer_machine_state', 'unavailable'));
-  expect(screen.queryByRole('region', { name: 'House pulse' })).toBeNull();
+  expect(screen.getByRole('region', { name: 'House pulse' }).classList.contains('canvas-pulse--quiet-art')).toBe(true);
+  expect(screen.getByText('All quiet at home.')).toBeTruthy();
   act(() => fixture.publish('sensor.washer_washer_machine_state', 'unknown'));
   expect(screen.getByRole('button', { name: 'Washer Unknown' })).toBeTruthy();
   expect(fixture.calls).toEqual([]);

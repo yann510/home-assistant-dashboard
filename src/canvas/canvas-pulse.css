@@ -102,7 +102,7 @@
   .canvas :is(.canvas-pulse__activity, .canvas-pulse__notice) { transition: none; }
 }
 
-/* Preview-only calm counterpart: a fixed-height illustrated interlude, not a control. */
+/* The calm counterpart keeps House pulse visible when activity is settled. */
 .canvas .canvas-pulse--quiet-art {
   position: relative;
   overflow: hidden;

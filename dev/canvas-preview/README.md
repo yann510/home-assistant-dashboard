@@ -18,8 +18,9 @@ This is an interaction preview, not a hardware emulator. Blind commands are acce
 
 Use the **Tablet layout** button in Preview tools, or append `tablet=1`, to opt into the local tablet layout prototype, for example:
 
-- `/dev/canvas-preview/index.html?tablet=1&scene=everyday` — quiet House Pulse hidden.
-- `/dev/canvas-preview/index.html?tablet=1&scene=everyday&pulse=art` — illustrated quiet House Pulse.
+- `/dev/canvas-preview/index.html?tablet=1&scene=everyday` — illustrated quiet House Pulse (the dashboard default).
+- `/dev/canvas-preview/index.html?tablet=1&scene=everyday&pulse=hidden` — optional hidden quiet presentation.
+- `/dev/canvas-preview/index.html?tablet=1&scene=everyday&pulse=current` — plain quiet status strip.
 - `/dev/canvas-preview/index.html?tablet=1&scene=busy` — reminders and appliance activity.
 
 Compare the same URLs without `tablet=1` for the existing layout. The preview entry alone imports `tablet-layout.css` and toggles the `preview-tablet-layout` root class; production entry points and styles are unchanged. Scenario changes preserve this URL option.

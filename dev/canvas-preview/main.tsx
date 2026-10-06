@@ -92,8 +92,10 @@ for (const kind of ['washer', 'dryer', 'dishwasher']) {
     scene === 'pulse-single' && kind === 'washer' ? 'unavailable' : scene === 'busy' ? 'run' : 'stop'
   );
   publish(`sensor.${kind}_${kind}_job_state`, params.has('long') ? 'wrinkle_prevent' : kind === 'dryer' ? 'drying' : 'wash');
-  if (params.has('long')) publish(`sensor.${kind}_${kind}_completion_time`, new Date(Date.now() + 7200000).toISOString());
+  if (scene === 'busy' || params.has('long'))
+    publish(`sensor.${kind}_${kind}_completion_time`, new Date(Date.now() + (params.has('long') ? 7200000 : 2400000)).toISOString());
 }
+publish('sensor.roomba_battery_level', '84', { unit_of_measurement: '%' });
 publish('vacuum.roomba', scene === 'busy' ? 'returning' : 'docked', {
   battery_level: 84,
   supported_features: 16383,
@@ -210,6 +212,16 @@ const context = {
 createRoot(document.getElementById('root')!).render(
   <HassContext.Provider value={context}>
     <ThemeProvider />
-    <DashboardViews canvasQuietPulse={params.get('pulse') === 'art' ? 'art' : params.get('pulse') === 'hidden' ? 'hidden' : undefined} />
+    <DashboardViews
+      canvasQuietPulse={
+        params.get('pulse') === 'art'
+          ? 'art'
+          : params.get('pulse') === 'hidden'
+            ? 'hidden'
+            : params.get('pulse') === 'current'
+              ? 'current'
+              : undefined
+      }
+    />
   </HassContext.Provider>
 );

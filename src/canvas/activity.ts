@@ -31,6 +31,15 @@ export function classifyVacuum(state: string | undefined, connected = true): Act
   return { status: 'Unknown', active: false, iconState: 'unknown' };
 }
 
+// The dedicated sensor is authoritative; an unavailable reading must not fall back to cached attributes.
+export function readRoombaBattery(
+  entities: Record<string, { state: string; attributes?: Record<string, unknown> } | undefined>
+): number | undefined {
+  const sensor = entities['sensor.roomba_battery_level'];
+  const reading = sensor ? (sensor.state.trim() ? Number(sensor.state) : NaN) : entities['vacuum.roomba']?.attributes?.battery_level;
+  return typeof reading === 'number' && Number.isFinite(reading) && reading >= 0 && reading <= 100 ? reading : undefined;
+}
+
 export const applianceSensors = [
   { id: 'washer', name: 'Washer', prefix: 'sensor.washer_washer' },
   { id: 'dryer', name: 'Dryer', prefix: 'sensor.dryer_dryer' },

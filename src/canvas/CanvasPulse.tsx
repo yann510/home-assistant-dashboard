@@ -6,7 +6,7 @@ import { ApplianceIcon } from '../ApplianceIcon';
 import { useApplianceClock } from '../useApplianceClock';
 import type { AttentionItem } from '../attention';
 import type { useAttention } from '../useAttention';
-import { applianceSensors, classifyAppliance, classifyVacuum } from './activity';
+import { applianceSensors, classifyAppliance, classifyVacuum, readRoombaBattery } from './activity';
 import { routeForAttention, type CanvasRoute } from './routes';
 import './canvas-pulse.css';
 
@@ -19,7 +19,7 @@ export function CanvasPulse({
   attention,
   onSelect,
   feedback,
-  quietPresentation = 'hidden',
+  quietPresentation = 'art',
 }: {
   onOpen(route: CanvasRoute, trigger: HTMLElement): void;
   attention: AttentionController;
@@ -49,11 +49,23 @@ export function CanvasPulse({
       route: { kind: 'appliances' } as CanvasRoute,
     };
   });
-  const vacuum = classifyVacuum(entities['vacuum.roomba']?.state, attention.connected);
+  const vacuumEntity = entities['vacuum.roomba'];
+  const vacuum = classifyVacuum(vacuumEntity?.state, attention.connected);
+  const battery = readRoombaBattery(entities);
+  const vacuumDetail =
+    attention.connected &&
+    !['unavailable', 'unknown'].includes(vacuum.iconState) &&
+    typeof battery === 'number' &&
+    Number.isFinite(battery) &&
+    battery >= 0 &&
+    battery <= 100
+      ? `Battery ${battery}%`
+      : undefined;
   const shownActivities: {
     id: string;
     name: string;
     status: string;
+    detail?: string;
     active: boolean;
     iconState: 'running' | 'paused' | 'idle' | 'unavailable' | 'unknown';
     route: CanvasRoute;
@@ -66,7 +78,7 @@ export function CanvasPulse({
         (activity.reported && ['Unavailable', 'Unknown'].includes(activity.status)))
   );
   if (entities['vacuum.roomba'] && vacuum.status !== 'Docked')
-    shownActivities.push({ id: 'roomba', name: 'Roomba', ...vacuum, route: { kind: 'vacuum' } });
+    shownActivities.push({ id: 'roomba', name: 'Roomba', ...vacuum, detail: vacuumDetail, route: { kind: 'vacuum' } });
   const visible = attention.ready
     ? attention.items.filter(item => !item.snoozed_until || Date.parse(item.snoozed_until) <= attention.now)
     : [];
@@ -139,7 +151,7 @@ export function CanvasPulse({
                 data-pulse-key={`device:${item.id}`}
                 data-device={item.id}
                 data-state={item.iconState}
-                aria-label={`${item.name} ${item.status}`}
+                aria-label={`${item.name} ${item.status}${item.detail ? ` · ${item.detail}` : ''}`}
                 onClick={event => {
                   onSelect(null);
                   onOpen(item.route, event.currentTarget);
@@ -161,6 +173,7 @@ export function CanvasPulse({
                 <span className='canvas-pulse__copy'>
                   <strong>{item.name}</strong>
                   <small>{item.status}</small>
+                  {item.detail && <small>{item.detail}</small>}
                 </span>
               </button>
             ))}
