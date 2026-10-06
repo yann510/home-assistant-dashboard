@@ -17,4 +17,12 @@ Charge guidance appears at 20% or below for an explicitly noncharging, undocked 
 
 The companion app reports tablet battery/charge through its [battery sensors](https://companion.home-assistant.io/docs/core/sensors/#battery-sensors). Actual device readings drive the dashboard; previews only simulate fault conditions.
 
-Final health review, full-branch review and release verification are recorded below after completion.
+Final Task 2 review passed after removing irrelevant navigation from presence/remote/switch warnings. Those remain informational; actual light/speaker/vacuum controls remain linked. The routing fix passed 67 covering tests, ESLint, TypeScript and production build. Independent whole-branch review approved `67cc0e8..a90b19a` without further findings.
+
+## Release
+
+Published production dashboard release `a90b19a` with the existing guarded deployment flow. Remote staged hashes passed before promotion; the prior dashboard was retained for rollback. Fresh HTTP requests confirmed the release ID, exact index and all 67 build assets against the local build and release manifest (68 files total). No backend files, device settings or Home Assistant restart were involved.
+
+Git remote was fetched before work and again before release; the branch is a fast-forward of the fetched `origin/main`. The tested code and these verification notes are pushed directly to `origin/main`, preserving the other checkouts’ local edits.
+
+Open the [verified dashboard](http://homeassistant.local:8123/local/dashboard/index.html?release=a90b19a) to load this release; an already-open tablet browser may need a refresh.
