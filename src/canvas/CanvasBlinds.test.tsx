@@ -271,3 +271,26 @@ it('does not send anything later when unmounted with Open and Stop outstanding',
   expect(fixture.listenerCount).toBe(0);
   expect(fixture.socketListenerCount).toBe(0);
 });
+
+it('offers separate named Stop actions for recent and selected rooms while movement acknowledgement is pending', async () => {
+  const opening = deferred();
+  fixture.respondWith(message =>
+    String((message as { service_data: { command: string } }).service_data.command).startsWith('open')
+      ? opening.promise
+      : Promise.resolve({})
+  );
+  render(<CanvasBlinds initialRoom='living room' />);
+  fireEvent.click(screen.getByRole('button', { name: 'Open selected blinds' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Living room blinds' }));
+  expect(screen.getByRole('button', { name: 'Stop selected blinds' }).hasAttribute('disabled')).toBe(true);
+  fireEvent.click(screen.getByRole('button', { name: 'Gym blinds' }));
+  expect(screen.getByText('Stop recent')).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Stop selected blinds in Gym' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Gym blinds' }));
+  await act(async () => {});
+  expect(command(1).service_data.command).toBe('stop all the blinds gym');
+  fireEvent.click(screen.getByRole('button', { name: 'Stop recently requested blinds in Living room' }));
+  await act(async () => {});
+  expect(command(2).service_data.command).toBe('stop all the blinds living room');
+  await act(async () => opening.resolve({}));
+});

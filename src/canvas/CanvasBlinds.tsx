@@ -33,7 +33,8 @@ export function CanvasBlinds({ initialRoom }: { initialRoom?: BlindRoom } = {}) 
 }
 
 function CanvasBlindsView({ initialRoom }: { initialRoom?: BlindRoom }) {
-  const { selection, toggleRoom, run, retryFailed, failedRooms, results, pending, movingRooms, connected } = useCanvasBlinds(initialRoom);
+  const { selection, toggleRoom, run, stopSelected, retryFailed, failedRooms, results, pending, movingRooms, connected } =
+    useCanvasBlinds(initialRoom);
   const differentStopTargets =
     movingRooms.length > 0 && (movingRooms.length !== selection.length || movingRooms.some(room => !selection.includes(room)));
   return (
@@ -106,7 +107,9 @@ function CanvasBlindsView({ initialRoom }: { initialRoom?: BlindRoom }) {
                 <path d={action === 'open' ? 'm5 11 5-5 5 5M10 6v10' : 'm5 9 5 5 5-5M10 4v10'} />
               )}
             </svg>
-            <span className='canvas-blinds__action-label'>{actionLabel(action)}</span>
+            <span className='canvas-blinds__action-label'>
+              {action === 'stop' && differentStopTargets ? 'Stop recent' : actionLabel(action)}
+            </span>
             {pending[action] && <span className='canvas-blinds__action-pending'>Sending…</span>}
           </button>
         ))}
@@ -116,7 +119,22 @@ function CanvasBlindsView({ initialRoom }: { initialRoom?: BlindRoom }) {
           {!connected ? 'Home Assistant is disconnected. Reconnect to control blinds.' : 'Select one or more rooms above'}
         </p>
       )}
-      {differentStopTargets && <p className='canvas-blinds__caption'>Stop targets {movingRooms.map(label).join(' + ')}.</p>}
+      {differentStopTargets && (
+        <>
+          <p className='canvas-blinds__caption'>Stop recent: {movingRooms.map(label).join(' + ')} · requested within 90 seconds.</p>
+          <div className='canvas-blinds__actions canvas-blinds__selected-stop'>
+            <button
+              type='button'
+              aria-label={`Stop selected blinds${selection.length ? ` in ${selection.map(label).join(', ')}` : ''}`}
+              disabled={!connected || !selection.length || pending.stop}
+              aria-busy={pending.stop}
+              onClick={() => void stopSelected()}
+            >
+              Stop selected{selection.length ? `: ${selection.map(label).join(' + ')}` : ''}
+            </button>
+          </div>
+        </>
+      )}
       {actions.map(
         action =>
           results[action] && (

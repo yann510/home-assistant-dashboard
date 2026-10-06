@@ -160,7 +160,7 @@ export function CanvasVacuum() {
             </button>
           ))}
       </div>
-      {can(feature.fanSpeed) && fanList.length > 0 && state !== 'docked' && (
+      {can(feature.fanSpeed) && fanList.length > 0 && (
         <div className='canvas-vacuum__fan'>
           <label>
             <span>Fan speed</span>

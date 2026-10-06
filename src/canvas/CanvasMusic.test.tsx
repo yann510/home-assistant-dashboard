@@ -1094,3 +1094,16 @@ describe('custom seek gestures', () => {
     expect(screen.getByRole('alert').textContent).toContain('Rejected');
   });
 });
+
+it('closes a verified already-playing favourite without sending and shows Already playing on the overview', async () => {
+  browseMedia.mockResolvedValue({
+    children: [{ title: 'Evening jazz', media_content_id: 'jazz', media_content_type: 'playlist', can_play: true }],
+  });
+  updateEntity('media_player.living_room', {}, { media_content_id: 'jazz' });
+  mount();
+  await userEvent.click(screen.getByRole('button', { name: 'Open favourites' }));
+  await userEvent.click(await screen.findByRole('button', { name: 'Play Evening jazz' }));
+  expect(await screen.findByRole('button', { name: 'Open favourites' })).toBeTruthy();
+  expect(screen.getByText('Already playing Evening jazz.')).toBeTruthy();
+  expect(sendMessagePromise).not.toHaveBeenCalled();
+});

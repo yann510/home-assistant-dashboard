@@ -1101,3 +1101,32 @@ it('traverses browser Back and Forward, handles rapid Back and Close, and ignore
   expect(screen.queryByRole('dialog')).toBeNull();
   expect(ref.current!.calls).toHaveLength(0);
 });
+
+it('sets a supported docked fan speed without starting cleaning and waits for reported fan speed', async () => {
+  ref.current!.publish('vacuum.roomba', 'docked', {
+    supported_features: 8192 | 32,
+    fan_speed: 'Standard',
+    fan_speed_list: ['Quiet', 'Standard'],
+  });
+  render(<CanvasDashboard />);
+  fireEvent.click(screen.getByRole('button', { name: 'All devices' }));
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Vacuum' }));
+  fireEvent.change(screen.getByRole('combobox', { name: 'Roomba fan speed' }), { target: { value: 'Quiet' } });
+  expect(ref.current!.calls).toHaveLength(0);
+  fireEvent.click(screen.getByRole('button', { name: 'Set fan speed' }));
+  await act(async () => {});
+  expect(ref.current!.calls).toEqual([
+    expect.objectContaining({ domain: 'vacuum', service: 'set_fan_speed', service_data: { fan_speed: 'Quiet' } }),
+  ]);
+  expect(screen.getByText('Sending command…')).toBeTruthy();
+  await act(async () =>
+    ref.current!.publish('vacuum.roomba', 'docked', {
+      supported_features: 8192 | 32,
+      fan_speed: 'Quiet',
+      fan_speed_list: ['Quiet', 'Standard'],
+    })
+  );
+  expect(screen.getByText('Roomba reported the requested state.')).toBeTruthy();
+  expect((screen.getByRole('button', { name: 'Set fan speed' }) as HTMLButtonElement).disabled).toBe(true);
+  expect(ref.current!.getState().entities['vacuum.roomba'].state).toBe('docked');
+});

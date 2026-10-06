@@ -14,24 +14,28 @@ export type SpeakerService =
   | 'turn_on'
   | 'turn_off';
 
-export function useSpeakerCommand() {
+export function useSpeakerCommand(scope?: string) {
   const [error, setError] = useState<string | null>(null);
   const mounted = useRef(true);
+  const generation = useRef({ value: 0 });
   const active = useRef(new Set<AbortController>());
   useEffect(() => {
     mounted.current = true;
     const requests = active.current;
+    const lifetime = generation.current;
     const unsubscribe = onSpeakerDisconnect(() => requests.forEach(controller => controller.abort()));
     return () => {
       unsubscribe();
       requests.forEach(controller => controller.abort());
       mounted.current = false;
+      lifetime.value++;
     };
-  }, []);
+  }, [scope]);
 
   const send = useCallback(
     async (service: SpeakerService, targets: string[], description: string, data?: Record<string, string | number | boolean>) => {
       if (!mounted.current) return false;
+      const requestGeneration = generation.current.value;
       setError(null);
       const controller = new AbortController();
       active.current.add(controller);
@@ -66,7 +70,7 @@ export function useSpeakerCommand() {
         return true;
       } catch (cause) {
         const detail = cause && typeof cause === 'object' && 'message' in cause ? String(cause.message) : 'Please try again.';
-        if (mounted.current) setError(`Could not ${description}. ${detail}`);
+        if (mounted.current && requestGeneration === generation.current.value) setError(`Could not ${description}. ${detail}`);
         return false;
       } finally {
         clearTimeout(timeout);

@@ -26,7 +26,9 @@ export function CanvasFavourites({ onPlayed }: { onPlayed(): void }) {
   const mounted = useRef(true);
   useEffect(() => {
     mounted.current = true;
-    return () => { mounted.current = false; };
+    return () => {
+      mounted.current = false;
+    };
   }, []);
   async function play(item: FavouriteItem, button: HTMLButtonElement) {
     const confirmed = await p.play(item);
@@ -59,6 +61,7 @@ export function CanvasFavourites({ onPlayed }: { onPlayed(): void }) {
           ))}
         </div>
       )}
+      {p.playStatus && <p role='status'>{p.playStatus}</p>}
       {p.pending && <p role='status'>Starting {p.pending.title}…</p>}
       {(p.playError || p.commandError) && <p role='alert'>{p.playError || p.commandError}</p>}
     </section>

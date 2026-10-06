@@ -38,7 +38,7 @@ it('marks a failed compact command as an issue and shows Stop scope after select
   mountCompact();
   fireEvent.click(screen.getByRole('button', { name: 'Open selected blinds' }));
   fireEvent.click(screen.getByRole('button', { name: 'Gym blinds' }));
-  expect(screen.getByText(/Stop targets Living room \+ Bedroom \+ Gym/)).toBeTruthy();
+  expect(screen.getByText(/Stop recent: Living room \+ Bedroom \+ Gym/)).toBeTruthy();
   await act(async () => response.reject(new Error('Assistant unavailable')));
   const feedback = screen.getByRole('group', { name: 'Open blind command results' });
   expect(feedback.getAttribute('data-has-issue')).toBe('true');

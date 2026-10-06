@@ -102,3 +102,6 @@
 }
 
 .canvas .canvas-blinds .canvas-blinds__glyph-fill { fill: currentColor; opacity: .4; }
+
+.canvas .canvas-blinds .canvas-blinds__selected-stop { grid-template-columns: minmax(0, 1fr); flex: 0 0 auto; }
+.canvas .canvas-blinds .canvas-blinds__selected-stop button { min-width: 0; overflow-wrap: anywhere; }

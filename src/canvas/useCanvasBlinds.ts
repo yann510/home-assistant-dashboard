@@ -91,7 +91,7 @@ function useCanvasBlindsController() {
   const run = useCallback((action: BlindAction, selected: readonly BlindRoom[]) => dispatch(action,
     action === 'stop' && movingRef.current.length ? movingRef.current : selected), [dispatch]);
   const retryFailed = useCallback((action: BlindAction) => dispatch(action, failedRef.current[action], true), [dispatch]);
-  return { run, retryFailed, failedRooms, results, pending, movingRooms, connected };
+  return { run, stopSelected: (selected: readonly BlindRoom[]) => dispatch('stop', selected), retryFailed, failedRooms, results, pending, movingRooms, connected };
 }
 
 type Controller = ReturnType<typeof useCanvasBlindsController>;
@@ -119,5 +119,5 @@ export function useCanvasBlinds(initialRoom?: BlindRoom) {
     setSelection(next);
   }, []);
   const run = useCallback((action: BlindAction) => controller.run(action, selectionRef.current), [controller]);
-  return { ...controller, selection, toggleRoom, run };
+  return { ...controller, selection, toggleRoom, run, stopSelected: () => controller.stopSelected(selectionRef.current) };
 }

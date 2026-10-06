@@ -85,7 +85,7 @@ export function CanvasMusic({
   onOpenPlayer(trigger: HTMLElement): void;
   onOpenSpeakers(trigger: HTMLElement): void;
 }) {
-  const { session, title, trackTitle, attributes, idle, rooms, disabled } = useCanvasMusic();
+  const { session, title, trackTitle, attributes, idle, rooms, disabled, favouritePlayback } = useCanvasMusic();
   const { joinHassUrl } = useHass();
   const [failedArtwork, setFailedArtwork] = useState<string>();
   const picture = !idle && !disabled ? attributes?.entity_picture : undefined;
@@ -153,6 +153,7 @@ export function CanvasMusic({
           <circle cx='140' cy='80' r='20' />
         </svg>
       </div>
+      {favouritePlayback.playStatus && <p role='status'>{favouritePlayback.playStatus}</p>}
     </section>
   );
 }
