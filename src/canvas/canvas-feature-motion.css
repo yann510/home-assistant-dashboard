@@ -11,7 +11,7 @@
 .canvas-mood[data-feature-motion='true'][data-mood='party'] .canvas-mood__art > * { animation: canvas-party-arrive 550ms ease-out backwards; }
 .canvas-mood[data-feature-motion='true'][data-mood='gym'] .canvas-mood__art > * { animation: canvas-gym-arrive 550ms ease-out backwards; }
 .canvas-music__track[data-feature-motion='true'] > :is(.canvas-music__cover, .canvas-music__metadata) { animation: canvas-feature-reveal 320ms ease both; }
-.canvas-music__play-motion { display: grid; place-items: center; width: 20px; height: 20px; }
+.canvas-music__play-motion { display: grid; place-items: center; width: var(--canvas-transport-icon-size, 20px); height: var(--canvas-transport-icon-size, 20px); }
 .canvas-music__play-motion[data-feature-motion='true'] { animation: canvas-play-change 200ms ease-out both; }
 .canvas-music__transport button > svg { transition: transform 160ms ease; }
 .canvas-music__transport button:first-of-type:active:not(:disabled) > svg { transform: translateX(-3px); }

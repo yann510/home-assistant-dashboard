@@ -92,7 +92,8 @@
   .canvas .canvas-blinds .canvas-blinds__window { width: 32px; height: 44px; flex-basis: 32px; }
   .canvas .canvas-blinds .canvas-blinds__actions svg,
   .canvas .canvas-lights__quick-settings svg { width: 21px; height: 21px; }
-  .canvas .canvas-music__transport svg { width: 23px; height: 23px; }
+  .canvas .canvas-music__transport { --canvas-transport-icon-size: 23px; }
+  .canvas .canvas-music__transport svg { width: var(--canvas-transport-icon-size); height: var(--canvas-transport-icon-size); }
   .canvas .canvas-music__favourites svg { width: 22px; height: 22px; }
   .canvas .canvas-pulse__signature { width: 39px; height: 39px; }
   .canvas .canvas-pulse__art svg { width: 35px; height: 35px; }
@@ -185,4 +186,13 @@
 @media (min-width: 800px) and (max-width: 1000px) and (min-height: 720px) {
   .canvas .canvas-blinds .canvas-blinds__rooms button { flex-direction: column; justify-content: center; gap: 4px; min-height: 104px; text-align: center; }
   .canvas .canvas-blinds .canvas-blinds__window { flex-basis: auto; }
+}
+
+/* Desktop cards grow only to a comfortable composition; touch tablets continue
+   filling their viewport. Intrinsic grid rows can still grow for extra content. */
+@media (min-width: 800px) and (min-height: 540px) and (hover: hover) and (pointer: fine) {
+  .canvas .canvas__home {
+    height: min(100svh, 800px);
+    min-height: min(100svh, 800px);
+  }
 }
