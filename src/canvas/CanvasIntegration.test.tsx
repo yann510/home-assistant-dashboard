@@ -118,7 +118,9 @@ it('keeps offline detail access, disables commands, and never replays writes on 
   render(<CanvasDashboard />);
   expect((screen.getByRole('button', { name: 'Pause' }) as HTMLButtonElement).disabled).toBe(true);
   fireEvent.click(screen.getByRole('button', { name: 'Open favourites' }));
-  expect(within(screen.getByRole('dialog')).getByText('Reconnecting to Home Assistant…')).toBeTruthy();
+  expect(within(screen.getByRole('dialog')).getByText('Reconnecting to Home Assistant. Favourites will load when connected.')).toBeTruthy();
+  expect(within(screen.getByRole('dialog')).queryByText('Loading favourites…')).toBeNull();
+  expect(within(screen.getByRole('dialog')).queryByRole('button', { name: 'Retry favourites' })).toBeNull();
   act(() => fixture.reconnect());
   expect(fixture.calls.filter(call => (call as { type: string }).type === 'call_service')).toHaveLength(0);
 });

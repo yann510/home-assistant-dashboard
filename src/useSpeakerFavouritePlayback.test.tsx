@@ -186,19 +186,43 @@ it('clears unverified feedback when later playback identity changes', async () =
 });
 
 it('sends a different favourite and never treats title-only metadata as a verified no-op', async () => {
+  vi.useFakeTimers();
   fixture.publish(source, 'playing', { media_title: item.title });
   const { result, close } = mount();
   let playback: Promise<boolean>;
   act(() => { playback = result.current.play(item); });
   expect(fixture.calls).toHaveLength(1);
-  await act(async () => { fixture.publish(source, 'playing', { media_title: 'New jazz title' }); await playback; });
+  await act(async () => { fixture.publish(source, 'playing', { media_title: 'New jazz title' }); await vi.advanceTimersByTimeAsync(20_000); await playback; });
   act(() => { playback = result.current.play(item); });
   expect(fixture.calls).toHaveLength(2);
   await act(async () => { fixture.publish(source, 'playing', { media_content_id: 'jazz-track', media_title: 'Jazz track' }); await playback; });
   const other = { ...item, title: 'Other favourite', media_content_id: 'other' };
   act(() => { playback = result.current.play(other); });
   expect(fixture.calls).toHaveLength(3);
-  expect(close).toHaveBeenCalledTimes(2);
+  expect(close).toHaveBeenCalledTimes(1);
   await act(async () => { fixture.publish(source, 'playing', { media_content_id: 'other-track' }); await playback; });
-  expect(close).toHaveBeenCalledTimes(3);
+  expect(close).toHaveBeenCalledTimes(2);
+});
+
+it.each(['media_title', 'media_playlist'])('does not confirm or cache a %s-only change with an unrelated unchanged content ID', async key => {
+  vi.useFakeTimers();
+  const { result, close } = mount(); let playback: Promise<boolean>;
+  act(() => { playback = result.current.play(item); });
+  await act(async () => { fixture.publish(source, 'playing', { media_content_id: 'track-1', [key]: 'Changed metadata' }); await vi.advanceTimersByTimeAsync(20_000); await playback; });
+  expect(result.current.playStatus).toContain('Request accepted');
+  expect(result.current.playError).toBe(''); expect(close).not.toHaveBeenCalled();
+  act(() => { playback = result.current.play(item); });
+  expect(fixture.calls).toHaveLength(2);
+  await act(async () => { await vi.advanceTimersByTimeAsync(20_000); await playback; });
+  expect(close).not.toHaveBeenCalled();
+});
+it('permanently invalidates a rejected source error across A to B to A navigation', async () => {
+  fixture.respondWith(() => Promise.reject(new Error('Source A failed')));
+  const { result, rerender } = mount();
+  await act(async () => { await result.current.play(item); });
+  expect(result.current.commandError).toContain('Source A failed');
+  rerender({ id: 'media_player.gym', disabled: false });
+  expect(result.current.commandError).toBeNull();
+  rerender({ id: source, disabled: false });
+  expect(result.current.commandError).toBeNull(); expect(result.current.playError).toBe('');
 });

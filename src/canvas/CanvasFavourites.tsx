@@ -22,7 +22,9 @@ function Artwork({ item }: { item: FavouriteItem }) {
   );
 }
 export function CanvasFavourites({ onPlayed }: { onPlayed(): void }) {
-  const { favourites: f, favouritePlayback: p, disabled } = useCanvasMusic();
+  const { favourites: f, favouritePlayback: p, disabled, session } = useCanvasMusic();
+  const libraryAvailable =
+    session.connected && session.coordinator && !['unknown', 'unavailable'].includes(session.coordinator.state);
   const mounted = useRef(true);
   useEffect(() => {
     mounted.current = true;
@@ -39,14 +41,21 @@ export function CanvasFavourites({ onPlayed }: { onPlayed(): void }) {
   }
   return (
     <section className='canvas-favourites' aria-label='Favourites'>
-      {f.loading ? (
+      {!libraryAvailable && (
+        <p role='status'>
+          {!session.connected
+            ? 'Reconnecting to Home Assistant. Favourites will load when connected.'
+            : 'Wait for an available speaker to load favourites.'}
+        </p>
+      )}
+      {libraryAvailable && f.loading ? (
         <p role='status'>Loading favourites…</p>
-      ) : f.error ? (
+      ) : libraryAvailable && f.error ? (
         <p role='alert'>
           Could not load favourites. <button onClick={f.retry}>Retry favourites</button>
         </p>
       ) : !f.items.length ? (
-        <p>Choose this speaker in your music app.</p>
+        libraryAvailable ? <p>Choose this speaker in your music app.</p> : null
       ) : (
         <div className='canvas-favourites__grid'>
           {f.items.map(item => (

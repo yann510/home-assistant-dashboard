@@ -1107,3 +1107,30 @@ it('closes a verified already-playing favourite without sending and shows Alread
   expect(screen.getByText('Already playing Evening jazz.')).toBeTruthy();
   expect(sendMessagePromise).not.toHaveBeenCalled();
 });
+
+it.each(['disconnected', 'unavailable'])('shows honest initially %s favourites guidance and loads normally on recovery', async mode => {
+  browseMedia.mockResolvedValue({ children: [{ title: 'Evening jazz', media_content_id: 'jazz', media_content_type: 'playlist', can_play: true }] });
+  if (mode === 'disconnected') act(() => useStore.setState({ connectionStatus: 'disconnected' }));
+  else updateEntity('media_player.living_room', { state: 'unavailable' });
+  mount();
+  await userEvent.click(screen.getByRole('button', { name: 'Open favourites' }));
+  expect(screen.getByText(mode === 'disconnected' ? 'Reconnecting to Home Assistant. Favourites will load when connected.' : 'Wait for an available speaker to load favourites.')).toBeTruthy();
+  expect(screen.queryByText('Loading favourites…')).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Retry favourites' })).toBeNull();
+  expect(browseMedia).not.toHaveBeenCalled();
+  if (mode === 'disconnected') act(() => useStore.setState({ connectionStatus: 'connected' }));
+  else updateEntity('media_player.living_room', { state: 'playing' });
+  expect(await screen.findByRole('button', { name: 'Play Evening jazz' })).toBeTruthy();
+  expect((screen.getByRole('button', { name: 'Play Evening jazz' }) as HTMLButtonElement).disabled).toBe(false);
+});
+
+it('retains cached favourites disabled while disconnected without offering a retry or loader', async () => {
+  browseMedia.mockResolvedValue({ children: [{ title: 'Evening jazz', media_content_id: 'jazz', media_content_type: 'playlist', can_play: true }] });
+  mount(); await userEvent.click(screen.getByRole('button', { name: 'Open favourites' }));
+  await screen.findByRole('button', { name: 'Play Evening jazz' });
+  act(() => useStore.setState({ connectionStatus: 'disconnected' }));
+  expect((screen.getByRole('button', { name: 'Play Evening jazz' }) as HTMLButtonElement).disabled).toBe(true);
+  expect(screen.queryByText('Loading favourites…')).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Retry favourites' })).toBeNull();
+  expect(screen.getByText('Reconnecting to Home Assistant. Favourites will load when connected.')).toBeTruthy();
+});

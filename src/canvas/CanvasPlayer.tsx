@@ -3,14 +3,13 @@ import { CanvasFavourites } from './CanvasFavourites';
 import { useCanvasMusic } from './CanvasMusicProvider';
 
 export function CanvasPlayer({ onClose }: { onClose(): void }) {
-  const { session, setLibraryOpen } = useCanvasMusic();
+  const { setLibraryOpen } = useCanvasMusic();
   useEffect(() => {
     setLibraryOpen(true);
     return () => setLibraryOpen(false);
   }, [setLibraryOpen]);
   return (
     <div className='canvas-player'>
-      {!session.connected && <p role='status'>Reconnecting to Home Assistant…</p>}
       <CanvasFavourites onPlayed={onClose} />
     </div>
   );

@@ -31,6 +31,7 @@ export function useSpeakerFavouritePlayback(entityId: string, disabled: boolean,
   // A source change invalidates the old result without resetting navigation within one source.
   if (playbackSource !== entityId) {
     setPlaybackSource(entityId);
+    setCommandSource(null);
     setPending(null);
     setPlayError('');
     setPlayStatus('');
@@ -115,11 +116,11 @@ export function useSpeakerFavouritePlayback(entityId: string, disabled: boolean,
         const next = state.entities[entityId];
         if (next?.state !== 'playing') return;
         const a = next.attributes;
+        // Titles and playlist labels alone cannot identify the requested favourite.
         if (
-          before?.state !== 'playing' ||
-          a.media_content_id !== before?.attributes.media_content_id ||
-          a.media_title !== before?.attributes.media_title ||
-          a.media_playlist !== before?.attributes.media_playlist
+          meaningfulId(a.media_content_id) &&
+          (a.media_content_id !== before?.attributes.media_content_id ||
+            (before?.state !== 'playing' && a.media_content_id === item.media_content_id))
         ) {
           confirmedIdentity = playbackIdentity(next);
           finish(true);
