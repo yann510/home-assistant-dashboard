@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
+import type { CanvasOverlay } from './CanvasOverlayNavigation';
 import type { CanvasRoute } from './routes';
 
-type Visit = { route: CanvasRoute; depth: number; focus: string | null; scrollTop: number };
+type Visit = { route: CanvasRoute; depth: number; focus: string | null; scrollTop: number; overlay: CanvasOverlay | null };
 type Record = Visit & { session: string };
 const key = '__canvasNavigation';
-const overview: Visit = { route: { kind: 'overview' }, depth: 0, focus: null, scrollTop: 0 };
+const overview: Visit = { route: { kind: 'overview' }, depth: 0, focus: null, scrollTop: 0, overlay: null };
 
 // Keep the page URL and host-owned state intact. A fresh mount deliberately
 // ignores old dialog records, including records left behind by a reload.
@@ -40,11 +41,26 @@ export function useCanvasNavigation() {
   function open(route: CanvasRoute, trigger: HTMLElement) {
     if (pending.current) return;
     const previous = { ...current.current, focus: trigger.dataset.canvasFocusKey || trigger.getAttribute('aria-label') || trigger.textContent, scrollTop: document.querySelector('.canvas-dialog__body')?.scrollTop ?? 0 };
-    write(previous);
-    const next = { route, depth: previous.depth + 1, focus: null, scrollTop: 0 };
-    write(next, true);
+    if (!previous.overlay) write(previous);
+    const next = { route, depth: previous.depth + (previous.overlay ? 0 : 1), focus: null, scrollTop: 0, overlay: null };
+    write(next, !previous.overlay);
     current.current = next;
     setVisit(next);
+  }
+  function openOverlay(overlay: CanvasOverlay, trigger: HTMLElement) {
+    if (pending.current) return;
+    const previous = { ...current.current, focus: trigger.dataset.canvasFocusKey || trigger.getAttribute('aria-label') || trigger.textContent, scrollTop: trigger.closest('.canvas-dialog__body')?.scrollTop ?? 0 };
+    if (!previous.overlay) write(previous);
+    const next = { ...previous, overlay, depth: previous.depth + (previous.overlay ? 0 : 1), focus: null };
+    write(next, !previous.overlay);
+    current.current = next;
+    setVisit(next);
+  }
+  function closeOverlay() {
+    if (!current.current.overlay || pending.current) return;
+    back();
+    // Hide immediately for Escape/selection; the traversal restores parent context.
+    setVisit({ ...current.current, depth: current.current.depth - 1, overlay: null });
   }
   function back() {
     if (pending.current || current.current.depth === 0) return;
@@ -63,5 +79,5 @@ export function useCanvasNavigation() {
     current.current = overview;
     setVisit(overview);
   }
-  return { ...visit, open, back, close };
+  return { ...visit, routeDepth: visit.depth - (visit.overlay ? 1 : 0), open, back, close, openOverlay, closeOverlay };
 }

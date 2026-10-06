@@ -218,7 +218,7 @@ function IndividualLights({
 }
 
 export function CanvasLights({ onOpenAll }: { onOpenAll(trigger: HTMLElement): void }) {
-  const settings = useLightSettings();
+  const settings = useLightSettings('home-light-settings');
   const { rooms, selectedRoom, setSelectedRoom, connected } = useCanvasLights();
   const room = rooms.find(item => item.name === selectedRoom) ?? rooms[0];
   const contentRef = useControlChangeFade<HTMLElement>(room.name, '.canvas-lights__room-artwork, .canvas-lights__quick-light span');
@@ -285,7 +285,7 @@ export function CanvasAllLightsAction() {
 
 export function CanvasAllLights({ showGlobalAction = true }: { showGlobalAction?: boolean }) {
   const { rooms, connected } = useCanvasLights();
-  const settings = useLightSettings();
+  const settings = useLightSettings('all-light-settings');
   return (
     <div className='canvas-lights canvas-lights--all' onKeyDown={settings.onKeyDown}>
       {showGlobalAction && (

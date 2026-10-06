@@ -69,3 +69,47 @@ it('keeps navigation outside the scrolling body and resets or restores scroll fo
   );
   expect(body.scrollTop).toBe(500);
 });
+
+it('wraps from a panel or read-only row and skips disabled, hidden, inert and exit-clone descendants', () => {
+  render(
+    <CanvasDialog title='Read-only details' onClose={() => {}}>
+      <button disabled>Unavailable</button>
+      <div aria-hidden='true'><button>Exit clone</button></div>
+      <div inert><button>Inert</button></div>
+      <div hidden><button>Hidden attribute</button></div>
+      <div style={{ display: 'none' }}><button>Hidden style</button></div>
+      <div tabIndex={-1} data-testid='destination'>Read-only destination</div>
+    </CanvasDialog>
+  );
+  const dialog = screen.getByRole('dialog');
+  const close = screen.getByRole('button', { name: 'Close details' });
+  for (const target of [dialog, screen.getByTestId('destination')]) {
+    for (const shiftKey of [false, true]) {
+      target.focus();
+      fireEvent.keyDown(target, { key: 'Tab', shiftKey });
+      expect(document.activeElement).toBe(close);
+    }
+  }
+});
+
+it('enters the controls of a non-tabbable destination in DOM order and preserves editable keys', () => {
+  render(
+    <CanvasDialog title='Editable details' onClose={() => {}}>
+      <section tabIndex={-1} data-testid='destination'>
+        <input aria-label='Temperature' defaultValue='20' />
+        <button>Raise</button>
+      </section>
+    </CanvasDialog>
+  );
+  const target = screen.getByTestId('destination');
+  target.focus();
+  fireEvent.keyDown(target, { key: 'Tab' });
+  const input = screen.getByRole('textbox');
+  expect(document.activeElement).toBe(input);
+  expect(fireEvent.keyDown(input, { key: 'ArrowLeft' })).toBe(true);
+  fireEvent.keyDown(input, { key: 'Tab' });
+  expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Raise' }));
+  target.focus();
+  fireEvent.keyDown(target, { key: 'Tab', shiftKey: true });
+  expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Close details' }));
+});

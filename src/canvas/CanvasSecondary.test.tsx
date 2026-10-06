@@ -4,6 +4,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import userEvent from '@testing-library/user-event';
 import type { AttentionItem } from '../attention';
 import { CanvasPulse, type AttentionController } from './CanvasPulse';
+import { settleHistory } from './testing/history';
 import { CanvasDashboard } from './CanvasDashboard';
 import { classifyAppliance, classifyVacuum } from './activity';
 import { createHaFixture, deferred } from './testing/haFixture';
@@ -83,7 +84,7 @@ it.each([
   fireEvent.click(activity);
   expect(screen.getByRole('dialog', { name: 'Roomba' })).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: 'Close details' }));
-  await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
+  await settleHistory();
   expect(ref.current!.calls).toHaveLength(0);
 });
 
@@ -144,7 +145,7 @@ it('never treats missing activity sensors as an all-clear and keeps reminder epi
   );
   expect(within(screen.getByRole('dialog')).getByText('Still offline')).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: 'Close details' }));
-  await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
+  await settleHistory();
   act(() => ref.current!.publish('sensor.dashboard_attention', '3', { ready: true, items: [] }));
   expect(screen.getByText('Activity status unavailable for some devices.')).toBeTruthy();
 });
@@ -288,7 +289,7 @@ it('finds real devices by name and room and reaches every secondary category', a
     fireEvent.click(within(screen.getByRole('dialog', { name: 'All devices' })).getByRole('button', { name: destination }));
     expect(screen.getByRole('dialog', { name: title })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Back' }));
-    await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
+    await settleHistory();
     expect(document.activeElement).toBe(within(screen.getByRole('dialog')).getByRole('button', { name: destination }));
   }
   fireEvent.change(screen.getByRole('searchbox'), { target: { value: '   ' } });
@@ -304,7 +305,7 @@ it('searches a vacuum by its actual name and recovers from an empty search', asy
   fireEvent.click(screen.getByRole('button', { name: 'Downstairs helper' }));
   expect(screen.getByRole('dialog', { name: 'Roomba' })).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: 'Back' }));
-  await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
+  await settleHistory();
   expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Downstairs helper' }));
   fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'not-a-device' } });
   expect(screen.getByText('No devices found. Try another room or shorter name.')).toBeTruthy();
@@ -340,7 +341,7 @@ it('keeps pending blind targets and Stop after navigating from Bedroom to Gym', 
   fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Open selected blinds' }));
   expect(ref.current!.calls).toHaveLength(1);
   fireEvent.click(screen.getByRole('button', { name: 'Back' }));
-  await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
+  await settleHistory();
   fireEvent.change(within(screen.getByRole('dialog')).getByRole('searchbox', { name: 'Find a device or room' }), {
     target: { value: 'Gym blinds' },
   });
@@ -450,7 +451,7 @@ it('retains a pending Roomba command and its later rejection after closing and r
   fireEvent.click(screen.getByRole('button', { name: 'Start cleaning' }));
   expect(ref.current!.calls).toHaveLength(1);
   fireEvent.click(screen.getByRole('button', { name: 'Back' }));
-  await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
+  await settleHistory();
   fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Vacuum' }));
   expect(screen.getByRole('button', { name: 'Start cleaning' }).hasAttribute('disabled')).toBe(true);
   fireEvent.click(screen.getByRole('button', { name: 'Start cleaning' }));
@@ -468,7 +469,7 @@ it('retains Roomba observation after reopening a pending detail', async () => {
   fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Vacuum' }));
   fireEvent.click(screen.getByRole('button', { name: 'Start cleaning' }));
   fireEvent.click(screen.getByRole('button', { name: 'Back' }));
-  await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
+  await settleHistory();
   fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Vacuum' }));
   await act(async () => starting.resolve({}));
   expect(screen.getByText(/Service accepted; device response is not yet verified/)).toBeTruthy();
@@ -520,7 +521,7 @@ it.each(['rejected', 'observed'])('retains thermostat lock across close/reopen a
   openThermostats();
   fireEvent.click(screen.getByRole('button', { name: 'Raise Office target temperature' }));
   fireEvent.click(screen.getByRole('button', { name: 'Close details' }));
-  await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
+  await settleHistory();
   openThermostats();
   expect(screen.getByRole('button', { name: 'Raise Office target temperature' }).hasAttribute('disabled')).toBe(true);
   fireEvent.click(screen.getByRole('button', { name: 'Raise Office target temperature' }));
@@ -529,7 +530,7 @@ it.each(['rejected', 'observed'])('retains thermostat lock across close/reopen a
     await act(async () => change.reject(new Error('Thermostat denied')));
     expect(within(screen.getByRole('dialog')).getByRole('alert').textContent).toContain('Thermostat denied');
     fireEvent.click(screen.getByRole('button', { name: 'Close details' }));
-    await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
+    await settleHistory();
     openThermostats();
     expect(within(screen.getByRole('dialog')).getByRole('alert').textContent).toContain('Thermostat denied');
   } else {
@@ -622,7 +623,7 @@ it('retains thermostat disconnect uncertainty across navigation and never replay
   openThermostats();
   fireEvent.click(screen.getByRole('button', { name: 'Raise Office target temperature' }));
   fireEvent.click(screen.getByRole('button', { name: 'Close details' }));
-  await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
+  await settleHistory();
   await act(async () => ref.current!.disconnect());
   await act(async () => ref.current!.reconnect());
   openThermostats();
@@ -715,7 +716,7 @@ it('restores a searched directory position and trigger focus after nested naviga
   fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Bedroom blinds' }));
   expect(body.scrollTop).toBe(0);
   fireEvent.click(screen.getByRole('button', { name: 'Back' }));
-  await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
+  await settleHistory();
   expect(body.scrollTop).toBe(260);
   expect((screen.getByRole('searchbox', { name: 'Find a device or room' }) as HTMLInputElement).value).toBe('Bedroom');
   expect(document.activeElement).toBe(within(screen.getByRole('dialog')).getByRole('button', { name: 'Bedroom blinds' }));
@@ -931,7 +932,7 @@ it('hides a powered-off unavailable washer from pulse and restores its activity 
   fireEvent.click(within(screen.getByRole('dialog', { name: 'All devices' })).getByRole('button', { name: 'Appliances' }));
   expect(within(screen.getByRole('dialog', { name: 'Appliances' })).getByText('Unavailable')).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: 'Close details' }));
-  await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
+  await settleHistory();
   act(() => {
     fixture.publish('sensor.washer_washer_machine_state', 'run');
     fixture.publish('sensor.washer_washer_job_state', 'wash');
@@ -1061,7 +1062,7 @@ it.each([
   expect(document.activeElement).toBe(target);
   expect(ref.current!.calls).toHaveLength(0);
   fireEvent.click(screen.getByRole('button', { name: 'Back' }));
-  await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
+  await settleHistory();
   expect(document.activeElement).toBe(within(screen.getByRole('navigation', { name: 'Device directory' })).getByRole('button', { name }));
 });
 
@@ -1070,26 +1071,24 @@ it('traverses browser Back and Forward, handles rapid Back and Close, and ignore
   const mounted = render(<CanvasDashboard />);
   fireEvent.click(screen.getByRole('button', { name: 'All devices' }));
   fireEvent.click(within(screen.getByRole('navigation', { name: 'Device categories' })).getByRole('button', { name: 'Climate' }));
-  const settle = () => act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
   window.history.back();
-  await settle();
+  await settleHistory();
   expect(screen.getByRole('dialog', { name: 'All devices' })).toBeTruthy();
   window.history.forward();
-  await settle();
+  await settleHistory();
   expect(screen.getByRole('dialog', { name: 'Thermostats' })).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: 'Back' }));
   fireEvent.click(screen.getByRole('button', { name: 'Back' }));
-  await settle();
+  await settleHistory();
   expect(screen.getByRole('dialog', { name: 'All devices' })).toBeTruthy();
   window.history.forward();
-  await settle();
+  await settleHistory();
   fireEvent.click(screen.getByRole('button', { name: 'Back' }));
   fireEvent.click(screen.getByRole('button', { name: 'Close details' }));
-  await settle();
-  await settle();
+  await settleHistory(2);
   expect(screen.queryByRole('dialog')).toBeNull();
   window.history.forward();
-  await settle();
+  await settleHistory();
   expect(screen.getByRole('dialog', { name: 'All devices' })).toBeTruthy();
   expect(window.history.state.host).toBe('preserved');
   expect(window.location.search).toBe('?view=canvas&host=original');
@@ -1097,7 +1096,7 @@ it('traverses browser Back and Forward, handles rapid Back and Close, and ignore
   render(<CanvasDashboard />);
   expect(screen.queryByRole('dialog')).toBeNull();
   window.history.forward();
-  await settle();
+  await settleHistory();
   expect(screen.queryByRole('dialog')).toBeNull();
   expect(ref.current!.calls).toHaveLength(0);
 });
@@ -1129,4 +1128,37 @@ it('sets a supported docked fan speed without starting cleaning and waits for re
   expect(screen.getByText('Roomba reported the requested state.')).toBeTruthy();
   expect((screen.getByRole('button', { name: 'Set fan speed' }) as HTMLButtonElement).disabled).toBe(true);
   expect(ref.current!.getState().entities['vacuum.roomba'].state).toBe('docked');
+});
+
+it.each([
+  ['Washer', 'washer'],
+  ['Dryer', 'dryer'],
+  ['Dishwasher', 'dishwasher'],
+  ['Office thermostat', 'climate.thermostat_office'],
+  ['Living room speaker', 'media_player.living_room'],
+])('cycles Tab in both directions from the read-only %s destination while offline', async (name, id) => {
+  ref.current!.disconnect();
+  render(<CanvasDashboard />);
+  fireEvent.click(screen.getByRole('button', { name: 'All devices' }));
+  fireEvent.click(within(screen.getByRole('navigation', { name: 'Device directory' })).getByRole('button', { name }));
+  const dialog = screen.getByRole('dialog');
+  const target = dialog.querySelector<HTMLElement>(`[data-canvas-destination="${id}"]`)!;
+  const user = userEvent.setup();
+  expect(document.activeElement).toBe(target);
+  for (const reverse of [false, true]) {
+    target.focus();
+    await user.tab({ shift: reverse });
+    expect(dialog.contains(document.activeElement)).toBe(true);
+    expect(document.activeElement).not.toBe(target);
+    expect(document.activeElement?.matches(':disabled')).toBe(false);
+    expect(document.activeElement?.closest('[inert], [aria-hidden="true"]')).toBeNull();
+  }
+  dialog.focus();
+  await user.tab();
+  expect(document.activeElement).toBe(within(dialog).getByRole('button', { name: 'Back' }));
+  dialog.focus();
+  await user.tab({ shift: true });
+  expect(dialog.contains(document.activeElement)).toBe(true);
+  expect(document.activeElement).not.toBe(dialog);
+  expect(ref.current!.calls).toEqual([]);
 });

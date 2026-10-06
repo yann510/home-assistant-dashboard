@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useStore } from '@hakit/core';
+import { CanvasOverlayNavigation } from './CanvasOverlayNavigation';
 import { CanvasDialog } from './CanvasDialog';
 import { useCanvasNavigation } from './useCanvasNavigation';
 import { canvasRouteTitle, routeForAttention, type CanvasRoute } from './routes';
@@ -34,7 +35,7 @@ import './canvas-tablet.css';
 function CanvasDashboardContent({ quietPulse }: { quietPulse?: QuietPulsePresentation }): React.JSX.Element {
   const connected = useStore(state => Boolean(state.connection?.connected && state.connectionStatus === 'connected'));
   const navigation = useCanvasNavigation();
-  const { route, depth, scrollTop: dialogScrollTop } = navigation;
+  const { route, routeDepth: depth, scrollTop: dialogScrollTop } = navigation;
   const [deviceQuery, setDeviceQuery] = useState('');
   const modes = useCanvasModes();
   const returnFocus = useRef<HTMLElement | null>(null);
@@ -50,8 +51,8 @@ function CanvasDashboardContent({ quietPulse }: { quietPulse?: QuietPulsePresent
   useEffect(() => {
     if (navigation.focus) {
       const name = navigation.focus;
-      document.querySelectorAll<HTMLElement>('.canvas-dialog button').forEach(button => {
-        if ((button.dataset.canvasFocusKey || button.getAttribute('aria-label') || button.textContent) === name)
+      document.querySelectorAll<HTMLElement>('.canvas button').forEach(button => {
+        if (!button.closest('[inert], [aria-hidden="true"]') && (button.dataset.canvasFocusKey || button.getAttribute('aria-label') || button.textContent) === name)
           button.focus({ preventScroll: true });
       });
     }
@@ -72,6 +73,7 @@ function CanvasDashboardContent({ quietPulse }: { quietPulse?: QuietPulsePresent
   const back = navigation.back;
 
   return (
+    <CanvasOverlayNavigation.Provider value={navigation}>
     <main className='canvas'>
       <div className='canvas__home' inert={route.kind !== 'overview'}>
         <header className='canvas__header'>
@@ -194,6 +196,7 @@ function CanvasDashboardContent({ quietPulse }: { quietPulse?: QuietPulsePresent
         )
       )}
     </main>
+    </CanvasOverlayNavigation.Provider>
   );
 }
 

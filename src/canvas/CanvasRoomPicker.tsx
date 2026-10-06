@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
+import { useCanvasOverlay } from './CanvasOverlayNavigation';
 import { CanvasDialog } from './CanvasDialog';
 import { RoomArtwork } from './RoomArtwork';
 import { getRoomAccent } from './room-artwork';
@@ -17,12 +18,13 @@ export function CanvasRoomPicker({
   connected: boolean;
   onChange(value: string): void;
 }) {
-  const [open, setOpen] = useState(false);
+  const overlay = useCanvasOverlay('home-room-picker');
+  const open = Boolean(overlay.active);
   const [active, setActive] = useState(0);
   const trigger = useRef<HTMLButtonElement>(null);
   const menu = useRef<HTMLDivElement>(null);
   const id = useId();
-  const close = () => setOpen(false);
+  const close = overlay.close;
   const show = () => {
     // Safari touch activation does not focus buttons; give the dialog a reliable return target.
     trigger.current?.focus({ preventScroll: true });
@@ -32,7 +34,7 @@ export function CanvasRoomPicker({
         rooms.findIndex(room => room.name === value)
       )
     );
-    setOpen(true);
+    if (trigger.current) overlay.open({}, trigger.current);
   };
   const choose = (index: number) => {
     onChange(rooms[index].name);

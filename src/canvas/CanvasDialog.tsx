@@ -5,6 +5,14 @@ import { animateCanvasChange, animateCanvasExit } from './motion';
 const focusable =
   'summary, a[href], button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])';
 
+function isVisible(element: HTMLElement) {
+  for (let node: HTMLElement | null = element; node; node = node.parentElement) {
+    const style = getComputedStyle(node);
+    if (style.display === 'none' || style.visibility === 'hidden') return false;
+  }
+  return true;
+}
+
 export function CanvasDialog({
   title,
   children,
@@ -46,7 +54,7 @@ export function CanvasDialog({
     if (navigation) navigation.inert = true;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-    panel.current?.focus({ preventScroll: true });
+    if (!panel.current?.contains(document.activeElement)) panel.current?.focus({ preventScroll: true });
     return () => {
       document.body.style.overflow = previousOverflow;
       if (navigation) navigation.inert = previousInert;
@@ -61,7 +69,7 @@ export function CanvasDialog({
       target.dataset.canvasHighlighted = 'true';
       return () => { delete target.dataset.canvasHighlighted; };
     }
-    panel.current?.focus({ preventScroll: true });
+    if (!panel.current?.contains(document.activeElement)) panel.current?.focus({ preventScroll: true });
   }, [routeKey, destination]);
 
   return (
@@ -91,23 +99,28 @@ export function CanvasDialog({
           if (event.key !== 'Tab') return;
           const controls = Array.from(event.currentTarget.querySelectorAll<HTMLElement>(focusable)).filter(
             element =>
-              !element.closest('[inert]') &&
-              element.getAttribute('aria-hidden') !== 'true' &&
+              !element.closest('[inert], [aria-hidden="true"], [hidden]') &&
+              !element.matches(':disabled') &&
+              element.tabIndex >= 0 &&
+              isVisible(element) &&
               !element.closest('details:not([open]) > :not(summary)')
           );
+          controls.sort((left, right) => left.compareDocumentPosition(right) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1);
           if (controls.length === 0) {
             event.preventDefault();
             return;
           }
-          const first = controls[0];
-          const last = controls[controls.length - 1];
-          if (event.shiftKey && (document.activeElement === first || document.activeElement === event.currentTarget)) {
-            event.preventDefault();
-            last.focus();
-          } else if (!event.shiftKey && document.activeElement === last) {
-            event.preventDefault();
-            first.focus();
-          }
+          const active = document.activeElement;
+          const index = controls.indexOf(active as HTMLElement);
+          // A destination row/panel can own focus without being in the tab order.
+          // Select its nearest control in DOM order, wrapping at either boundary.
+          const next = index >= 0
+            ? controls[(index + (event.shiftKey ? -1 : 1) + controls.length) % controls.length]
+            : event.shiftKey
+              ? [...controls].reverse().find(control => active !== event.currentTarget && Boolean((active?.compareDocumentPosition(control) ?? 0) & Node.DOCUMENT_POSITION_PRECEDING)) ?? controls[controls.length - 1]
+              : controls.find(control => Boolean((active?.compareDocumentPosition(control) ?? 0) & Node.DOCUMENT_POSITION_FOLLOWING)) ?? controls[0];
+          event.preventDefault();
+          next.focus();
         }}
       >
         <header className='canvas-dialog__header'>
