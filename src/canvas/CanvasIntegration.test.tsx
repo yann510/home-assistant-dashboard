@@ -22,13 +22,14 @@ afterEach(() => {
   fixture.reset();
 });
 
-it('restores the directory trigger on Back, traps keyboard focus, and restores overview focus on Escape', () => {
+it('restores the directory trigger on Back, traps keyboard focus, and restores overview focus on Escape', async () => {
   render(<CanvasDashboard />);
   const overview = screen.getByRole('button', { name: 'All devices' });
   fireEvent.click(overview);
   const trigger = screen.getByRole('button', { name: 'Speakers' });
   fireEvent.click(trigger);
   fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+  await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
   expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Speakers' }));
   const dialog = screen.getByRole('dialog');
   const close = screen.getByRole('button', { name: 'Close details' });
@@ -37,6 +38,7 @@ it('restores the directory trigger on Back, traps keyboard focus, and restores o
   expect(dialog.contains(document.activeElement)).toBe(true);
   expect(document.activeElement).not.toBe(close);
   fireEvent.keyDown(dialog, { key: 'Escape' });
+  await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
   expect(document.activeElement).toBe(overview);
 });
 
@@ -69,6 +71,7 @@ it('opens every directory destination with one modal owner and returns to the se
     expect(screen.getAllByRole('dialog')).toHaveLength(1);
     expect(screen.getByRole('dialog', { name: title })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+  await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
     expect(document.activeElement).toBe(within(screen.getByRole('dialog')).getByRole('button', { name }));
   }
   fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'Office thermostat' } });
@@ -76,6 +79,7 @@ it('opens every directory destination with one modal owner and returns to the se
   screen.getByRole('searchbox').focus();
   fireEvent.click(thermostat);
   fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+  await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
   expect((screen.getByRole('searchbox') as HTMLInputElement).value).toBe('Office thermostat');
   expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Office thermostat' }));
   await act(async () => {});
@@ -97,11 +101,13 @@ it('retains speaker slider identity and focus across entity updates and Favourit
   expect(document.activeElement).toBe(slider);
   expect(screen.getByRole('slider', { name: 'Group volume' })).toBe(slider);
   fireEvent.click(screen.getByRole('button', { name: 'Close details' }));
+  await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
   fireEvent.click(screen.getByRole('button', { name: 'Open favourites' }));
   expect(screen.getByRole('dialog', { name: 'Favourites' })).toBeTruthy();
   expect(within(screen.getByRole('dialog')).queryByRole('slider', { name: /volume/i })).toBeNull();
   await act(async () => {});
   fireEvent.click(screen.getByRole('button', { name: 'Close details' }));
+  await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
   fireEvent.click(screen.getByRole('button', { name: 'Open speakers' }));
   expect((screen.getByRole('slider', { name: 'Group volume' }) as HTMLInputElement).value).toBe('40');
 });
@@ -307,6 +313,7 @@ it.each(['Open favourites', 'Open speakers', 'Open speaker volume', 'All lights'
     fireEvent.click(trigger);
     expect(screen.getByRole('dialog')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Close details' }));
+  await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
     expect(document.activeElement).toBe(trigger);
     await act(async () => {});
   }
@@ -337,15 +344,17 @@ it('restores an unfocused weather trigger and an attention chip after updated la
   fireEvent.click(weather);
   act(() => fixture.publish('weather.forecast_home', 'rainy', { temperature: 19, supported_features: 3 }));
   fireEvent.click(screen.getByRole('button', { name: 'Close details' }));
+  await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
   expect(document.activeElement).toBe(weather);
   const chip = screen.getByRole('button', { name: 'View: Empty bin' });
   fireEvent.click(chip);
   fireEvent.click(screen.getByRole('button', { name: 'Close details' }));
+  await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
   expect(document.activeElement).toBe(chip);
   await act(async () => {});
 });
 
-it('restores an activity trigger without relying on focus and keeps directory identity across renamed telemetry', () => {
+it('restores an activity trigger without relying on focus and keeps directory identity across renamed telemetry', async () => {
   fixture.publish('sensor.washer_washer_machine_state', 'run');
   fixture.publish('sensor.washer_washer_job_state', 'wash');
   fixture.publish('vacuum.roomba', 'docked', { friendly_name: 'First name' });
@@ -353,6 +362,7 @@ it('restores an activity trigger without relying on focus and keeps directory id
   const activity = screen.getByRole('button', { name: /Washer.*Washing/ });
   fireEvent.click(activity);
   fireEvent.click(screen.getByRole('button', { name: 'Close details' }));
+  await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
   expect(document.activeElement).toBe(activity);
   fireEvent.click(screen.getByRole('button', { name: 'All devices' }));
   fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'vacuum' } });
@@ -361,12 +371,13 @@ it('restores an activity trigger without relying on focus and keeps directory id
   fireEvent.click(vacuumTrigger);
   act(() => fixture.publish('vacuum.roomba', 'docked', { friendly_name: 'Renamed vacuum' }));
   fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+  await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
   const renamedTrigger = screen.getByRole('button', { name: 'Renamed vacuum' });
   expect(renamedTrigger.getAttribute('data-canvas-focus-key')).toBe('vacuum.roomba');
   expect(document.activeElement).toBe(renamedTrigger);
 });
 
-it.each(['Washer', 'Dryer'])('restores the distinct %s directory trigger while both laundry destinations are visible', name => {
+it.each(['Washer', 'Dryer'])('restores the distinct %s directory trigger while both laundry destinations are visible', async name => {
   render(<CanvasDashboard />);
   fireEvent.click(screen.getByRole('button', { name: 'All devices' }));
   fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'laundry' } });
@@ -377,6 +388,7 @@ it.each(['Washer', 'Dryer'])('restores the distinct %s directory trigger while b
   expect(document.activeElement).not.toBe(trigger);
   fireEvent.click(trigger);
   fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+  await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
   expect(document.activeElement).toBe(within(screen.getByRole('dialog')).getByRole('button', { name }));
 });
 

@@ -178,7 +178,7 @@ export function CanvasDevices({
         category: 'Music',
         room,
         search: `${room} ${name} speaker music ${capabilities}`,
-        route: { kind: 'speakers' } as CanvasRoute,
+        route: { kind: 'speakers', entityId: id } as CanvasRoute,
       };
     }),
     ...thermostats.map(room => ({
@@ -188,7 +188,7 @@ export function CanvasDevices({
       category: 'Climate',
       room,
       search: `${room} thermostat heating temperature`,
-      route: { kind: 'thermostats' } as CanvasRoute,
+      route: { kind: 'thermostats', entityId: `climate.thermostat_${room.toLowerCase()}` } as CanvasRoute,
     })),
     ...(['Washer', 'Dryer', 'Dishwasher'] as const).map(name => ({
       id: `sensor.${name.toLowerCase()}_${name.toLowerCase()}_machine_state`,
@@ -197,13 +197,14 @@ export function CanvasDevices({
       category: 'Appliances',
       room: name === 'Dishwasher' ? 'Kitchen' : 'Entry & laundry',
       search: `${name} ${name === 'Dishwasher' ? 'Kitchen' : 'Laundry'} appliance cycle`,
-      route: { kind: 'appliances' } as CanvasRoute,
+      route: { kind: 'appliances', entityId: name.toLowerCase() } as CanvasRoute,
     })),
   ];
   const needle = query.trim().toLocaleLowerCase();
   const matches = entries.filter(entry =>
     `${entry.name} ${entry.detail} ${entry.category} ${entry.room} ${entry.search}`.toLocaleLowerCase().includes(needle)
   );
+  const visibleEntries = needle ? matches : entries.filter(entry => !entry.id.startsWith('category:'));
   return (
     <div className='canvas-devices'>
       <label>
@@ -244,9 +245,10 @@ export function CanvasDevices({
             </button>
           ))}
         </nav>
-      ) : matches.length ? (
+      ) : null}
+      {visibleEntries.length ? (
         <nav aria-label='Device directory' className='canvas-devices__list'>
-          {matches.map(entry => (
+          {visibleEntries.map(entry => (
             <button
               key={entry.id}
               type='button'

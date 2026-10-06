@@ -7,10 +7,10 @@ export type CanvasRoute =
   | { kind: 'blinds'; room?: BlindRoom }
   | { kind: 'light'; entityId: string }
   | { kind: 'player' }
-  | { kind: 'speakers' }
+  | { kind: 'speakers'; entityId?: string }
   | { kind: 'weather' }
-  | { kind: 'thermostats' }
-  | { kind: 'appliances' }
+  | { kind: 'thermostats'; entityId?: string }
+  | { kind: 'appliances'; entityId?: string }
   | { kind: 'vacuum' }
   | { kind: 'all-devices' };
 

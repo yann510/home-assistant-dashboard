@@ -93,6 +93,8 @@ export function CanvasThermostats() {
           <li
             className='canvas-thermostats__room'
             key={room.id}
+            data-canvas-destination={room.id}
+            tabIndex={-1}
             data-state={state.toLowerCase()}
             style={{ '--canvas-room-accent': getRoomAccent(room.name) } as CSSProperties}
           >

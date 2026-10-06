@@ -13,6 +13,7 @@ export function CanvasDialog({
   onBack,
   routeKey = title,
   scrollTop = 0,
+  destination,
 }: {
   title: string;
   children: ReactNode;
@@ -21,6 +22,7 @@ export function CanvasDialog({
   onBack?(): void;
   routeKey?: string;
   scrollTop?: number;
+  destination?: string;
 }): React.JSX.Element {
   const titleId = useId();
   const panel = useRef<HTMLElement>(null);
@@ -52,8 +54,15 @@ export function CanvasDialog({
     };
   }, []);
   useEffect(() => {
+    const target = Array.from(body.current?.querySelectorAll<HTMLElement>('[data-canvas-destination]') ?? []).find(element => element.dataset.canvasDestination === destination);
+    if (target) {
+      target.scrollIntoView?.({ block: 'center' });
+      target.focus({ preventScroll: true });
+      target.dataset.canvasHighlighted = 'true';
+      return () => { delete target.dataset.canvasHighlighted; };
+    }
     panel.current?.focus({ preventScroll: true });
-  }, [routeKey]);
+  }, [routeKey, destination]);
 
   return (
     <div

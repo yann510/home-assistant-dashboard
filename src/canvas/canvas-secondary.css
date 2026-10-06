@@ -258,3 +258,8 @@
   .canvas-dialog .canvas-devices__category { min-height: 146px; padding: var(--canvas-space-3); }
   .canvas-dialog .canvas-devices__category > svg { width: 60px; height: 54px; }
 }
+
+.canvas-dialog [data-canvas-highlighted='true'] {
+  outline: 2px solid var(--canvas-lilac);
+  outline-offset: 3px;
+}

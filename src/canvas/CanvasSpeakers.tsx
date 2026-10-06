@@ -33,7 +33,7 @@ export function CanvasSpeakers() {
             const selected = r.current.includes(id);
             const state = !available ? 'Unavailable' : r.busyRoom === id ? 'Updating…' : id === s.entityId ? 'Main speaker' : '';
             return (
-              <div key={id} className='canvas-speakers__room' data-selected={selected} aria-busy={r.busyRoom === id}>
+              <div key={id} data-canvas-destination={id} tabIndex={-1} className='canvas-speakers__room' data-selected={selected} aria-busy={r.busyRoom === id}>
                 <label className='canvas-speakers__room-select'>
                   <input
                     type='checkbox'

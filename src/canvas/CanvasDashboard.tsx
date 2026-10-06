@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useStore } from '@hakit/core';
 import { CanvasDialog } from './CanvasDialog';
-import { animateCanvasExit } from './motion';
+import { useCanvasNavigation } from './useCanvasNavigation';
 import { canvasRouteTitle, routeForAttention, type CanvasRoute } from './routes';
 import { CanvasLights, CanvasAllLights, CanvasAllLightsAction } from './CanvasLights';
 import { CanvasLightDetails } from './CanvasLightDetails';
@@ -33,11 +33,9 @@ import './canvas-tablet.css';
 
 function CanvasDashboardContent({ quietPulse }: { quietPulse?: QuietPulsePresentation }): React.JSX.Element {
   const connected = useStore(state => Boolean(state.connection?.connected && state.connectionStatus === 'connected'));
-  const [route, setRoute] = useState<CanvasRoute>({ kind: 'overview' });
-  const [routeHistory, setRouteHistory] = useState<{ route: CanvasRoute; trigger: string | null; scrollTop: number }[]>([]);
-  const backFocus = useRef<string | null>(null);
+  const navigation = useCanvasNavigation();
+  const { route, depth, scrollTop: dialogScrollTop } = navigation;
   const [deviceQuery, setDeviceQuery] = useState('');
-  const [dialogScrollTop, setDialogScrollTop] = useState(0);
   const modes = useCanvasModes();
   const returnFocus = useRef<HTMLElement | null>(null);
   const mood = useHouseMood();
@@ -50,50 +48,28 @@ function CanvasDashboardContent({ quietPulse }: { quietPulse?: QuietPulsePresent
     : null;
 
   useEffect(() => {
-    if (backFocus.current) {
-      const name = backFocus.current;
+    if (navigation.focus) {
+      const name = navigation.focus;
       document.querySelectorAll<HTMLElement>('.canvas-dialog button').forEach(button => {
         if ((button.dataset.canvasFocusKey || button.getAttribute('aria-label') || button.textContent) === name)
           button.focus({ preventScroll: true });
       });
-      backFocus.current = null;
     }
     if (route.kind === 'overview' && returnFocus.current) {
       if (returnFocus.current.isConnected) returnFocus.current.focus({ preventScroll: true });
       returnFocus.current = null;
     }
-  }, [route]);
+  }, [route, navigation.focus]);
 
   function open(next: CanvasRoute, trigger: HTMLElement) {
-    if (route.kind === 'overview' && trigger) returnFocus.current = trigger;
-    setRouteHistory(previous => [
-      ...previous,
-      {
-        route,
-        trigger: trigger?.dataset.canvasFocusKey || trigger?.getAttribute('aria-label') || trigger?.textContent || null,
-        scrollTop: document.querySelector('.canvas-dialog__body')?.scrollTop ?? 0,
-      },
-    ]);
-    setDialogScrollTop(0);
-    setRoute(next);
+    if (route.kind === 'overview') returnFocus.current = trigger;
+    navigation.open(next, trigger);
   }
   function close() {
-    animateCanvasExit(document.querySelector<HTMLElement>('main.canvas .canvas-dialog__panel'));
-    setRouteHistory([]);
-    setRoute({ kind: 'overview' });
+    navigation.close();
     setSelectedAttention(null);
   }
-  function back() {
-    const previous = routeHistory[routeHistory.length - 1];
-    if (!previous || previous.route.kind === 'overview') {
-      close();
-      return;
-    }
-    setRouteHistory(routeHistory.slice(0, -1));
-    backFocus.current = previous.trigger;
-    setDialogScrollTop(previous.scrollTop);
-    setRoute(previous.route);
-  }
+  const back = navigation.back;
 
   return (
     <main className='canvas'>
@@ -151,7 +127,7 @@ function CanvasDashboardContent({ quietPulse }: { quietPulse?: QuietPulsePresent
       {route.kind === 'weather' ? (
         <CanvasWeatherDialog
           onClose={close}
-          onBack={routeHistory.length > 1 ? back : undefined}
+          onBack={depth > 1 ? back : undefined}
           routeKey={JSON.stringify(route)}
           scrollTop={dialogScrollTop}
         />
@@ -161,9 +137,10 @@ function CanvasDashboardContent({ quietPulse }: { quietPulse?: QuietPulsePresent
             title={canvasRouteTitle(route)}
             headerAccessory={route.kind === 'all-lights' ? <CanvasAllLightsAction /> : undefined}
             onClose={close}
-            onBack={routeHistory.length > 1 ? back : undefined}
+            onBack={depth > 1 ? back : undefined}
             routeKey={JSON.stringify(route)}
             scrollTop={dialogScrollTop}
+            destination={'entityId' in route ? route.entityId : undefined}
           >
             {activeAttention && routeForAttention(activeAttention).kind === route.kind && (
               <div className='canvas-attention-context'>

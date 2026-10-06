@@ -16,7 +16,7 @@ function ApplianceRow({ appliance, now, connected }: { appliance: (typeof applia
   const completion = useEntity(`${prefix}_completion_time`, { returnNullIfNotFound: true });
   const { status, iconState } = classifyAppliance(id, machine?.state, job?.state, completion?.state, now, connected);
   return (
-    <li className='appliance-row' data-appliance={id} data-state={iconState}>
+    <li data-canvas-destination={id} tabIndex={-1} className='appliance-row' data-appliance={id} data-state={iconState}>
       <span className='appliance-icon' aria-hidden='true'>
         <ApplianceIcon kind={id} state={iconState} />
       </span>

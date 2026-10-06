@@ -42,7 +42,7 @@ it('mounts and reconnects without sending service calls', () => {
   expect(fixture.calls).toHaveLength(0);
 });
 
-it('uses one dialog and returns from a detail route to the device directory', () => {
+it('uses one dialog and returns from a detail route to the device directory', async () => {
   render(<CanvasDashboard />);
   fireEvent.click(screen.getByRole('button', { name: 'All devices' }));
   expect(screen.getAllByRole('dialog')).toHaveLength(1);
@@ -50,8 +50,10 @@ it('uses one dialog and returns from a detail route to the device directory', ()
   expect(screen.getAllByRole('dialog')).toHaveLength(1);
   expect(screen.getByRole('dialog', { name: 'Speakers' })).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+  await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
   expect(screen.getByRole('dialog', { name: 'All devices' })).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: 'Close details' }));
+  await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
   expect(screen.queryByRole('dialog')).toBeNull();
   expect(document.activeElement).toBe(screen.getByRole('button', { name: 'All devices' }));
 });
