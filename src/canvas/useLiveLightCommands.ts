@@ -2,7 +2,8 @@ import { useCallback, useEffect, useRef } from 'react';
 import { useStore } from '@hakit/core';
 import { executeCommand, type CommandResult, type DeviceIntent, type TargetResult } from './commands';
 
-const INTERVAL = 150;
+const DEBOUNCE = 250;
+const CONTINUOUS_PROPERTIES = new Set(['brightness', 'rgb_color', 'color_temp', 'color_temp_kelvin']);
 type Request = {
   intent: DeviceIntent;
   observe?: (id: string) => boolean;
@@ -10,18 +11,18 @@ type Request = {
   connection: unknown;
   epoch: number;
   onlyOn: boolean;
+  readyAt: number;
 };
 type Lane = {
   queued: Map<string, Request>;
   timer?: ReturnType<typeof setTimeout>;
   awaitingAck: boolean;
-  lastSent: number;
   observations: Map<string, AbortController>;
   ackController?: AbortController;
   latestController?: AbortController;
 };
 
-/** Coalesce input per light, serialize service acknowledgements, and supersede obsolete telemetry waits. */
+/** Debounce continuous input per light/property, serialize service acknowledgements, and supersede obsolete telemetry waits. */
 export function useLiveLightCommands(publish: (results: TargetResult[]) => void) {
   const lanes = useRef(new Map<string, Lane>());
   const mounted = useRef(true);
@@ -79,7 +80,7 @@ export function useLiveLightCommands(publish: (results: TargetResult[]) => void)
         new Promise<CommandResult | null>(resolve => {
           let lane = lanes.current.get(id);
           if (!lane) {
-            lane = { queued: new Map(), awaitingAck: false, lastSent: 0, observations: new Map() };
+            lane = { queued: new Map(), awaitingAck: false, observations: new Map() };
             lanes.current.set(id, lane);
           }
           const targetLane = lane;
@@ -87,17 +88,27 @@ export function useLiveLightCommands(publish: (results: TargetResult[]) => void)
             .sort()
             .join(',');
           targetLane.queued.get(key)?.resolve(null);
-          targetLane.queued.set(key, { intent: { ...intent, targets: [id] }, observe, resolve, connection, epoch: epoch.current, onlyOn });
+          targetLane.queued.set(key, {
+            intent: { ...intent, targets: [id] },
+            observe,
+            resolve,
+            connection,
+            epoch: epoch.current,
+            onlyOn,
+            readyAt: Date.now() + (Object.keys(intent.data ?? {}).some(property => CONTINUOUS_PROPERTIES.has(property)) ? DEBOUNCE : 0),
+          });
           const drain = () => {
+            clearTimeout(targetLane.timer);
             if (!mounted.current || targetLane.awaitingAck || !targetLane.queued.size) return;
-            const queuedKey = targetLane.queued.keys().next().value;
-            const delay = queuedKey ? Math.max(0, INTERVAL - (Date.now() - targetLane.lastSent)) : 0;
+            // Each property owns its quiet-period deadline; later colour movement must not delay brightness.
+            const [nextKey, request] = [...targetLane.queued.entries()].reduce((earliest, entry) =>
+              entry[1].readyAt < earliest[1].readyAt ? entry : earliest
+            );
+            const delay = Math.max(0, request.readyAt - Date.now());
             if (delay) {
-              clearTimeout(targetLane.timer);
               targetLane.timer = setTimeout(drain, delay);
               return;
             }
-            const [nextKey, request] = targetLane.queued.entries().next().value!;
             targetLane.queued.delete(nextKey);
             const state = useStore.getState();
             const entity = state.entities[id];
@@ -122,7 +133,6 @@ export function useLiveLightCommands(publish: (results: TargetResult[]) => void)
             targetLane.ackController = controller;
             targetLane.latestController = controller;
             targetLane.awaitingAck = true;
-            targetLane.lastSent = Date.now();
             const release = () => {
               if (targetLane.ackController !== controller) return;
               targetLane.awaitingAck = false;

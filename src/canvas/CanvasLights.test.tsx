@@ -22,7 +22,10 @@ vi.mock('@hakit/core', () => ({
 beforeEach(() => {
   ref.current = createHaFixture();
 });
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+});
 
 it('targets only available lights in the selected room and never sends a toggle', async () => {
   const fixture = ref.current!;
@@ -128,7 +131,7 @@ it('disables controls for unknown states and hides unsupported features', () => 
   expect(screen.queryByRole('slider', { name: 'Colour wheel' })).toBeNull();
 });
 
-it('uses reported Kelvin range and submits the chosen temperature', () => {
+it('uses reported Kelvin range and submits the chosen temperature', async () => {
   const fixture = ref.current!;
   fixture.publish('light.gym', 'on', {
     supported_color_modes: ['color_temp'],
@@ -145,6 +148,7 @@ it('uses reported Kelvin range and submits the chosen temperature', () => {
   expect(slider.getAttribute('max')).toBe('6500');
   fireEvent.change(slider, { target: { value: '4200' } });
   fireEvent.blur(slider);
+  await waitFor(() => expect(fixture.calls).toHaveLength(1));
   expect(fixture.calls[0]).toMatchObject({
     service: 'turn_on',
     service_data: { color_temp_kelvin: 4200 },
@@ -208,7 +212,7 @@ it.each([false, true])('requires usable temperature bounds in light details (emb
   expect(fixture.calls).toEqual([]);
 });
 
-it('keeps warmth available in another current colour mode and falls back to valid legacy bounds', () => {
+it('keeps warmth available in another current colour mode and falls back to valid legacy bounds', async () => {
   const fixture = ref.current!;
   fixture.publish('light.gym', 'on', {
     supported_color_modes: ['rgb', 'color_temp'],
@@ -229,6 +233,7 @@ it('keeps warmth available in another current colour mode and falls back to vali
   expect(slider.getAttribute('max')).toBe('500');
   fireEvent.change(slider, { target: { value: '300' } });
   fireEvent.blur(slider);
+  await waitFor(() => expect(fixture.calls).toHaveLength(1));
   expect(fixture.calls[0]).toMatchObject({ service_data: { color_temp: 300 } });
 });
 
@@ -327,10 +332,13 @@ it('does not send another room brightness command when its last light turns off 
   fireEvent.change(slider, { target: { value: '68' } });
   await act(async () => fixture.publish('light.light_bedroom', 'off', { brightness: 100, supported_color_modes: ['brightness'] }));
   fireEvent.pointerUp(slider);
-  expect(fixture.calls).toHaveLength(1);
+  await act(async () => {
+    await new Promise(resolve => setTimeout(resolve, 300));
+  });
+  expect(fixture.calls).toHaveLength(0);
 });
 
-it.each(['pointerCancel', 'blur'])('keeps the live room brightness value on %s without an extra write', eventName => {
+it.each(['pointerCancel', 'blur'])('keeps the live room brightness value on %s without an extra write', async eventName => {
   const fixture = ref.current!;
   fixture.publish('light.light_living_room_bulbs', 'on', { brightness: 100, supported_color_modes: ['brightness'] });
   render(
@@ -345,10 +353,10 @@ it.each(['pointerCancel', 'blur'])('keeps the live room brightness value on %s w
   else fireEvent.blur(slider);
   fireEvent.blur(slider);
   fireEvent.pointerUp(slider);
-  expect(fixture.calls).toHaveLength(1);
+  await waitFor(() => expect(fixture.calls).toHaveLength(1));
 });
 
-it('keeps the live detail brightness value on pointer cancellation without an extra write', () => {
+it('keeps the live detail brightness value on pointer cancellation without an extra write', async () => {
   const fixture = ref.current!;
   fixture.publish('light.gym', 'on', { brightness: 100, supported_color_modes: ['brightness'] });
   render(
@@ -362,7 +370,7 @@ it('keeps the live detail brightness value on pointer cancellation without an ex
   fireEvent.pointerCancel(slider);
   fireEvent.blur(slider);
   fireEvent.pointerUp(slider);
-  expect(fixture.calls).toHaveLength(1);
+  await waitFor(() => expect(fixture.calls).toHaveLength(1));
 });
 
 it('labels unknown room brightness as a proposal and follows later readings after confirmation', async () => {
@@ -421,7 +429,9 @@ it.each([
     choose: async () => {
       fireEvent.keyDown(screen.getByRole('slider', { name: 'Colour wheel' }), { key: 'End' });
       await waitFor(() =>
-        expect((ref.current!.calls[ref.current!.calls.length - 1] as { service_data: unknown }).service_data).toEqual({ rgb_color: [255, 0, 0] })
+        expect((ref.current!.calls[ref.current!.calls.length - 1] as { service_data: unknown }).service_data).toEqual({
+          rgb_color: [255, 0, 0],
+        })
       );
     },
     retained: { rgb_color: [255, 0, 0], supported_color_modes: ['rgb'] },
@@ -779,6 +789,7 @@ it('shows Mixed for different reported on-light levels until the user chooses a 
   expect(screen.getByLabelText('Proposed brightness').textContent).toBe('60%');
   expect(slider.getAttribute('aria-valuetext')).toContain('proposed 60 percent');
   fireEvent.blur(slider);
+  await waitFor(() => expect(fixture.calls).toHaveLength(2));
   expect(fixture.calls).toEqual(
     ['light.light_living_room_bulbs', 'light.living_room_led_strip'].map(id =>
       expect.objectContaining({ target: { entity_id: [id] }, service_data: { brightness: 153 } })
@@ -823,6 +834,7 @@ it('changes brightness only on lights that are on at input time', async () => {
   const slider = screen.getByRole('slider', { name: 'Room brightness' });
   fireEvent.change(slider, { target: { value: '60' } });
   fireEvent.blur(slider);
+  await waitFor(() => expect(fixture.calls).toHaveLength(1));
   expect(fixture.calls).toEqual([
     expect.objectContaining({
       service: 'turn_on',
@@ -953,6 +965,7 @@ it('keeps a pending brightness command alive after closing inline settings', asy
   const slider = screen.getByRole('slider', { name: 'Light brightness' });
   fireEvent.change(slider, { target: { value: '70' } });
   fireEvent.keyUp(slider, { key: 'ArrowRight' });
+  await waitFor(() => expect(fixture.calls).toHaveLength(1));
   await userEvent.click(screen.getByRole('button', { name: 'Close light settings' }));
   expect(document.activeElement).toBe(trigger);
   expect((within(room).getByRole('slider', { name: 'Gym brightness' }) as HTMLInputElement).disabled).toBe(false);
@@ -966,7 +979,7 @@ it('keeps a pending brightness command alive after closing inline settings', asy
   expect(fixture.calls).toHaveLength(1);
 });
 
-it('shows only the chosen supported adjustment and applies changes as they are made', async () => {
+it('shows only the chosen supported adjustment and debounces colour while applying effects immediately', async () => {
   const fixture = ref.current!;
   fixture.publish('light.gym', 'on', {
     brightness: 128,
@@ -992,7 +1005,7 @@ it('shows only the chosen supported adjustment and applies changes as they are m
   fireEvent.keyDown(colour, { key: 'End' });
   fireEvent.keyDown(colour, { key: 'ArrowRight', shiftKey: true });
   fireEvent.blur(colour);
-  expect(fixture.calls).toHaveLength(1);
+  expect(fixture.calls).toHaveLength(0);
   fireEvent.click(screen.getByRole('button', { name: 'Effect' }));
   fireEvent.change(screen.getByRole('combobox'), { target: { value: 'Pulse' } });
   expect(screen.queryByRole('slider', { name: 'Colour wheel' })).toBeNull();
@@ -1006,9 +1019,9 @@ it('shows only the chosen supported adjustment and applies changes as they are m
     'Hue 10 degrees, saturation 100 percent'
   );
   expect(screen.queryAllByRole('button', { name: 'Apply' })).toHaveLength(0);
-  await waitFor(() => expect(fixture.calls).toHaveLength(3));
+  await waitFor(() => expect(fixture.calls).toHaveLength(2));
   expect(fixture.calls[1]).toMatchObject({ service_data: { rgb_color: [255, 42, 0] } });
-  expect(fixture.calls[2]).toMatchObject({ service_data: { effect: 'Pulse' } });
+  expect(fixture.calls[0]).toMatchObject({ service_data: { effect: 'Pulse' } });
 });
 
 it('omits unsupported adjustment choices and keeps missing brightness visibly unknown', () => {
@@ -1042,7 +1055,7 @@ it('shows compact dashboard labels while keeping the full name available in sett
   expect(ref.current!.calls).toHaveLength(0);
 });
 
-it.each(['room', 'detail'])('sends %s brightness on input and keeps the final value while acknowledgement is pending', async kind => {
+it.each(['room', 'detail'])('debounces %s brightness input and keeps the final value while acknowledgement is pending', async kind => {
   const fixture = ref.current!;
   const id = kind === 'room' ? 'light.light_living_room_bulbs' : 'light.gym';
   fixture.publish(id, 'on', { brightness: 100, supported_color_modes: ['brightness'] });
@@ -1055,6 +1068,7 @@ it.each(['room', 'detail'])('sends %s brightness on input and keeps the final va
   );
   const slider = screen.getByRole('slider', { name: kind === 'room' ? 'Room brightness' : 'Light brightness' });
   fireEvent.input(slider, { target: { value: '55' } });
+  await waitFor(() => expect(fixture.calls).toHaveLength(1));
   expect(fixture.calls).toHaveLength(1);
   expect(slider).toHaveProperty('disabled', false);
   fireEvent.input(slider, { target: { value: '72' } });
@@ -1069,7 +1083,7 @@ it.each(['room', 'detail'])('sends %s brightness on input and keeps the final va
   await waitFor(() => expect(slider.getAttribute('aria-valuetext')).toContain('reported 89 percent'));
 });
 
-it('sets colour and effects immediately without an Apply button', async () => {
+it('debounces colour and sets effects immediately without an Apply button', async () => {
   const fixture = ref.current!;
   fixture.publish('light.gym', 'on', {
     rgb_color: [255, 0, 0],
@@ -1084,10 +1098,11 @@ it('sets colour and effects immediately without an Apply button', async () => {
   );
   expect(screen.queryAllByRole('button', { name: /Apply/ })).toHaveLength(0);
   fireEvent.keyDown(screen.getByRole('slider', { name: 'Colour wheel' }), { key: 'ArrowRight', shiftKey: true });
-  expect(fixture.calls[0]).toMatchObject({ service_data: { rgb_color: [255, 42, 0] } });
+  expect(fixture.calls).toHaveLength(0);
   fireEvent.change(screen.getByRole('combobox', { name: 'Light effect' }), { target: { value: 'Pulse' } });
   await waitFor(() => expect(fixture.calls).toHaveLength(2));
-  expect(fixture.calls[1]).toMatchObject({ service_data: { effect: 'Pulse' } });
+  expect(fixture.calls[0]).toMatchObject({ service_data: { effect: 'Pulse' } });
+  expect(fixture.calls[1]).toMatchObject({ service_data: { rgb_color: [255, 42, 0] } });
 });
 
 it('does not replay queued light input across a socket reconnect with the same store connection', async () => {
@@ -1102,6 +1117,7 @@ it('does not replay queued light input across a socket reconnect with the same s
   );
   const slider = screen.getByRole('slider', { name: 'Light brightness' });
   fireEvent.input(slider, { target: { value: '55' } });
+  await waitFor(() => expect(fixture.calls).toHaveLength(1));
   fireEvent.input(slider, { target: { value: '89' } });
   await act(async () => {
     fixture.socketDisconnect();
@@ -1109,7 +1125,7 @@ it('does not replay queued light input across a socket reconnect with the same s
     ack.resolve({});
   });
   await act(async () => {
-    await new Promise(resolve => setTimeout(resolve, 200));
+    await new Promise(resolve => setTimeout(resolve, 300));
   });
   expect(fixture.calls).toHaveLength(1);
   expect(screen.getByRole('alert').textContent).toContain('Connection changed');
@@ -1128,19 +1144,20 @@ it('drops queued room brightness for a light turned off before the next service 
   );
   const slider = screen.getByRole('slider', { name: 'Room brightness' });
   fireEvent.input(slider, { target: { value: '55' } });
+  await waitFor(() => expect(fixture.calls).toHaveLength(1));
   fireEvent.input(slider, { target: { value: '89' } });
   await act(async () => {
     fixture.publish(id, 'off', { supported_color_modes: ['brightness'] });
     ack.resolve({});
   });
   await act(async () => {
-    await new Promise(resolve => setTimeout(resolve, 200));
+    await new Promise(resolve => setTimeout(resolve, 300));
   });
   expect(fixture.calls).toHaveLength(1);
   expect(slider).toHaveProperty('disabled', true);
 });
 
-it('updates warmth while dragging, coalesces rapid input, and shows service failures', async () => {
+it('debounces warmth while dragging, coalesces rapid input, and shows service failures', async () => {
   const fixture = ref.current!;
   fixture.publish('light.gym', 'on', {
     supported_color_modes: ['color_temp'],
@@ -1157,6 +1174,7 @@ it('updates warmth while dragging, coalesces rapid input, and shows service fail
   );
   const slider = screen.getByRole('slider', { name: 'Light colour temperature' });
   fireEvent.input(slider, { target: { value: '3500' } });
+  await waitFor(() => expect(fixture.calls).toHaveLength(1));
   fireEvent.input(slider, { target: { value: '4000' } });
   fireEvent.input(slider, { target: { value: '4500' } });
   expect(slider).toHaveProperty('disabled', false);
@@ -1178,6 +1196,7 @@ it('orders explicit power off after a pending adjustment and cancels its queued 
   );
   const slider = screen.getByRole('slider', { name: 'Light brightness' });
   fireEvent.input(slider, { target: { value: '55' } });
+  await waitFor(() => expect(fixture.calls).toHaveLength(1));
   fireEvent.input(slider, { target: { value: '89' } });
   fireEvent.click(screen.getByRole('button', { name: 'Turn off Gym' }));
   expect(fixture.calls).toHaveLength(1);
@@ -1186,7 +1205,7 @@ it('orders explicit power off after a pending adjustment and cancels its queued 
   expect(fixture.calls[1]).toMatchObject({ service: 'turn_off' });
   await act(async () => fixture.publish('light.gym', 'off', { supported_color_modes: ['brightness'] }));
   await act(async () => {
-    await new Promise(resolve => setTimeout(resolve, 200));
+    await new Promise(resolve => setTimeout(resolve, 300));
   });
   expect(fixture.calls).toHaveLength(2);
 });
@@ -1235,12 +1254,20 @@ it('reconciles each room independently when switching rooms before acknowledgeme
   fixture.publish(living, 'on', { brightness: 100, supported_color_modes: ['brightness'] });
   fixture.publish(kitchen, 'on', { brightness: 100, supported_color_modes: ['brightness'] });
   const livingAck = deferred();
-  fixture.respondWith(message => (message as { target: { entity_id: string[] } }).target.entity_id[0] === living ? livingAck.promise : Promise.resolve({}));
-  render(<CanvasLightsProvider><CanvasLights onOpenAll={() => {}} /></CanvasLightsProvider>);
+  fixture.respondWith(message =>
+    (message as { target: { entity_id: string[] } }).target.entity_id[0] === living ? livingAck.promise : Promise.resolve({})
+  );
+  render(
+    <CanvasLightsProvider>
+      <CanvasLights onOpenAll={() => {}} />
+    </CanvasLightsProvider>
+  );
   fireEvent.input(screen.getByRole('slider', { name: 'Room brightness' }), { target: { value: '55' } });
+  await waitFor(() => expect(fixture.calls).toHaveLength(1));
   await userEvent.click(screen.getByRole('button', { name: 'Lights room' }));
   await userEvent.click(screen.getByRole('option', { name: 'Kitchen' }));
   fireEvent.input(screen.getByRole('slider', { name: 'Room brightness' }), { target: { value: '89' } });
+  await waitFor(() => expect(fixture.calls).toHaveLength(2));
   await act(async () => {
     livingAck.resolve({});
     fixture.publish(living, 'on', { brightness: 140, supported_color_modes: ['brightness'] });
@@ -1251,4 +1278,204 @@ it('reconciles each room independently when switching rooms before acknowledgeme
   const slider = screen.getByRole('slider', { name: 'Room brightness' });
   await waitFor(() => expect(slider.getAttribute('aria-valuetext')).toContain('reported 55 percent'));
   expect(slider.getAttribute('aria-busy')).toBe('false');
+});
+
+const advanceLightTime = async (ms: number) => {
+  await act(async () => vi.advanceTimersByTimeAsync(ms));
+};
+
+it.each(['room brightness', 'detail brightness', 'colour', 'warmth'])(
+  'debounces sustained %s movement until 250 ms after the final input',
+  async kind => {
+    vi.useFakeTimers();
+    const fixture = ref.current!;
+    const id = kind === 'room brightness' ? 'light.light_living_room_bulbs' : 'light.gym';
+    fixture.publish(id, 'on', {
+      brightness: 100,
+      rgb_color: [255, 0, 0],
+      color_temp_kelvin: 3000,
+      min_color_temp_kelvin: 2000,
+      max_color_temp_kelvin: 6000,
+      supported_color_modes: ['rgb', 'color_temp'],
+    });
+    render(
+      <CanvasLightsProvider>
+        {kind === 'room brightness' ? <CanvasLights onOpenAll={() => {}} /> : <CanvasLightDetails entityId={id} />}
+      </CanvasLightsProvider>
+    );
+    const slider = screen.getByRole('slider', {
+      name:
+        kind === 'room brightness'
+          ? 'Room brightness'
+          : kind === 'detail brightness'
+            ? 'Light brightness'
+            : kind === 'colour'
+              ? 'Colour wheel'
+              : 'Light colour temperature',
+    });
+    for (let index = 0; index < 8; index++) {
+      if (kind === 'colour') fireEvent.keyDown(slider, { key: 'ArrowRight', shiftKey: true });
+      else fireEvent.input(slider, { target: { value: kind === 'warmth' ? String(3500 + index * 100) : String(55 + index) } });
+      if (kind === 'colour') expect(slider.getAttribute('aria-disabled')).toBe('false');
+      else expect(slider).toHaveProperty('disabled', false);
+      if (kind.includes('brightness')) expect(slider).toHaveProperty('value', String(55 + index));
+      await advanceLightTime(100);
+      expect(fixture.calls).toHaveLength(0);
+    }
+    // Blur and pointer release do not bypass the quiet period.
+    fireEvent.blur(slider);
+    fireEvent.pointerUp(slider);
+    await advanceLightTime(149);
+    expect(fixture.calls).toHaveLength(0);
+    await advanceLightTime(1);
+    expect(fixture.calls).toHaveLength(1);
+    const data = kind === 'colour' ? { rgb_color: [173, 255, 0] } : kind === 'warmth' ? { color_temp_kelvin: 4200 } : { brightness: 158 };
+    expect(fixture.calls[0]).toMatchObject({ target: { entity_id: [id] }, service_data: data });
+    await advanceLightTime(500);
+    expect(fixture.calls).toHaveLength(1);
+  }
+);
+
+it('keeps independent quiet-period deadlines for brightness and colour', async () => {
+  vi.useFakeTimers();
+  const fixture = ref.current!;
+  fixture.publish('light.gym', 'on', { brightness: 100, rgb_color: [255, 0, 0], supported_color_modes: ['rgb'] });
+  render(
+    <CanvasLightsProvider>
+      <CanvasLightDetails entityId='light.gym' />
+    </CanvasLightsProvider>
+  );
+  fireEvent.input(screen.getByRole('slider', { name: 'Light brightness' }), { target: { value: '68' } });
+  await advanceLightTime(100);
+  const colour = screen.getByRole('slider', { name: 'Colour wheel' });
+  fireEvent.keyDown(colour, { key: 'ArrowRight', shiftKey: true });
+  await advanceLightTime(149);
+  expect(fixture.calls).toHaveLength(0);
+  await advanceLightTime(1);
+  expect(fixture.calls).toMatchObject([{ service_data: { brightness: 173 } }]);
+  fireEvent.keyDown(colour, { key: 'ArrowRight', shiftKey: true });
+  await advanceLightTime(249);
+  expect(fixture.calls).toHaveLength(1);
+  await advanceLightTime(1);
+  expect(fixture.calls[1]).toMatchObject({ service_data: { rgb_color: [255, 84, 0] } });
+});
+
+it.each([100, 400])('preserves the final quiet period when acknowledgement takes %s ms', async ackDelay => {
+  vi.useFakeTimers();
+  const fixture = ref.current!;
+  fixture.publish('light.gym', 'on', { brightness: 100, supported_color_modes: ['brightness'] });
+  const ack = deferred();
+  fixture.respondInOrder(ack.promise, Promise.resolve({}));
+  render(
+    <CanvasLightsProvider>
+      <CanvasLightDetails entityId='light.gym' />
+    </CanvasLightsProvider>
+  );
+  const slider = screen.getByRole('slider', { name: 'Light brightness' });
+  fireEvent.input(slider, { target: { value: '55' } });
+  await advanceLightTime(250);
+  expect(fixture.calls).toHaveLength(1);
+  fireEvent.input(slider, { target: { value: '72' } });
+  await advanceLightTime(100);
+  fireEvent.input(slider, { target: { value: '89' } });
+  await advanceLightTime(ackDelay);
+  expect(fixture.calls).toHaveLength(1);
+  await act(async () => ack.resolve({}));
+  if (ackDelay < 250) {
+    expect(fixture.calls).toHaveLength(1);
+    await advanceLightTime(249 - ackDelay);
+    expect(fixture.calls).toHaveLength(1);
+    await advanceLightTime(1);
+  }
+  expect(fixture.calls).toHaveLength(2);
+  expect(fixture.calls[1]).toMatchObject({ service_data: { brightness: 227 } });
+});
+
+it.each(['reconnect', 'replacement', 'unmount'])('cancels unsent adjustments on %s', async kind => {
+  vi.useFakeTimers();
+  const fixture = ref.current!;
+  fixture.publish('light.gym', 'on', { brightness: 100, rgb_color: [255, 0, 0], supported_color_modes: ['rgb'] });
+  const view = render(
+    <CanvasLightsProvider>
+      <CanvasLightDetails entityId='light.gym' />
+    </CanvasLightsProvider>
+  );
+  fireEvent.input(screen.getByRole('slider', { name: 'Light brightness' }), { target: { value: '68' } });
+  fireEvent.keyDown(screen.getByRole('slider', { name: 'Colour wheel' }), { key: 'ArrowRight', shiftKey: true });
+  await advanceLightTime(100);
+  if (kind === 'unmount') view.unmount();
+  else
+    await act(async () => {
+      if (kind === 'replacement') fixture.reconnect();
+      else {
+        fixture.socketDisconnect();
+        fixture.socketReconnect();
+      }
+    });
+  await advanceLightTime(500);
+  expect(fixture.calls).toHaveLength(0);
+});
+
+it('sends power immediately and cancels all unsent property adjustments', async () => {
+  vi.useFakeTimers();
+  const fixture = ref.current!;
+  fixture.publish('light.gym', 'on', { brightness: 100, rgb_color: [255, 0, 0], supported_color_modes: ['rgb'] });
+  render(
+    <CanvasLightsProvider>
+      <CanvasLightDetails entityId='light.gym' />
+    </CanvasLightsProvider>
+  );
+  fireEvent.input(screen.getByRole('slider', { name: 'Light brightness' }), { target: { value: '68' } });
+  fireEvent.keyDown(screen.getByRole('slider', { name: 'Colour wheel' }), { key: 'ArrowRight', shiftKey: true });
+  await advanceLightTime(100);
+  fireEvent.click(screen.getByRole('button', { name: 'Turn off Gym' }));
+  expect(fixture.calls).toMatchObject([{ service: 'turn_off' }]);
+  await act(async () => fixture.publish('light.gym', 'off', { supported_color_modes: ['rgb'] }));
+  await advanceLightTime(500);
+  expect(fixture.calls).toHaveLength(1);
+});
+
+it('supersedes an unsent room proposal with the latest detail brightness', async () => {
+  vi.useFakeTimers();
+  const fixture = ref.current!;
+  fixture.publish('light.gym', 'on', { brightness: 100, supported_color_modes: ['brightness'] });
+  render(
+    <CanvasLightsProvider>
+      <CanvasAllLights />
+      <CanvasLightDetails entityId='light.gym' />
+    </CanvasLightsProvider>
+  );
+  const roomSlider = screen.getByRole('slider', { name: 'Gym brightness' });
+  fireEvent.input(roomSlider, { target: { value: '55' } });
+  await advanceLightTime(100);
+  fireEvent.input(screen.getByRole('slider', { name: 'Light brightness' }), { target: { value: '89' } });
+  await advanceLightTime(249);
+  expect(fixture.calls).toHaveLength(0);
+  await advanceLightTime(1);
+  expect(fixture.calls).toMatchObject([{ service_data: { brightness: 227 } }]);
+  await act(async () => fixture.publish('light.gym', 'on', { brightness: 227, supported_color_modes: ['brightness'] }));
+  expect(roomSlider.getAttribute('aria-valuetext')).toContain('reported 89 percent');
+});
+
+it('keeps a room gesture target when switching rooms during its quiet period', async () => {
+  vi.useFakeTimers();
+  const fixture = ref.current!;
+  const living = 'light.light_living_room_bulbs';
+  const kitchen = 'light.light_kitchen';
+  fixture.publish(living, 'on', { brightness: 100, supported_color_modes: ['brightness'] });
+  fixture.publish(kitchen, 'on', { brightness: 100, supported_color_modes: ['brightness'] });
+  render(
+    <CanvasLightsProvider>
+      <CanvasLights onOpenAll={() => {}} />
+    </CanvasLightsProvider>
+  );
+  fireEvent.input(screen.getByRole('slider', { name: 'Room brightness' }), { target: { value: '55' } });
+  await advanceLightTime(100);
+  fireEvent.click(screen.getByRole('button', { name: 'Lights room' }));
+  fireEvent.click(screen.getByRole('option', { name: 'Kitchen' }));
+  fireEvent.input(screen.getByRole('slider', { name: 'Room brightness' }), { target: { value: '89' } });
+  await advanceLightTime(150);
+  expect(fixture.calls).toMatchObject([{ target: { entity_id: [living] }, service_data: { brightness: 140 } }]);
+  await advanceLightTime(100);
+  expect(fixture.calls[1]).toMatchObject({ target: { entity_id: [kitchen] }, service_data: { brightness: 227 } });
 });
