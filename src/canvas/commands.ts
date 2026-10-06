@@ -54,7 +54,8 @@ export async function executeCommand(
   store: CommandStore,
   observe?: (entityId: string) => boolean,
   signal?: AbortSignal,
-  onChange?: (result: CommandResult) => void
+  onChange?: (result: CommandResult) => void,
+  onAcknowledged?: () => void
 ): Promise<CommandResult> {
   const intent = captureIntent(input);
   const targets = intent.targets.length ? intent.targets : [intent.resultTarget!];
@@ -162,6 +163,7 @@ export async function executeCommand(
                   TIMEOUT
                 );
                 reconcile();
+                onAcknowledged?.();
               },
               error => {
                 if (done) return;

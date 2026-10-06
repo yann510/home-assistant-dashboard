@@ -32,11 +32,10 @@ function colourHex(hue: number, saturation: number) {
     .join('')}`;
 }
 
-/** A draft-only hue/saturation control. Brightness is deliberately independent. */
+/** Hue/saturation control; brightness is independent. */
 export function ColourWheel({ value, disabled, onChange }: { value: string; disabled: boolean; onChange: (hex: string) => void }) {
   const helpId = useId();
   const dragging = useRef<number | null>(null);
-  const startValue = useRef(value);
   const { hue, saturation } = hueSaturation(value);
   const changeFromPointer = (event: PointerEvent<HTMLDivElement>) => {
     const bounds = event.currentTarget.getBoundingClientRect();
@@ -61,7 +60,6 @@ export function ColourWheel({ value, disabled, onChange }: { value: string; disa
         tabIndex={disabled ? -1 : 0}
         onPointerDown={event => {
           if (disabled || !event.isPrimary || event.button !== 0) return;
-          startValue.current = value;
           dragging.current = event.pointerId;
           event.currentTarget.setPointerCapture(event.pointerId);
           changeFromPointer(event);
@@ -76,7 +74,6 @@ export function ColourWheel({ value, disabled, onChange }: { value: string; disa
           event.currentTarget.releasePointerCapture(event.pointerId);
         }}
         onPointerCancel={() => {
-          if (dragging.current !== null) onChange(startValue.current);
           dragging.current = null;
         }}
         onLostPointerCapture={() => {

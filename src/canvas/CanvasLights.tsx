@@ -24,13 +24,11 @@ function CommandFeedback({ compact = false }: { compact?: boolean }) {
           {compact
             ? `${failures.length} light${failures.length === 1 ? ' needs' : 's need'} attention. Open All lights for details.`
             : failures
-                .map(
-                  item => {
-                    const room = rooms.find(room => room.lights.some(light => light.id === item.target));
-                    const light = room?.lights.find(light => light.id === item.target);
-                    return `${room && light ? `${room.name} · ${light.label}` : 'Light'}: ${item.message}`;
-                  }
-                )
+                .map(item => {
+                  const room = rooms.find(room => room.lights.some(light => light.id === item.target));
+                  const light = room?.lights.find(light => light.id === item.target);
+                  return `${room && light ? `${room.name} · ${light.label}` : 'Light'}: ${item.message}`;
+                })
                 .join(' ')}
         </p>
       )}
@@ -82,34 +80,28 @@ function RoomBrightness({ room, compact = false, label = 'Room brightness' }: { 
   const hasOnDimmable = room.lights.some(light => light.state === 'on' && lightSupportsBrightness(light.entity));
   const [drafts, setDrafts] = useState<Record<string, number | undefined>>({});
   const [pendingRooms, setPendingRooms] = useState<Set<string>>(() => new Set());
-  const pointerActive = useRef(false);
-  const cancelledPointer = useRef(false);
+  const draftVersion = useRef<Record<string, number>>({});
   const draft = drafts[room.name] ?? null;
   const committing = pendingRooms.has(room.name);
-  const setDraft = (value: number) => setDrafts(current => ({ ...current, [room.name]: value }));
-  const cancelPointer = () => {
-    pointerActive.current = false;
-    cancelledPointer.current = true;
-    setDrafts(current => ({ ...current, [room.name]: undefined }));
-  };
   const position = draft ?? room.brightness ?? 50;
-  const commit = () => {
-    if (draft === null || committing || !connected || !hasOnDimmable) return;
-    setPendingRooms(current => new Set(current).add(room.name));
+  const change = (value: number) => {
+    if (!connected || !hasOnDimmable || room.lights.some(light => busy.has(light.id))) return;
+    const name = room.name;
+    const version = (draftVersion.current[name] ?? 0) + 1;
+    draftVersion.current[name] = version;
+    setDrafts(current => ({ ...current, [name]: value }));
+    setPendingRooms(current => new Set(current).add(name));
     void brightness(
       room.lights.map(light => light.id),
-      draft
+      value
     ).then(result => {
-      if (result?.results.every(item => item.phase === 'observed')) {
-        setDrafts(current => {
-          const next = { ...current };
-          delete next[room.name];
-          return next;
-        });
+      if (version !== draftVersion.current[name]) return;
+      if (!result || result.results.every(item => item.phase === 'observed')) {
+        setDrafts(current => ({ ...current, [name]: undefined }));
       }
       setPendingRooms(current => {
         const next = new Set(current);
-        next.delete(room.name);
+        next.delete(name);
         return next;
       });
     });
@@ -136,27 +128,8 @@ function RoomBrightness({ room, compact = false, label = 'Room brightness' }: { 
         }
         value={position}
         style={{ '--canvas-light-level': `${position}%` } as CSSProperties}
-        disabled={!connected || !hasOnDimmable || committing || room.lights.some(light => busy.has(light.id))}
-        onChange={event => {
-          if (!pointerActive.current) cancelledPointer.current = false;
-          setDraft(Number(event.target.value));
-        }}
-        onPointerDown={() => {
-          pointerActive.current = true;
-          cancelledPointer.current = false;
-        }}
-        onPointerCancel={cancelPointer}
-        onPointerUp={() => {
-          pointerActive.current = false;
-          if (!cancelledPointer.current) commit();
-        }}
-        onKeyUp={() => {
-          if (!pointerActive.current) commit();
-        }}
-        onBlur={() => {
-          if (pointerActive.current) cancelPointer();
-          else if (!cancelledPointer.current) commit();
-        }}
+        disabled={!connected || !hasOnDimmable || room.lights.some(light => busy.has(light.id))}
+        onChange={event => change(Number(event.target.value))}
       />
       <output
         aria-label={

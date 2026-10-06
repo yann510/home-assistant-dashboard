@@ -22,7 +22,7 @@ export function CanvasLightDetails({
   embedded?: boolean;
   closeControl?: ReactNode;
 }) {
-  const { rooms, power, send, busy, connected, result } = useCanvasLights();
+  const { rooms, power, sendLive, busy, connected, result } = useCanvasLights();
   const light = rooms.flatMap(room => room.lights).find(item => item.id === entityId);
   const roomName = rooms.find(room => room.lights.some(item => item.id === entityId))?.name;
   const title = light ? (embedded ? light.label : `${roomName} · ${light.label}`) : 'Light';
@@ -46,12 +46,10 @@ export function CanvasLightDetails({
         ? { min: miredMin, max: miredMax, value: numeric(attrs?.color_temp), key: 'color_temp', unit: 'mired' }
         : null);
   const [brightnessDraft, setBrightnessDraft] = useState<number | null>(null);
-  const brightnessPointerActive = useRef(false);
-  const brightnessPointerCancelled = useRef(false);
+  const draftVersion = useRef<Record<string, number>>({});
   const [temperatureDraft, setTemperatureDraft] = useState<number | null>(null);
   const [colourDraft, setColourDraft] = useState<string | null>(null);
   const [effectDraft, setEffectDraft] = useState<string | null>(null);
-  const [committing, setCommitting] = useState(false);
   const [selectedControl, setSelectedControl] = useState('Brightness');
   const controls = [
     ...(lightSupportsBrightness(entity) ? ['Brightness'] : []),
@@ -63,17 +61,15 @@ export function CanvasLightDetails({
   const showControl = (name: string) => !embedded || activeControl === name;
   if (!light) return <p role='status'>This light is not in the current inventory.</p>;
   const sendValue = async (data: Record<string, unknown>, observe: (next: LightEntity) => boolean, clear: () => void) => {
-    if (!available || working || committing) return;
-    setCommitting(true);
-    try {
-      const outcome = await send({ domain: 'light', service: 'turn_on', targets: [entityId], data }, id => {
-        const next = useStore.getState().entities[id] as LightEntity | undefined;
-        return Boolean(next?.state === 'on' && observe(next));
-      });
-      if (outcome?.results.every(item => item.phase === 'observed')) clear();
-    } finally {
-      setCommitting(false);
-    }
+    if (!available || working) return;
+    const key = Object.keys(data).join(',');
+    const version = (draftVersion.current[key] ?? 0) + 1;
+    draftVersion.current[key] = version;
+    const outcome = await sendLive({ domain: 'light', service: 'turn_on', targets: [entityId], data }, id => {
+      const next = useStore.getState().entities[id] as LightEntity | undefined;
+      return Boolean(next?.state === 'on' && observe(next));
+    });
+    if (version === draftVersion.current[key] && (!outcome || outcome.results.every(item => item.phase === 'observed'))) clear();
   };
   const brightness = entity?.state === 'on' ? numeric(attrs?.brightness) : undefined;
   const brightnessPercent = brightness === undefined ? undefined : Math.round((brightness / 255) * 100);
@@ -83,32 +79,27 @@ export function CanvasLightDetails({
     temperatureDraft ?? temperatureValue ?? (temperature ? Math.round((temperature.min + temperature.max) / 2) : 0);
   const reportedColour = entity?.state === 'on' ? attrs?.rgb_color : undefined;
   const colourValue = colourDraft ?? hexFromRgb(reportedColour);
-  const commitBrightness = () => {
-    if (brightnessDraft === null) return;
-    const value = Math.round((brightnessDraft / 100) * 255);
+  const changeBrightness = (percent: number) => {
+    setBrightnessDraft(percent);
+    const value = Math.round((percent / 100) * 255);
     void sendValue(
       { brightness: value },
       next => Math.abs(Number(next.attributes.brightness) - value) <= 1,
       () => setBrightnessDraft(null)
     );
   };
-  const cancelBrightnessPointer = () => {
-    brightnessPointerActive.current = false;
-    brightnessPointerCancelled.current = true;
-    setBrightnessDraft(null);
-  };
-  const commitTemperature = () => {
-    if (!temperature || temperatureDraft === null) return;
-    const value = temperatureDraft;
+  const changeTemperature = (value: number) => {
+    if (!temperature) return;
+    setTemperatureDraft(value);
     void sendValue(
       { [temperature.key]: value },
       next => numeric(next.attributes[temperature.key as keyof LightEntity['attributes']]) === value,
       () => setTemperatureDraft(null)
     );
   };
-  const commitColour = () => {
-    if (colourDraft === null) return;
-    const rgb = rgbFromHex(colourDraft);
+  const changeColour = (hex: string) => {
+    setColourDraft(hex);
+    const rgb = rgbFromHex(hex);
     void sendValue(
       { rgb_color: rgb },
       next => next.attributes.rgb_color?.every((value, index) => Math.abs(value - rgb[index]) <= 1) === true,
@@ -117,9 +108,9 @@ export function CanvasLightDetails({
       }
     );
   };
-  const commitEffect = () => {
-    if (effectDraft === null) return;
-    const effect = effectDraft;
+  const changeEffect = (effect: string) => {
+    if (!effect) return;
+    setEffectDraft(effect);
     void sendValue(
       { effect },
       next => next.attributes.effect === effect,
@@ -133,7 +124,9 @@ export function CanvasLightDetails({
       <div className='canvas-lights__heading'>
         <div>
           <details className='canvas-lights__full-name'>
-            <summary aria-label={`${light.name} — show full name`} title={light.name}><h3>{title}</h3></summary>
+            <summary aria-label={`${light.name} — show full name`} title={light.name}>
+              <h3>{title}</h3>
+            </summary>
             <p>{light.name}</p>
           </details>
           {!embedded && (
@@ -143,7 +136,7 @@ export function CanvasLightDetails({
         <button
           type='button'
           aria-label={`Turn ${light.state === 'on' ? 'off' : 'on'} ${light.name}`}
-          disabled={!available || working || committing}
+          disabled={!available || working}
           onClick={() => void power([entityId], light.state === 'on' ? 'off' : 'on')}
         >
           {embedded ? (
@@ -185,27 +178,8 @@ export function CanvasLightDetails({
               max='100'
               value={brightnessPosition}
               style={{ '--canvas-light-level': `${brightnessPosition}%` } as CSSProperties}
-              disabled={!available || working || committing}
-              onChange={event => {
-                if (!brightnessPointerActive.current) brightnessPointerCancelled.current = false;
-                setBrightnessDraft(Number(event.target.value));
-              }}
-              onPointerDown={() => {
-                brightnessPointerActive.current = true;
-                brightnessPointerCancelled.current = false;
-              }}
-              onPointerCancel={cancelBrightnessPointer}
-              onPointerUp={() => {
-                brightnessPointerActive.current = false;
-                if (!brightnessPointerCancelled.current) commitBrightness();
-              }}
-              onKeyUp={() => {
-                if (!brightnessPointerActive.current) commitBrightness();
-              }}
-              onBlur={() => {
-                if (brightnessPointerActive.current) cancelBrightnessPointer();
-                else if (!brightnessPointerCancelled.current) commitBrightness();
-              }}
+              disabled={!available || working}
+              onChange={event => changeBrightness(Number(event.target.value))}
             />
             <output>
               {embedded
@@ -221,10 +195,7 @@ export function CanvasLightDetails({
         )}
         {colour && showControl('Colour') && (
           <div className='canvas-light-colour'>
-            <ColourWheel value={colourValue} disabled={!available || working || committing} onChange={setColourDraft} />
-            <button type='button' disabled={!available || working || committing || colourDraft === null} onClick={commitColour}>
-              {embedded ? 'Apply' : 'Apply colour'}
-            </button>
+            <ColourWheel value={colourValue} disabled={!available || working} onChange={changeColour} />
             {reportedColour === undefined && <span className='canvas-light-settings__sr-only'>Current colour unknown</span>}
           </div>
         )}
@@ -243,11 +214,8 @@ export function CanvasLightDetails({
                   '--canvas-light-level': `${((temperaturePosition - temperature.min) / (temperature.max - temperature.min)) * 100}%`,
                 } as CSSProperties
               }
-              disabled={!available || working || committing}
-              onChange={event => setTemperatureDraft(Number(event.target.value))}
-              onPointerUp={commitTemperature}
-              onKeyUp={commitTemperature}
-              onBlur={commitTemperature}
+              disabled={!available || working}
+              onChange={event => changeTemperature(Number(event.target.value))}
             />
             <output>
               {embedded
@@ -269,17 +237,14 @@ export function CanvasLightDetails({
             <select
               aria-label='Light effect'
               value={effectDraft ?? attrs?.effect ?? ''}
-              disabled={!available || working || committing}
-              onChange={event => setEffectDraft(event.target.value)}
+              disabled={!available || working}
+              onChange={event => changeEffect(event.target.value)}
             >
               <option value=''>Choose effect</option>
               {effects.map(effect => (
                 <option key={effect}>{effect}</option>
               ))}
             </select>
-            <button type='button' disabled={!available || working || committing || effectDraft === null} onClick={commitEffect}>
-              {embedded ? 'Apply' : 'Apply effect'}
-            </button>
           </label>
         )}
         {failed && (

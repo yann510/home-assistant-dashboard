@@ -2,8 +2,8 @@ import { createContext, createElement, useCallback, useContext, useMemo, useRef,
 import { useStore, type LightEntity } from '@hakit/core';
 import { rooms as inventory } from '../useLightSummary';
 import { lightLabel } from './lightLabels';
-import { useDeviceCommand } from './useDeviceCommand';
-import type { CommandResult, DeviceIntent, TargetResult } from './commands';
+import { useLiveLightCommands } from './useLiveLightCommands';
+import type { CommandResult, TargetResult } from './commands';
 
 export type CanvasLight = { id: string; name: string; label: string; state: 'on' | 'off' | 'unavailable'; entity?: LightEntity };
 export type CanvasRoom = {
@@ -29,10 +29,12 @@ const supportsBrightness = (entity?: LightEntity) =>
 function useCanvasLightsController() {
   const entities = useStore(state => state.entities);
   const connected = useStore(state => Boolean(state.connection?.connected && state.connectionStatus === 'connected'));
-  const { send: sendCommand, pending, result: activeResult } = useDeviceCommand();
   const busyRef = useRef(new Set<string>());
   const [busy, setBusy] = useState<ReadonlySet<string>>(new Set());
   const [outcomes, setOutcomes] = useState<Record<string, TargetResult>>({});
+  const { send: sendLive, cancelQueued } = useLiveLightCommands(results =>
+    setOutcomes(previous => ({ ...previous, ...Object.fromEntries(results.map(item => [item.target, item])) }))
+  );
   const [selectedRoom, setSelectedRoom] = useState<string>(inventory[0].name);
   const rooms: CanvasRoom[] = useMemo(
     () =>
@@ -67,63 +69,49 @@ function useCanvasLightsController() {
     [entities]
   );
 
-  const send = useCallback(
-    async (intent: DeviceIntent, observe?: (id: string) => boolean) => {
-      const targets = intent.targets.filter(id => !busyRef.current.has(id));
+  const power = useCallback(
+    async (ids: readonly string[], desired: 'on' | 'off') => {
+      const targets = ids.filter(id => usable(current(id)) && current(id)?.state !== desired && !busyRef.current.has(id));
       if (!targets.length) return null;
+      cancelQueued(targets);
       targets.forEach(id => busyRef.current.add(id));
       setBusy(new Set(busyRef.current));
-      setOutcomes(previous => ({
-        ...previous,
-        ...Object.fromEntries(targets.map(target => [target, { target, phase: 'pending' as const }])),
-      }));
       try {
-        const outcome = await sendCommand({ ...intent, targets }, observe);
-        setOutcomes(previous => ({ ...previous, ...Object.fromEntries(outcome.results.map(item => [item.target, item])) }));
-        return outcome;
+        return await sendLive(
+          { domain: 'light', service: desired === 'on' ? 'turn_on' : 'turn_off', targets },
+          id => useStore.getState().entities[id]?.state === desired
+        );
       } finally {
         targets.forEach(id => busyRef.current.delete(id));
         setBusy(new Set(busyRef.current));
       }
     },
-    [sendCommand]
-  );
-  const power = useCallback(
-    (ids: readonly string[], desired: 'on' | 'off') => {
-      const targets = ids.filter(id => usable(current(id)) && current(id)?.state !== desired);
-      if (!targets.length) return Promise.resolve(null);
-      return send(
-        { domain: 'light', service: desired === 'on' ? 'turn_on' : 'turn_off', targets },
-        id => useStore.getState().entities[id]?.state === desired
-      );
-    },
-    [send]
+    [sendLive, cancelQueued]
   );
   const brightness = useCallback(
     (ids: readonly string[], percent: number) => {
       const targets = ids.filter(id => current(id)?.state === 'on' && supportsBrightness(current(id)));
       const value = Math.round((Math.max(1, Math.min(100, percent)) * 255) / 100);
-      return send({ domain: 'light', service: 'turn_on', targets, data: { brightness: value } }, id => {
-        const next = useStore.getState().entities[id] as LightEntity | undefined;
-        return next?.state === 'on' && Math.abs(Number(next.attributes.brightness) - value) <= 1;
-      });
+      return sendLive(
+        { domain: 'light', service: 'turn_on', targets, data: { brightness: value } },
+        id => {
+          const next = useStore.getState().entities[id] as LightEntity | undefined;
+          return next?.state === 'on' && Math.abs(Number(next.attributes.brightness) - value) <= 1;
+        },
+        true
+      );
     },
-    [send]
+    [sendLive]
   );
-  const visibleResults = { ...outcomes };
-  for (const item of activeResult?.results ?? []) {
-    if (busy.has(item.target)) visibleResults[item.target] = item;
-  }
-  const results = Object.values(visibleResults);
+  const results = Object.values(outcomes);
   return {
     rooms,
     selectedRoom,
     setSelectedRoom,
     connected,
     busy,
-    pending,
     result: results.length ? ({ results } satisfies CommandResult) : null,
-    send,
+    sendLive,
     power,
     brightness,
   };

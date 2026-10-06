@@ -28,11 +28,11 @@ it('selects white at the center and clamps drag coordinates to the colour rim', 
   expect(onChange).toHaveBeenLastCalledWith('#ff0000');
   expect(control.releasePointerCapture).toHaveBeenCalledWith(1);
 });
-it('restores the original draft when a pointer gesture is cancelled', () => {
+it('stops a cancelled pointer gesture without undoing its last live value', () => {
   const { control, onChange } = wheel();
   pointer(control, 'pointerdown', 50, 50);
   pointer(control, 'pointercancel', 50, 50);
-  expect(onChange).toHaveBeenLastCalledWith('#ff0000');
+  expect(onChange).toHaveBeenLastCalledWith('#ffffff');
   onChange.mockClear();
   pointer(control, 'pointermove', 0, 0);
   expect(onChange).not.toHaveBeenCalled();
