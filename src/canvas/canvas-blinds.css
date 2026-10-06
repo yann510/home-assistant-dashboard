@@ -46,6 +46,11 @@
   .canvas .canvas__shortcuts > .canvas-blinds .canvas-blinds__rooms button { justify-content: center; text-align: center; }
   .canvas .canvas__shortcuts > .canvas-blinds .canvas-blinds__rooms button > span { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
 }
+/* Paired cards below tablet width need the window above the complete room name. */
+@media (min-width: 701px) and (max-width: 799px) {
+  .canvas .canvas__shortcuts > .canvas-blinds .canvas-blinds__rooms button { flex-direction: column; gap: 4px; min-height: 80px; }
+  .canvas .canvas__shortcuts > .canvas-blinds .canvas-blinds__window { flex-basis: auto; }
+}
 .canvas .canvas-blinds .canvas-blinds__actions button {
   display: inline-flex;
   align-items: center;
