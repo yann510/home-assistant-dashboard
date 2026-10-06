@@ -50,23 +50,23 @@ Fixed search reflow was measured at 280, 320, 393, 960 and 1440px widths at defa
 
 Initial broad backend runs exposed missing prerequisites: old HA environment lacked newer LLM/openai dependencies; this worktree lacked exported Lepro source. Rerunning against the existing matching HA 2026.9 environment and complete Lepro baseline passed. These were test-environment issues, not dashboard failures. No source/dependency workaround was added to hide them.
 
-## Choices for the user
+## Usability choices resolved by the user
 
-These were left unchanged because product intent or physical feedback is needed:
+The user accepted Chromium testing as sufficient and delegated the remaining usability choices on October 6. These decisions are implemented and independently reviewed:
 
-1. Individual speaker/thermostat/appliance search results open their full category panel. Should they focus/select the particular result instead?
-2. Thermostats expose target adjustment but cannot enable an Off thermostat. Should power/HVAC mode controls be included?
-3. The empty-search directory shows category cards. Should it also offer a browsable full inventory?
-4. Vacuum fan speed is hidden while docked. Should next-clean fan selection be available there?
-5. Browser Back differs from the dialog's Back/Close. Should browser/mobile Back dismiss the current detail?
-6. Blind Stop targets recently requested rooms for 90 seconds before using the current selection. This protects a recent request after selection changes, but a separate Stop selected option may be clearer.
-7. Selecting a favourite already playing can leave unchanged title/content/playlist metadata. In the simulator this correctly yields “Playback could not be confirmed” after the observation timeout, even though restart was requested; a different favourite confirms and closes. Decide whether same-favourite restart should use additional reliable playback evidence, show a distinct accepted/restarting status, or avoid restarting. No service ACK was promoted to verified physical playback.
+1. Device results focus/highlight the particular speaker, thermostat or appliance in its existing panel, preserving context and never changing device state just by navigating.
+2. No thermostat power/HVAC controls: the user expects them to remain on.
+3. Keep quick category shortcuts and offer the full inventory underneath when search is empty.
+4. Allow supported vacuum fan selection while docked, without starting cleaning.
+5. Browser/mobile Back follows the current detail stack; Forward follows the recorded navigation.
+6. Keep primary Stop for recently commanded blind rooms, with a separate explicitly targeted Stop selected option when selections differ.
+7. Avoid restarting a verified already-playing favourite. Unchanged playback after an acknowledged request remains accepted/unverified, never falsely confirmed.
 
 ## Acceptance limits
 
 The separate Playwright browser reached Home Assistant login. A subsequent check found the existing signed-in Codex in-app browser session and verified the deployed dashboard there: Connected live subscriptions, all six device categories/Back/Close, case/whitespace Office search and retained query/focus, real hourly12/daily6 forecasts, all seven actual favourites, and live thermostat/appliance/vacuum/light/speaker readouts. These navigation/read-only checks sent no device commands. At 1440×900,960×540,393×852,320×568, live overview, search and favourites had no horizontal overflow; normal short-tablet overview fit exactly. Native browser console had no warnings/errors. Temporary viewport overrides were reset.
 
-Actual Fire/iPhone/Safari behavior, virtual keyboard/safe-area behavior, background/sleep recovery, audible speaker handoff, physical illumination, vacuum movement, and blind movement/Stop require physical clients and an observer. State-changing authenticated live/device tests for this audit remain unexecuted. The user was asked whether that final session is available while software checks continued; sign-in is now available through the existing in-app session.
+Actual Fire/iPhone/Safari behavior, virtual keyboard/safe-area behavior, background/sleep recovery, audible speaker handoff, physical illumination, vacuum movement, and blind movement/Stop require physical clients and an observer. State-changing authenticated live/device tests for this audit remain unexecuted. The user explicitly accepted Chromium simulation as sufficient for this dashboard audit. These physical outcomes remain outside that accepted scope; they are not prerequisites for completing software acceptance. Sign-in is available through the existing in-app session.
 
 Read-only HA API readiness confirmed HA 2026.9.3, an idle mood, house_moods activate/end/retry_restoration/follow_join/apply_mode services, and reminder dismiss/snooze/unsnooze services. The mood sensor does **not** advertise coordinated-v1 mode control, so the dashboard retains its guarded legacy mode behavior and prevents mode changes over an active mood. No backend opt-in/configuration migration was performed.
 
@@ -74,12 +74,32 @@ This report establishes a reviewed software release with no known remaining acti
 
 ## Release
 
-Guarded deployment staged, hash-verified and promoted frontend release `fb5db1b`, retaining the previous dashboard for rollback. Fresh HTTP verification matched all **191 manifest files**, including **68 local build files**. Exact hashes and timestamp are in [release verification](comprehensive-interactions-release-2026-10-06.json). No backend changes or real hardware commands were issued.
+Guarded deployment staged, hash-verified and promoted final frontend release `df3d4c2`, retaining the previous dashboard for rollback. Fresh HTTP verification matched all **193 manifest files**, including **68 local build files**. Exact hashes and timestamp are in [release verification](comprehensive-interactions-release-2026-10-06.json). No backend changes or real hardware commands were issued.
 
-Completed source and evidence are published directly to `origin/main` through a normal fast-forward after fetching. Other checkouts remain untouched. [Refresh the dashboard](http://homeassistant.local:8123/local/dashboard/index.html?release=fb5db1b) to load the fixes. Physical-device and state-changing live acceptance remains pending as described above.
+Completed source and evidence are published directly to `origin/main` through a normal fast-forward after fetching. Other checkouts remain untouched. [Refresh the dashboard](http://homeassistant.local:8123/local/dashboard/index.html?release=df3d4c2) to load the fixes. Physical-device behavior is not certified; Chromium is the user-approved acceptance scope.
 
 ## Final visual follow-up
 
 The signed-in in-app browser's default viewport near 788px exposed a blind-room label splitting “Bedroom” across two lines inside the paired overview layout, outside the tablet CSS's ≥800px band. Local reproduction measured label width42px and two word fragments. The paired cards now stack their artwork above room labels from 701–799px. A further narrow-phone check found Bedroom text outside its button at 320px and multiple labels overflowing at 280px; room tiles now use a stacked layout at ≤360px. Final geometry checks cover 280,320,360,361,375,393,701,720,768,788,799,800,960 and1440px. Each tile retains at least44px in both dimensions. Independent task and broad code reviews passed with no actionable findings. The full 528-test frontend suite, lint and production build passed again. These changes are included in the final deployed revision.
 
 Final authenticated production check on release `fb5db1b`: Connected, no warning/error logs, and blind labels contained at 280, 320, 788 and 960px. Bedroom remains a whole word at every size; 280px Living room wraps between words. Temporary viewport overrides reset. Fresh HTTP verification matched all 191 manifest files and all 68 local build files.
+
+## Usability follow-up evidence
+
+Specific speaker/thermostat/appliance destinations: 40 visits across 320,393,960 and1440px focused the exact read-only row and sent zero service writes. Empty search exposes six category shortcuts and25 individual fixture entries. Inventory geometry at280,320,393,768,960 and1440px with16px and24px root text (12cases) has no root/dialog horizontal overflow and all navigation buttons≥44px. Native Chromium touch-enabled393×852/960×540 contexts with reduced motion scrolled inventory, focused tapped appliance, returned via Back and closed by touch.
+
+Main route history checks passed Back/Forward, in-appBack, Close followed by Forward, mixed-case/whitespace query retention, host state/fullURL preservation, reload stale-record rejection and rapidBack+Close. Final review exposed missing room-picker/embedded-light-settings history and Tab leaving the modal from appliance-row focus. Both were fixed in df3d4c2 and the scoped independent re-review approved all findings, including replacement of fixed traversal sleeps with bounded popstate-driven waits.
+
+Docked fan selection reported Quiet while remaining Docked and emitted only vacuum.set_fan_speed. Explicit Stop selected and Stop recent emitted stop commands for Bedroom and Living room respectively after a Living room open request. Stop geometry at the six widths above/default+enlarged text has no horizontal overflow and every control≥44px.
+
+All seven fixture favourites confirmed their first selection, closed the gallery, and sent zero additional play requests on verified repeated selection. Paused selection sent one request and returned Playing; Next cleared stale Already playing feedback. ACK-only and stable unrelated contentID+title-only change stayed accepted/unverified after the20s observation window, retained the gallery and enabled a one-write retry. Initial offline gallery now shows reconnect guidance with no impossible loader or retry. Regression and independent re-review cover sourceA→B→A stale errors and invalid cache prevention.
+
+Latest completed revision8f7120c passed551tests/36files, full ESLint and TypeScript+productionbuild. Backend code is unchanged from the earlier verified suites. Final source df3d4c2 passes **563 tests/36 files**, full lint and TypeScript+production build. Independent review reports no remaining actionable findings. During concurrent hook edits, development HMR briefly mismatched old hook order; clean subsequent page loads had no errors/warnings. No production workaround was added for development refresh state.
+
+Final Chromium overlay acceptance: room-picker Back/Forward, selection and Escape preserve the URL and restore the trigger; homepage settings Back/Forward/Escape work and opening a parent replaces the home overlay coherently. Directory → All lights → settings Back dismisses settings first; the next Back returns to the directory. Forward across remount restores the correct settings owner and focus. Parent Close returns to overview even with settings open. The same touch flows pass at393×852 and960×540 with reduced motion and no horizontal overflow. Native Tab and Shift+Tab remain inside dialogs from all three appliance destinations online/offline and the last offline thermostat/speaker row (eight cases).
+
+Final failure checks show scoped errors for rejected favourite playback and docked fan changes. Initial offline favourites show reconnect guidance; unavailable vacuum has no active commands. Fresh phone preview confirms first favourite selection closes, verified repeat closes with Already playing, and fan Quiet leaves the vacuum Docked. Clean page console has zero warnings/errors. These simulated commands do not write to household devices.
+
+Final authenticated release `df3d4c2`: Connected, room-picker browser Back restores overview, the full inventory contains25 devices, Washer navigation focuses/highlights exactly that row, and Back returns to the directory. Docked live vacuum remains readable; the live integration does not advertise supported fan options, so capability guards correctly omit that control. The supported simulator fan flow passed separately. At393×852 and960×540, inventory root and dialog body have no horizontal overflow (354/354 and813/813 body widths). Native browser warning/error logs are empty. No live device commands were sent; temporary viewport overrides were reset. Final manifest verification matches all193 remote files and68 local build files.
+
+All seven user decisions are resolved. Task and final independent reviews are approved with no open actionable findings. Source and acceptance evidence are committed and pushed directly to origin/main using a normal fast-forward after fetching; unrelated checkouts are preserved. Chromium software acceptance is complete.

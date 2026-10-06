@@ -1,7 +1,7 @@
 {
-  "releaseId": "fb5db1b",
-  "checkedAt": "2026-10-06T15:43:09.000Z",
-  "files": 191,
+  "releaseId": "df3d4c2",
+  "checkedAt": "2026-10-06T16:56:21.696Z",
+  "files": 193,
   "localBuildFiles": 68,
   "checks": [
     {
@@ -197,14 +197,14 @@
       "localBuildMatch": true
     },
     {
-      "path": "assets/index-BDrq5IfK.css",
-      "sha256": "d60939dcf6442ac6e602ec10f7cd794ed613a6b1a969bff8d29fc10cbd29fa11",
+      "path": "assets/index-C8_J8-HH.css",
+      "sha256": "b81e144bd84ab6d54e2929476043ff134e30b047cb074cf9561fb88c8fdc594f",
       "manifestMatch": true,
       "localBuildMatch": true
     },
     {
-      "path": "assets/index-CmkgYGcA.js",
-      "sha256": "67c973a258497c002765aedd924356f2b7a69fcc6b8b932cd4a191536e8001f0",
+      "path": "assets/index-ZieGa9rt.js",
+      "sha256": "6aee0e92b7c805cc9eab720c7b442adefa0f55a94b66d726ea4c922945469730",
       "manifestMatch": true,
       "localBuildMatch": true
     },
@@ -408,13 +408,13 @@
     },
     {
       "path": "index.html",
-      "sha256": "d5a73805418ab2f84481893f644cbb7be9d08a70fa996e3f0d5add2f175bbdd4",
+      "sha256": "1f501d8bf24ccf522c43ec21b3a0cd2ef27cec6395604517b71b49d0b005b803",
       "manifestMatch": true,
       "localBuildMatch": true
     },
     {
       "path": "release-info.json",
-      "sha256": "a74befab3c856cea978617c74778a900b0b8617a7d701de483fac751a9554690",
+      "sha256": "512fb992dc9ce3325d69144a78918f1f4f371123185e6210fca090c50d9ef38b",
       "manifestMatch": true,
       "localBuildMatch": null
     },
@@ -619,6 +619,12 @@
     {
       "path": "assets/index-D6CM-p_Q.js",
       "sha256": "6e3a8c6b4c7436fb83c57260ff9a5bd11ec623edb72a1ad38a1bf7fde3693898",
+      "manifestMatch": true,
+      "localBuildMatch": null
+    },
+    {
+      "path": "assets/index-CmkgYGcA.js",
+      "sha256": "67c973a258497c002765aedd924356f2b7a69fcc6b8b932cd4a191536e8001f0",
       "manifestMatch": true,
       "localBuildMatch": null
     },
@@ -883,6 +889,12 @@
     {
       "path": "assets/index-BbEY9iAe.js",
       "sha256": "3cf375d5d95f4547892424ec96e7c30da95505d5102f1920a023284f582c65ec",
+      "manifestMatch": true,
+      "localBuildMatch": null
+    },
+    {
+      "path": "assets/index-BDrq5IfK.css",
+      "sha256": "d60939dcf6442ac6e602ec10f7cd794ed613a6b1a969bff8d29fc10cbd29fa11",
       "manifestMatch": true,
       "localBuildMatch": null
     },
