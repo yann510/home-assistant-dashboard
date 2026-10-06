@@ -9,3 +9,9 @@ The tablet transport SVG was 23×23px inside a 20×20px animation wrapper, displ
 Local Chromium checks cover everyday, busy, health and disconnected scenes at all three desktop sizes, coarse touch tablet viewports 960×540, 960×600, 1024×600, 1280×680, 1280×720, 1280×800 and 800×1280, and phones at 393×852 and 852×393. Settled screenshots and geometry verify compact desktop cards, tablet height preservation, no horizontal overflow, and centered transport controls. Playback transitions, dialog closing, document scrolling and long error growth are checked in the simulated preview.
 
 Validation: all 506 tests in 35 files, lint and production dashboard build pass. The build retains its existing large chunk warning. Evidence scripts, screenshots, geometry and logs are under ignored `backups.local/desktop-proportions-2026-10-06/`. Physical Fire browser compatibility and touch behavior remain device checks.
+
+## Production release
+
+Independent task specification/quality review and whole-branch integration review approved `8f53914..c2963d7` without findings. Published release `c2963d7` using guarded staging, remote hash verification and promotion, retaining the prior dashboard for rollback. Fresh HTTP requests confirmed the release ID and exact SHA-256 matches against the local build and release manifest for `index.html` plus all 67 build assets (68 files). No device commands, backend updates or Home Assistant restart occurred.
+
+Source and release notes are pushed directly to `origin/main` as a normal fast-forward after fetching; other checkouts remain untouched. [Refresh the dashboard](http://homeassistant.local:8123/local/dashboard/index.html?release=c2963d7) to load the fix.
