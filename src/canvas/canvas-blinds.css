@@ -38,7 +38,13 @@
 .canvas .canvas-blinds .canvas-blinds__actions { gap: 8px; margin-top: 12px; padding-top: 0; }
 @media (min-width: 701px) {
   .canvas .canvas__shortcuts > .canvas-blinds { align-self: stretch; display: flex; flex-direction: column; }
-  .canvas .canvas__shortcuts > .canvas-blinds .canvas-blinds__actions { margin-top: auto; padding-top: 12px; }
+  /* Both control rows share spare card height; captions and errors keep their
+     intrinsic space, and each row can still grow to fit its content. */
+  .canvas .canvas__shortcuts > .canvas-blinds .canvas-blinds__rooms,
+  .canvas .canvas__shortcuts > .canvas-blinds .canvas-blinds__actions { flex: 1 1 0; align-items: stretch; }
+  .canvas .canvas__shortcuts > .canvas-blinds .canvas-blinds__actions { margin-top: 12px; padding-top: 0; }
+  .canvas .canvas__shortcuts > .canvas-blinds .canvas-blinds__rooms button { justify-content: center; text-align: center; }
+  .canvas .canvas__shortcuts > .canvas-blinds .canvas-blinds__rooms button > span { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
 }
 .canvas .canvas-blinds .canvas-blinds__actions button {
   display: inline-flex;
@@ -69,8 +75,11 @@
   .canvas .canvas-blinds .canvas-blinds__actions button { transition: none; }
 }
 .canvas .canvas-blinds .canvas-blinds__actions svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+/* Long pending labels may wrap as a centered group in narrow overview tiles. */
+.canvas .canvas__shortcuts .canvas-blinds__actions button { flex-wrap: wrap; align-content: center; }
+.canvas .canvas__shortcuts .canvas-blinds__actions svg { flex-shrink: 0; }
 .canvas .canvas-blinds .canvas-blinds__action-pending { display: none; }
-/* The overview keeps routine acknowledgements within its fixed-height controls. */
+/* The overview keeps routine acknowledgements within its controls. */
 .canvas .canvas__shortcuts .canvas-blinds__actions button[aria-busy='true'] .canvas-blinds__action-label { display: none; }
 .canvas .canvas__shortcuts .canvas-blinds__actions button[aria-busy='true'] .canvas-blinds__action-pending { display: inline; }
 .canvas .canvas__shortcuts .canvas-blinds__results[data-has-issue='false'] { display: none; }
