@@ -150,49 +150,6 @@ export function CanvasPulse({
         <>
           <div className='canvas-pulse__items' ref={itemsRef}>
             {feedback}
-            {shownActivities.map(item => (
-              <button
-                key={item.id}
-                type='button'
-                className={`canvas-pulse__activity${item.active ? ' appliance-animation' : ''}`}
-                data-pulse-key={`device:${item.id}`}
-                data-device={item.id}
-                data-state={item.iconState}
-                aria-label={`${item.name} ${item.status}${item.detail ? ` · ${item.detail}` : ''}`}
-                onClick={event => {
-                  onSelect(null);
-                  onOpen(item.route, event.currentTarget);
-                }}
-              >
-                <span className='canvas-pulse__art' aria-hidden='true'>
-                  {item.id === 'roomba' ? (
-                    <svg className='canvas-pulse__roomba' viewBox='0 0 36 36' fill='none' stroke='currentColor' strokeWidth='1.6'>
-                      <circle cx='18' cy='18' r='13' />
-                      <path d='M8 13a11 11 0 0 1 20 0M12 27h12' strokeLinecap='round' />
-                      <circle cx='18' cy='17' r='4' />
-                      <circle cx='18' cy='9' r='1' fill='currentColor' stroke='none' />
-                      <path className='canvas-pulse__brush' d='m7 27-3 3m1-5-2 1m7 3-1 3' strokeLinecap='round' />
-                    </svg>
-                  ) : (
-                    <ApplianceIcon kind={item.id as 'washer' | 'dryer' | 'dishwasher'} state={item.iconState} />
-                  )}
-                </span>
-                <span className='canvas-pulse__copy'>
-                  <strong>{item.name}</strong>
-                  <small>{item.status}</small>
-                  {item.detail && <small>{item.detail}</small>}
-                </span>
-              </button>
-            ))}
-            {!shownActivities.length && !visible.length && !health.length && (
-              <p>
-                {!attention.ready
-                  ? 'Reminder status unavailable.'
-                  : missingStatus
-                    ? 'Activity status unavailable for some devices.'
-                    : 'All quiet at home.'}
-              </p>
-            )}
             {health.map(item =>
               item.route ? (
                 <button
@@ -271,6 +228,49 @@ export function CanvasPulse({
                 </span>
               </button>
             ))}
+            {shownActivities.map(item => (
+              <button
+                key={item.id}
+                type='button'
+                className={`canvas-pulse__activity${item.active ? ' appliance-animation' : ''}`}
+                data-pulse-key={`device:${item.id}`}
+                data-device={item.id}
+                data-state={item.iconState}
+                aria-label={`${item.name} ${item.status}${item.detail ? ` · ${item.detail}` : ''}`}
+                onClick={event => {
+                  onSelect(null);
+                  onOpen(item.route, event.currentTarget);
+                }}
+              >
+                <span className='canvas-pulse__art' aria-hidden='true'>
+                  {item.id === 'roomba' ? (
+                    <svg className='canvas-pulse__roomba' viewBox='0 0 36 36' fill='none' stroke='currentColor' strokeWidth='1.6'>
+                      <circle cx='18' cy='18' r='13' />
+                      <path d='M8 13a11 11 0 0 1 20 0M12 27h12' strokeLinecap='round' />
+                      <circle cx='18' cy='17' r='4' />
+                      <circle cx='18' cy='9' r='1' fill='currentColor' stroke='none' />
+                      <path className='canvas-pulse__brush' d='m7 27-3 3m1-5-2 1m7 3-1 3' strokeLinecap='round' />
+                    </svg>
+                  ) : (
+                    <ApplianceIcon kind={item.id as 'washer' | 'dryer' | 'dishwasher'} state={item.iconState} />
+                  )}
+                </span>
+                <span className='canvas-pulse__copy'>
+                  <strong>{item.name}</strong>
+                  <small>{item.status}</small>
+                  {item.detail && <small>{item.detail}</small>}
+                </span>
+              </button>
+            ))}
+            {!shownActivities.length && !visible.length && !health.length && (
+              <p>
+                {!attention.ready
+                  ? 'Reminder status unavailable.'
+                  : missingStatus
+                    ? 'Activity status unavailable for some devices.'
+                    : 'All quiet at home.'}
+              </p>
+            )}
             {snoozed.length > 0 && (
               <>
                 <button type='button' aria-expanded={showSnoozed} onClick={() => setShowSnoozed(!showSnoozed)}>

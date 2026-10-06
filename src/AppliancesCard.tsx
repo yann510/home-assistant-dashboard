@@ -1,6 +1,6 @@
-import { ApplianceIcon, type ApplianceIconState } from './ApplianceIcon';
+import { ApplianceIcon } from './ApplianceIcon';
 import { useApplianceClock } from './useApplianceClock';
-import { runningApplianceStatus } from './applianceStatus';
+import { classifyAppliance } from './canvas/activity';
 import { useEntity, useStore } from '@hakit/core';
 
 const appliances = [
@@ -14,27 +14,7 @@ function ApplianceRow({ appliance, now, connected }: { appliance: (typeof applia
   const machine = useEntity(`${prefix}_machine_state`, { returnNullIfNotFound: true });
   const job = useEntity(`${prefix}_job_state`, { returnNullIfNotFound: true });
   const completion = useEntity(`${prefix}_completion_time`, { returnNullIfNotFound: true });
-  const state = machine?.state;
-  const finished = ['finish', 'finished'].includes(job?.state ?? '');
-  const iconState: ApplianceIconState =
-    !connected || !machine || state === 'unavailable'
-      ? 'unavailable'
-      : state === 'run'
-        ? finished
-          ? 'idle'
-          : 'running'
-        : state === 'pause'
-          ? 'paused'
-          : state === 'stop'
-            ? 'idle'
-            : 'unknown';
-  let status = 'Unknown';
-  if (!connected || !machine || state === 'unavailable') status = 'Unavailable';
-  else if (state === 'stop') status = 'Idle';
-  else if (state === 'pause') status = 'Paused';
-  else if (state === 'run') {
-    status = finished ? 'Finished' : runningApplianceStatus(job?.state, completion?.state, now);
-  }
+  const { status, iconState } = classifyAppliance(id, machine?.state, job?.state, completion?.state, now, connected);
   return (
     <li className='appliance-row' data-appliance={id} data-state={iconState}>
       <span className='appliance-icon' aria-hidden='true'>

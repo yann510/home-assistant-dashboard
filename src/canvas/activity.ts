@@ -14,7 +14,7 @@ export function classifyAppliance(
 ): ActivityState {
   if (!connected || !machine || machine === 'unavailable') return { status: 'Unavailable', active: false, iconState: 'unavailable' };
   if (machine === 'unknown') return { status: 'Unknown', active: false, iconState: 'unknown' };
-  if (['finish', 'finished'].includes(job ?? '')) return { status: 'Finished', active: false, iconState: 'idle' };
+  if (machine === 'run' && ['finish', 'finished'].includes(job ?? '')) return { status: 'Finished', active: false, iconState: 'idle' };
   if (machine === 'pause') return { status: 'Paused', active: false, iconState: 'paused' };
   if (machine === 'run') return { status: runningApplianceStatus(job, completion, now), active: true, iconState: 'running' };
   if (machine === 'stop') return { status: 'Idle', active: false, iconState: 'idle' };

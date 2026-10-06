@@ -116,7 +116,7 @@
 }
 .canvas-dialog .canvas-devices__list {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(245px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(245px, 100%), 1fr));
   gap: var(--canvas-space-2);
 }
 .canvas-dialog .canvas-devices__list button {
@@ -126,6 +126,13 @@
   gap: 12px;
   text-align: left;
   min-height: 58px;
+}
+.canvas-dialog .canvas-devices__list button > span:first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.canvas-dialog .canvas-devices__list button > span:last-child {
+  flex: none;
 }
 .canvas-dialog .canvas-devices__list small {
   display: block;

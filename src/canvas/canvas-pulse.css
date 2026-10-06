@@ -76,7 +76,6 @@
 .canvas .canvas-pulse__copy small { margin-top: 2px; font-size: .73rem; line-height: 1.25; opacity: .8; }
 .canvas .canvas-pulse__notice {
   --pulse-accent: var(--canvas-coral);
-  order: -1;
   max-width: min(330px, 100%);
   background: color-mix(in srgb, var(--pulse-accent) 16%, var(--canvas-surface));
   border-color: color-mix(in srgb, var(--pulse-accent) 45%, var(--canvas-line));

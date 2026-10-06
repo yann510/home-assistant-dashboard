@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties, type PointerEvent } from 'react';
 import { useEntity, type EntityName, type FilterByDomain } from '@hakit/core';
 import { useSpeakerCommand } from './useSpeakerCommand';
+import { onSpeakerDisconnect } from './speakerConnection';
 
 function timeLabel(seconds: number) {
   return `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`;
@@ -11,12 +12,14 @@ export function SpeakerSeek({ entityId, disabled }: { entityId: FilterByDomain<E
   const attributes = entity?.attributes;
   const duration = attributes?.media_duration ?? 0;
   const playing = entity?.state === 'playing';
+  const seekableState = ['playing', 'paused', 'buffering'].includes(entity?.state ?? '');
   const [now, setNow] = useState(() => Date.now());
   const [draft, setDraft] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [dragging, setDragging] = useState(false);
   const gesture = useRef<{ id: number; x: number; y: number; value: number } | null>(null);
   const inFlight = useRef(false);
+  const generation = useRef(0);
   const mounted = useRef(true);
   const settle = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const { send, error } = useSpeakerCommand();
@@ -33,15 +36,36 @@ export function SpeakerSeek({ entityId, disabled }: { entityId: FilterByDomain<E
   }, [playing]);
   useEffect(() => {
     mounted.current = true;
+    const unsubscribe = onSpeakerDisconnect(() => {
+      generation.current += 1;
+      gesture.current = null;
+      clearTimeout(settle.current);
+      setDragging(false);
+      setDraft(null);
+    });
     return () => {
+      unsubscribe();
       mounted.current = false;
       clearTimeout(settle.current);
     };
   }, []);
 
+  // Cancel the interaction owned by the previous entity/media/capability lifecycle.
+  useEffect(
+    () => () => {
+      generation.current += 1;
+      gesture.current = null;
+      clearTimeout(settle.current);
+      setDragging(false);
+      setDraft(null);
+    },
+    [disabled, canSeek, entityId, attributes?.media_content_id, attributes?.media_title, duration, seekableState]
+  );
+
   async function commit(next: number) {
     if (disabled || !canSeek || inFlight.current) return;
     clearTimeout(settle.current);
+    const commandGeneration = generation.current;
     inFlight.current = true;
     setBusy(true);
     const clamped = Math.max(0, Math.min(duration, next));
@@ -50,6 +74,7 @@ export function SpeakerSeek({ entityId, disabled }: { entityId: FilterByDomain<E
     inFlight.current = false;
     if (!mounted.current) return;
     setBusy(false);
+    if (commandGeneration !== generation.current) return;
     if (!success) setDraft(null);
     else
       settle.current = setTimeout(() => {
@@ -65,6 +90,7 @@ export function SpeakerSeek({ entityId, disabled }: { entityId: FilterByDomain<E
   function cancel() {
     if (!gesture.current) return;
     gesture.current = null;
+    clearTimeout(settle.current);
     setDragging(false);
     setDraft(null);
   }
@@ -73,7 +99,7 @@ export function SpeakerSeek({ entityId, disabled }: { entityId: FilterByDomain<E
     return start && Math.abs(event.clientY - start.y) > 8 && Math.abs(event.clientY - start.y) > Math.abs(event.clientX - start.x);
   }
 
-  if (!Number.isFinite(duration) || duration <= 0 || !['playing', 'paused', 'buffering'].includes(entity?.state ?? '')) return null;
+  if (!Number.isFinite(duration) || duration <= 0 || !seekableState) return null;
   return (
     <div className={`speaker-seek ${canSeek ? 'speaker-seek--direct' : 'speaker-seek--passive'}${dragging ? ' is-dragging' : ''}`}>
       {canSeek ? (

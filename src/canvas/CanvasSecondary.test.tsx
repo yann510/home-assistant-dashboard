@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import userEvent from '@testing-library/user-event';
 import type { AttentionItem } from '../attention';
 import { CanvasPulse, type AttentionController } from './CanvasPulse';
 import { CanvasDashboard } from './CanvasDashboard';
@@ -927,6 +928,8 @@ it('hides a powered-off unavailable washer from pulse and restores its activity 
   act(() => fixture.publish('sensor.washer_washer_machine_state', 'pause'));
   expect(screen.getByRole('button', { name: 'Washer Paused' })).toBeTruthy();
   act(() => fixture.publish('sensor.washer_washer_job_state', 'finished'));
+  expect(screen.getByRole('button', { name: 'Washer Paused' })).toBeTruthy();
+  act(() => fixture.publish('sensor.washer_washer_machine_state', 'run'));
   expect(screen.getByRole('button', { name: 'Washer Finished' })).toBeTruthy();
   act(() => fixture.publish('sensor.washer_washer_machine_state', 'unavailable'));
   expect(screen.getByRole('region', { name: 'House pulse' }).classList.contains('canvas-pulse--quiet-art')).toBe(true);
@@ -982,4 +985,51 @@ it('shows the same authoritative Roomba battery in its controls and hides unavai
   expect(controls.getByText('Battery 12%')).toBeTruthy();
   act(() => fixture.disconnect());
   expect(controls.queryByText(/Battery/)).toBeNull();
+});
+
+it('orders mode feedback, health, attention, activities and snoozed controls in DOM and keyboard traversal', async () => {
+  ref.current!.publish('sensor.washer_washer_machine_state', 'run');
+  ref.current!.publish('sensor.washer_washer_job_state', 'wash');
+  ref.current!.publish('vacuum.roomba', 'cleaning');
+  ref.current!.publish('sensor.roomba_battery_level', '10');
+  ref.current!.publish('binary_sensor.roomba_charging', 'off');
+  const item: AttentionItem = {
+    id: 'bin',
+    episode: 'bin-order',
+    title: 'Empty bin',
+    detail: 'Bin full',
+    tone: 'amber',
+    icon: 'bin',
+    target: 'vacuum',
+    kind: 'condition',
+    occurred_at: new Date().toISOString(),
+    snoozed_until: null,
+    snooze_seconds: 3600,
+  };
+  const attention: AttentionController = {
+    connected: true,
+    ready: true,
+    disconnected: false,
+    night: false,
+    items: [item, { ...item, id: 'later', episode: 'later', snoozed_until: new Date(Date.now() + 3600000).toISOString() }],
+    now: Date.now(),
+    busy: false,
+    error: null,
+    onAction: vi.fn(),
+  };
+  render(<CanvasPulse attention={attention} feedback={<button>Mode feedback</button>} onOpen={vi.fn()} onSelect={vi.fn()} />);
+  const buttons = within(screen.getByRole('region', { name: 'House pulse' })).getAllByRole('button');
+  expect(buttons.map(button => button.getAttribute('aria-label') ?? button.textContent)).toEqual([
+    'Mode feedback',
+    'View: Roomba battery low',
+    'View: Empty bin',
+    'Washer Washing',
+    'Roomba Cleaning · Battery 10%',
+    'Snoozed · 1',
+  ]);
+  const user = userEvent.setup();
+  for (const button of buttons) {
+    await user.tab();
+    expect(document.activeElement).toBe(button);
+  }
 });

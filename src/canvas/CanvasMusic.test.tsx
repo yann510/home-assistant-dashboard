@@ -7,6 +7,7 @@ import { HassContext, useStore, type HassContextProps } from '@hakit/core';
 import type { Connection, HassEntities } from 'home-assistant-js-websocket';
 import { CanvasMusicProvider, useCanvasMusic } from './CanvasMusicProvider';
 import { CanvasMusic } from './CanvasMusic';
+import { SpeakerSeek } from '../SpeakerSeek';
 import { CanvasPlayer } from './CanvasPlayer';
 import { CanvasSpeakers } from './CanvasSpeakers';
 import { useState } from 'react';
@@ -959,4 +960,137 @@ it('releases an old grouping spinner when the source changes while Speakers is c
   expect((screen.getByRole('checkbox', { name: /bathroom/ }) as HTMLInputElement).disabled).toBe(false);
   await userEvent.click(screen.getByRole('checkbox', { name: /bathroom/ }));
   expect(sendMessagePromise).toHaveBeenCalledTimes(2);
+});
+
+describe('custom seek gestures', () => {
+  beforeEach(() => {
+    class TestPointerEvent extends MouseEvent {
+      readonly pointerId: number;
+      constructor(type: string, init: PointerEventInit = {}) {
+        super(type, init);
+        this.pointerId = init.pointerId ?? 1;
+      }
+    }
+    vi.stubGlobal('PointerEvent', TestPointerEvent);
+  });
+  function seek() {
+    mount();
+    const slider = screen.getByRole('slider', { name: 'Track position' });
+    vi.spyOn(slider, 'getBoundingClientRect').mockReturnValue({ left: 0, width: 216 } as DOMRect);
+    return slider;
+  }
+  function down(slider: HTMLElement) {
+    fireEvent.pointerDown(slider, { button: 0, clientX: 48, clientY: 10 });
+  }
+  function up(slider: HTMLElement) {
+    fireEvent.pointerUp(slider, { button: 0, clientX: 108, clientY: 10 });
+  }
+  it('discards an interrupted drag across an in-place socket reconnect, then permits a fresh gesture', async () => {
+    const socket = useStore.getState().connection!;
+    const events = new Map<string, Set<() => void>>();
+    Object.assign(socket, {
+      addEventListener: (event: string, fn: () => void) => {
+        if (!events.has(event)) events.set(event, new Set());
+        events.get(event)!.add(fn);
+      },
+      removeEventListener: (event: string, fn: () => void) => events.get(event)?.delete(fn),
+    });
+    const slider = seek();
+    down(slider);
+    fireEvent.pointerMove(slider, { clientX: 108, clientY: 10 });
+    act(() => {
+      Object.assign(socket, { connected: false });
+      events.get('disconnected')?.forEach(fn => fn());
+      Object.assign(socket, { connected: true });
+      events.get('ready')?.forEach(fn => fn());
+    });
+    up(slider);
+    expect(sendMessagePromise).not.toHaveBeenCalled();
+    expect(slider.getAttribute('aria-valuetext')).toBe('0:40 of 3:20');
+    down(slider);
+    up(slider);
+    await act(async () => {});
+    expect(sendMessagePromise).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ service: 'media_seek', service_data: { seek_position: 100 } })
+    );
+  });
+  it.each(['vertical', 'pointercancel', 'capture', 'escape', 'blur', 'track', 'connection'])('cancels %s without a write', reason => {
+    const slider = seek();
+    down(slider);
+    if (reason === 'vertical') fireEvent.pointerMove(slider, { clientX: 49, clientY: 35 });
+    if (reason === 'pointercancel') fireEvent.pointerCancel(slider);
+    if (reason === 'capture') fireEvent.lostPointerCapture(slider);
+    if (reason === 'escape') fireEvent.keyDown(slider, { key: 'Escape' });
+    if (reason === 'blur') fireEvent.blur(slider);
+    if (reason === 'track') updateEntity('media_player.living_room', {}, { media_title: 'Next track' });
+    if (reason === 'connection') act(() => useStore.setState({ connection: { ...useStore.getState().connection } as Connection }));
+    up(slider);
+    expect(sendMessagePromise).not.toHaveBeenCalled();
+  });
+  it.each(['disabled', 'entity', 'media', 'capability', 'duration', 'state'])('discards a retained gesture after %s changes', reason => {
+    const draw = (entityId: 'media_player.living_room' | 'media_player.gym' = 'media_player.living_room', disabled = false) => (
+      <HassContext.Provider value={context}>
+        <SpeakerSeek entityId={entityId} disabled={disabled} />
+      </HassContext.Provider>
+    );
+    const view = render(draw());
+    const slider = screen.getByRole('slider', { name: 'Track position' });
+    vi.spyOn(slider, 'getBoundingClientRect').mockReturnValue({ left: 0, width: 216 } as DOMRect);
+    down(slider);
+    if (reason === 'disabled') view.rerender(draw('media_player.living_room', true));
+    if (reason === 'entity') view.rerender(draw('media_player.gym'));
+    if (reason === 'media') updateEntity('media_player.living_room', {}, { media_content_id: 'next-media' });
+    if (reason === 'capability') updateEntity('media_player.living_room', {}, { supported_features: 0 });
+    if (reason === 'state') updateEntity('media_player.living_room', { state: 'idle' });
+    if (reason === 'duration') updateEntity('media_player.living_room', {}, { media_duration: 300 });
+    up(slider);
+    expect(sendMessagePromise).not.toHaveBeenCalled();
+  });
+  it('ignores another pointer and commits only the captured gesture', async () => {
+    const slider = seek();
+    down(slider);
+    fireEvent.pointerMove(slider, { pointerId: 2, clientX: 208, clientY: 10 });
+    fireEvent.pointerUp(slider, { pointerId: 2, clientX: 208, clientY: 10 });
+    expect(sendMessagePromise).not.toHaveBeenCalled();
+    expect(slider.getAttribute('aria-valuetext')).toBe('0:40 of 3:20');
+    up(slider);
+    await act(async () => {});
+    expect(sendMessagePromise).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ service_data: { seek_position: 100 } }));
+  });
+  it('commits a horizontal gesture once and accepts keyboard/native changes after settlement', async () => {
+    const slider = seek();
+    down(slider);
+    fireEvent.pointerMove(slider, { clientX: 108, clientY: 12 });
+    up(slider);
+    await act(async () => {});
+    expect(sendMessagePromise).toHaveBeenCalledTimes(1);
+    fireEvent.keyDown(slider, { key: 'ArrowRight' });
+    fireEvent.change(slider, { target: { value: '101' } });
+    await act(async () => {});
+    expect(sendMessagePromise).toHaveBeenLastCalledWith(expect.objectContaining({ service_data: { seek_position: 101 } }));
+  });
+  it('does not retain a successful old seek draft after the media changes during acknowledgement', async () => {
+    let acknowledge!: (value: unknown) => void;
+    sendMessagePromise.mockImplementationOnce(() => new Promise(resolve => { acknowledge = resolve; }));
+    render(<HassContext.Provider value={context}><SpeakerSeek entityId='media_player.living_room' disabled={false} /></HassContext.Provider>);
+    const slider = screen.getByRole('slider', { name: 'Track position' });
+    vi.spyOn(slider, 'getBoundingClientRect').mockReturnValue({ left: 0, width: 216 } as DOMRect);
+    down(slider);
+    up(slider);
+    expect(slider.getAttribute('aria-valuetext')).toBe('1:40 of 3:20');
+    updateEntity('media_player.living_room', {}, { media_content_id: 'next-media', media_position: 15 });
+    expect(slider.getAttribute('aria-valuetext')).toBe('0:15 of 3:20');
+    await act(async () => acknowledge({}));
+    expect(slider.getAttribute('aria-valuetext')).toBe('0:15 of 3:20');
+    expect((slider as HTMLInputElement).disabled).toBe(false);
+  });
+  it('restores reported position after a rejected seek acknowledgement', async () => {
+    sendMessagePromise.mockRejectedValueOnce(new Error('Rejected'));
+    const slider = seek();
+    down(slider);
+    up(slider);
+    await act(async () => {});
+    expect(slider.getAttribute('aria-valuetext')).toBe('0:40 of 3:20');
+    expect(screen.getByRole('alert').textContent).toContain('Rejected');
+  });
 });

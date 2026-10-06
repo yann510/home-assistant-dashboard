@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { act, cleanup, render, screen } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
+import { classifyAppliance } from './canvas/activity';
 import { AppliancesCard } from './AppliancesCard';
 
 const ha = vi.hoisted(() => ({ connected: true, entities: {} as Record<string, { state: string }> }));
@@ -110,4 +111,36 @@ it('uses the modal title in Canvas while retaining the classic heading and live 
   expect(screen.getByText('Drying · ~24 min left')).toBeTruthy();
   view.rerender(<AppliancesCard />);
   expect(screen.getByRole('heading', { name: 'Appliances' })).toBeTruthy();
+});
+
+it.each(['washer', 'dryer', 'dishwasher'] as const)('shares all %s machine/job classifications with Pulse', id => {
+  for (const machine of ['stop', 'pause', 'run', 'unknown', 'unavailable', 'mystery']) {
+    for (const job of ['finish', 'finished', 'drying', 'unknown', 'unavailable']) {
+      for (const connected of [true, false]) {
+        const expected =
+          !connected || machine === 'unavailable'
+            ? 'Unavailable'
+            : machine === 'stop'
+              ? 'Idle'
+              : machine === 'pause'
+                ? 'Paused'
+                : machine !== 'run'
+                  ? 'Unknown'
+                  : ['finish', 'finished'].includes(job)
+                    ? 'Finished'
+                    : job === 'drying'
+                      ? 'Drying'
+                      : 'Running';
+        ha.connected = connected;
+        ha.entities = { [`sensor.${id}_${id}_machine_state`]: { state: machine }, [`sensor.${id}_${id}_job_state`]: { state: job } };
+        const view = render(<AppliancesCard />);
+        const row = screen.getByText(id[0].toUpperCase() + id.slice(1)).closest('li')!;
+        const classification = classifyAppliance(id, machine, job, undefined, 0, connected);
+        expect(classification.status).toBe(expected);
+        expect(row.querySelector('.appliance-status')?.textContent).toBe(expected);
+        expect(row.getAttribute('data-state')).toBe(classification.iconState);
+        view.unmount();
+      }
+    }
+  }
 });
