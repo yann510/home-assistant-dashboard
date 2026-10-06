@@ -25,12 +25,7 @@ describe('curated device health', () => {
       now,
       true
     );
-    expect(cards.map(card => card.route)).toEqual([
-      { kind: 'all-devices' },
-      { kind: 'light', entityId: 'light.office_bulbs' },
-      { kind: 'all-lights' },
-      { kind: 'all-devices' },
-    ]);
+    expect(cards.map(card => card.route)).toEqual([undefined, { kind: 'light', entityId: 'light.office_bulbs' }, undefined, undefined]);
   });
 
   it.each([undefined, '', 'invalid', new Date(now + 1).toISOString()])(

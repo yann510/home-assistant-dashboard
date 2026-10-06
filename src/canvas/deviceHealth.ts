@@ -6,14 +6,14 @@ export type DeviceHealthCard = { id: string; title: string; detail: string; rout
 
 // Verified, always-on devices only. Battery-powered and backend-monitored devices
 // deliberately stay with the existing attention integration.
-const devices: { id: string; name: string; route: CanvasRoute }[] = [
+const devices: { id: string; name: string; route?: CanvasRoute }[] = [
   ...['gym', 'bedroom', 'living_room', 'bathroom'].map(room => ({
     id: `media_player.${room}`,
     name: `${room === 'living_room' ? 'Living room' : room[0].toUpperCase() + room.slice(1)} speaker`,
     route: { kind: 'speakers' } as CanvasRoute,
   })),
-  { id: 'binary_sensor.aqara_fp2_bathroom_presence_sensor_1', name: 'Bathroom presence sensor', route: { kind: 'all-devices' } },
-  { id: 'binary_sensor.aqara_fp2_presence_motion_sensor_presence_sensor_1', name: 'Presence sensor', route: { kind: 'all-devices' } },
+  { id: 'binary_sensor.aqara_fp2_bathroom_presence_sensor_1', name: 'Bathroom presence sensor' },
+  { id: 'binary_sensor.aqara_fp2_presence_motion_sensor_presence_sensor_1', name: 'Presence sensor' },
   ...Object.entries({
     office_bulbs: 'Office lights',
     light_bedroom: 'Bedroom lights',
@@ -27,9 +27,9 @@ const devices: { id: string; name: string; route: CanvasRoute }[] = [
     bedroom_closet: 'Bedroom closet light',
     gym: 'Gym light',
   }).map(([id, name]) => ({ id: `light.${id}`, name, route: { kind: 'light', entityId: `light.${id}` } as CanvasRoute })),
-  { id: 'switch.switch_bedroom_lamp', name: 'Bedroom lamp', route: { kind: 'all-lights' } },
-  { id: 'switch.switch_office', name: 'Office switch', route: { kind: 'all-lights' } },
-  { id: 'remote.broadlink_rm4_remote_control_ir_rf', name: 'Broadlink remote', route: { kind: 'all-devices' } },
+  { id: 'switch.switch_bedroom_lamp', name: 'Bedroom lamp' },
+  { id: 'switch.switch_office', name: 'Office switch' },
+  { id: 'remote.broadlink_rm4_remote_control_ir_rf', name: 'Broadlink remote' },
 ];
 
 export function selectDeviceHealth(

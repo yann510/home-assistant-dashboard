@@ -76,3 +76,20 @@ it('shows tablet charge guidance as information without a fabricated action', ()
   expect(screen.getByText('Battery 10% · Plug in the dashboard tablet')).toBeTruthy();
   expect(screen.queryByRole('button', { name: /Dashboard tablet/ })).toBeNull();
 });
+
+it.each([
+  ['binary_sensor.aqara_fp2_bathroom_presence_sensor_1', 'Bathroom presence sensor'],
+  ['binary_sensor.aqara_fp2_presence_motion_sensor_presence_sensor_1', 'Presence sensor'],
+  ['remote.broadlink_rm4_remote_control_ir_rf', 'Broadlink remote'],
+  ['switch.switch_bedroom_lamp', 'Bedroom lamp'],
+  ['switch.switch_office', 'Office switch'],
+])('keeps %s health informational when no relevant controls exist', (id, name) => {
+  store.entities = { [id]: { state: 'unavailable', last_changed: new Date(Date.now() - 660_000).toISOString(), attributes: {} } };
+  const onOpen = vi.fn();
+  render(<CanvasPulse attention={controller()} onOpen={onOpen} onSelect={vi.fn()} />);
+  const title = screen.getByText(`${name} offline`);
+  expect(title.closest('.canvas-pulse__notice')?.tagName).toBe('DIV');
+  expect(screen.queryByRole('button', { name: `View: ${name} offline` })).toBeNull();
+  fireEvent.click(title);
+  expect(onOpen).not.toHaveBeenCalled();
+});
