@@ -151,6 +151,18 @@ publish('sensor.dashboard_attention', '0', {
           ]
         : [],
 });
+if (scene === 'health') {
+  for (const id of ['media_player.gym', 'light.office_bulbs', 'binary_sensor.aqara_fp2_bathroom_presence_sensor_1']) {
+    publish(id, 'unavailable', entities[id]?.attributes ?? {});
+    entities[id].last_changed = new Date(Date.now() - 15 * 60_000).toISOString();
+  }
+  publish('vacuum.roomba', 'idle', entities['vacuum.roomba'].attributes);
+  publish('sensor.roomba_battery_level', '15', { unit_of_measurement: '%' });
+  publish('binary_sensor.roomba_charging', 'off');
+  publish('sensor.kftrwi_battery_level', '15', { unit_of_measurement: '%' });
+  publish('sensor.kftrwi_battery_state', 'discharging');
+  publish('sensor.kftrwi_charger_type', 'none');
+}
 if (scene === 'empty') for (const id of Object.keys(entities)) delete entities[id];
 const connection = {
   connected: scene !== 'offline',

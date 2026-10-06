@@ -1,6 +1,7 @@
 import { createContext, useContext, useRef, useState, type ReactNode } from 'react';
 import { useStore } from '@hakit/core';
 import { useDeviceCommand } from './useDeviceCommand';
+import { readRoombaBattery } from './activity';
 
 // Home Assistant VacuumEntityFeature values.
 const feature = { pause: 4, stop: 8, returnHome: 16, fanSpeed: 32, locate: 512, start: 8192 } as const;
@@ -10,6 +11,7 @@ const label = (state: string) => state.replace(/_/g, ' ').replace(/^./, letter =
 
 function useCanvasVacuumController() {
   const entity = useStore(state => state.entities[entityId]);
+  const battery = useStore(state => readRoombaBattery(state.entities));
   const connected = useStore(state => Boolean(state.connection?.connected && state.connectionStatus === 'connected'));
   const { send, pending, result } = useDeviceCommand();
   const busy = useRef(false);
@@ -30,7 +32,7 @@ function useCanvasVacuumController() {
     }
   }
 
-  return { entity, connected, available, pending, result, draftFan, setDraftFan, command };
+  return { entity, battery, connected, available, pending, result, draftFan, setDraftFan, command };
 }
 
 type Controller = ReturnType<typeof useCanvasVacuumController>;
@@ -44,7 +46,7 @@ export function CanvasVacuumProvider({ children }: { children: ReactNode }) {
 export function CanvasVacuum() {
   const controller = useContext(VacuumContext);
   if (!controller) throw new Error('CanvasVacuumProvider is required.');
-  const { entity, connected, available, pending, result, draftFan, setDraftFan, command } = controller;
+  const { entity, battery, connected, available, pending, result, draftFan, setDraftFan, command } = controller;
   const state = entity?.state ?? 'unavailable';
   const attrs = entity?.attributes;
   const supported = typeof attrs?.supported_features === 'number' ? attrs.supported_features : 0;
@@ -109,21 +111,14 @@ export function CanvasVacuum() {
           <span className='canvas-vacuum__state' role='status'>
             {!connected ? 'Disconnected' : !entity || ['unknown', 'unavailable'].includes(state) ? 'Unavailable' : label(state)}
           </span>
-          {available && typeof attrs?.battery_level === 'number' && Number.isFinite(attrs.battery_level) && (
+          {available && battery !== undefined && (
             <span className='canvas-vacuum__battery'>
               <svg viewBox='0 0 24 14' fill='none' aria-hidden='true'>
                 <rect x='1' y='1' width='19' height='12' rx='3' stroke='currentColor' />
                 <path d='M23 5v4' stroke='currentColor' strokeWidth='2' />
-                <rect
-                  x='4'
-                  y='4'
-                  width={(13 * Math.max(0, Math.min(100, attrs.battery_level))) / 100}
-                  height='6'
-                  rx='1'
-                  fill='currentColor'
-                />
+                <rect x='4' y='4' width={(13 * Math.max(0, Math.min(100, battery))) / 100} height='6' rx='1' fill='currentColor' />
               </svg>
-              Battery {attrs.battery_level}%
+              Battery {battery}%
             </span>
           )}
         </div>

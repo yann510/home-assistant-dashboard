@@ -8,6 +8,7 @@ import type { AttentionItem } from '../attention';
 import type { useAttention } from '../useAttention';
 import { applianceSensors, classifyAppliance, classifyVacuum, readRoombaBattery } from './activity';
 import { routeForAttention, type CanvasRoute } from './routes';
+import { selectDeviceHealth } from './deviceHealth';
 import './canvas-pulse.css';
 
 export type QuietPulsePresentation = 'current' | 'art' | 'hidden';
@@ -29,6 +30,7 @@ export function CanvasPulse({
 }) {
   const entities = useStore(state => state.entities);
   const now = useApplianceClock();
+  const health = selectDeviceHealth(entities, now, attention.connected);
   const [showSnoozed, setShowSnoozed] = useState(false);
   const activities = applianceSensors.map(appliance => {
     const machine = entities[`${appliance.prefix}_machine_state`]?.state;
@@ -95,6 +97,7 @@ export function CanvasPulse({
     !missingStatus &&
     !shownActivities.length &&
     !visible.length &&
+    !health.length &&
     !snoozed.length &&
     !feedback;
 
@@ -102,7 +105,11 @@ export function CanvasPulse({
   usePulseMotion(
     itemsRef,
     attention.connected
-      ? [...shownActivities.map(item => `device:${item.id}`), ...visible.map(item => `notice:${item.id}:${item.episode}`)]
+      ? [
+          ...shownActivities.map(item => `device:${item.id}`),
+          ...visible.map(item => `notice:${item.id}:${item.episode}`),
+          ...health.map(item => `health:${item.id}`),
+        ]
       : []
   );
 
@@ -177,7 +184,7 @@ export function CanvasPulse({
                 </span>
               </button>
             ))}
-            {!shownActivities.length && !visible.length && (
+            {!shownActivities.length && !visible.length && !health.length && (
               <p>
                 {!attention.ready
                   ? 'Reminder status unavailable.'
@@ -185,6 +192,43 @@ export function CanvasPulse({
                     ? 'Activity status unavailable for some devices.'
                     : 'All quiet at home.'}
               </p>
+            )}
+            {health.map(item =>
+              item.route ? (
+                <button
+                  key={`health:${item.id}`}
+                  data-pulse-key={`health:${item.id}`}
+                  type='button'
+                  className='canvas-pulse__notice'
+                  data-tone='amber'
+                  aria-label={`View: ${item.title}`}
+                  onClick={event => {
+                    onSelect(null);
+                    onOpen(item.route!, event.currentTarget);
+                  }}
+                >
+                  <span className='canvas-pulse__notice-art' aria-hidden='true'>
+                    <svg viewBox='0 0 32 32' fill='none'>
+                      <path d='m16 2 3.4 7 7.6-2-2 7.5 5 5.5-7.5 1.5-2 7.5-5.5-5-7.5 2L9 18.4 2 15l7-3.4L8 4l7 4Z' fill='currentColor' />
+                      <path d='M16 10v7m0 4v.1' stroke='var(--canvas-bg)' strokeWidth='2' strokeLinecap='round' />
+                    </svg>
+                  </span>
+                  <span className='canvas-pulse__copy'>
+                    <strong>{item.title}</strong>
+                    <small>{item.detail}</small>
+                  </span>
+                  <span className='canvas-pulse__arrow' aria-hidden='true'>
+                    <CanvasActionIcon action='open' />
+                  </span>
+                </button>
+              ) : (
+                <div key={`health:${item.id}`} data-pulse-key={`health:${item.id}`} className='canvas-pulse__notice' data-tone='amber'>
+                  <span className='canvas-pulse__copy'>
+                    <strong>{item.title}</strong>
+                    <small>{item.detail}</small>
+                  </span>
+                </div>
+              )
             )}
             {visible.map(item => (
               <button

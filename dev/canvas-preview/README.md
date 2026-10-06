@@ -37,3 +37,5 @@ Verified prototype results:
 - Typecheck, production build, and lint pass. The production build excludes the tablet prototype; its stylesheet is imported only by this local preview.
 
 These checks use simulated devices. Verification on the physical tablet, including its browser chrome and safe-area behavior, and live hardware interactions remain pending.
+
+`?scene=health` shows curated speaker/light/presence offline cards after a simulated 15-minute outage and undocked Roomba low-battery guidance plus a noninteractive dashboard tablet charge reminder. Cards open existing controls without backend reminder actions.

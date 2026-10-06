@@ -961,3 +961,25 @@ it('does not confuse a missing washer sensor with its expected unavailable state
   expect(screen.getByText('Activity status unavailable for some devices.')).toBeTruthy();
   expect(screen.queryByRole('button', { name: 'Washer Unavailable' })).toBeNull();
 });
+
+it('shows the same authoritative Roomba battery in its controls and hides unavailable readings', () => {
+  const fixture = ref.current!;
+  fixture.publish('vacuum.roomba', 'idle', { battery_level: 84, supported_features: 16383 });
+  fixture.publish('sensor.roomba_battery_level', '15');
+  render(<CanvasDashboard />);
+  fireEvent.click(screen.getByRole('button', { name: 'Roomba Idle · Battery 15%' }));
+  const controls = within(screen.getByRole('region', { name: 'Roomba controls' }));
+  expect(controls.getByText('Battery 15%')).toBeTruthy();
+  act(() => fixture.publish('sensor.roomba_battery_level', 'unknown'));
+  expect(controls.queryByText(/Battery/)).toBeNull();
+  act(() => fixture.publish('sensor.roomba_battery_level', 'unavailable'));
+  expect(controls.queryByText(/Battery/)).toBeNull();
+  act(() => fixture.publish('sensor.roomba_battery_level', '12'));
+  expect(controls.getByText('Battery 12%')).toBeTruthy();
+  act(() => fixture.publish('vacuum.roomba', 'unavailable', { battery_level: 84, supported_features: 16383 }));
+  expect(controls.queryByText(/Battery/)).toBeNull();
+  act(() => fixture.publish('vacuum.roomba', 'idle', { supported_features: 16383 }));
+  expect(controls.getByText('Battery 12%')).toBeTruthy();
+  act(() => fixture.disconnect());
+  expect(controls.queryByText(/Battery/)).toBeNull();
+});
