@@ -81,8 +81,9 @@ function useCanvasLightsController() {
         const results = await Promise.all(
           targets.map(id => {
             const entity = current(id);
-            // Explicit kitchen power-on overrides Night's dim staged level without changing automatic Night behavior.
-            const boost = desired === 'on' && night && id === 'light.light_kitchen' && supportsBrightness(entity);
+            // Explicit kitchen/office bulb power-on overrides Night's dim staged level without changing automatic Night behavior.
+            const boost =
+              desired === 'on' && night && (id === 'light.light_kitchen' || id === 'light.office_bulbs') && supportsBrightness(entity);
             const reported = entity?.attributes.brightness;
             const value = boost
               ? Math.max(51, typeof reported === 'number' && Number.isFinite(reported) && reported <= 255 ? reported : 51)

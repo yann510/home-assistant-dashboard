@@ -15,6 +15,7 @@ vi.mock('@hakit/core', () => ({
 }));
 const kitchen = 'light.light_kitchen';
 const gym = 'light.gym';
+const office = 'light.office_bulbs';
 const dimmable = { supported_color_modes: ['brightness'] };
 beforeEach(() => {
   ref.current = createHaFixture();
@@ -72,6 +73,9 @@ it('reports unconfirmed when kitchen turns on at the old dim level', async () =>
 });
 
 it.each([
+  ['office daytime', office, 'off', 'off', dimmable, {}],
+  ['office off', office, 'on', 'on', dimmable, {}],
+  ['on/off-only office', office, 'on', 'off', { supported_color_modes: ['onoff'] }, {}],
   ['daytime', kitchen, 'off', 'off', dimmable, {}],
   ['other light', gym, 'on', 'off', dimmable, {}],
   ['on/off-only kitchen', kitchen, 'on', 'off', { supported_color_modes: ['onoff'] }, {}],
@@ -88,7 +92,11 @@ it.each([
     </CanvasLightsProvider>
   );
   await act(async () =>
-    fireEvent.click(screen.getByRole('button', { name: `Turn ${state === 'off' ? 'on' : 'off'} ${id === kitchen ? 'Kitchen' : 'Gym'}` }))
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: `Turn ${state === 'off' ? 'on' : 'off'} ${id === kitchen ? 'Kitchen' : id === office ? 'Office Bulbs' : 'Gym'}`,
+      })
+    )
   );
   expect(fixture.calls).toMatchObject([{ service: state === 'off' ? 'turn_on' : 'turn_off', service_data: data }]);
   expect((fixture.calls[0] as { service_data: unknown }).service_data).toEqual(data);
@@ -136,4 +144,54 @@ it('combines grouped power outcomes while applying brightness only to kitchen an
       { target: gym, phase: 'observed' },
     ],
   });
+});
+
+it.each([25, 180])('powers office bulbs from details at a Night minimum while preserving brightness %s', async brightness => {
+  const fixture = ref.current!;
+  fixture.publish('input_boolean.night_mode', 'on');
+  fixture.publish('input_boolean.morning_mode', 'off');
+  fixture.publish(office, 'off', { supported_color_modes: ['color_temp'], brightness });
+  render(
+    <CanvasLightsProvider>
+      <CanvasLightDetails entityId={office} />
+    </CanvasLightsProvider>
+  );
+  await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Turn on Office Bulbs' })));
+  expect(fixture.calls).toMatchObject([{ target: { entity_id: [office] }, service_data: { brightness: Math.max(51, brightness) } }]);
+  await act(async () => fixture.publish(office, 'on', { supported_color_modes: ['color_temp'], brightness: 25 }));
+  expect(screen.getByRole('button', { name: 'Turn off Office Bulbs' })).toHaveProperty('disabled', true);
+  await act(async () => fixture.publish(office, 'on', { supported_color_modes: ['color_temp'], brightness: Math.max(51, brightness) }));
+  expect(screen.getByRole('button', { name: 'Turn off Office Bulbs' })).toHaveProperty('disabled', false);
+  expect(fixture.getState().entities['input_boolean.night_mode'].state).toBe('on');
+  expect(fixture.getState().entities['input_boolean.morning_mode'].state).toBe('off');
+});
+
+it('applies the Night floor to grouped office bulbs while leaving neon unchanged', async () => {
+  const fixture = ref.current!;
+  fixture.publish('input_boolean.night_mode', 'on');
+  fixture.publish('input_boolean.morning_mode', 'off');
+  fixture.publish('light.office_bulbs', 'off', { supported_color_modes: ['color_temp'], brightness: null });
+  fixture.publish('light.neon_light_led_strip', 'off', { supported_color_modes: ['rgb'], brightness: 25 });
+  render(
+    <CanvasLightsProvider>
+      <CanvasLights onOpenAll={() => {}} />
+    </CanvasLightsProvider>
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Lights room' }));
+  fireEvent.click(screen.getByRole('option', { name: 'Office' }));
+  await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Turn on Office lights' })));
+  expect(fixture.calls).toMatchObject([
+    { target: { entity_id: ['light.office_bulbs'] }, service_data: { brightness: 51 } },
+    { target: { entity_id: ['light.neon_light_led_strip'] }, service_data: {} },
+  ]);
+  expect((fixture.calls[1] as { service_data: unknown }).service_data).toEqual({});
+  await act(async () => {
+    fixture.publish('light.office_bulbs', 'on', { supported_color_modes: ['color_temp'], brightness: 25 });
+    fixture.publish('light.neon_light_led_strip', 'on', { supported_color_modes: ['rgb'], brightness: 25 });
+  });
+  expect(screen.getByRole('button', { name: 'Updating Office lights' })).toHaveProperty('disabled', true);
+  await act(async () => fixture.publish('light.office_bulbs', 'on', { supported_color_modes: ['color_temp'], brightness: 51 }));
+  expect(screen.getByRole('button', { name: 'Turn off Office lights' })).toHaveProperty('disabled', false);
+  expect(fixture.getState().entities['input_boolean.night_mode'].state).toBe('on');
+  expect(fixture.getState().entities['input_boolean.morning_mode'].state).toBe('off');
 });
