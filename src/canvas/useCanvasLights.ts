@@ -77,10 +77,32 @@ function useCanvasLightsController() {
       targets.forEach(id => busyRef.current.add(id));
       setBusy(new Set(busyRef.current));
       try {
-        return await sendLive(
-          { domain: 'light', service: desired === 'on' ? 'turn_on' : 'turn_off', targets },
-          id => useStore.getState().entities[id]?.state === desired
+        const night = useStore.getState().entities['input_boolean.night_mode']?.state === 'on';
+        const results = await Promise.all(
+          targets.map(id => {
+            const entity = current(id);
+            // Explicit kitchen power-on overrides Night's dim staged level without changing automatic Night behavior.
+            const boost = desired === 'on' && night && id === 'light.light_kitchen' && supportsBrightness(entity);
+            const reported = entity?.attributes.brightness;
+            const value = boost
+              ? Math.max(51, typeof reported === 'number' && Number.isFinite(reported) && reported <= 255 ? reported : 51)
+              : undefined;
+            return sendLive(
+              {
+                domain: 'light',
+                service: desired === 'on' ? 'turn_on' : 'turn_off',
+                targets: [id],
+                ...(value === undefined ? {} : { data: { brightness: value } }),
+              },
+              target => {
+                const next = current(target);
+                return next?.state === desired && (value === undefined || Math.abs(Number(next.attributes.brightness) - value) <= 1);
+              }
+            );
+          })
         );
+        const completed = results.filter((result): result is CommandResult => result !== null);
+        return completed.length ? { results: completed.flatMap(result => result.results) } : null;
       } finally {
         targets.forEach(id => busyRef.current.delete(id));
         setBusy(new Set(busyRef.current));
