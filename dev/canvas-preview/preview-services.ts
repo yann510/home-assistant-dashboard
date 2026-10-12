@@ -131,6 +131,13 @@ export function applyPreviewService(
               : item
           );
     update('sensor.dashboard_attention', String(revised.filter(item => !item.snoozed_until).length), { items: revised });
+  } else if (
+    message.domain === 'google_assistant_sdk' &&
+    service === 'send_text_command' &&
+    String(data.command).startsWith('ask Roomba to go vacuum the ')
+  ) {
+    // Simulated activity only: Google acknowledgement cannot verify room targets.
+    update('vacuum.roomba', 'cleaning');
   } else if (message.domain !== 'google_assistant_sdk' || service !== 'send_text_command') {
     throw new Error(`Unsupported local preview action: ${String(message.domain)}.${service}`);
   }

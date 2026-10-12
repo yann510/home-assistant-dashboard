@@ -89,3 +89,10 @@
   .canvas-dialog .canvas-vacuum__artwork { flex-basis: 120px; width: 120px; height: 100px; }
   .canvas-dialog .canvas-vacuum__state { font-size: 1.4rem; }
 }
+
+/* Room drafts use the same compact lilac selection treatment as blinds. */
+.canvas-dialog .canvas-vacuum__rooms { display: grid; gap: var(--canvas-space-2); }
+.canvas-dialog .canvas-vacuum__rooms-heading { display: flex; align-items: center; justify-content: space-between; gap: var(--canvas-space-2); color: var(--canvas-muted); font-size: .85rem; }
+.canvas-dialog .canvas-vacuum__rooms-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: var(--canvas-space-2); }
+.canvas-dialog .canvas-vacuum__rooms button { min-height: 44px; min-width: 0; padding: 8px 12px; border: 1px solid var(--canvas-line); border-radius: 14px; background: var(--canvas-surface); color: var(--canvas-muted); font-size: .78rem; line-height: 1.2; }
+.canvas-dialog .canvas-vacuum__rooms button[aria-pressed='true'] { background: var(--canvas-lilac); border-color: var(--canvas-lilac); color: var(--canvas-bg); font-weight: 600; }

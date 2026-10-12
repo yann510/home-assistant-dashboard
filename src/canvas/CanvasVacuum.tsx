@@ -6,6 +6,8 @@ import { readRoombaBattery } from './activity';
 // Home Assistant VacuumEntityFeature values.
 const feature = { pause: 4, stop: 8, returnHome: 16, fanSpeed: 32, locate: 512, start: 8192 } as const;
 const entityId = 'vacuum.roomba';
+const cleaningRooms = ['bedroom', 'bathroom', 'breakfast room', 'kitchen', 'office', 'living room', 'guest bedroom'] as const;
+type CleaningRoom = (typeof cleaningRooms)[number];
 const activeStates = ['cleaning', 'on', 'auto', 'spot', 'edge', 'single_room', 'mowing', 'edgecut'];
 const label = (state: string) => state.replace(/_/g, ' ').replace(/^./, letter => letter.toUpperCase());
 
@@ -15,16 +17,46 @@ function useCanvasVacuumController() {
   const connected = useStore(state => Boolean(state.connection?.connected && state.connectionStatus === 'connected'));
   const { send, pending, result } = useDeviceCommand();
   const busy = useRef(false);
+  const [selectedRooms, setSelectedRooms] = useState<CleaningRoom[]>([...cleaningRooms]);
+  const [roomRequest, setRoomRequest] = useState(false);
   const [draftFan, setDraftFan] = useState<string | null>(null);
   const available = connected && entity && !['unknown', 'unavailable'].includes(entity.state);
 
+  const roomsLocked = !available || pending || activeStates.includes(entity.state) || ['paused', 'returning'].includes(entity.state);
+
+  function toggleRoom(room: CleaningRoom) {
+    if (roomsLocked || busy.current) return;
+    setSelectedRooms(selected =>
+      selected.includes(room)
+        ? selected.filter(item => item !== room)
+        : cleaningRooms.filter(item => item === room || selected.includes(item))
+    );
+  }
+
+  function selectAllRooms() {
+    if (!roomsLocked && !busy.current) setSelectedRooms([...cleaningRooms]);
+  }
+
   async function command(service: string, data?: Record<string, unknown>, observe?: (state: string) => boolean) {
     if (!available || busy.current) return;
+    const requestedRooms = [...selectedRooms];
+    const resume = service === 'start' && entity.state === 'paused';
+    if (service === 'start' && !resume && (roomsLocked || !requestedRooms.length)) return;
+    const targeted = service === 'start' && !resume && requestedRooms.length < cleaningRooms.length;
     busy.current = true;
+    setRoomRequest(targeted);
     try {
       const outcome = await send(
-        { domain: 'vacuum', service, targets: [entityId], data },
-        observe ? id => observe(useStore.getState().entities[id]?.state ?? '') : undefined
+        targeted
+          ? {
+              domain: 'google_assistant_sdk',
+              service: 'send_text_command',
+              targets: [],
+              resultTarget: entityId,
+              data: { command: `ask Roomba to go vacuum the ${requestedRooms.join(' and ')}` },
+            }
+          : { domain: 'vacuum', service, targets: [entityId], data },
+        !targeted && observe ? id => observe(useStore.getState().entities[id]?.state ?? '') : undefined
       );
       if (service === 'set_fan_speed' && outcome.results[0]?.phase === 'observed') setDraftFan(null);
     } finally {
@@ -32,7 +64,22 @@ function useCanvasVacuumController() {
     }
   }
 
-  return { entity, battery, connected, available, pending, result, draftFan, setDraftFan, command };
+  return {
+    entity,
+    battery,
+    connected,
+    available,
+    pending,
+    result,
+    draftFan,
+    setDraftFan,
+    command,
+    selectedRooms,
+    toggleRoom,
+    selectAllRooms,
+    roomsLocked,
+    roomRequest,
+  };
 }
 
 type Controller = ReturnType<typeof useCanvasVacuumController>;
@@ -46,7 +93,22 @@ export function CanvasVacuumProvider({ children }: { children: ReactNode }) {
 export function CanvasVacuum() {
   const controller = useContext(VacuumContext);
   if (!controller) throw new Error('CanvasVacuumProvider is required.');
-  const { entity, battery, connected, available, pending, result, draftFan, setDraftFan, command } = controller;
+  const {
+    entity,
+    battery,
+    connected,
+    available,
+    pending,
+    result,
+    draftFan,
+    setDraftFan,
+    command,
+    selectedRooms,
+    toggleRoom,
+    selectAllRooms,
+    roomsLocked,
+    roomRequest,
+  } = controller;
   const state = entity?.state ?? 'unavailable';
   const attrs = entity?.attributes;
   const supported = typeof attrs?.supported_features === 'number' ? attrs.supported_features : 0;
@@ -58,10 +120,10 @@ export function CanvasVacuum() {
   const fanValue = draftFan ?? reportedFan ?? '';
   const actions: { name: string; service: string; flag: number; show: boolean; observe?: (state: string) => boolean }[] = [
     {
-      name: 'Start cleaning',
+      name: state === 'paused' ? 'Resume cleaning' : 'Start cleaning',
       service: 'start',
       flag: feature.start,
-      show: ['docked', 'idle', 'paused', 'returning'].includes(state),
+      show: ['docked', 'idle', 'paused'].includes(state),
       observe: next => activeStates.includes(next),
     },
     {
@@ -124,6 +186,41 @@ export function CanvasVacuum() {
         </div>
       </div>
       {!available && <p role='status'>Reconnect or wait for a reliable Roomba state to use controls.</p>}
+      <div className='canvas-vacuum__rooms' role='group' aria-label='Rooms to clean'>
+        <div className='canvas-vacuum__rooms-heading'>
+          <span>Rooms to clean</span>
+          <button
+            type='button'
+            aria-pressed={selectedRooms.length === cleaningRooms.length}
+            disabled={roomsLocked}
+            onClick={selectAllRooms}
+          >
+            All rooms
+          </button>
+        </div>
+        <div className='canvas-vacuum__rooms-grid'>
+          {cleaningRooms.map(room => (
+            <button
+              key={room}
+              type='button'
+              aria-pressed={selectedRooms.includes(room)}
+              disabled={roomsLocked}
+              onClick={() => toggleRoom(room)}
+            >
+              {label(room)}
+            </button>
+          ))}
+        </div>
+        <p>
+          {state === 'paused'
+            ? 'Resume continues the existing mission. Rooms apply to a new cleaning run.'
+            : activeStates.includes(state) || state === 'returning'
+              ? 'Rooms can be changed when this mission ends.'
+              : selectedRooms.length
+                ? 'Selected rooms apply to a new cleaning run.'
+                : 'Select one or more rooms to start cleaning.'}
+        </p>
+      </div>
       <div className='canvas-vacuum__actions'>
         {actions
           .filter(action => action.show && can(action.flag))
@@ -132,7 +229,7 @@ export function CanvasVacuum() {
               key={action.service}
               className={`canvas-vacuum__action${['start', 'pause'].includes(action.service) ? ' canvas-vacuum__action--primary' : ''}`}
               type='button'
-              disabled={!available || pending}
+              disabled={!available || pending || (action.service === 'start' && state !== 'paused' && !selectedRooms.length)}
               onClick={() => void command(action.service, undefined, action.observe)}
             >
               <svg
@@ -189,7 +286,13 @@ export function CanvasVacuum() {
         </div>
       )}
       {pending && <p role='status'>Sending command…</p>}
-      {feedback?.phase === 'accepted' && <p role='status'>Service accepted; device response is not yet verified.</p>}
+      {feedback?.phase === 'accepted' && (
+        <p role='status'>
+          {roomRequest
+            ? 'Selected rooms requested; room targeting is not verified.'
+            : 'Service accepted; device response is not yet verified.'}
+        </p>
+      )}
       {feedback?.phase === 'observed' && <p role='status'>Roomba reported the requested state.</p>}
       {(feedback?.phase === 'failed' || feedback?.phase === 'unconfirmed') && <p role='alert'>{feedback.message}</p>}
     </section>

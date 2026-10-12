@@ -141,3 +141,13 @@ it('clears Follow me source through the manual room-grouping helper command', ()
   const result = applyPreviewService(state, call('input_text', 'set_value', 'input_text.speaker_follow_source', { value: '' }));
   expect(result.updates['input_text.speaker_follow_source'].state).toBe('');
 });
+
+it('simulates one room-targeted Roomba request without inventing room telemetry', () => {
+  const state = fixture();
+  const result = applyPreviewService(
+    state,
+    call('google_assistant_sdk', 'send_text_command', undefined, { command: 'ask Roomba to go vacuum the kitchen and office' })
+  );
+  expect(result.updates['vacuum.roomba'].state).toBe('cleaning');
+  expect(result.updates['vacuum.roomba'].attributes).toEqual(state['vacuum.roomba'].attributes);
+});
