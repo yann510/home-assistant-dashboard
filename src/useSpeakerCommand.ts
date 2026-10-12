@@ -3,6 +3,8 @@ import { useStore } from '@hakit/core';
 import { onSpeakerDisconnect } from './speakerConnection';
 
 export type SpeakerService =
+  | 'shuffle_set'
+  | 'repeat_set'
   | 'play_media'
   | 'media_play'
   | 'media_pause'

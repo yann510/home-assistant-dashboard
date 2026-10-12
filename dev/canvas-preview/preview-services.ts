@@ -43,6 +43,7 @@ export function applyPreviewService(
   };
   const available = ids.filter(id => next[id] && !['unavailable', 'unknown'].includes(next[id].state));
   if (message.domain === 'media_player') {
+    if (service === 'play_media' && ['next', 'add'].includes(String(data.enqueue))) return { updates: {}, response: {} };
     if (['media_next_track', 'media_previous_track', 'play_media'].includes(service)) {
       const touched = new Set<string>();
       for (const id of available) {
@@ -74,7 +75,7 @@ export function applyPreviewService(
           });
         }
       }
-    } else if (['join', 'unjoin', 'volume_mute', 'volume_set', 'media_play', 'media_pause', 'media_seek'].includes(service)) {
+    } else if (['join', 'unjoin', 'volume_mute', 'volume_set', 'media_play', 'media_pause', 'media_seek', 'shuffle_set', 'repeat_set'].includes(service)) {
       next = applySpeakerService(next, message) ?? next;
     } else throw new Error(`Unsupported preview media action: ${service}`);
   } else if (message.domain === 'script' && service === 'speaker_follow_motion') {

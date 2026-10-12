@@ -25,7 +25,7 @@ export function canvasRouteTitle(route: CanvasRoute): string {
     case 'light':
       return 'Light';
     case 'player':
-      return 'Favourites';
+      return 'Music';
     case 'speakers':
       return 'Speakers';
     case 'weather':
