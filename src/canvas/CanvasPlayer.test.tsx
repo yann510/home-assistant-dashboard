@@ -32,10 +32,11 @@ it('offers search navigation, real results and confirmed playback without dismis
 function installLibrary() {
   const node = (suffix: string, title: string) => ({ title, media_content_id: `spotify://account/${suffix}`, media_content_type: `spotify://${suffix}`, can_expand: true });
   const categories = [node('current_user_top_tracks', 'Top Tracks'), node('current_user_recently_played', 'Recently played'), node('current_user_playlists', 'Playlists'), { ...node('current_user_saved_tracks', 'Liked songs'), thumbnail: '/liked.jpg' }, node('current_user_saved_albums', 'Albums')];
-  const playlist = { ...node('spotify:playlist:actual', 'Evening playlist'), can_play: true, thumbnail: '/cover.jpg' };
+  const playlist = { ...node('spotify:playlist:ABCDEFGHIJKLMNOPQRSTUV', 'Evening playlist'), can_play: true, thumbnail: '/cover.jpg' };
   const song = { title: 'Real song', media_content_id: 'spotify:track:actual', media_content_type: 'music', can_play: true };
   const send = vi.fn(async (message: Record<string, string>) => {
     if (message.type === 'dashboard_spotify/search') return { items: [song], total: 1, next_offset: null as number | null };
+    if (message.type === 'dashboard_spotify/collection') return { items: message.media_content_id.endsWith('/current_user_playlists') ? [playlist] : [song], total: 1, next_offset: null, next_cursor: null };
     if (!message.media_content_id) return { children: [node('library', 'Spotify')] };
     if (message.media_content_id.endsWith('/library')) return { children: categories };
     if (message.media_content_id.endsWith('/current_user_playlists')) return { children: [playlist] };
@@ -99,7 +100,7 @@ it('plays a playable and expandable playlist from its artwork or title without b
   expect(music.favouritePlayback.play).toHaveBeenCalledTimes(1);
   fireEvent.click(title.closest('button')!.querySelector('img')!);
   expect(music.favouritePlayback.play).toHaveBeenCalledTimes(2);
-  expect(music.favouritePlayback.play).toHaveBeenCalledWith(expect.objectContaining({ media_content_id: 'spotify://account/spotify:playlist:actual', can_play: true, can_expand: true }));
+  expect(music.favouritePlayback.play).toHaveBeenCalledWith(expect.objectContaining({ media_content_id: 'spotify://account/spotify:playlist:ABCDEFGHIJKLMNOPQRSTUV', can_play: true, can_expand: true }));
   expect(send).not.toHaveBeenCalled();
   expect(screen.queryByRole('navigation', { name: 'Music breadcrumbs' })).toBeNull();
   expect(screen.getAllByRole('button', { name: 'Play Evening playlist' })).toHaveLength(1);
@@ -136,7 +137,7 @@ it('places one Liked songs shortcut above playlist cards and browses the actual 
   fireEvent.click(shortcut);
   await screen.findByRole('heading', { name: 'Liked songs', level: 2 });
   await screen.findByRole('button', { name: 'Play Real song' });
-  expect(send).toHaveBeenCalledWith(expect.objectContaining({ media_content_id: 'spotify://account/current_user_saved_tracks', media_content_type: 'spotify://current_user_saved_tracks' }));
+  expect(send).toHaveBeenCalledWith(expect.objectContaining({ type: 'dashboard_spotify/collection', media_content_id: 'spotify://account/current_user_saved_tracks' }));
   expect(music.favouritePlayback.play).not.toHaveBeenCalled();
   expect(screen.queryByRole('navigation', { name: 'Music breadcrumbs' })).toBeNull();
 });
@@ -150,9 +151,9 @@ it('browses playlist tracks separately, with real artwork and collection play gu
   await screen.findByRole('heading', { name: 'Evening playlist' });
   expect(music.favouritePlayback.play).not.toHaveBeenCalled();
   expect(screen.getByRole('region', { name: 'Evening playlist collection' }).querySelector('img')?.getAttribute('src')).toBe('/cover.jpg');
-  expect(await screen.findByText('1 song')).toBeTruthy();
+  expect(await screen.findByText('1 of 1 songs loaded')).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: 'Play collection Evening playlist' }));
-  expect(music.favouritePlayback.play).toHaveBeenCalledWith(expect.objectContaining({ media_content_id: 'spotify://account/spotify:playlist:actual' }));
+  expect(music.favouritePlayback.play).toHaveBeenCalledWith(expect.objectContaining({ media_content_id: 'spotify://account/spotify:playlist:ABCDEFGHIJKLMNOPQRSTUV' }));
   music.favouritePlayback.pending = { title: 'Starting music' };
   rerender(<CanvasPlayer onClose={() => {}} />);
   expect((screen.getByRole('button', { name: 'Play collection Evening playlist' }) as HTMLButtonElement).disabled).toBe(true);
@@ -279,4 +280,28 @@ it('erasing or clearing search after category changes returns to the originating
  fireEvent.click(screen.getByRole('button', { name: 'Clear search' }));
  await screen.findByRole('heading', { name: 'Liked songs' });
  expect(input.value).toBe('');
+});
+it('renders real metadata safely, preserves the native cover, and retains Play when details are restricted', async () => {
+  const send = installLibrary();
+  const respond = send.getMockImplementation()!;
+  let restricted = false;
+  send.mockImplementation(async message => {
+    if (message.type === 'dashboard_spotify/collection' && message.media_content_id.includes('spotify:playlist:')) {
+      if (restricted) throw { code: 'spotify_collection_restricted' };
+      return { items: [], total: 0, next_offset: null, next_cursor: null, collection: { title: 'Actual title', subtitle: 'Actual owner', description: '<img src=x onerror=alert(1)>', thumbnail: null, media_content_id: message.media_content_id, media_content_type: 'playlist', can_play: true, can_expand: true } };
+    }
+    return respond(message);
+  });
+  render(<CanvasPlayer onClose={() => {}} />);
+  fireEvent.click(await screen.findByRole('button', { name: 'View tracks Evening playlist' }));
+  await screen.findByRole('heading', { name: 'Actual title' });
+  expect(screen.getByText('<img src=x onerror=alert(1)>').querySelector('img')).toBeNull();
+  expect(document.querySelector('.canvas-player__collection img')?.getAttribute('src')).toBe('/cover.jpg');
+  fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+  await screen.findByRole('button', { name: 'View tracks Evening playlist' });
+  restricted = true;
+  fireEvent.click(screen.getByRole('button', { name: 'Forward' }));
+  await screen.findByText(/playlist details are unavailable/);
+  expect(screen.queryByText('No music found.')).toBeNull();
+  expect((screen.getByRole('button', { name: 'Play collection Evening playlist' }) as HTMLButtonElement).disabled).toBe(false);
 });

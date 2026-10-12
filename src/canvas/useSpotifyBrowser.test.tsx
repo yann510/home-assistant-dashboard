@@ -172,3 +172,58 @@ it('restarts after an event-only ready on the same socket and discards its cance
  await act(async () => resolve({ items: [node('stale')], total: 1, next_offset: null }));
  expect(result.current.items[0]?.title).toBe('fresh');
 });
+it('loads complete collection pages beyond 48 and preserves repeated songs by position', async () => {
+  const folder = node('spotify://account/spotify:playlist:ABCDEFGHIJKLMNOPQRSTUV');
+  send.mockImplementation(async (m: { offset: number }) => ({ items: Array.from({ length: m.offset ? 5 : 50 }, (_, index) => ({ ...node('spotify:track:duplicate'), position: m.offset + index, duration_ms: 123000 })), total: 55, next_offset: m.offset ? null : 50, next_cursor: null, collection: { ...folder, title: 'Real playlist', description: '<b>plain text</b>' } }));
+  const { result, rerender } = renderHook(({ offset }) => useSpotifyBrowser('media_player.room', true, 'home', '', folder, 'all', offset), { initialProps: { offset: 0 } });
+  await waitFor(() => expect(result.current.items).toHaveLength(50));
+  rerender({ offset: 50 });
+  await waitFor(() => expect(result.current.items).toHaveLength(55));
+  expect(new Set(result.current.items.map(x => x.rowKey)).size).toBe(55);
+  expect(result.current.total).toBe(55);
+  expect(result.current.collection?.description).toBe('<b>plain text</b>');
+  expect(send).toHaveBeenCalledWith(expect.objectContaining({ type: 'dashboard_spotify/collection', offset: 50, limit: 50 }));
+});
+it('restores cursor collection ranges and preserves recent repeat plays across pages', async () => {
+  const recent = node('spotify://account/current_user_recently_played');
+  send.mockImplementation(async (m: { cursor?: string }) => ({ items: [{ ...node('same'), position: 0, played_at: m.cursor ? 'earlier' : 'later' }], total: null, next_offset: null, next_cursor: m.cursor ? null : '12345' }));
+  const { result, rerender } = renderHook(({ folder, offset }) => useSpotifyBrowser('media_player.room', true, 'home', '', folder, 'all', offset), { initialProps: { folder: recent, offset: 50 } });
+  await waitFor(() => expect(result.current.items).toHaveLength(2));
+  expect(result.current.total).toBeNull();
+  expect(result.current.items.map(x => x.played_at)).toEqual(['later', 'earlier']);
+  expect(new Set(result.current.items.map(x => x.rowKey)).size).toBe(2);
+  expect(send).toHaveBeenCalledWith(expect.objectContaining({ cursor: '12345', offset: 0 }));
+  rerender({ folder: node('native:other'), offset: 0 });
+  await waitFor(() => expect(send).toHaveBeenCalledWith(expect.objectContaining({ type: 'media_player/browse_media', media_content_id: 'native:other' })));
+  rerender({ folder: recent, offset: 50 });
+  await waitFor(() => expect(result.current.items).toHaveLength(2));
+});
+it('keeps loaded collection rows when a later page fails and retries without duplicating', async () => {
+  let fail = true;
+  send.mockImplementation(async (m: { offset: number }) => {
+    if (m.offset && fail) { fail = false; throw { code: 'rate_limited' }; }
+    return { items: [{ ...node(`song${m.offset}`), position: m.offset }], total: 51, next_offset: m.offset ? null : 50, next_cursor: null };
+  });
+  const folder = node('spotify://account/current_user_saved_tracks');
+  const { result, rerender } = renderHook(({ offset }) => useSpotifyBrowser('media_player.room', true, 'home', '', folder, 'all', offset), { initialProps: { offset: 0 } });
+  await waitFor(() => expect(result.current.items).toHaveLength(1));
+  rerender({ offset: 50 });
+  await waitFor(() => expect(result.current.error).toContain('Wait'));
+  expect(result.current.items).toHaveLength(1);
+  act(() => result.current.retry());
+  await waitFor(() => expect(result.current.items).toHaveLength(2));
+});
+it('shows restricted collection details as unavailable and suppresses late collection reads', async () => {
+  const folder = node('spotify://account/spotify:playlist:ABCDEFGHIJKLMNOPQRSTUV');
+  send.mockRejectedValueOnce({ code: 'spotify_collection_restricted', message: 'private upstream secret' });
+  const { result } = renderHook(() => useSpotifyBrowser('media_player.room', true, 'home', '', folder));
+  await waitFor(() => expect(result.current.error).toContain('still play'));
+  expect(result.current.error).not.toContain('secret');
+  let resolve!: (x: unknown) => void;
+  send.mockImplementation(() => new Promise(r => { resolve = r; }));
+  act(() => result.current.retry());
+  await waitFor(() => expect(send).toHaveBeenCalledTimes(2));
+  act(() => useStore.setState({ connectionStatus: 'disconnected' }));
+  await act(async () => resolve({ items: [node('late')], total: 1, next_offset: null, next_cursor: null }));
+  expect(result.current.items).toHaveLength(0);
+});

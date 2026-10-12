@@ -2,12 +2,14 @@ import { useEffect, useRef, useState } from 'react';
 import { useStore } from '@hakit/core';
 import { onSpeakerDisconnect } from '../speakerConnection';
 import type { FavouriteItem } from '../useSpeakerFavourites';
-export type MusicItem = FavouriteItem & { subtitle?: string; previewArtwork?: string[]; duration_ms?: number };
+export type MusicItem = FavouriteItem & { subtitle?: string; previewArtwork?: string[]; duration_ms?: number; position?: number; played_at?: string; rowKey?: string; description?: string; release_date?: string };
 export type CatalogKind = 'all' | 'track' | 'playlist' | 'album' | 'artist';
 export type CatalogPage = { kind: Exclude<CatalogKind, 'all'>; items: MusicItem[]; total: number; next_offset: number | null };
 export type MusicView = 'home' | 'search' | 'library';
 type Section = { title: string; category: MusicItem; items: MusicItem[]; error?: string };
-type Result = { key: string; loadedOffset: number; groups: Partial<Record<CatalogPage['kind'], CatalogPage>>; sections: Section[]; categories: MusicItem[]; items: MusicItem[]; nextOffset: number | null; total: number; loading: boolean; error: string };
+type CollectionPage = { items: MusicItem[]; total: number | null; next_offset: number | null; next_cursor: string | null; collection?: MusicItem };
+export const supportedCollection = (id: string) => /^spotify:\/\/[A-Za-z0-9_-]+\/(current_user_(saved_tracks|playlists|saved_albums|followed_artists|top_tracks|top_artists|recently_played)|spotify:(playlist|album|artist):[A-Za-z0-9]{22})$/.test(id);
+type Result = { collection?: MusicItem; nextCursor?: string | null; key: string; loadedOffset: number; groups: Partial<Record<CatalogPage['kind'], CatalogPage>>; sections: Section[]; categories: MusicItem[]; items: MusicItem[]; nextOffset: number | null; total: number | null; loading: boolean; error: string };
 const searchErrors: Record<string, string> = {
   spotify_not_configured: 'Connect Spotify in Home Assistant to search your music.',
   spotify_auth_required: 'Reconnect Spotify in Home Assistant to search your music.',
@@ -15,7 +17,7 @@ const searchErrors: Record<string, string> = {
   unknown_command: 'Set up Spotify search in Home Assistant to search your music.',
   rate_limited: 'Spotify is busy. Wait before retrying your search.',
 };
-const empty = { loadedOffset: -1, groups: {} as Partial<Record<CatalogPage['kind'], CatalogPage>>, sections: [], categories: [], items: [], nextOffset: null, total: 0 };
+const empty = { loadedOffset: -1, groups: {} as Partial<Record<CatalogPage['kind'], CatalogPage>>, sections: [], categories: [], items: [], nextOffset: null, nextCursor: null, total: 0 };
 export function useSpotifyBrowser(entityId: string, enabled: boolean, view: MusicView, query: string, folder?: MusicItem, kind: CatalogKind = 'track', targetOffset?: number) {
   const connection = useStore(state => state.connection);
   const status = useStore(state => state.connectionStatus);
@@ -84,8 +86,31 @@ export function useSpotifyBrowser(entityId: string, enabled: boolean, view: Musi
             else setResult(old => ({ key, ...empty, loadedOffset: position, items: [...new Map([...(targetOffset === undefined && offset && old.key === key ? old.items : []), ...items].map(item => [item.media_content_type + ':' + item.media_content_id, item])).values()], total: found.total, nextOffset: found.next_offset, loading: false, error: '' }));
           }
         } else if (folder) {
-          const found = await browse(folder);
-          if (!cancelled) setResult({ key, ...empty, items: found.children ?? [], loading: false, error: '' });
+          if (supportedCollection(folder.media_content_id)) {
+            const previous = latest.current;
+            const append = previous.key === key && previous.loadedOffset >= 0 && previous.loadedOffset < offset && previous.nextOffset !== null;
+            let position = append ? previous.nextOffset! : 0;
+            let cursor = append ? previous.nextCursor ?? null : null;
+            let items = append ? previous.items : [];
+            const request = () => read<CollectionPage>({ type: 'dashboard_spotify/collection', media_content_id: folder!.media_content_id, limit: 50, offset: cursor ? 0 : position, ...(cursor ? { cursor } : {}) });
+            let found: CollectionPage;
+            const seen = new Set<string>();
+            do {
+              const identity = cursor ?? String(position);
+              if (seen.has(identity)) throw new Error('Repeated collection page');
+              seen.add(identity);
+              found = await request();
+              items = [...items, ...found.items.map((item, index) => ({ ...item, rowKey: `${identity}:${item.position ?? index}:${item.played_at ?? ''}` }))];
+              const next = found.next_cursor ? position + 50 : found.next_offset;
+              if (next === null || next <= position || next > offset || next > 10000) break;
+              position = next;
+              cursor = found.next_cursor;
+            } while (!cancelled);
+            if (!cancelled) setResult({ key, ...empty, loadedOffset: position, items, total: found!.total, nextOffset: found!.next_cursor ? position + 50 : found!.next_offset, nextCursor: found!.next_cursor, collection: found!.collection, loading: false, error: '' });
+          } else {
+            const found = await browse(folder);
+            if (!cancelled) setResult({ key, ...empty, items: found.children ?? [], total: found.children?.length ?? 0, loading: false, error: '' });
+          }
         } else {
           const root = await browse();
           const spotify = root.children?.find(item => item.media_content_type === 'spotify://library' || /^spotify:\/\/[^/]+\/library$/.test(item.media_content_id));
@@ -111,7 +136,7 @@ export function useSpotifyBrowser(entityId: string, enabled: boolean, view: Musi
           if (!cancelled) setResult({ key, ...empty, categories: enriched, sections, loading: false, error: '' });
         }
       } catch (error) {
-        if (!cancelled) setResult(old => ({ ...old, loading: false, error: view === 'search' ? searchErrors[typeof error === 'object' && error && 'code' in error ? String(error.code) : ''] ?? 'Could not search Spotify. Please retry.' : error instanceof Error ? error.message : 'Could not load Spotify. Please retry.' }));
+        if (!cancelled) setResult(old => ({ ...old, loading: false, error: view === 'search' ? searchErrors[typeof error === 'object' && error && 'code' in error ? String(error.code) : ''] ?? 'Could not search Spotify. Please retry.' : folder && supportedCollection(folder.media_content_id) ? ({ spotify_collection_restricted: 'Spotify playlist details are unavailable for playlists you do not own or collaborate on. You can still play this playlist.', spotify_collection_unavailable: 'This Spotify collection is unavailable. You can still play supported collections.', spotify_auth_required: 'Reconnect Spotify in Home Assistant to browse your music.', unauthorized: 'You need permission to use this Spotify account.', rate_limited: 'Spotify is busy. Wait before retrying this collection.' }[typeof error === 'object' && error && 'code' in error ? String(error.code) : '' ] ?? 'Could not load Spotify collection details. Please retry.') : error instanceof Error ? error.message : 'Could not load Spotify. Please retry.' }));
       }
     }
     const debounce = setTimeout(() => void load(), view === 'search' ? 350 : 0);
