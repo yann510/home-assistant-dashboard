@@ -15,7 +15,7 @@ function socket(
   send = vi.fn(async (m: { type: string }) =>
     m.type === 'get_services'
       ? { sonos: { get_queue: {} }, media_player: { shuffle_set: {}, repeat_set: {}, play_media: {} } }
-      : { response: { room: [{ title: 'Actual', artist: 'Artist', album: 'Album', media_content_id: 'actual' }] } }
+      : { response: { room: [{ media_title: 'Actual', media_artist: 'Artist', media_album_name: 'Album', media_content_id: 'actual' }] } }
   )
 ) {
   const listeners = new Map<string, Set<() => void>>();
@@ -47,7 +47,7 @@ it('reads the direct entity array via authenticated response-returning Sonos ser
   const { result } = renderHook(() => useListening('room', true, 2097152, () => false));
   await waitFor(() => expect(result.current.canQueue).toBe(true));
   await act(() => result.current.refresh());
-  expect(result.current.items[0].title).toBe('Actual');
+  expect(result.current.items).toEqual([{ title: 'Actual', artist: 'Artist', album: 'Album', media_content_id: 'actual' }]);
   expect(send).toHaveBeenCalledWith(
     expect.objectContaining({ domain: 'sonos', service: 'get_queue', return_response: true, target: { entity_id: 'room' } })
   );
@@ -192,4 +192,18 @@ it('reports a bounded service discovery failure and keeps queue contents unknown
   expect(result.current.queueError).toContain('Could not discover speaker services');
   expect(result.current.loaded).toBe(false);
   expect(result.current.canQueue).toBe(false);
+});
+
+it('validates Home Assistant queue metadata strings before rendering them', async () => {
+  const { send } = socket();
+  const { result } = renderHook(() => useListening('room', true, 0, () => false));
+  await waitFor(() => expect(result.current.canQueue).toBe(true));
+  send.mockResolvedValueOnce({
+    response: {
+      room: [{ media_title: { invalid: true }, media_artist: 12, media_album_name: false, media_content_id: 7 }, null, 'invalid'],
+    },
+  } as never);
+  await act(() => result.current.refresh());
+  expect(result.current.items).toEqual([{ title: undefined, artist: undefined, album: undefined, media_content_id: undefined }]);
+  expect(result.current.loaded).toBe(true);
 });

@@ -4,6 +4,23 @@ import { onSpeakerDisconnect } from '../speakerConnection';
 import { useSpeakerCommand } from '../useSpeakerCommand';
 import type { MusicItem } from './useSpotifyBrowser';
 export type QueueItem = { title?: string; artist?: string; album?: string; media_content_id?: string };
+// Sonos get_queue uses Home Assistant media metadata names (HA 2026.9.3).
+function normalizeQueueItem(value: unknown): QueueItem | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const entry = value as Record<string, unknown>;
+  const text = (primary: string, alias?: string) => {
+    const value = entry[primary];
+    if (typeof value === 'string') return value;
+    const legacy = alias ? entry[alias] : undefined;
+    return typeof legacy === 'string' ? legacy : undefined;
+  };
+  return {
+    title: text('media_title', 'title'),
+    artist: text('media_artist', 'artist'),
+    album: text('media_album_name', 'album'),
+    media_content_id: text('media_content_id'),
+  };
+}
 type Services = Record<string, Record<string, unknown>>;
 export function spotifyEnqueue(item: MusicItem) {
   if (!item.can_play) return null;
@@ -130,15 +147,13 @@ export function useListening(
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
       const value = await Promise.race([
-        useStore
-          .getState()
-          .connection!.sendMessagePromise<{ response?: Record<string, unknown> }>({
-            type: 'call_service',
-            domain: 'sonos',
-            service: 'get_queue',
-            target: { entity_id: entityId },
-            return_response: true,
-          }),
+        useStore.getState().connection!.sendMessagePromise<{ response?: Record<string, unknown> }>({
+          type: 'call_service',
+          domain: 'sonos',
+          service: 'get_queue',
+          target: { entity_id: entityId },
+          return_response: true,
+        }),
         new Promise<never>((_, reject) => abort.signal.addEventListener('abort', () => reject(new Error('Cancelled')), { once: true })),
         new Promise<never>((_, reject) => {
           timer = setTimeout(() => reject(new Error('The speaker did not respond.')), 15000);
@@ -149,7 +164,7 @@ export function useListening(
       if (!Array.isArray(entries)) throw new Error('The speaker returned an unsupported queue response.');
       setQueue({
         loaded: true,
-        items: entries.filter((item): item is QueueItem => !!item && typeof item === 'object'),
+        items: entries.map(normalizeQueueItem).filter((item): item is QueueItem => item !== null),
         loading: false,
         error: '',
       });
