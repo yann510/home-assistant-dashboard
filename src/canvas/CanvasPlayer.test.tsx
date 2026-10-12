@@ -262,3 +262,21 @@ it('groups catalog kinds, displays actual metadata and preserves separate collec
  await screen.findByRole('button', { name: 'Play Catalog song' });
  expect(screen.getByRole('button', { name: 'All' }).getAttribute('aria-pressed')).toBe('true');
 });
+it('erasing or clearing search after category changes returns to the originating collection', async () => {
+ installLibrary();
+ render(<CanvasPlayer onClose={() => {}} />);
+ fireEvent.click(await screen.findByRole('button', { name: 'Open Liked songs' }));
+ await screen.findByRole('heading', { name: 'Liked songs' });
+ const input = screen.getByRole('searchbox', { name: 'Search Spotify' }) as HTMLInputElement;
+ fireEvent.change(input, { target: { value: 'jazz' } });
+ fireEvent.click(screen.getByRole('button', { name: 'Playlists' }));
+ fireEvent.click(screen.getByRole('button', { name: 'Albums' }));
+ fireEvent.change(input, { target: { value: '' } });
+ await screen.findByRole('heading', { name: 'Liked songs' });
+ expect(input.value).toBe('');
+ fireEvent.change(input, { target: { value: 'jazz' } });
+ fireEvent.click(screen.getByRole('button', { name: 'Artists' }));
+ fireEvent.click(screen.getByRole('button', { name: 'Clear search' }));
+ await screen.findByRole('heading', { name: 'Liked songs' });
+ expect(input.value).toBe('');
+});

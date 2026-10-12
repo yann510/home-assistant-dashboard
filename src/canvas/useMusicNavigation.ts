@@ -39,8 +39,12 @@ export function useMusicNavigation(source: Source) {
     openFolder: (item: MusicItem, scroll: number) => navigate({ query: '', folders: [...current.folders, item], speakers: false }, scroll),
     breadcrumb: (index: number, scroll: number) => navigate({ query: '', folders: current.folders.slice(0, index + 1), speakers: false }, scroll),
     search: (query: string, scroll: number) => {
-      if (!query.trim() && current.query.trim()) move(-1, scroll);
-      else navigate({ query, folders: [], speakers: false, kind: current.kind ?? 'all', offset: 0 }, scroll, !!current.query.trim());
+      if (!query.trim()) {
+        if (!current.query.trim()) return;
+        let index = history.index;
+        while (index > 0 && history.entries[index].query.trim()) index--;
+        move(index - history.index, scroll);
+      } else navigate({ query, folders: [], speakers: false, kind: current.kind ?? 'all', offset: 0 }, scroll, !!current.query.trim());
     },
     selectKind: (kind: CatalogKind, scroll: number) => navigate({ query: current.query, folders: [], speakers: false, kind, offset: 0 }, scroll),
     searchPage: (offset: number, scroll: number) => setHistory(old => ({ ...old, entries: old.entries.map((entry, index) => index === old.index ? { ...entry, offset, scroll } : entry) })),

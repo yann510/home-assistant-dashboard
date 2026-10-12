@@ -58,3 +58,26 @@ it('restores category pagination and query with history while typing occupies on
  act(() => result.current.forward(60));
  expect(result.current.current.offset).toBe(20);
 });
+it.each([['playlist'], ['playlist', 'album', 'artist']] as const)('clears a whole search session after category switches %j and preserves forward pages', (...kinds) => {
+ const { result } = renderHook(() => useMusicNavigation({ entityId: 'room', connection: null, connected: true }));
+ act(() => result.current.openFolder(liked, 0));
+ act(() => result.current.search('jazz', 80));
+ for (const kind of kinds) act(() => result.current.selectKind(kind, 0));
+ act(() => result.current.searchPage(20, 220));
+ act(() => result.current.search('', 240));
+ expect(result.current.current).toMatchObject({ query: '', folders: [liked], scroll: 80 });
+ expect(result.current.canForward).toBe(true);
+ for (let index = 0; index <= kinds.length; index++) act(() => result.current.forward(0));
+ expect(result.current.current).toMatchObject({ query: 'jazz', kind: kinds[kinds.length - 1], offset: 20, scroll: 240 });
+});
+it('ignores whitespace-only input before starting a search', () => {
+ const { result } = renderHook(() => useMusicNavigation({ entityId: 'room', connection: null, connected: true }));
+ act(() => result.current.search('   ', 0));
+ expect(result.current.current.query).toBe('');
+ expect(result.current.canBack).toBe(false);
+ act(() => result.current.openFolder(liked, 0));
+ act(() => result.current.search(' ', 0));
+ expect(result.current.current.folders).toEqual([liked]);
+ act(() => result.current.back(0));
+ expect(result.current.current.folders).toEqual([]);
+});
