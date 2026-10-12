@@ -41,3 +41,20 @@ it('queue is idempotent and preserves back/forward collection scroll', () => {
  expect(result.current.current.queue).toBe(true);
  expect(result.current.current.scroll).toBe(40);
 });
+it('restores category pagination and query with history while typing occupies one entry', () => {
+ const { result } = renderHook(() => useMusicNavigation({ entityId: 'room', connection: null, connected: true }));
+ act(() => result.current.search('j', 0));
+ act(() => result.current.search('jazz', 0));
+ act(() => result.current.selectKind('playlist', 60));
+ act(() => result.current.searchPage(20, 200));
+ act(() => result.current.openFolder(liked, 220));
+ act(() => result.current.back(0));
+ expect(result.current.current).toMatchObject({ query: 'jazz', kind: 'playlist', offset: 20, scroll: 220 });
+ act(() => result.current.back(220));
+ expect(result.current.current).toMatchObject({ query: 'jazz', kind: 'all' });
+ act(() => result.current.back(60));
+ expect(result.current.current.query).toBe('');
+ act(() => result.current.forward(0));
+ act(() => result.current.forward(60));
+ expect(result.current.current.offset).toBe(20);
+});

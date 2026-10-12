@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import type { MusicItem } from './useSpotifyBrowser';
+import type { CatalogKind, MusicItem } from './useSpotifyBrowser';
 
-type Location = { query: string; folders: MusicItem[]; speakers: boolean; queue?: boolean };
+type Location = { query: string; folders: MusicItem[]; speakers: boolean; queue?: boolean; kind?: CatalogKind; offset?: number };
 type Entry = Location & { scroll: number };
 type Source = { entityId: string; connection: unknown; connected: boolean };
 const home: Location = { query: '', folders: [], speakers: false };
@@ -11,7 +11,7 @@ export function useMusicNavigation(source: Source) {
   const [history, setHistory] = useState<{ entries: Entry[]; index: number; source: Source }>({ entries: [{ ...home, scroll: 0 }], index: 0, source });
   // Keep locations, but never revive another speaker/connection's scroll memory.
   if (history.source.entityId !== source.entityId || history.source.connection !== source.connection || history.source.connected !== source.connected) {
-    setHistory({ ...history, entries: history.entries.map(entry => ({ ...entry, scroll: 0 })), source });
+    setHistory({ ...history, entries: history.entries.map(entry => ({ ...entry, scroll: 0, offset: 0 })), source });
   }
   const current = history.entries[history.index];
   function navigate(location: Location, scroll: number, replace = false) {
@@ -40,8 +40,10 @@ export function useMusicNavigation(source: Source) {
     breadcrumb: (index: number, scroll: number) => navigate({ query: '', folders: current.folders.slice(0, index + 1), speakers: false }, scroll),
     search: (query: string, scroll: number) => {
       if (!query.trim() && current.query.trim()) move(-1, scroll);
-      else navigate({ query, folders: [], speakers: false }, scroll, !!current.query.trim());
+      else navigate({ query, folders: [], speakers: false, kind: current.kind ?? 'all', offset: 0 }, scroll, !!current.query.trim());
     },
+    selectKind: (kind: CatalogKind, scroll: number) => navigate({ query: current.query, folders: [], speakers: false, kind, offset: 0 }, scroll),
+    searchPage: (offset: number, scroll: number) => setHistory(old => ({ ...old, entries: old.entries.map((entry, index) => index === old.index ? { ...entry, offset, scroll } : entry) })),
     openQueue: (scroll: number) => navigate({ query: '', folders: [], speakers: false, queue: true }, scroll),
     openSpeakers: (scroll: number) => navigate({ query: '', folders: [], speakers: true }, scroll),
   };

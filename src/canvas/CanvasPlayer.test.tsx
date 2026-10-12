@@ -20,8 +20,8 @@ it('offers search navigation, real results and confirmed playback without dismis
   const close = vi.fn();
   music.favouritePlayback.play.mockResolvedValue(true);
   render(<CanvasPlayer onClose={close} />);
-  expect(screen.getByRole('searchbox', { name: 'Search Spotify songs' })).toBeTruthy();
-  fireEvent.change(screen.getByRole('searchbox', { name: 'Search Spotify songs' }), { target: { value: 'song' } });
+  expect(screen.getByRole('searchbox', { name: 'Search Spotify' })).toBeTruthy();
+  fireEvent.change(screen.getByRole('searchbox', { name: 'Search Spotify' }), { target: { value: 'song' } });
   await waitFor(() => expect(screen.getByRole('button', { name: 'Play Real song' })).toBeTruthy());
   fireEvent.click(screen.getByRole('button', { name: 'Play Real song' }));
   await waitFor(() => expect(music.favouritePlayback.play).toHaveBeenCalledWith(expect.objectContaining({ media_content_id: 'spotify:track:real' })));
@@ -166,14 +166,14 @@ it('restores collection and search history without adding an entry per search ch
   expect((screen.getByRole('button', { name: 'Forward' }) as HTMLButtonElement).disabled).toBe(true);
   fireEvent.click(screen.getByRole('button', { name: 'Open Liked songs' }));
   await screen.findByRole('heading', { name: 'Liked songs' });
-  fireEvent.change(screen.getByRole('searchbox', { name: 'Search Spotify songs' }), { target: { value: 's' } });
-  fireEvent.change(screen.getByRole('searchbox', { name: 'Search Spotify songs' }), { target: { value: 'song' } });
+  fireEvent.change(screen.getByRole('searchbox', { name: 'Search Spotify' }), { target: { value: 's' } });
+  fireEvent.change(screen.getByRole('searchbox', { name: 'Search Spotify' }), { target: { value: 'song' } });
   await screen.findByRole('heading', { name: 'Search results' });
   fireEvent.click(screen.getByRole('button', { name: 'Back' }));
   await screen.findByRole('heading', { name: 'Liked songs' });
-  expect((screen.getByRole('searchbox', { name: 'Search Spotify songs' }) as HTMLInputElement).value).toBe('');
+  expect((screen.getByRole('searchbox', { name: 'Search Spotify' }) as HTMLInputElement).value).toBe('');
   fireEvent.click(screen.getByRole('button', { name: 'Forward' }));
-  expect((screen.getByRole('searchbox', { name: 'Search Spotify songs' }) as HTMLInputElement).value).toBe('song');
+  expect((screen.getByRole('searchbox', { name: 'Search Spotify' }) as HTMLInputElement).value).toBe('song');
   fireEvent.click(screen.getByRole('button', { name: 'Back' }));
   fireEvent.click(screen.getByRole('button', { name: 'Music home' }));
   await screen.findByRole('button', { name: 'Play Evening playlist' });
@@ -215,9 +215,9 @@ it('returns to the prior collection when a search is emptied', async () => {
   render(<CanvasPlayer onClose={() => {}} />);
   fireEvent.click(await screen.findByRole('button', { name: 'Open Liked songs' }));
   await screen.findByRole('heading', { name: 'Liked songs' });
-  fireEvent.change(screen.getByRole('searchbox', { name: 'Search Spotify songs' }), { target: { value: 'song' } });
+  fireEvent.change(screen.getByRole('searchbox', { name: 'Search Spotify' }), { target: { value: 'song' } });
   await screen.findByRole('heading', { name: 'Search results' });
-  fireEvent.change(screen.getByRole('searchbox', { name: 'Search Spotify songs' }), { target: { value: '' } });
+  fireEvent.change(screen.getByRole('searchbox', { name: 'Search Spotify' }), { target: { value: '' } });
   await screen.findByRole('heading', { name: 'Liked songs' });
 });
 it('keeps the current scroll position when loading another search page', async () => {
@@ -227,11 +227,38 @@ it('keeps the current scroll position when loading another search page', async (
     items: [{ title: message.offset ? 'Second song' : 'First song', media_content_id: message.offset ? 'spotify:track:second' : 'spotify:track:first', media_content_type: 'music', can_play: true }], total: 2, next_offset: message.offset ? null : 10,
   } : respond(message));
   const { container } = render(<CanvasPlayer onClose={() => {}} />);
-  fireEvent.change(screen.getByRole('searchbox', { name: 'Search Spotify songs' }), { target: { value: 'song' } });
+  fireEvent.change(screen.getByRole('searchbox', { name: 'Search Spotify' }), { target: { value: 'song' } });
+  await screen.findByRole('button', { name: 'Play First song' });
+  fireEvent.click(screen.getByRole('button', { name: 'Songs' }));
   await screen.findByRole('button', { name: 'Play First song' });
   const content = container.querySelector('.canvas-player__content')!;
   content.scrollTop = 250;
   fireEvent.click(screen.getByRole('button', { name: 'Load more songs' }));
   await screen.findByRole('button', { name: 'Play Second song' });
   expect(content.scrollTop).toBe(250);
+});
+it('groups catalog kinds, displays actual metadata and preserves separate collection actions', async () => {
+ const send = installLibrary();
+ const track = { title: 'Catalog song', subtitle: 'Real artist', duration_ms: 185000, media_content_id: 'spotify:track:catalog', media_content_type: 'music', can_play: true };
+ const playlist = { title: 'Catalog playlist', media_content_id: 'spotify://account/spotify:playlist:catalog', media_content_type: 'playlist', can_play: true, can_expand: true };
+ const artist = { title: 'Catalog artist', media_content_id: 'spotify://account/spotify:artist:catalog', media_content_type: 'artist', can_play: false, can_expand: true };
+ send.mockImplementation(async message => {
+   if (message.type !== 'dashboard_spotify/search') return { children: [] } as never;
+   const groups = { track: { kind: 'track', items: [track], total: 1, next_offset: null }, playlist: { kind: 'playlist', items: [playlist], total: 12, next_offset: 10 }, album: { kind: 'album', items: [], total: 0, next_offset: null }, artist: { kind: 'artist', items: [artist], total: 1, next_offset: null } };
+   return (message.kind === 'all' ? { kind: 'all', groups } : groups[message.kind as keyof typeof groups]) as never;
+ });
+ render(<CanvasPlayer onClose={() => {}} />);
+ fireEvent.change(screen.getByRole('searchbox', { name: 'Search Spotify' }), { target: { value: 'catalog' } });
+ await screen.findByRole('button', { name: 'Play Catalog song' });
+ expect(screen.getByText('3:05')).toBeTruthy();
+ expect(screen.getByText('Real artist')).toBeTruthy();
+ expect(screen.getByRole('button', { name: 'View tracks Catalog playlist' })).toBeTruthy();
+ expect(screen.getByRole('button', { name: 'Open Catalog artist' })).toBeTruthy();
+ expect(screen.queryByRole('button', { name: 'Play Catalog artist' })).toBeNull();
+ fireEvent.click(screen.getByRole('button', { name: 'See all Playlists' }));
+ await waitFor(() => expect(send).toHaveBeenCalledWith(expect.objectContaining({ kind: 'playlist' })));
+ expect(screen.getByRole('button', { name: 'Playlists' }).getAttribute('aria-pressed')).toBe('true');
+ fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+ await screen.findByRole('button', { name: 'Play Catalog song' });
+ expect(screen.getByRole('button', { name: 'All' }).getAttribute('aria-pressed')).toBe('true');
 });

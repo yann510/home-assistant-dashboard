@@ -181,3 +181,8 @@
   .canvas-player__listening { flex-wrap: wrap; }
   .canvas-player__listening p { flex-basis: 100%; margin: 4px 0; text-align: left; }
 }
+
+.canvas-player__catalog-filters { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 16px; }
+.canvas-player__catalog-filters button { min-height: 40px; padding: 6px 12px; }
+.canvas-player__catalog-filters button[aria-pressed='true'] { border-color: var(--canvas-lilac); background: color-mix(in srgb, var(--canvas-lilac) 12%, var(--canvas-surface)); }
+.canvas-player__duration { color: var(--canvas-muted); font-variant-numeric: tabular-nums; }

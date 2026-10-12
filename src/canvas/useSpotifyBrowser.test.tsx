@@ -140,3 +140,35 @@ it('puts real playlists first and derives bounded collection covers from actual 
   expect(result.current.categories.find(x => x.title === 'current_user_saved_tracks')?.previewArtwork).toEqual(['/actual0.jpg', '/actual1.jpg', '/actual2.jpg', '/actual3.jpg']);
   expect(send).toHaveBeenCalledTimes(9); // root+library+3 primary folders+4 collection previews, never recursive.
 });
+it('requests typed grouped search and keeps independent category totals', async () => {
+  send.mockImplementation(async (message: { kind: string }) => ({ kind: message.kind, groups: Object.fromEntries(['track', 'playlist', 'album', 'artist'].map((kind, index) => [kind, { kind, items: [node(kind)], total: index + 12, next_offset: 10 }])) }));
+  const { result } = renderHook(() => useSpotifyBrowser('media_player.room', true, 'search', 'jazz', undefined, 'all'));
+  await waitFor(() => expect(result.current.groups.artist?.total).toBe(15));
+  expect(send).toHaveBeenCalledWith(expect.objectContaining({ kind: 'all', offset: 0 }));
+  expect(result.current.groups.playlist?.items[0].title).toBe('playlist');
+  expect(result.current.items).toHaveLength(0);
+});
+it('restores a selected category loaded range and cancels stale category responses', async () => {
+  send.mockImplementation(async (m: { kind: string; offset: number }) => ({ kind: m.kind, items: [node(`${m.kind}${m.offset}`)], total: 30, next_offset: m.offset >= 20 ? null : m.offset + 10 }));
+  const { result, rerender } = renderHook(({ kind, offset }) => useSpotifyBrowser('media_player.room', true, 'search', 'jazz', undefined, kind, offset), { initialProps: { kind: 'album' as 'album' | 'artist', offset: 20 } });
+  await waitFor(() => expect(result.current.items.map(x => x.title)).toEqual(['album0', 'album10', 'album20']));
+  rerender({ kind: 'artist', offset: 0 });
+  expect(result.current.items).toHaveLength(0);
+  await waitFor(() => expect(result.current.items[0]?.title).toBe('artist0'));
+  expect(result.current.items).toHaveLength(1);
+});
+it('restarts after an event-only ready on the same socket and discards its cancelled response', async () => {
+ const handlers = new Map<string, Set<() => void>>();
+ const connection = { connected: true, sendMessagePromise: send, addEventListener: (event: string, handler: () => void) => { if (!handlers.has(event)) handlers.set(event, new Set()); handlers.get(event)!.add(handler); }, removeEventListener: (event: string, handler: () => void) => handlers.get(event)?.delete(handler) };
+ useStore.setState({ connection: connection as unknown as Connection, connectionStatus: 'connected' });
+ let resolve!: (value: unknown) => void;
+ send.mockImplementationOnce(() => new Promise(r => { resolve = r; }));
+ const { result } = renderHook(() => useSpotifyBrowser('media_player.room', true, 'search', 'jazz'));
+ await waitFor(() => expect(send).toHaveBeenCalledTimes(1));
+ act(() => handlers.get('disconnected')?.forEach(handler => handler()));
+ send.mockResolvedValue({ items: [node('fresh')], total: 1, next_offset: null });
+ act(() => handlers.get('ready')?.forEach(handler => handler()));
+ await waitFor(() => expect(result.current.items[0]?.title).toBe('fresh'));
+ await act(async () => resolve({ items: [node('stale')], total: 1, next_offset: null }));
+ expect(result.current.items[0]?.title).toBe('fresh');
+});
