@@ -29,3 +29,15 @@ it('does not add duplicate speaker entries and returns to the previous search', 
   expect(result.current.current.query).toBe('dreams');
   expect(result.current.current.speakers).toBe(false);
 });
+it('queue is idempotent and preserves back/forward collection scroll', () => {
+ const { result } = renderHook(() => useMusicNavigation({ entityId: 'room', connection: null, connected: true }));
+ act(() => result.current.openFolder(liked, 120));
+ act(() => result.current.openQueue(240));
+ act(() => result.current.openQueue(0));
+ act(() => result.current.back(40));
+ expect(result.current.current.folders).toEqual([liked]);
+ expect(result.current.current.scroll).toBe(240);
+ act(() => result.current.forward(240));
+ expect(result.current.current.queue).toBe(true);
+ expect(result.current.current.scroll).toBe(40);
+});

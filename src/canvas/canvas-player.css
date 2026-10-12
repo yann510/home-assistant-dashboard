@@ -143,3 +143,40 @@
   .canvas-dialog .canvas-player .speaker-seek { grid-column: 1; grid-row: 2; }
   .canvas-player__filter { margin-bottom: 8px; }
 }
+/* Listening controls belong only to the library footer. */
+.canvas-player__now-playing { position: relative; }
+.canvas-player__listening { display: flex; align-items: center; gap: 4px; justify-content: flex-end; margin-bottom: 4px; }
+.canvas-dialog .canvas-player__listening button { min-width: 44px; padding: 4px 10px; background: transparent; color: var(--canvas-muted); border-color: var(--canvas-line); }
+.canvas-dialog .canvas-player__listening button[aria-pressed='true'] { color: var(--canvas-lilac); background: color-mix(in srgb, var(--canvas-lilac) 12%, var(--canvas-surface)); border-color: var(--canvas-lilac); }
+.canvas-dialog .canvas-player__listening button:disabled { opacity: .5; cursor: not-allowed; }
+.canvas-player__listening p { font-size: .75rem; margin: 0; flex: 1; }
+.canvas-player__item-actions { position: relative; align-self: end; }
+.canvas-dialog .canvas-player__item-actions > button { min-width: 44px; padding: 4px; color: var(--canvas-muted); background: transparent; border-color: transparent; }
+.canvas-player__action-menu { position: absolute; right: 0; bottom: 100%; z-index: 2; display: grid; min-width: 150px; padding: 4px; border: 1px solid var(--canvas-line); border-radius: 12px; background: var(--canvas-surface); }
+.canvas-dialog .canvas-player__action-menu button { text-align: left; color: var(--canvas-ink); background: transparent; border-color: transparent; padding: 8px; }
+.canvas-player__song { display: flex; align-items: center; }
+.canvas-dialog .canvas-player__song-play { flex: 1; min-width: 0; }
+.canvas-player__queue ol { padding-left: 28px; }
+.canvas-player__queue li { padding: 8px 4px; min-height: 44px; }
+.canvas-player__queue li strong, .canvas-player__queue li small { display: block; overflow-wrap: anywhere; }
+.canvas-player__queue li small { color: var(--canvas-muted); font-size: .75rem; margin-top: 4px; }
+.canvas-player__card { position: relative; }
+.canvas-player__card > .canvas-player__item-actions { position: absolute; right: 4px; top: 4px; }
+.canvas-dialog .canvas-player__card .canvas-player__item-actions > button { border-radius: 12px; background: color-mix(in srgb, var(--canvas-surface) 92%, transparent); color: var(--canvas-ink); }
+.canvas-player__card .canvas-player__action-menu { bottom: auto; top: 100%; }
+.canvas-player__listening p { min-width: 0; overflow-wrap: anywhere; }
+/* Reserve a controls row on phones; short tablets share the transport row. */
+.canvas-dialog .canvas-player .canvas-music__bottom { flex-wrap: wrap; }
+.canvas-player .canvas-music__listening-slot { flex-basis: 100%; order: -1; }
+@media (min-width: 601px) and (max-height: 660px) {
+  .canvas-dialog .canvas-player .canvas-music__bottom { flex-wrap: nowrap; gap: 8px; }
+  .canvas-player .canvas-music__listening-slot { flex-basis: auto; order: 0; }
+  .canvas-player__listening { margin: 0; flex-wrap: nowrap; }
+}
+.canvas-player__listening > button { flex-shrink: 0; }
+.canvas-dialog .canvas-player .canvas-player__listening [role='status'] { color: var(--canvas-muted); }
+.canvas-dialog .canvas-player .canvas-player__listening [role='alert'] { color: var(--canvas-ink); }
+@media (max-width: 600px) {
+  .canvas-player__listening { flex-wrap: wrap; }
+  .canvas-player__listening p { flex-basis: 100%; margin: 4px 0; text-align: left; }
+}

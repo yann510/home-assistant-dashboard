@@ -4,7 +4,7 @@ import { CanvasActionIcon } from './CanvasActionIcon';
 import { SpeakerSeek } from '../SpeakerSeek';
 import { SpeakerVolume } from '../SpeakerVolume';
 import { useHass } from '@hakit/core';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useCanvasMusic } from './CanvasMusicProvider';
 
 export function CanvasFollow() {
@@ -83,11 +83,13 @@ export function CanvasMusic({
   onOpenSpeakers,
   libraryEntrance = true,
   showPlaybackStatus = true,
+  footerControls,
 }: {
   onOpenPlayer(trigger: HTMLElement): void;
   onOpenSpeakers(trigger: HTMLElement): void;
   libraryEntrance?: boolean;
   showPlaybackStatus?: boolean;
+  footerControls?: ReactNode;
 }) {
   const { session, title, trackTitle, attributes, idle, rooms, disabled, favouritePlayback } = useCanvasMusic();
   const { joinHassUrl } = useHass();
@@ -126,6 +128,7 @@ export function CanvasMusic({
         <span>Browse music</span><span aria-hidden='true'>↗</span>
       </button>}
       <div className='canvas-music__bottom'>
+        {footerControls && <div className='canvas-music__listening-slot'>{footerControls}</div>}
         <CanvasTransport />
         <SpeakerVolume
           key={session.targets.join(',')}

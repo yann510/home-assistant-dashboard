@@ -51,6 +51,12 @@ export function applySpeakerService(entities: HassEntities, message: Record<stri
   } else {
     for (const id of targets) {
       switch (message.service) {
+        case 'shuffle_set':
+          if (typeof data.shuffle === 'boolean') update(id, { shuffle: data.shuffle });
+          break;
+        case 'repeat_set':
+          if (['off', 'all', 'one'].includes(String(data.repeat))) update(id, { repeat: data.repeat });
+          break;
         case 'volume_mute':
           if (typeof data.is_volume_muted === 'boolean') update(id, { is_volume_muted: data.is_volume_muted });
           break;

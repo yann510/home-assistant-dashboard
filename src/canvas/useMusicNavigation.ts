@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { MusicItem } from './useSpotifyBrowser';
 
-type Location = { query: string; folders: MusicItem[]; speakers: boolean };
+type Location = { query: string; folders: MusicItem[]; speakers: boolean; queue?: boolean };
 type Entry = Location & { scroll: number };
 type Source = { entityId: string; connection: unknown; connected: boolean };
 const home: Location = { query: '', folders: [], speakers: false };
@@ -16,7 +16,7 @@ export function useMusicNavigation(source: Source) {
   const current = history.entries[history.index];
   function navigate(location: Location, scroll: number, replace = false) {
     setHistory(old => {
-      if (location.speakers && old.entries[old.index].speakers) return old;
+      if ((location.queue && old.entries[old.index].queue) || (location.speakers && old.entries[old.index].speakers)) return old;
       const entries = old.entries.slice(0, old.index + 1);
       entries[old.index] = { ...entries[old.index], scroll };
       if (replace) entries[old.index] = { ...location, scroll: 0 };
@@ -42,6 +42,7 @@ export function useMusicNavigation(source: Source) {
       if (!query.trim() && current.query.trim()) move(-1, scroll);
       else navigate({ query, folders: [], speakers: false }, scroll, !!current.query.trim());
     },
+    openQueue: (scroll: number) => navigate({ query: '', folders: [], speakers: false, queue: true }, scroll),
     openSpeakers: (scroll: number) => navigate({ query: '', folders: [], speakers: true }, scroll),
   };
 }

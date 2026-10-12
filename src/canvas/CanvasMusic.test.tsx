@@ -1307,3 +1307,24 @@ it('keeps the music home open after a Sonos favourite is confirmed', async () =>
   await act(async () => {});
   expect((screen.getByRole('button', { name: 'Play Confirmed playlist' }) as HTMLButtonElement).disabled).toBe(false);
 });
+
+it('blocks grouping in the same event as a queue mutation and releases the shared lock after rejection', async () => {
+  let reject!: (e: Error) => void;
+  sendMessagePromise.mockImplementation(message => message.type === 'get_services' ? Promise.resolve({ media_player: { play_media: {} }, sonos: { get_queue: {} } }) : new Promise((_, fail) => { reject = fail; }));
+  useStore.getState().connection!.sendMessagePromise = sendMessagePromise;
+  function RaceProbe() {
+    const { listening, rooms } = useCanvasMusic();
+    return <><output data-testid='listening-busy'>{String(listening.busy)}</output><button disabled={!listening.canEnqueue} onClick={() => {
+      void listening.enqueue({ title: 'Track', can_play: true, media_content_type: 'music', media_content_id: 'spotify:track:1234567890123456789012' }, 'add');
+      void rooms.toggleRoom('media_player.bathroom');
+    }}>Queue and group together</button></>;
+  }
+  render(<HassContext.Provider value={context}><CanvasMusicProvider><RaceProbe /></CanvasMusicProvider></HassContext.Provider>);
+  await waitFor(() => expect((screen.getByRole('button', { name: 'Queue and group together' }) as HTMLButtonElement).disabled).toBe(false));
+  fireEvent.click(screen.getByRole('button', { name: 'Queue and group together' }));
+  const mutations = sendMessagePromise.mock.calls.filter(([m]) => m.type === 'call_service');
+  expect(mutations).toHaveLength(1);
+  expect(mutations[0][0].service).toBe('play_media');
+  await act(async () => { reject(new Error('Queue failed')); await Promise.resolve(); });
+  await waitFor(() => expect(screen.getByTestId('listening-busy').textContent).toBe('false'));
+});

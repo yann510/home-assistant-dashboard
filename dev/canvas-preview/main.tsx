@@ -38,7 +38,7 @@ for (const room of ['living_room', 'bathroom', 'bedroom', 'gym'])
     room === 'living_room' ? (media === 'idle' ? 'idle' : media === 'paused' ? 'paused' : 'playing') : 'idle',
     {
       friendly_name: room.replaceAll('_', ' '),
-      supported_features: 4127295,
+      supported_features: 4127295, shuffle: false, repeat: 'off',
       group_members: [`media_player.${room}`],
       volume_level: 0.32,
       is_volume_muted: params.has('muted'),
@@ -169,6 +169,11 @@ const connection = {
   removeEventListener() {},
   sendMessage() {},
   async sendMessagePromise(message: Record<string, unknown>) {
+    if (message.type === 'get_services') return { sonos: { get_queue: {} }, media_player: { play_media: {}, shuffle_set: {}, repeat_set: {} } };
+    if (message.type === 'call_service' && message.domain === 'sonos' && message.service === 'get_queue') {
+      const id = String((message.target as { entity_id: string }).entity_id);
+      return { response: { [id]: Array.from({ length: 50 }, (_, index) => ({ title: `Preview queued song ${index + 1}`, artist: 'Preview artist', album: 'Preview album', media_content_id: `spotify:track:${String(index).padStart(22, '0')}` })) } };
+    }
     if (message.type === 'get_states') return Object.values(entities);
     if (message.type === 'dashboard_spotify/search' || (message.type === 'media_player/browse_media' && message.media_content_type !== 'favorites')) return previewSpotify(message);
     if (message.type === 'media_player/browse_media')
