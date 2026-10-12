@@ -288,14 +288,14 @@ it('renders real metadata safely, preserves the native cover, and retains Play w
   send.mockImplementation(async message => {
     if (message.type === 'dashboard_spotify/collection' && message.media_content_id.includes('spotify:playlist:')) {
       if (restricted) throw { code: 'spotify_collection_restricted' };
-      return { items: [], total: 0, next_offset: null, next_cursor: null, collection: { title: 'Actual title', subtitle: 'Actual owner', description: '<img src=x onerror=alert(1)>', thumbnail: null, media_content_id: message.media_content_id, media_content_type: 'playlist', can_play: true, can_expand: true } };
+      return { items: [], total: 0, next_offset: null, next_cursor: null, collection: { title: 'Actual title', subtitle: 'Actual owner', description: 'Drum &amp; bass by <a href="https://example.com">Spotify</a><br>&lt;img src=x onerror=alert(1)&gt;<img src="https://example.com/pixel">', thumbnail: null, media_content_id: message.media_content_id, media_content_type: 'playlist', can_play: true, can_expand: true } };
     }
     return respond(message);
   });
   render(<CanvasPlayer onClose={() => {}} />);
   fireEvent.click(await screen.findByRole('button', { name: 'View tracks Evening playlist' }));
   await screen.findByRole('heading', { name: 'Actual title' });
-  expect(screen.getByText('<img src=x onerror=alert(1)>').querySelector('img')).toBeNull();
+  expect(screen.getByText('Drum & bass by Spotify <img src=x onerror=alert(1)>').querySelector('img')).toBeNull();
   expect(document.querySelector('.canvas-player__collection img')?.getAttribute('src')).toBe('/cover.jpg');
   fireEvent.click(screen.getByRole('button', { name: 'Back' }));
   await screen.findByRole('button', { name: 'View tracks Evening playlist' });
