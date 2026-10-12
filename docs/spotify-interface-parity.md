@@ -27,3 +27,13 @@ Read-only live inspection confirms all four Sonos players advertise feature flag
 Shuffle/repeat also need the house_moods manual service-intent observer updated so a manual gesture releases playback ownership. Existing queue/play_media calls already participate in that ownership handling.
 
 Library edits are not currently available: the Home Assistant Spotify integration requests library read access. Any future save/unsave or playlist editing action needs a proven authorized API path; do not display a working-looking control that cannot persist its change.
+
+## Catalog implementation brief
+
+Pinned test runtime is Home Assistant2026.9.3 with spotifyaio2.0.2. Next typed search should accept kind all/track/playlist/album/artist, preserving omitted-kind track compatibility. All shows grouped sections with independent totals and offsets; selected kinds paginate one category. Cache and in-flight identity must include authorized account and kind. Existing direct HTTP OAuth refresh avoids spotifyaio.search's missing offset support.
+
+The server must generate album/playlist/artist browse IDs as spotify://<authorized-entry>/spotify:<kind>:<id> using the authorized config entry. Raw URIs can play through Sonos, but cannot browse via the HA Spotify bridge. Artists are browsing-only for Sonos. Normalize real artwork, title, artists and useful metadata; reject malformed or unplayable tracks. No client-supplied entry ID may select credentials.
+
+The HA browse bridge omits artist/duration metadata and has no collection pagination contract. Rich, complete collection pages will need a bounded backend detail endpoint. Development-mode third-party playlist detail may be restricted to owner/collaborator access; preserve Play and report unavailable detail clearly rather than displaying an empty playlist.
+
+Primary references: [Spotify Search API](https://developer.spotify.com/documentation/web-api/reference/search), [2026 migration guide](https://developer.spotify.com/documentation/web-api/tutorials/february-2026-migration-guide), [HA Spotify browse bridge](https://raw.githubusercontent.com/home-assistant/core/2026.9.3/homeassistant/components/spotify/browse_media.py), [Sonos media browser](https://raw.githubusercontent.com/home-assistant/core/2026.9.3/homeassistant/components/sonos/media_browser.py), [Sonos queue action](https://www.home-assistant.io/actions/sonos.get_queue/).
