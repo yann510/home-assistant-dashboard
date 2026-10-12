@@ -110,10 +110,26 @@ class SearchGateway:
         self.cooldown_until = 0
         self.semaphore = asyncio.Semaphore(2)
         self.started = []
+        self.closed = False
 
     async def search(self, account, query, limit, offset, fetch, *, kind=None):
         query, limit, offset = validate_query(query, limit, offset, kind)
         key = account, kind, query, limit, offset
+        async def load():
+            return normalize_search(await fetch(query, limit, offset), offset, limit, kind=kind, account=account)
+        return await self.read(key, load)
+
+    async def collection(self, account, media_id, limit, offset, cursor, fetch):
+        from .collection import validate_collection, normalize_collection
+        category, item_id, limit, offset, cursor = validate_collection(media_id, account, limit, offset, cursor)
+        key = account, 'collection', category, item_id, limit, offset, cursor
+        async def load():
+            return normalize_collection(await fetch(category, item_id, limit, offset, cursor), category, item_id, account, offset, limit)
+        return await self.read(key, load)
+
+    async def read(self, key, load):
+        if self.closed:
+            raise SearchError('spotify_unavailable', 'Spotify is disconnected. Reconnect to browse music.')
         now = monotonic()
         if now < self.cooldown_until:
             raise SearchError('rate_limited', 'Spotify is busy. Try again shortly.', max(1, int(self.cooldown_until - now + 1)))
@@ -126,16 +142,16 @@ class SearchGateway:
             if len(self.inflight) >= 4 or len(self.started) >= 30:
                 raise SearchError('rate_limited', 'Search is busy. Try again shortly.', 5)
             self.started.append(now)
-            task = asyncio.create_task(self._fetch(key, query, limit, offset, fetch, kind, account))
+            task = asyncio.create_task(self._fetch(key, load))
             self.inflight[key] = task
             task.add_done_callback(lambda done: self.inflight.pop(key, None))
         return await asyncio.shield(self.inflight[key])
 
-    async def _fetch(self, key, query, limit, offset, fetch, kind, account):
+    async def _fetch(self, key, load):
         try:
             async with self.semaphore:
                 async with asyncio.timeout(15):
-                    result = normalize_search(await fetch(query, limit, offset), offset, limit, kind=kind, account=account)
+                    result = await load()
             self.cache[key] = monotonic(), result
             self.cache.move_to_end(key)
             while len(self.cache) > 64:
@@ -149,6 +165,7 @@ class SearchGateway:
             raise SearchError('spotify_unavailable', 'Spotify search could not be loaded. Try again.') from None
 
     async def close(self):
+        self.closed = True
         tasks = list(self.inflight.values())
         for task in tasks:
             task.cancel()

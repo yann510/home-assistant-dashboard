@@ -1,7 +1,7 @@
 {
   "domain": "dashboard_spotify",
   "name": "Dashboard Spotify search",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "documentation": "https://github.com/yann510/home-assistant-dashboard",
   "codeowners": [],
   "dependencies": ["websocket_api"],

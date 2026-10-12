@@ -37,7 +37,7 @@ export async function install(adapter, files, root, validate) {
   const configuration = await adapter.readFile(configPath);
   const updated = Buffer.from(enableConfiguration(configuration.toString('utf8')));
   const names = [...files.keys()];
-  if (names.length !== 3 || names.some(name => !['__init__.py','search.py','manifest.json'].includes(name))) throw new Error('Unexpected integration payload.');
+  if (names.length !== 4 || names.some(name => !['__init__.py','search.py','collection.py','manifest.json'].includes(name))) throw new Error('Unexpected integration payload.');
   if (await adapter.exists(componentPath)) throw new Error('Integration already exists; review it before upgrading.');
   const backupPath = configPath + '.spotify-backup-' + randomUUID();
   const stagePath = configPath + '.spotify-stage-' + randomUUID();
@@ -90,7 +90,7 @@ async function main() {
   const required = ['VITE_SSH_HOSTNAME','VITE_SSH_USERNAME','VITE_SSH_PASSWORD','VITE_HA_URL','VITE_HA_TOKEN'];
   if (required.some(key => !process.env[key])) throw new Error('Missing private Home Assistant configuration.');
   const directory = fileURLToPath(new URL('../home-assistant/custom_components/dashboard_spotify/', import.meta.url));
-  const names = (await readdir(directory)).filter(name => ['__init__.py','search.py','manifest.json'].includes(name));
+  const names = (await readdir(directory)).filter(name => ['__init__.py','search.py','collection.py','manifest.json'].includes(name));
   const files = new Map(await Promise.all(names.map(async name => [name, await readFile(resolve(directory,name))])));
   const client = await Client({host:process.env.VITE_SSH_HOSTNAME,username:process.env.VITE_SSH_USERNAME,password:process.env.VITE_SSH_PASSWORD,port:22});
   try {

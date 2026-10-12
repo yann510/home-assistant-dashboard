@@ -16,12 +16,13 @@ function memory(){
  const writes=[];
  return {data,directories,attrs,writes,stat:async p=>attrs.get(p),setstat:async(p,a)=>attrs.set(p,{...attrs.get(p),...a}),realPath:async p=>p,readFile:async p=>data.get(p),writeFile:async(p,b,options)=>{writes.push({path:p,options});data.set(p,b);attrs.set(p,{mode:options?.mode??0o644,uid:1000,gid:1000})},exists:async p=>directories.has(p)||data.has(p),unlink:async p=>data.delete(p),rename:async(from,to)=>{data.set(to,data.get(from));data.delete(from);attrs.set(to,attrs.get(from));attrs.delete(from)},mkdir:async p=>directories.add(p),removeTree:async p=>{directories.delete(p);for(const key of data.keys())if(key.startsWith(p+'/'))data.delete(key)}};
 }
-const files=new Map([['manifest.json',Buffer.from('{}')],['__init__.py',Buffer.from('pass')],['search.py',Buffer.from('pass')]]);
+const files=new Map([['manifest.json',Buffer.from('{}')],['__init__.py',Buffer.from('pass')],['search.py',Buffer.from('pass')],['collection.py',Buffer.from('pass')]]);
 test('installer verifies backup and config check before returning success',async()=>{
  const adapter=memory(); const result=await install(adapter,files,'/config',async()=> 'valid');
  assert.equal(adapter.data.get(result.backupPath).toString(),'default_config:\n');
  assert.match(adapter.data.get('/config/configuration.yaml').toString(),/dashboard_spotify: \{\}/);
  assert.ok(adapter.directories.has('/config/custom_components/dashboard_spotify'));
+ assert.equal(adapter.data.get('/config/custom_components/dashboard_spotify/collection.py').toString(),'pass');
 });
 test('invalid config and network failures restore original config and remove integration',async()=>{
  for(const validate of [async()=> 'invalid',async()=> {throw new Error('offline')}]){
