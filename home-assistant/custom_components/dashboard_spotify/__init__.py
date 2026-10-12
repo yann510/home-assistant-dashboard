@@ -1,5 +1,5 @@
 """Authenticated catalog search using Home Assistant's existing Spotify OAuth."""
-from .search import SearchError, SearchGateway, validate_query
+from .search import SearchError, SearchGateway, validate_query, SEARCH_KINDS
 
 
 async def async_setup(hass, config):
@@ -21,11 +21,12 @@ async def async_setup(hass, config):
         vol.Required('query'): str,
         vol.Optional('limit', default=10): int,
         vol.Optional('offset', default=0): int,
+        vol.Optional('kind'): vol.In((*SEARCH_KINDS, 'all')),
     })
     @websocket_api.async_response
     async def search(connection_hass, connection, msg):
         try:
-            query, limit, offset = validate_query(msg['query'], msg['limit'], msg['offset'])
+            query, limit, offset = validate_query(msg['query'], msg['limit'], msg['offset'], msg.get('kind'))
             entries = [entry for entry in hass.config_entries.async_entries('spotify')
                        if entry.state is ConfigEntryState.LOADED and getattr(entry, 'runtime_data', None)]
             if not entries:
@@ -43,7 +44,7 @@ async def async_setup(hass, config):
                 await session.async_ensure_token_valid()
                 async with aiohttp_client.async_get_clientsession(hass).get(
                     'https://api.spotify.com/v1/search',
-                    params={'q': query, 'type': 'track', 'limit': limit, 'offset': offset},
+                    params={'q': query, 'type': ','.join(SEARCH_KINDS) if msg.get('kind') == 'all' else msg.get('kind', 'track'), 'limit': limit, 'offset': offset},
                     headers={'Authorization': 'Bearer ' + session.token['access_token']},
                     timeout=ClientTimeout(total=12),
                 ) as response:
@@ -59,7 +60,7 @@ async def async_setup(hass, config):
                         raise SearchError('spotify_unavailable', 'Spotify search could not be loaded. Try again.')
                     return await response.json()
 
-            connection.send_result(msg['id'], await gateway.search(entry.entry_id, query, limit, offset, fetch))
+            connection.send_result(msg['id'], await gateway.search(entry.entry_id, query, limit, offset, fetch, kind=msg.get("kind")))
         except SearchError as error:
             response = websocket_api.error_message(msg['id'], error.code, str(error))
             if error.retry_after is not None:

@@ -102,3 +102,38 @@ class HATests(unittest.IsolatedAsyncioTestCase):
         registry.async_update_entity(self.entity,disabled_by=er.RegistryEntryDisabler.USER)
         result=await self.request({'entities':True})
         self.assertEqual(result['error']['code'],'unauthorized')
+    async def test_typed_schema_rejects_unknown_kind_and_client_account(self):
+        base = {'id': 1, 'type': 'dashboard_spotify/search', 'query': 'q'}
+        for payload in ({'kind': 'episode'}, {'kind': None}, {'kind': 'album', 'entry_id': 'other'}, {'kind': 'artist', 'url': 'spotify://other/uri'}):
+            with self.subTest(payload=payload), self.assertRaises(vol.Invalid):
+                self.schema({**base, **payload})
+        self.assertNotIn('kind', self.schema(base))
+
+    async def test_typed_search_selects_permitted_account_and_groups_independently(self):
+        calls = []
+        async def ensure(): calls.append('authorized-refreshed')
+        self.entry.runtime_data.session = SimpleNamespace(async_ensure_token_valid=ensure, token={'access_token': 'authorized-secret'})
+        other = ConfigEntry(domain='spotify', entry_id='other', title='Other', data={}, options={}, source='user', version=1, minor_version=1, unique_id='other', discovery_keys={}, subentries_data=[], state=ConfigEntryState.LOADED)
+        async def forbidden(): raise AssertionError('Unauthorized account selected')
+        other.runtime_data = SimpleNamespace(session=SimpleNamespace(async_ensure_token_valid=forbidden, token={'access_token': 'unauthorized-secret'}))
+        registry = er.async_get(self.hass)
+        with patch.object(self.hass.config_entries, 'async_get_entry', return_value=other):
+            registry.async_get_or_create('media_player', 'spotify', 'other-account', config_entry=other)
+        class Response:
+            status = 200
+            async def __aenter__(self): return self
+            async def __aexit__(self, *args): pass
+            async def json(self):
+                return {'playlists': {'items': [None, {'name': 'Mix', 'uri': 'spotify:playlist:0DiWol3AO6WpXZgp0goxAV', 'owner': {'display_name': 'Owner'}, 'access_token': 'upstream-secret'}], 'total': 23, 'next': 'next'}, 'artists': {'items': [{'name': 'Artist', 'uri': 'spotify:artist:0DiWol3AO6WpXZgp0goxAV'}], 'total': 1}, 'tracks': {'total': 30, 'next': 'next'}, 'albums': {'total': 0}}
+        def get(url, **kwargs): calls.append(kwargs); return Response()
+        with patch('homeassistant.helpers.aiohttp_client.async_get_clientsession', return_value=SimpleNamespace(get=get)):
+            result = await self.request({'entities': {'entity_ids': {self.entity: {'read': True}}}}, entries=[other, self.entry], kind='all', offset=10)
+        self.assertTrue(result['success'], result)
+        self.assertEqual(calls[0], 'authorized-refreshed')
+        self.assertEqual(calls[1]['params'], {'q': 'Daft Punk', 'type': 'track,playlist,album,artist', 'limit': 10, 'offset': 10})
+        groups = result['result']['groups']
+        self.assertEqual(groups['playlist']['next_offset'], 20)
+        self.assertIsNone(groups['artist']['next_offset'])
+        self.assertEqual(groups['playlist']['items'][0]['media_content_id'], 'spotify://account/spotify:playlist:0DiWol3AO6WpXZgp0goxAV')
+        self.assertFalse(groups['artist']['items'][0]['can_play'])
+        self.assertNotIn('secret', str(result))

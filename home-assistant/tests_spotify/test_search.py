@@ -60,3 +60,46 @@ class GatewayTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(SearchError):await gateway.search('account','extra',10,0,fetch)
         release.set();await asyncio.gather(*tasks)
         self.assertEqual(peak,2)
+
+class TypedSearchTests(unittest.TestCase):
+    def test_grouped_results_keep_independent_pagination_and_authorized_wrappers(self):
+        playlist = {'name': 'Mix', 'uri': 'spotify:playlist:0DiWol3AO6WpXZgp0goxAV', 'owner': {'display_name': 'Owner'}, 'images': [None, {'url': 'http://unsafe'}]}
+        album = {'name': 'Album', 'uri': 'spotify:album:0DiWol3AO6WpXZgp0goxAV', 'artists': [{'name': 'Actual Artist'}]}
+        artist = {'name': 'Actual Artist', 'uri': 'spotify:artist:0DiWol3AO6WpXZgp0goxAV'}
+        payload = {'tracks': {'items': [TRACK], 'total': 100, 'next': 'next'}, 'playlists': {'items': [None, playlist], 'total': 21, 'next': 'next'}, 'albums': {'items': [album], 'total': 1}, 'artists': {'items': [artist], 'total': 12, 'next': 'next'}}
+        result = normalize_search(payload, 0, 10, kind='all', account='AUTHORIZED')
+        self.assertEqual(result['groups']['track']['next_offset'], 10)
+        self.assertEqual(result['groups']['playlist']['total'], 21)
+        self.assertIsNone(result['groups']['album']['next_offset'])
+        p = result['groups']['playlist']['items'][0]
+        self.assertEqual(p['media_content_id'], 'spotify://authorized/spotify:playlist:0DiWol3AO6WpXZgp0goxAV')
+        self.assertEqual(p['media_content_type'], 'spotify://playlist')
+        self.assertEqual(p['subtitle'], 'Owner')
+        self.assertIsNone(p['thumbnail'])
+        self.assertTrue(p['can_play']); self.assertTrue(p['can_expand'])
+        a = result['groups']['artist']['items'][0]
+        self.assertFalse(a['can_play']); self.assertTrue(a['can_expand'])
+        self.assertEqual(result['groups']['album']['items'][0]['subtitle'], 'Actual Artist')
+
+    def test_typed_metadata_and_malformed_matching_uri(self):
+        track = {**TRACK, 'duration_ms': 123456, 'explicit': True, 'album': {'name': 'Discovery'}}
+        page = normalize_search({'tracks': {'items': [track, {**track, 'uri': 'spotify:album:0DiWol3AO6WpXZgp0goxAV'}, {**track, 'artists': None, 'album': None}]}}, 0, 10, kind='track', account='account')
+        self.assertEqual(len(page['items']), 2)
+        self.assertEqual(page['items'][0]['duration_ms'], 123456)
+        self.assertEqual(page['items'][0]['album'], 'Discovery')
+        self.assertTrue(page['items'][0]['explicit'])
+        self.assertEqual(page['items'][0]['kind'], 'track')
+        with self.assertRaises(SearchError): validate_query('ok', kind='episode')
+
+class TypedGatewayTests(unittest.IsolatedAsyncioTestCase):
+    async def test_kind_and_account_have_distinct_cache_and_inflight_keys(self):
+        calls = []
+        async def fetch(*args):
+            calls.append(args); await asyncio.sleep(0.01)
+            return {'tracks': {'items': [TRACK]}, 'albums': {'items': []}}
+        gateway = SearchGateway()
+        await asyncio.gather(gateway.search('a', 'q', 10, 0, fetch, kind='track'), gateway.search('a', 'q', 10, 0, fetch, kind='album'), gateway.search('b', 'q', 10, 0, fetch, kind='track'))
+        self.assertEqual(len(calls), 3)
+        await gateway.search('a', 'q', 10, 0, fetch, kind='album')
+        self.assertEqual(len(calls), 3)
+        await gateway.close()
