@@ -1,3 +1,4 @@
+import { previewSpotify } from './spotify';
 import { createRoot } from 'react-dom/client';
 import { HassContext, useStore, type HassContextProps } from '@hakit/core';
 import { ThemeProvider } from '@hakit/components';
@@ -169,6 +170,7 @@ const connection = {
   sendMessage() {},
   async sendMessagePromise(message: Record<string, unknown>) {
     if (message.type === 'get_states') return Object.values(entities);
+    if (message.type === 'dashboard_spotify/search' || (message.type === 'media_player/browse_media' && message.media_content_type !== 'favorites')) return previewSpotify(message);
     if (message.type === 'media_player/browse_media')
       return {
         children: previewFavourites.map((item, index) => ({

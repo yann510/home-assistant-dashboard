@@ -103,8 +103,8 @@ it('retains speaker slider identity and focus across entity updates and Favourit
   expect(screen.getByRole('slider', { name: 'Group volume' })).toBe(slider);
   fireEvent.click(screen.getByRole('button', { name: 'Close details' }));
   await settleHistory();
-  fireEvent.click(screen.getByRole('button', { name: 'Open favourites' }));
-  expect(screen.getByRole('dialog', { name: 'Favourites' })).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Open music library' }));
+  expect(screen.getByRole('dialog', { name: 'Music' })).toBeTruthy();
   expect(within(screen.getByRole('dialog')).queryByRole('slider', { name: /volume/i })).toBeNull();
   await act(async () => {});
   fireEvent.click(screen.getByRole('button', { name: 'Close details' }));
@@ -118,7 +118,7 @@ it('keeps offline detail access, disables commands, and never replays writes on 
   fixture.disconnect();
   render(<CanvasDashboard />);
   expect((screen.getByRole('button', { name: 'Pause' }) as HTMLButtonElement).disabled).toBe(true);
-  fireEvent.click(screen.getByRole('button', { name: 'Open favourites' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Open music library' }));
   expect(within(screen.getByRole('dialog')).getByText('Reconnecting to Home Assistant. Favourites will load when connected.')).toBeTruthy();
   expect(within(screen.getByRole('dialog')).queryByText('Loading favourites…')).toBeNull();
   expect(within(screen.getByRole('dialog')).queryByRole('button', { name: 'Retry favourites' })).toBeNull();
@@ -278,13 +278,13 @@ it('labels favourites without artwork and surfaces a playback rejection in Favou
     throw new Error('Playback rejected');
   });
   render(<CanvasDashboard />);
-  fireEvent.click(screen.getByRole('button', { name: 'Open favourites' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Open music library' }));
   await act(async () => {});
   const playlist = screen.getByRole('button', { name: 'Play Morning calm' });
   expect(playlist.textContent).toContain('Morning calm');
   fireEvent.click(playlist);
   await act(async () => {});
-  expect(within(screen.getByRole('dialog')).getByRole('alert').textContent).toMatch(/Could not|Playback rejected/);
+  expect(within(screen.getByRole('region', { name: 'Favourites' })).getByRole('alert').textContent).toMatch(/Could not|Playback rejected/);
 });
 
 it('adjusts overview volume through the shared speaker control without opening a modal', async () => {
@@ -306,7 +306,7 @@ it('adjusts overview volume through the shared speaker control without opening a
   expect(screen.getByRole('button', { name: 'Open speaker volume' }).textContent).toBe('34%');
 });
 
-it.each(['Open favourites', 'Open speakers', 'Open speaker volume', 'All lights'])(
+it.each(['Open music library', 'Open speakers', 'Open speaker volume', 'All lights'])(
   'restores the actual %s pointer trigger without pre-focusing it',
   async name => {
     speaker();

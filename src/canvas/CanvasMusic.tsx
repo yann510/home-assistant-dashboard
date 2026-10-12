@@ -81,9 +81,11 @@ export function CanvasTransport() {
 export function CanvasMusic({
   onOpenPlayer,
   onOpenSpeakers,
+  libraryEntrance = true,
 }: {
   onOpenPlayer(trigger: HTMLElement): void;
   onOpenSpeakers(trigger: HTMLElement): void;
+  libraryEntrance?: boolean;
 }) {
   const { session, title, trackTitle, attributes, idle, rooms, disabled, favouritePlayback } = useCanvasMusic();
   const { joinHassUrl } = useHass();
@@ -117,11 +119,11 @@ export function CanvasMusic({
           {!idle && !disabled && attributes?.media_artist && <p>{attributes.media_artist}</p>}
         </div>
       </div>
-      <button className='canvas-music__favourites' aria-label='Open favourites' onClick={event => onOpenPlayer(event.currentTarget)}>
+      {libraryEntrance && <button className='canvas-music__favourites' aria-label='Open music library' onClick={event => onOpenPlayer(event.currentTarget)}>
         <svg viewBox='0 0 24 24' aria-hidden='true'>
           <path d='M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z' />
         </svg>
-      </button>
+      </button>}
       <div className='canvas-music__bottom'>
         <CanvasTransport />
         <SpeakerVolume

@@ -276,7 +276,7 @@ it('finds real devices by name and room and reaches every secondary category', a
   const categories = within(dialog).getByRole('navigation', { name: 'Device categories' });
   expect(within(categories).getAllByRole('button')).toHaveLength(6);
   expect(within(dialog).queryByRole('button', { name: 'Weather' })).toBeNull();
-  expect(within(dialog).queryByRole('button', { name: 'Favourites' })).toBeNull();
+  expect(within(dialog).queryByRole('button', { name: 'Music' })).toBeNull();
   expect(within(dialog).getByRole('button', { name: 'Bedroom thermostat' })).toBeTruthy();
   for (const [destination, title] of [
     ['Lights', 'All lights'],

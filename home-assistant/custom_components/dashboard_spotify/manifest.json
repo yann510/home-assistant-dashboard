@@ -1,0 +1,10 @@
+{
+  "domain": "dashboard_spotify",
+  "name": "Dashboard Spotify search",
+  "version": "1.0.0",
+  "documentation": "https://github.com/yann510/home-assistant-dashboard",
+  "codeowners": [],
+  "dependencies": ["websocket_api"],
+  "after_dependencies": ["spotify"],
+  "iot_class": "cloud_polling"
+}
