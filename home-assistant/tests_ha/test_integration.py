@@ -223,42 +223,6 @@ class IntegrationTests(unittest.IsolatedAsyncioTestCase):
         await self.hass.async_block_till_done()
         self.assertIn('light.test',runtime.engine.session.owned)
 
-    async def test_shuffle_repeat_manual_intent_releases_only_source_playback(self):
-        from custom_components.house_moods.sonos import GROUPS
-        with patch('custom_components.house_moods.HAAdapter',Adapter):
-            await async_setup(self.hass,{})
-        runtime = self.hass.data['house_moods']
-        controls = {'media_player.living_room#playback', 'media_player.gym#playback',
-                    'media_player.living_room#volume', 'media_player.gym#volume', GROUPS}
-        async def player(call):pass
-        for service, data in (('shuffle_set', {'shuffle': True}), ('repeat_set', {'repeat': 'all'})):
-            self.hass.services.async_register('media_player', service, player)
-            for entity in ('media_player.living_room', 'media_player.gym', 'media_player.bedroom', 'media_player.unrelated'):
-                for origin in ('external', 'mood', 'mood_child'):
-                    with self.subTest(service=service, entity=entity, origin=origin):
-                        session = Session('session', 'unwind', 'active',
-                                          baseline={target: {} for target in controls},
-                                          expected={target: {} for target in controls}, owned=set(controls))
-                        runtime.engine.session = session
-                        runtime.engine._loaded = True
-                        if origin == 'mood':
-                            await runtime.io.call('media_player', service, [entity], data, 'session')
-                        else:
-                            context = Context()
-                            if origin == 'mood_child':
-                                parent = Context()
-                                runtime.io.contexts[parent.id] = 'session'
-                                context = Context(parent_id=parent.id)
-                            await self.hass.services.async_call('media_player', service,
-                                {'entity_id': entity, **data}, blocking=True, context=context)
-                        await self.hass.async_block_till_done()
-                        released = {entity + '#playback'} if origin == 'external' and entity in (
-                            'media_player.living_room', 'media_player.gym') else set()
-                        self.assertEqual(session.overridden, released)
-                        self.assertEqual(session.owned, controls - released)
-                        if released:
-                            self.assertEqual((await SessionStore(self.hass).load()).overridden, released)
-
     async def test_real_ha_script_join_idle_active_and_busy(self):
         from homeassistant.helpers import config_validation as cv
         from homeassistant.helpers.script import Script

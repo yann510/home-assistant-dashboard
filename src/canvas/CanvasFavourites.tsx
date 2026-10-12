@@ -3,7 +3,6 @@ import { animateFavouriteArtwork } from './favouriteArtworkTransition';
 import { useHass } from '@hakit/core';
 import type { FavouriteItem } from '../useSpeakerFavourites';
 import { useCanvasMusic } from './CanvasMusicProvider';
-import { MusicArtwork } from './MusicArtwork';
 
 function Artwork({ item }: { item: FavouriteItem }) {
   const { joinHassUrl } = useHass();
@@ -22,7 +21,7 @@ function Artwork({ item }: { item: FavouriteItem }) {
     </span>
   );
 }
-export function CanvasFavourites({ onPlayed, withTitles = false, showFeedback = true }: { onPlayed(): void; withTitles?: boolean; showFeedback?: boolean }) {
+export function CanvasFavourites({ onPlayed }: { onPlayed(): void }) {
   const { favourites: f, favouritePlayback: p, disabled, session } = useCanvasMusic();
   const libraryAvailable =
     session.connected && session.coordinator && !['unknown', 'unavailable'].includes(session.coordinator.state);
@@ -41,7 +40,7 @@ export function CanvasFavourites({ onPlayed, withTitles = false, showFeedback = 
     onPlayed();
   }
   return (
-    <section className={`canvas-favourites${withTitles ? ' canvas-favourites--titled' : ''}`} aria-label='Favourites'>
+    <section className='canvas-favourites' aria-label='Favourites'>
       {!libraryAvailable && (
         <p role='status'>
           {!session.connected
@@ -66,14 +65,14 @@ export function CanvasFavourites({ onPlayed, withTitles = false, showFeedback = 
               disabled={disabled || !!p.pending}
               onClick={event => void play(item, event.currentTarget)}
             >
-              {withTitles ? <><span className='canvas-player__artwork'><MusicArtwork item={item} /></span><strong>{item.title}</strong></> : <Artwork key={item.thumbnail} item={item} />}
+              <Artwork key={item.thumbnail} item={item} />
             </button>
           ))}
         </div>
       )}
-      {showFeedback && p.playStatus && <p role='status'>{p.playStatus}</p>}
-      {showFeedback && p.pending && <p role='status'>Starting {p.pending.title}…</p>}
-      {showFeedback && (p.playError || p.commandError) && <p role='alert'>{p.playError || p.commandError}</p>}
+      {p.playStatus && <p role='status'>{p.playStatus}</p>}
+      {p.pending && <p role='status'>Starting {p.pending.title}…</p>}
+      {(p.playError || p.commandError) && <p role='alert'>{p.playError || p.commandError}</p>}
     </section>
   );
 }

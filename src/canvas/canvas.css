@@ -1,15 +1,3 @@
-/* Export only the scrollbar palette while the canvas is mounted, so document
-   scrolling matches the surface without changing classic dashboard styling. */
-.canvas, html:has(.canvas), body:has(.canvas) {
-  --canvas-lilac: #cbb5ed;
-  --canvas-line: #48444e;
-}
-html:has(.canvas), body:has(.canvas) { scrollbar-width: thin; scrollbar-color: var(--canvas-line) transparent; }
-html:has(.canvas)::-webkit-scrollbar, body:has(.canvas)::-webkit-scrollbar { width: 8px; height: 8px; }
-html:has(.canvas)::-webkit-scrollbar-track, body:has(.canvas)::-webkit-scrollbar-track { background: transparent; }
-html:has(.canvas)::-webkit-scrollbar-thumb, body:has(.canvas)::-webkit-scrollbar-thumb { background: var(--canvas-line); border-radius: 10px; }
-html:has(.canvas)::-webkit-scrollbar-thumb:hover, body:has(.canvas)::-webkit-scrollbar-thumb:hover { background: var(--canvas-lilac); }
-
 /* Shared rhythm is also available to dialogs, which render outside the overview. */
 :is(.canvas, .canvas-dialog) {
   --canvas-space-1: 4px;
@@ -26,6 +14,8 @@ html:has(.canvas)::-webkit-scrollbar-thumb:hover, body:has(.canvas)::-webkit-scr
   --canvas-ink: #f6f0e6;
   --canvas-muted: #b6b0bb;
   --canvas-coral: #f1aa8e;
+  --canvas-lilac: #cbb5ed;
+  --canvas-line: #48444e;
   min-height: 0;
   background: var(--canvas-bg);
   color: var(--canvas-ink);

@@ -70,11 +70,10 @@ async function service(domain: string, name: string, targets: string[], data: Re
   }
 }
 
-export function useSpeakerRooms({ source, members, disabled, onSourceChanged, pinSource, isBlocked }: {
+export function useSpeakerRooms({ source, members, disabled, onSourceChanged, pinSource }: {
   source: SpeakerId;
   members: SpeakerId[];
   disabled: boolean;
-  isBlocked?: () => boolean;
   onSourceChanged?: (source: string) => void;
   pinSource?: (source: string | null) => void;
 }) {
@@ -155,7 +154,7 @@ export function useSpeakerRooms({ source, members, disabled, onSourceChanged, pi
   }, [source]);
   async function perform(manual = false, consent?: string, immediateSelection?: string[]) {
     const requested = immediateSelection ?? selected;
-    if (isBlocked?.() || pending.current || disabled || (!manual && locked)) return;
+    if (pending.current || disabled || (!manual && locked)) return;
     if (!manual) {
       if (original.current !== signature(membersOf(source))) {
         setConflict(null);
@@ -277,7 +276,7 @@ export function useSpeakerRooms({ source, members, disabled, onSourceChanged, pi
   async function removeSource() {
     const before = membersOf(source);
     const remaining = before.filter(id => id !== source);
-    if (isBlocked?.() || !onSourceChanged || !pinSource || !remaining.length || locked || pending.current) return;
+    if (!onSourceChanged || !pinSource || !remaining.length || locked || pending.current) return;
     pending.current = true;
     const controller = new AbortController();
     active.current = controller;
@@ -372,7 +371,7 @@ export function useSpeakerRooms({ source, members, disabled, onSourceChanged, pi
   }
 
   async function toggleRoom(id: string) {
-    if (isBlocked?.() || locked || pending.current) return;
+    if (locked || pending.current) return;
     if (id === source) {
       await removeSource();
       return;

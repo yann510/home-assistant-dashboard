@@ -103,8 +103,8 @@ it('retains speaker slider identity and focus across entity updates and Favourit
   expect(screen.getByRole('slider', { name: 'Group volume' })).toBe(slider);
   fireEvent.click(screen.getByRole('button', { name: 'Close details' }));
   await settleHistory();
-  fireEvent.click(screen.getByRole('button', { name: 'Browse music' }));
-  expect(screen.getByRole('dialog', { name: 'Music' })).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Open favourites' }));
+  expect(screen.getByRole('dialog', { name: 'Favourites' })).toBeTruthy();
   expect(within(screen.getByRole('dialog')).queryByRole('slider', { name: /volume/i })).toBeNull();
   await act(async () => {});
   fireEvent.click(screen.getByRole('button', { name: 'Close details' }));
@@ -118,7 +118,7 @@ it('keeps offline detail access, disables commands, and never replays writes on 
   fixture.disconnect();
   render(<CanvasDashboard />);
   expect((screen.getByRole('button', { name: 'Pause' }) as HTMLButtonElement).disabled).toBe(true);
-  fireEvent.click(screen.getByRole('button', { name: 'Browse music' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Open favourites' }));
   expect(within(screen.getByRole('dialog')).getByText('Reconnecting to Home Assistant. Favourites will load when connected.')).toBeTruthy();
   expect(within(screen.getByRole('dialog')).queryByText('Loading favourites…')).toBeNull();
   expect(within(screen.getByRole('dialog')).queryByRole('button', { name: 'Retry favourites' })).toBeNull();
@@ -278,22 +278,18 @@ it('labels favourites without artwork and surfaces a playback rejection in Favou
     throw new Error('Playback rejected');
   });
   render(<CanvasDashboard />);
-  fireEvent.click(screen.getByRole('button', { name: 'Browse music' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Open favourites' }));
   await act(async () => {});
   const playlist = screen.getByRole('button', { name: 'Play Morning calm' });
   expect(playlist.textContent).toContain('Morning calm');
   fireEvent.click(playlist);
   await act(async () => {});
-  expect(within(screen.getByRole('region', { name: 'Music playback' })).getByRole('alert').textContent).toMatch(/Could not|Playback rejected/);
+  expect(within(screen.getByRole('dialog')).getByRole('alert').textContent).toMatch(/Could not|Playback rejected/);
 });
 
 it('adjusts overview volume through the shared speaker control without opening a modal', async () => {
   speaker();
-  fixture.respondWith(async message => {
-    const request = message as { type: string; service?: string };
-    // Service discovery is a read and must not simulate a volume change.
-    if (request.type === 'get_services') return {};
-    expect(request).toMatchObject({ type: 'call_service', service: 'volume_set' });
+  fixture.respondWith(async () => {
     fixture.publish('media_player.living_room', 'playing', {
       ...fixture.getState().entities['media_player.living_room'].attributes,
       volume_level: 0.34,
@@ -307,11 +303,10 @@ it('adjusts overview volume through the shared speaker control without opening a
   expect(fixture.calls).toContainEqual(
     expect.objectContaining({ domain: 'media_player', service: 'volume_set', service_data: { volume_level: 0.34 } })
   );
-  expect(fixture.calls.filter(call => (call as { type: string }).type === 'call_service')).toHaveLength(1);
   expect(screen.getByRole('button', { name: 'Open speaker volume' }).textContent).toBe('34%');
 });
 
-it.each(['Browse music', 'Open speakers', 'Open speaker volume', 'All lights'])(
+it.each(['Open favourites', 'Open speakers', 'Open speaker volume', 'All lights'])(
   'restores the actual %s pointer trigger without pre-focusing it',
   async name => {
     speaker();

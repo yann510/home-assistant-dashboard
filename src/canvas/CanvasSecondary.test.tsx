@@ -278,7 +278,7 @@ it('finds real devices by name and room and reaches every secondary category', a
   const categories = within(dialog).getByRole('navigation', { name: 'Device categories' });
   expect(within(categories).getAllByRole('button')).toHaveLength(6);
   expect(within(dialog).queryByRole('button', { name: 'Weather' })).toBeNull();
-  expect(within(dialog).queryByRole('button', { name: 'Music' })).toBeNull();
+  expect(within(dialog).queryByRole('button', { name: 'Favourites' })).toBeNull();
   expect(within(dialog).queryByRole('button', { name: 'Bedroom thermostat' })).toBeNull();
   expect(within(dialog).queryByRole('navigation', { name: 'Device directory' })).toBeNull();
   expect(within(dialog).queryByRole('status')).toBeNull();
@@ -371,7 +371,7 @@ it('searches actual speaker friendly names and routes to live speaker controls',
   });
   fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Bath Sonos' }));
   expect(screen.getByRole('dialog', { name: 'Speakers' })).toBeTruthy();
-  expect(ref.current!.calls.filter(call => (call as { type: string }).type === 'call_service')).toHaveLength(0);
+  expect(ref.current!.calls).toHaveLength(0);
 });
 
 it('mounts and reconnects Roomba detail without sending a command, filtering unsupported controls', () => {
