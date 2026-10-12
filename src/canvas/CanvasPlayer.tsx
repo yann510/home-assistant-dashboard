@@ -22,23 +22,32 @@ export const CanvasPlayer: FC<{ onClose(): void }> = () => {
   const browser = useSpotifyBrowser(session.entityId, available && !speakers, searching ? 'search' : 'home', query, folder);
   useEffect(() => { setLibraryOpen(true); return () => setLibraryOpen(false); }, [setLibraryOpen]);
   useEffect(() => { if (content.current) content.current.scrollTop = 0; }, [query, folder, speakers]);
-  function openFolder(item: MusicItem) { setFolders(old => [...old, item]); }
+  function openFolder(item: MusicItem) { if (available) setFolders(old => [...old, item]); }
+  function activate(item: MusicItem) {
+    if (item.can_play) {
+      if (available && !disabled && !playback.pending) void playback.play(item);
+    } else if (item.can_expand) openFolder(item);
+  }
   function goHome() { setQuery(''); setFolders([]); setSpeakers(false); }
   function cards(items: MusicItem[]) {
     return <div className='canvas-player__cards'>{items.map(item => <article key={item.media_content_type + ':' + item.media_content_id} className='canvas-player__card'>
-      <button className='canvas-player__item' aria-label={`${item.can_expand ? 'Open' : 'Play'} ${item.title}`} disabled={item.can_expand ? !available : disabled || !!playback.pending || !item.can_play} onClick={() => item.can_expand ? openFolder(item) : void playback.play(item)}><span className='canvas-player__artwork'><MusicArtwork item={item} />{item.can_expand && <span className='canvas-player__open-hint' aria-hidden='true'>Explore ↗</span>}</span><strong>{item.title}</strong>{item.subtitle && <small>{item.subtitle}</small>}</button>
-      {item.can_expand && item.can_play && <button className='canvas-player__play-collection' disabled={disabled || !!playback.pending} aria-label={`Play ${item.title}`} onClick={() => void playback.play(item)}>▶ Play</button>}
+      <button className='canvas-player__item' aria-label={`${item.can_play ? 'Play' : 'Open'} ${item.title}`} disabled={!available || (item.can_play ? disabled || !!playback.pending : !item.can_expand)} onClick={() => activate(item)}><span className='canvas-player__artwork'><MusicArtwork item={item} />{(item.can_play || item.can_expand) && <span className={`canvas-player__open-hint${item.can_play ? ' canvas-player__play-hint' : ''}`} aria-hidden='true'>{item.can_play ? '▶ Play' : 'Explore ↗'}</span>}</span><strong>{item.title}</strong>{item.subtitle && <small>{item.subtitle}</small>}</button>
     </article>)}</div>;
+  }
+  const likedSongs = browser.categories.find(item => item.media_content_id.endsWith('/current_user_saved_tracks'));
+  function likedShortcut() {
+    return likedSongs && <button className='canvas-player__liked-shortcut' aria-label={`Open ${likedSongs.title}`} disabled={!available} onClick={() => openFolder(likedSongs)}><span className='canvas-player__artwork'><MusicArtwork item={likedSongs} /></span><span><strong>{likedSongs.title}</strong><small>Your saved songs</small></span><span className='canvas-player__liked-arrow' aria-hidden='true'>↗</span></button>;
   }
   function section(categoryId: string) {
     const section = browser.sections.find(item => item.category.media_content_id.endsWith('/' + categoryId));
     if (!section) return null;
     return <section className='canvas-player__section' key={categoryId} aria-label={section.title}>
       <div className='canvas-player__section-heading'><h3>{section.title}</h3><button disabled={!available} onClick={() => openFolder(section.category)} aria-label={`See all ${section.title}`}>See all <span aria-hidden='true'>↗</span></button></div>
+      {categoryId === 'current_user_playlists' && likedShortcut()}
       {section.error ? <p role='alert'>{section.error} <button onClick={browser.retry}>Retry {section.title}</button></p> : section.items.length ? cards(section.items) : <p>No music here yet.</p>}
     </section>;
   }
-  const collections = browser.categories.filter(item => !/\/(current_user_playlists|current_user_top_tracks|current_user_recently_played)$/.test(item.media_content_id));
+  const collections = browser.categories.filter(item => !/\/(current_user_playlists|current_user_top_tracks|current_user_recently_played|current_user_saved_tracks)$/.test(item.media_content_id));
   return <div className='canvas-player'>
     <div className='canvas-player__search'><label><span>Search Spotify songs</span><input type='search' aria-label='Search Spotify songs' placeholder='Find a song you love' value={query} onChange={event => { setQuery(event.target.value); setFolders([]); setSpeakers(false); }} autoComplete='off' /></label>{searching && <button onClick={goHome}>Clear search</button>}</div>
     <div className='canvas-player__content' ref={content}>
@@ -50,6 +59,7 @@ export const CanvasPlayer: FC<{ onClose(): void }> = () => {
         {!!browser.items.length && cards(browser.items)}
         {home && <>
           {section('current_user_playlists')}
+          {!browser.sections.some(item => item.category.media_content_id.endsWith('/current_user_playlists')) && likedShortcut()}
           <section className='canvas-player__section' aria-label='Sonos favourites'><div className='canvas-player__section-heading'><h3>Sonos favourites</h3></div><CanvasFavourites withTitles showFeedback={false} onPlayed={() => {}} /></section>
           {section('current_user_top_tracks')}
           {section('current_user_recently_played')}

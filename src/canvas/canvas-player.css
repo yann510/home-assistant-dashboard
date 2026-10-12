@@ -37,7 +37,16 @@
 .canvas-player__collage[data-count='2'] { grid-template-rows: 1fr; }
 .canvas-player__collage[data-count='3'] > :last-child { grid-column: 1 / -1; }
 .canvas-player__open-hint { position: absolute; bottom: 8px; right: 8px; padding: 4px 8px; border-radius: 20px; background: color-mix(in srgb, var(--canvas-bg) 85%, transparent); color: var(--canvas-ink); font-size: .65rem; }
-.canvas-dialog .canvas-player__play-collection { align-self: start; margin-top: auto; min-height: 44px; padding: 5px 12px; border-radius: 22px; font-size: .75rem; background: color-mix(in srgb, var(--canvas-lilac) 9%, var(--canvas-surface)); border-color: var(--canvas-line); }
+.canvas-player__play-hint { background: color-mix(in srgb, var(--canvas-lilac) 85%, var(--canvas-surface)); color: var(--canvas-bg); }
+.canvas-dialog .canvas-player__liked-shortcut { display: flex; align-items: center; gap: 12px; width: min(100%, 360px); min-height: 64px; padding: 8px 12px 8px 8px; margin-bottom: 16px; border: 1px solid var(--canvas-line); border-radius: 16px; background: color-mix(in srgb, var(--canvas-lilac) 9%, var(--canvas-surface)); color: var(--canvas-ink); text-align: left; }
+.canvas-player__liked-shortcut .canvas-player__artwork { width: 48px; flex-shrink: 0; border-radius: 10px; }
+.canvas-player__liked-shortcut > span:nth-child(2) { display: grid; gap: 3px; }
+.canvas-player__liked-shortcut strong { font-size: .85rem; }
+.canvas-player__liked-shortcut small { font-size: .75rem; color: var(--canvas-muted); }
+.canvas-player__liked-arrow { margin-left: auto; color: var(--canvas-lilac); }
+.canvas-dialog .canvas-player__liked-shortcut:hover:not(:disabled) { border-color: var(--canvas-lilac); }
+.canvas-dialog .canvas-player__liked-shortcut:active:not(:disabled) { background: color-mix(in srgb, var(--canvas-lilac) 18%, var(--canvas-surface)); }
+.canvas-dialog .canvas-player__liked-shortcut:disabled { opacity: .55; cursor: not-allowed; }
 .canvas-player :is(button, input):focus-visible { outline: 2px solid var(--canvas-lilac); outline-offset: 3px; }
 .canvas-player__item:hover:not(:disabled) .canvas-player__artwork, .canvas-favourites--titled button:hover:not(:disabled) .canvas-player__artwork { border-color: var(--canvas-lilac); filter: brightness(1.06); }
 .canvas-player__item:active:not(:disabled) .canvas-player__artwork { filter: brightness(.9); }
