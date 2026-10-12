@@ -204,7 +204,7 @@ export function CanvasDevices({
   const matches = entries.filter(entry =>
     `${entry.name} ${entry.detail} ${entry.category} ${entry.room} ${entry.search}`.toLocaleLowerCase().includes(needle)
   );
-  const visibleEntries = needle ? matches : entries.filter(entry => !entry.id.startsWith('category:'));
+  const visibleEntries = needle ? matches : [];
   return (
     <div className='canvas-devices'>
       <label>
@@ -266,14 +266,14 @@ export function CanvasDevices({
             </button>
           ))}
         </nav>
-      ) : (
+      ) : needle ? (
         <div role='status'>
           <p>No devices found. Try another room or shorter name.</p>
           <button type='button' onClick={() => onQueryChange('')}>
             Clear search
           </button>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

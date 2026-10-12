@@ -267,6 +267,8 @@ it('finds real devices by name and room and reaches every secondary category', a
   fireEvent.click(screen.getByRole('button', { name: 'All devices' }));
   const dialog = screen.getByRole('dialog', { name: 'All devices' });
   const search = within(dialog).getByRole('searchbox', { name: 'Find a device or room' });
+  expect(within(dialog).queryByRole('navigation', { name: 'Device directory' })).toBeNull();
+  expect(within(dialog).queryByRole('status')).toBeNull();
   fireEvent.change(search, { target: { value: 'laundry' } });
   expect(within(dialog).getByRole('button', { name: /Laundry/ })).toBeTruthy();
   fireEvent.change(search, { target: { value: 'Bedroom' } });
@@ -277,7 +279,9 @@ it('finds real devices by name and room and reaches every secondary category', a
   expect(within(categories).getAllByRole('button')).toHaveLength(6);
   expect(within(dialog).queryByRole('button', { name: 'Weather' })).toBeNull();
   expect(within(dialog).queryByRole('button', { name: 'Music' })).toBeNull();
-  expect(within(dialog).getByRole('button', { name: 'Bedroom thermostat' })).toBeTruthy();
+  expect(within(dialog).queryByRole('button', { name: 'Bedroom thermostat' })).toBeNull();
+  expect(within(dialog).queryByRole('navigation', { name: 'Device directory' })).toBeNull();
+  expect(within(dialog).queryByRole('status')).toBeNull();
   for (const [destination, title] of [
     ['Lights', 'All lights'],
     ['Blinds', 'Blinds'],
@@ -294,6 +298,8 @@ it('finds real devices by name and room and reaches every secondary category', a
   }
   fireEvent.change(screen.getByRole('searchbox'), { target: { value: '   ' } });
   expect(screen.getByRole('navigation', { name: 'Device categories' })).toBeTruthy();
+  expect(within(screen.getByRole('dialog')).queryByRole('navigation', { name: 'Device directory' })).toBeNull();
+  expect(within(screen.getByRole('dialog')).queryByRole('status')).toBeNull();
 });
 
 it('searches a vacuum by its actual name and recovers from an empty search', async () => {
@@ -311,6 +317,8 @@ it('searches a vacuum by its actual name and recovers from an empty search', asy
   expect(screen.getByText('No devices found. Try another room or shorter name.')).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: 'Clear search' }));
   expect(within(screen.getByRole('navigation', { name: 'Device categories' })).getAllByRole('button')).toHaveLength(6);
+  expect(within(screen.getByRole('dialog')).queryByRole('navigation', { name: 'Device directory' })).toBeNull();
+  expect(within(screen.getByRole('dialog')).queryByRole('status')).toBeNull();
   expect(ref.current!.calls).toHaveLength(0);
 });
 
@@ -1054,6 +1062,7 @@ it.each([
 ])('focuses the specific directory destination %s without device writes', async (name, id) => {
   render(<CanvasDashboard />);
   fireEvent.click(screen.getByRole('button', { name: 'All devices' }));
+  fireEvent.change(screen.getByRole('searchbox'), { target: { value: name } });
   const directory = screen.getByRole('navigation', { name: 'Device directory' });
   const entry = within(directory).getByRole('button', { name });
   fireEvent.click(entry);
@@ -1140,6 +1149,7 @@ it.each([
   ref.current!.disconnect();
   render(<CanvasDashboard />);
   fireEvent.click(screen.getByRole('button', { name: 'All devices' }));
+  fireEvent.change(screen.getByRole('searchbox'), { target: { value: name } });
   fireEvent.click(within(screen.getByRole('navigation', { name: 'Device directory' })).getByRole('button', { name }));
   const dialog = screen.getByRole('dialog');
   const target = dialog.querySelector<HTMLElement>(`[data-canvas-destination="${id}"]`)!;
