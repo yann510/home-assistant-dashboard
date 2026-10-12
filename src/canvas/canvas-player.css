@@ -37,7 +37,7 @@
 .canvas-player__collage[data-count='2'] { grid-template-rows: 1fr; }
 .canvas-player__collage[data-count='3'] > :last-child { grid-column: 1 / -1; }
 .canvas-player__open-hint { position: absolute; bottom: 8px; right: 8px; padding: 4px 8px; border-radius: 20px; background: color-mix(in srgb, var(--canvas-bg) 85%, transparent); color: var(--canvas-ink); font-size: .65rem; }
-.canvas-dialog .canvas-player__play-collection { align-self: start; min-height: 44px; padding: 5px 12px; border-radius: 22px; font-size: .75rem; background: color-mix(in srgb, var(--canvas-lilac) 9%, var(--canvas-surface)); border-color: var(--canvas-line); }
+.canvas-dialog .canvas-player__play-collection { align-self: start; margin-top: auto; min-height: 44px; padding: 5px 12px; border-radius: 22px; font-size: .75rem; background: color-mix(in srgb, var(--canvas-lilac) 9%, var(--canvas-surface)); border-color: var(--canvas-line); }
 .canvas-player :is(button, input):focus-visible { outline: 2px solid var(--canvas-lilac); outline-offset: 3px; }
 .canvas-player__item:hover:not(:disabled) .canvas-player__artwork, .canvas-favourites--titled button:hover:not(:disabled) .canvas-player__artwork { border-color: var(--canvas-lilac); filter: brightness(1.06); }
 .canvas-player__item:active:not(:disabled) .canvas-player__artwork { filter: brightness(.9); }
