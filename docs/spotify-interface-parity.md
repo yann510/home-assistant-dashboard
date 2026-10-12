@@ -18,13 +18,13 @@ The user's accepted constraints remain: a compact unified home, no wide sidebar,
 
 ## Current evidence and next work
 
-At 389376e, the first target and direct playlist playback are live; Liked songs loads real saved tracks. Collection actions, track rows and history are the active implementation slice.
+Home, direct playlist playback, Liked songs, collection actions, compact track rows and dialog-local history are live. The real queue, Spotify enqueue actions and observed shuffle/repeat controls are also live, verified in docs/canvas-qa/spotify-listening-2026-10-12.md.
 
-Catalog search currently searches tracks only. Broader types require extending the authenticated dashboard_spotify adapter, installing it, and restarting Home Assistant.
+The frontend still searches tracks only. The authenticated dashboard_spotify adapter now supports all/track/playlist/album/artist, is installed and active, and has been verified against real Spotify responses. Implementing the frontend category filters and grouped results is next.
 
 Read-only live inspection confirms all four Sonos players advertise feature flags 8321599 and expose shuffle/repeat attributes. sonos.get_queue is registered; a call returned the real Living Room queue as an array of 50 entries at response[entityId]. Official integration supports media_player.play_media enqueue add/next for Spotify media, but arbitrary Sonos favourites must not inherit enqueue because their integration branch replaces playback.
 
-Shuffle/repeat also need the house_moods manual service-intent observer updated so a manual gesture releases playback ownership. Existing queue/play_media calls already participate in that ownership handling.
+The house_moods manual service-intent observer now handles shuffle/repeat so a manual gesture releases playback ownership. Existing queue/play_media calls also participate in that ownership handling.
 
 Library edits are not currently available: the Home Assistant Spotify integration requests library read access. Any future save/unsave or playlist editing action needs a proven authorized API path; do not display a working-looking control that cannot persist its change.
 
@@ -37,3 +37,5 @@ The server must generate album/playlist/artist browse IDs as spotify://<authoriz
 The HA browse bridge omits artist/duration metadata and has no collection pagination contract. Rich, complete collection pages will need a bounded backend detail endpoint. Development-mode third-party playlist detail may be restricted to owner/collaborator access; preserve Play and report unavailable detail clearly rather than displaying an empty playlist.
 
 Primary references: [Spotify Search API](https://developer.spotify.com/documentation/web-api/reference/search), [2026 migration guide](https://developer.spotify.com/documentation/web-api/tutorials/february-2026-migration-guide), [HA Spotify browse bridge](https://raw.githubusercontent.com/home-assistant/core/2026.9.3/homeassistant/components/spotify/browse_media.py), [Sonos media browser](https://raw.githubusercontent.com/home-assistant/core/2026.9.3/homeassistant/components/sonos/media_browser.py), [Sonos queue action](https://www.home-assistant.io/actions/sonos.get_queue/).
+
+Typed search contract: kind omitted retains the legacy track page; an explicit single kind returns {kind,items,total,next_offset}; all returns {kind:"all",groups:{track,playlist,album,artist}} with independent category page metadata. Backend activation is complete, so frontend typed-search work needs no additional restart.
