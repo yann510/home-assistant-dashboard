@@ -35,7 +35,7 @@ function installLibrary() {
   const playlist = { ...node('spotify:playlist:actual', 'Evening playlist'), can_play: true, thumbnail: '/cover.jpg' };
   const song = { title: 'Real song', media_content_id: 'spotify:track:actual', media_content_type: 'music', can_play: true };
   const send = vi.fn(async (message: Record<string, string>) => {
-    if (message.type === 'dashboard_spotify/search') return { items: [song], total: 1, next_offset: null };
+    if (message.type === 'dashboard_spotify/search') return { items: [song], total: 1, next_offset: null as number | null };
     if (!message.media_content_id) return { children: [node('library', 'Spotify')] };
     if (message.media_content_id.endsWith('/library')) return { children: categories };
     if (message.media_content_id.endsWith('/current_user_playlists')) return { children: [playlist] };
@@ -48,11 +48,11 @@ it('integrates playlists, favourites and personal collections in one home withou
   installLibrary();
   render(<CanvasPlayer onClose={() => {}} />);
   await screen.findByRole('button', { name: 'Play Evening playlist' });
-  expect(screen.queryByRole('navigation', { name: 'Music navigation' })).toBeNull();
+  expect(screen.getByRole('navigation', { name: 'Music navigation' })).toBeTruthy();
   expect(screen.getAllByRole('heading', { level: 3 }).map(x => x.textContent)).toEqual(['Playlists', 'Sonos favourites', 'Top Tracks', 'Recently played', 'Your library']);
   expect(screen.getByRole('button', { name: 'Open Liked songs' })).toBeTruthy();
 });
-it('clearing song search restores playlist home and See all browses the real category with breadcrumbs', async () => {
+it('clearing song search restores playlist home and See all browses the real category', async () => {
   const send = installLibrary();
   render(<CanvasPlayer onClose={() => {}} />);
   await screen.findByRole('button', { name: 'Play Evening playlist' });
@@ -62,9 +62,9 @@ it('clearing song search restores playlist home and See all browses the real cat
   await screen.findByRole('button', { name: 'Play Evening playlist' });
   expect((screen.getByRole('searchbox') as HTMLInputElement).value).toBe('');
   fireEvent.click(screen.getByRole('button', { name: 'See all Playlists' }));
-  await screen.findByRole('navigation', { name: 'Music breadcrumbs' });
+  await screen.findByRole('heading', { name: 'Playlists' });
   expect(send).toHaveBeenCalledWith(expect.objectContaining({ media_content_id: 'spotify://account/current_user_playlists' }));
-  expect(screen.getByRole('navigation', { name: 'Music breadcrumbs' })).toBeTruthy();
+  expect(screen.queryByRole('navigation', { name: 'Music breadcrumbs' })).toBeNull();
   fireEvent.click(screen.getByRole('button', { name: 'Music home' }));
   await screen.findByRole('button', { name: 'Play Evening playlist' });
 });
@@ -138,5 +138,100 @@ it('places one Liked songs shortcut above playlist cards and browses the actual 
   await screen.findByRole('button', { name: 'Play Real song' });
   expect(send).toHaveBeenCalledWith(expect.objectContaining({ media_content_id: 'spotify://account/current_user_saved_tracks', media_content_type: 'spotify://current_user_saved_tracks' }));
   expect(music.favouritePlayback.play).not.toHaveBeenCalled();
+  expect(screen.queryByRole('navigation', { name: 'Music breadcrumbs' })).toBeNull();
+});
+
+it('browses playlist tracks separately, with real artwork and collection play guarded while pending', async () => {
+  installLibrary();
+  const { rerender } = render(<CanvasPlayer onClose={() => {}} />);
+  const details = await screen.findByRole('button', { name: 'View tracks Evening playlist' });
+  expect(details.parentElement?.closest('button')).toBeNull();
+  fireEvent.click(details);
+  await screen.findByRole('heading', { name: 'Evening playlist' });
+  expect(music.favouritePlayback.play).not.toHaveBeenCalled();
+  expect(screen.getByRole('region', { name: 'Evening playlist collection' }).querySelector('img')?.getAttribute('src')).toBe('/cover.jpg');
+  expect(await screen.findByText('1 song')).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Play collection Evening playlist' }));
+  expect(music.favouritePlayback.play).toHaveBeenCalledWith(expect.objectContaining({ media_content_id: 'spotify://account/spotify:playlist:actual' }));
+  music.favouritePlayback.pending = { title: 'Starting music' };
+  rerender(<CanvasPlayer onClose={() => {}} />);
+  expect((screen.getByRole('button', { name: 'Play collection Evening playlist' }) as HTMLButtonElement).disabled).toBe(true);
+  expect((screen.getByRole('button', { name: 'Play Real song' }) as HTMLButtonElement).disabled).toBe(true);
+});
+it('restores collection and search history without adding an entry per search character, and truncates forward history', async () => {
+  installLibrary();
+  render(<CanvasPlayer onClose={() => {}} />);
+  await screen.findByRole('button', { name: 'Open Liked songs' });
+  expect((screen.getByRole('button', { name: 'Back' }) as HTMLButtonElement).disabled).toBe(true);
+  expect((screen.getByRole('button', { name: 'Forward' }) as HTMLButtonElement).disabled).toBe(true);
+  fireEvent.click(screen.getByRole('button', { name: 'Open Liked songs' }));
+  await screen.findByRole('heading', { name: 'Liked songs' });
+  fireEvent.change(screen.getByRole('searchbox', { name: 'Search Spotify songs' }), { target: { value: 's' } });
+  fireEvent.change(screen.getByRole('searchbox', { name: 'Search Spotify songs' }), { target: { value: 'song' } });
+  await screen.findByRole('heading', { name: 'Search results' });
+  fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+  await screen.findByRole('heading', { name: 'Liked songs' });
+  expect((screen.getByRole('searchbox', { name: 'Search Spotify songs' }) as HTMLInputElement).value).toBe('');
+  fireEvent.click(screen.getByRole('button', { name: 'Forward' }));
+  expect((screen.getByRole('searchbox', { name: 'Search Spotify songs' }) as HTMLInputElement).value).toBe('song');
+  fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Music home' }));
+  await screen.findByRole('button', { name: 'Play Evening playlist' });
+  expect((screen.getByRole('button', { name: 'Forward' }) as HTMLButtonElement).disabled).toBe(true);
+});
+it('uses compact song rows and filters only the loaded collection, without creating category playback', async () => {
+  const send = installLibrary();
+  render(<CanvasPlayer onClose={() => {}} />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Open Liked songs' }));
+  const play = await screen.findByRole('button', { name: 'Play Real song' });
+  expect(play.closest('.canvas-player__song')).toBeTruthy();
+  fireEvent.click(screen.getByText('Real song'));
+  expect(music.favouritePlayback.play).toHaveBeenCalledWith(expect.objectContaining({ media_content_id: 'spotify:track:actual' }));
+  expect(screen.queryByRole('button', { name: 'Play collection Liked songs' })).toBeNull();
+  send.mockClear();
+  fireEvent.change(screen.getByRole('searchbox', { name: 'Find in loaded songs' }), { target: { value: 'missing' } });
+  expect(screen.getByText('No loaded songs match your filter.')).toBeTruthy();
+  expect(screen.queryByRole('button', { name: 'Play Real song' })).toBeNull();
+  expect(send).not.toHaveBeenCalled();
+});
+
+it('keeps playlist detail browsing enabled while playback is pending and navigates nested breadcrumbs', async () => {
+  installLibrary();
+  render(<CanvasPlayer onClose={() => {}} />);
+  fireEvent.click(await screen.findByRole('button', { name: 'See all Playlists' }));
+  await screen.findByRole('heading', { name: 'Playlists' });
+  music.favouritePlayback.pending = { title: 'Other track' };
+  fireEvent.click(await screen.findByRole('button', { name: 'View tracks Evening playlist' }));
+  await screen.findByRole('heading', { name: 'Evening playlist' });
+  expect(music.favouritePlayback.play).not.toHaveBeenCalled();
   expect(screen.getByRole('navigation', { name: 'Music breadcrumbs' })).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Playlists' }));
+  await screen.findByRole('heading', { name: 'Playlists' });
+  fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+  await screen.findByRole('heading', { name: 'Evening playlist' });
+});
+it('returns to the prior collection when a search is emptied', async () => {
+  installLibrary();
+  render(<CanvasPlayer onClose={() => {}} />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Open Liked songs' }));
+  await screen.findByRole('heading', { name: 'Liked songs' });
+  fireEvent.change(screen.getByRole('searchbox', { name: 'Search Spotify songs' }), { target: { value: 'song' } });
+  await screen.findByRole('heading', { name: 'Search results' });
+  fireEvent.change(screen.getByRole('searchbox', { name: 'Search Spotify songs' }), { target: { value: '' } });
+  await screen.findByRole('heading', { name: 'Liked songs' });
+});
+it('keeps the current scroll position when loading another search page', async () => {
+  const send = installLibrary();
+  const respond = send.getMockImplementation()!;
+  send.mockImplementation(async message => message.type === 'dashboard_spotify/search' ? {
+    items: [{ title: message.offset ? 'Second song' : 'First song', media_content_id: message.offset ? 'spotify:track:second' : 'spotify:track:first', media_content_type: 'music', can_play: true }], total: 2, next_offset: message.offset ? null : 10,
+  } : respond(message));
+  const { container } = render(<CanvasPlayer onClose={() => {}} />);
+  fireEvent.change(screen.getByRole('searchbox', { name: 'Search Spotify songs' }), { target: { value: 'song' } });
+  await screen.findByRole('button', { name: 'Play First song' });
+  const content = container.querySelector('.canvas-player__content')!;
+  content.scrollTop = 250;
+  fireEvent.click(screen.getByRole('button', { name: 'Load more songs' }));
+  await screen.findByRole('button', { name: 'Play Second song' });
+  expect(content.scrollTop).toBe(250);
 });
