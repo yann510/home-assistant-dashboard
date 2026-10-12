@@ -34,7 +34,7 @@ function useCanvasVacuumController() {
   }
 
   function selectAllRooms() {
-    if (!roomsLocked && !busy.current) setSelectedRooms([...cleaningRooms]);
+    if (!roomsLocked && !busy.current) setSelectedRooms(selected => (selected.length === cleaningRooms.length ? [] : [...cleaningRooms]));
   }
 
   async function command(service: string, data?: Record<string, unknown>, observe?: (state: string) => boolean) {

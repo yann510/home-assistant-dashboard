@@ -42,14 +42,20 @@ function start() {
   fireEvent.click(screen.getByRole('button', { name: 'Start cleaning' }));
 }
 
-it('defaults to all rooms, allows an empty draft, and restores all rooms without dispatch', () => {
+it('toggles all rooms off and back on without dispatch', () => {
   open();
   rooms.forEach(name => expect(room(name).getAttribute('aria-pressed')).toBe('true'));
-  select([]);
+  expect(room('All rooms').getAttribute('aria-pressed')).toBe('true');
+  fireEvent.click(room('All rooms'));
+  rooms.forEach(name => expect(room(name).getAttribute('aria-pressed')).toBe('false'));
+  expect(room('All rooms').getAttribute('aria-pressed')).toBe('false');
   expect(screen.getByRole('button', { name: 'Start cleaning' }).hasAttribute('disabled')).toBe(true);
   start();
+  expect(ref.current!.calls).toHaveLength(0);
   fireEvent.click(room('All rooms'));
   rooms.forEach(name => expect(room(name).getAttribute('aria-pressed')).toBe('true'));
+  expect(room('All rooms').getAttribute('aria-pressed')).toBe('true');
+  expect(screen.getByRole('button', { name: 'Start cleaning' }).hasAttribute('disabled')).toBe(false);
   expect(ref.current!.calls).toHaveLength(0);
 });
 it.each([['Kitchen'], ['Bedroom', 'Breakfast room', 'Guest bedroom']])(
