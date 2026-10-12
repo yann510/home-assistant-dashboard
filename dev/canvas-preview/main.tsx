@@ -175,7 +175,7 @@ const connection = {
       return { response: { [id]: Array.from({ length: 50 }, (_, index) => ({ media_title: `Preview queued song ${index + 1}`, media_artist: 'Preview artist', media_album_name: 'Preview album', media_content_id: `spotify:track:${String(index).padStart(22, '0')}` })) } };
     }
     if (message.type === 'get_states') return Object.values(entities);
-    if (message.type === 'dashboard_spotify/search' || (message.type === 'media_player/browse_media' && message.media_content_type !== 'favorites')) return previewSpotify(message);
+    if (message.type === 'dashboard_spotify/search' || message.type === 'dashboard_spotify/collection' || (message.type === 'media_player/browse_media' && message.media_content_type !== 'favorites')) return previewSpotify(message);
     if (message.type === 'media_player/browse_media')
       return {
         children: previewFavourites.map((item, index) => ({
