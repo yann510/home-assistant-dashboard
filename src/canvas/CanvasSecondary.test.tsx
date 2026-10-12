@@ -371,7 +371,7 @@ it('searches actual speaker friendly names and routes to live speaker controls',
   });
   fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Bath Sonos' }));
   expect(screen.getByRole('dialog', { name: 'Speakers' })).toBeTruthy();
-  expect(ref.current!.calls).toHaveLength(0);
+  expect(ref.current!.calls.filter(call => (call as { type: string }).type === 'call_service')).toHaveLength(0);
 });
 
 it('mounts and reconnects Roomba detail without sending a command, filtering unsupported controls', () => {

@@ -289,7 +289,11 @@ it('labels favourites without artwork and surfaces a playback rejection in Favou
 
 it('adjusts overview volume through the shared speaker control without opening a modal', async () => {
   speaker();
-  fixture.respondWith(async () => {
+  fixture.respondWith(async message => {
+    const request = message as { type: string; service?: string };
+    // Service discovery is a read and must not simulate a volume change.
+    if (request.type === 'get_services') return {};
+    expect(request).toMatchObject({ type: 'call_service', service: 'volume_set' });
     fixture.publish('media_player.living_room', 'playing', {
       ...fixture.getState().entities['media_player.living_room'].attributes,
       volume_level: 0.34,
@@ -303,6 +307,7 @@ it('adjusts overview volume through the shared speaker control without opening a
   expect(fixture.calls).toContainEqual(
     expect.objectContaining({ domain: 'media_player', service: 'volume_set', service_data: { volume_level: 0.34 } })
   );
+  expect(fixture.calls.filter(call => (call as { type: string }).type === 'call_service')).toHaveLength(1);
   expect(screen.getByRole('button', { name: 'Open speaker volume' }).textContent).toBe('34%');
 });
 
