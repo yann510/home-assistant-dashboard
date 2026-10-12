@@ -2,9 +2,9 @@ import { useEffect, useState } from 'react';
 import { useStore } from '@hakit/core';
 import { onSpeakerDisconnect } from '../speakerConnection';
 import type { FavouriteItem } from '../useSpeakerFavourites';
-export type MusicItem = FavouriteItem & { subtitle?: string };
+export type MusicItem = FavouriteItem & { subtitle?: string; previewArtwork?: string[] };
 export type MusicView = 'home' | 'search' | 'library';
-type Section = { title: string; items: MusicItem[] };
+type Section = { title: string; category: MusicItem; items: MusicItem[]; error?: string };
 type Result = { key: string; sections: Section[]; categories: MusicItem[]; items: MusicItem[]; nextOffset: number | null; total: number; loading: boolean; error: string };
 const searchErrors: Record<string, string> = {
   spotify_not_configured: 'Connect Spotify in Home Assistant to search your music.',
@@ -51,7 +51,7 @@ export function useSpotifyBrowser(entityId: string, enabled: boolean, view: Musi
       } finally { if (timer) { clearTimeout(timer); timers.delete(timer); } }
     }
     const browse = (item?: MusicItem) => read<MusicItem>({ type: 'media_player/browse_media', entity_id: entityId, ...(item ? { media_content_type: item.media_content_type, media_content_id: item.media_content_id } : {}) });
-    setResult(old => ({ ...(offset && old.key === key ? old : { key, ...empty }), loading: true, error: '' }));
+    setResult(old => ({ ...((offset || (view === 'home' && !folder)) && old.key === key ? old : { key, ...empty }), loading: true, error: '' }));
     async function load() {
       try {
         if (view === 'search') {
@@ -66,9 +66,23 @@ export function useSpotifyBrowser(entityId: string, enabled: boolean, view: Musi
           if (!spotify) throw new Error('Spotify library is unavailable on this speaker. Connect Spotify in Home Assistant.');
           const library = await browse(spotify);
           const categories = library.children ?? [];
-          const personal = categories.filter(item => /\/(current_user_top_tracks|current_user_recently_played)$/.test(item.media_content_id));
-          const sections = view === 'home' ? await Promise.all(personal.map(async item => ({ title: item.title, items: (await browse(item)).children ?? [] }))) : [];
-          if (!cancelled) setResult({ key, ...empty, categories, sections, loading: false, error: '' });
+          const primaryIds = ['current_user_playlists', 'current_user_top_tracks', 'current_user_recently_played'];
+          const primary = primaryIds.flatMap(id => categories.filter(item => item.media_content_id.endsWith('/' + id)));
+          const sections: Section[] = view === 'home' ? await Promise.all(primary.map(async category => {
+            try { return { title: category.title, category, items: ((await browse(category)).children ?? []).slice(0, 8) }; }
+            catch { return { title: category.title, category, items: [], error: `Could not load ${category.title}.` }; }
+          })) : [];
+          // Only one level and four collection previews: never crawl playlists or
+          // the complete saved-library tree just to paint the home page.
+          const collections = view === 'home' ? categories.filter(item => !primary.includes(item)).slice(0, 4) : [];
+          const previews = await Promise.all(collections.map(async category => {
+            try {
+              const children = (await browse(category)).children ?? [];
+              return { ...category, previewArtwork: [...new Set(children.flatMap(item => item.thumbnail ? [item.thumbnail] : []))].slice(0, 4) };
+            } catch { return category; } // The collection itself remains browsable.
+          }));
+          const enriched = categories.map(item => previews.find(preview => preview.media_content_id === item.media_content_id) ?? item);
+          if (!cancelled) setResult({ key, ...empty, categories: enriched, sections, loading: false, error: '' });
         }
       } catch (error) {
         if (!cancelled) setResult(old => ({ ...old, loading: false, error: view === 'search' ? searchErrors[typeof error === 'object' && error && 'code' in error ? String(error.code) : ''] ?? 'Could not search Spotify. Please retry.' : error instanceof Error ? error.message : 'Could not load Spotify. Please retry.' }));

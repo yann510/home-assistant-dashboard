@@ -1,60 +1,69 @@
-import { useEffect, useState } from 'react';
-import { useHass } from '@hakit/core';
+import { useEffect, useRef, useState, type FC } from 'react';
 import { CanvasFavourites } from './CanvasFavourites';
 import { CanvasMusic } from './CanvasMusic';
 import { CanvasSpeakers } from './CanvasSpeakers';
+import { MusicArtwork } from './MusicArtwork';
 import { useCanvasMusic } from './CanvasMusicProvider';
-import { useSpotifyBrowser, type MusicItem, type MusicView } from './useSpotifyBrowser';
+import { useSpotifyBrowser, type MusicItem } from './useSpotifyBrowser';
 import './canvas-player.css';
 
-function MusicArtwork({ item }: { item: MusicItem }) {
-  const { joinHassUrl } = useHass();
-  const [failed, setFailed] = useState(false);
-  return item.thumbnail && !failed ? <img src={item.thumbnail.startsWith('/') ? joinHassUrl(item.thumbnail) : item.thumbnail} alt='' loading='lazy' onError={() => setFailed(true)} /> : <span aria-hidden='true'>♫</span>;
-}
-export function CanvasPlayer({ onClose }: { onClose(): void }) {
+// Keep the former close callback prop compatible with callers. Music now stays
+// open after confirmed playback; its surrounding dialog owns the close action.
+export const CanvasPlayer: FC<{ onClose(): void }> = () => {
   const { setLibraryOpen, session, disabled, rooms, favouritePlayback: playback } = useCanvasMusic();
-  const [view, setView] = useState<MusicView>('home');
   const [query, setQuery] = useState('');
   const [folders, setFolders] = useState<MusicItem[]>([]);
   const [speakers, setSpeakers] = useState(false);
+  const content = useRef<HTMLDivElement>(null);
+  const searching = !!query.trim();
+  const folder = folders[folders.length - 1];
+  const home = !searching && !folder && !speakers;
   const available = session.connected && !!session.coordinator && !['unknown', 'unavailable'].includes(session.coordinator.state);
-  const browser = useSpotifyBrowser(session.entityId, available && !speakers, view, query, folders[folders.length - 1]);
-  useEffect(() => {
-    setLibraryOpen(true);
-    return () => setLibraryOpen(false);
-  }, [setLibraryOpen]);
-  function navigate(next: MusicView) { if (next !== 'search') setQuery(''); setView(next); setFolders([]); setSpeakers(false); }
+  const browser = useSpotifyBrowser(session.entityId, available && !speakers, searching ? 'search' : 'home', query, folder);
+  useEffect(() => { setLibraryOpen(true); return () => setLibraryOpen(false); }, [setLibraryOpen]);
+  useEffect(() => { if (content.current) content.current.scrollTop = 0; }, [query, folder, speakers]);
+  function openFolder(item: MusicItem) { setFolders(old => [...old, item]); }
+  function goHome() { setQuery(''); setFolders([]); setSpeakers(false); }
   function cards(items: MusicItem[]) {
     return <div className='canvas-player__cards'>{items.map(item => <article key={item.media_content_type + ':' + item.media_content_id} className='canvas-player__card'>
-      <button className='canvas-player__artwork' aria-label={`${item.can_expand ? 'Open' : 'Play'} ${item.title}`} disabled={item.can_expand ? !available : disabled || !!playback.pending || !item.can_play} onClick={() => item.can_expand ? setFolders(old => [...old, item]) : void playback.play(item)}><MusicArtwork key={item.thumbnail} item={item} /></button>
-      <strong>{item.title}</strong>{item.subtitle && <small>{item.subtitle}</small>}
-      {item.can_expand && item.can_play && <button disabled={disabled || !!playback.pending} aria-label={`Play ${item.title}`} onClick={() => void playback.play(item)}>Play</button>}
+      <button className='canvas-player__item' aria-label={`${item.can_expand ? 'Open' : 'Play'} ${item.title}`} disabled={item.can_expand ? !available : disabled || !!playback.pending || !item.can_play} onClick={() => item.can_expand ? openFolder(item) : void playback.play(item)}><span className='canvas-player__artwork'><MusicArtwork item={item} />{item.can_expand && <span className='canvas-player__open-hint' aria-hidden='true'>Explore ↗</span>}</span><strong>{item.title}</strong>{item.subtitle && <small>{item.subtitle}</small>}</button>
+      {item.can_expand && item.can_play && <button className='canvas-player__play-collection' disabled={disabled || !!playback.pending} aria-label={`Play ${item.title}`} onClick={() => void playback.play(item)}>▶ Play</button>}
     </article>)}</div>;
   }
+  function section(categoryId: string) {
+    const section = browser.sections.find(item => item.category.media_content_id.endsWith('/' + categoryId));
+    if (!section) return null;
+    return <section className='canvas-player__section' key={categoryId} aria-label={section.title}>
+      <div className='canvas-player__section-heading'><h3>{section.title}</h3><button disabled={!available} onClick={() => openFolder(section.category)} aria-label={`See all ${section.title}`}>See all <span aria-hidden='true'>↗</span></button></div>
+      {section.error ? <p role='alert'>{section.error} <button onClick={browser.retry}>Retry {section.title}</button></p> : section.items.length ? cards(section.items) : <p>No music here yet.</p>}
+    </section>;
+  }
+  const collections = browser.categories.filter(item => !/\/(current_user_playlists|current_user_top_tracks|current_user_recently_played)$/.test(item.media_content_id));
   return <div className='canvas-player'>
-    <nav className='canvas-player__nav' aria-label='Music navigation'>
-      {(['home', 'search', 'library'] as const).map(next => <button key={next} aria-pressed={view === next && !speakers} onClick={() => navigate(next)}>{next === 'home' ? 'Home' : next === 'search' ? 'Search' : 'Your library'}</button>)}
-    </nav>
-    <div className='canvas-player__content'>
+    <div className='canvas-player__search'><label><span>Search Spotify songs</span><input type='search' aria-label='Search Spotify songs' placeholder='Find a song you love' value={query} onChange={event => { setQuery(event.target.value); setFolders([]); setSpeakers(false); }} autoComplete='off' /></label>{searching && <button onClick={goHome}>Clear search</button>}</div>
+    <div className='canvas-player__content' ref={content}>
       {speakers ? <><button onClick={() => setSpeakers(false)}>Back to music</button><CanvasSpeakers /></> : <>
-        {<label className='canvas-player__search'><span>Search Spotify songs</span><input type='search' aria-label='Search Spotify songs' placeholder='What do you want to play?' value={query} onChange={event => { setQuery(event.target.value); setView('search'); setFolders([]); }} autoComplete='off' /></label>}
-        {folders.length ? <div className='canvas-player__heading'><button onClick={() => setFolders(old => old.slice(0, -1))}>Back</button><h2>{folders[folders.length - 1]?.title}</h2></div> : <div className='canvas-player__heading'><div><span className='canvas__eyebrow'>Spotify · On your Sonos</span><h2>{view === 'home' ? 'Made for your moments' : view === 'search' ? 'Find your next song' : 'Your music, together'}</h2></div></div>}
+        {folder ? <><nav className='canvas-player__breadcrumbs' aria-label='Music breadcrumbs'><button onClick={goHome}>Music home</button>{folders.slice(0, -1).map((item, index) => <button key={item.media_content_id} onClick={() => setFolders(old => old.slice(0, index + 1))}>{item.title}</button>)}<span aria-current='page'>{folder.title}</span></nav><div className='canvas-player__heading'><button onClick={() => setFolders(old => old.slice(0, -1))}>Back</button><h2>{folder.title}</h2>{folder.can_play && <button disabled={disabled || !!playback.pending} aria-label={`Play ${folder.title}`} onClick={() => void playback.play(folder)}>▶ Play</button>}</div></> : searching ? <div className='canvas-player__heading'><h2>Search results</h2></div> : null}
         {!available && <p role='status'>{session.connected ? 'Wait for an available speaker to browse Spotify.' : 'Reconnecting to Home Assistant. Music will load when connected.'}</p>}
-        {browser.loading && <p role='status'>{view === 'search' ? 'Searching Spotify…' : 'Loading your music…'}</p>}
+        {browser.loading && <p role='status'>{searching ? 'Searching Spotify…' : 'Loading your music…'}</p>}
         {browser.error && <p role='alert'>{browser.error} <button onClick={browser.retry}>Retry Spotify</button></p>}
-        {available && view === 'search' && !query.trim() && <p>Search the Spotify catalog to play a song on your speakers.</p>}
         {!!browser.items.length && cards(browser.items)}
-        {!folders.length && view === 'home' && browser.sections.map(section => <section key={section.title}><h3>{section.title}</h3>{section.items.length ? cards(section.items.slice(0, 8)) : <p>No music here yet.</p>}</section>)}
-        {!folders.length && view === 'library' && cards(browser.categories)}
-        {available && !browser.loading && !browser.error && ((view === 'search' && !!query.trim()) || !!folders.length) && !browser.items.length && <p>No music found.</p>}
+        {home && <>
+          {section('current_user_playlists')}
+          <section className='canvas-player__section' aria-label='Sonos favourites'><div className='canvas-player__section-heading'><h3>Sonos favourites</h3></div><CanvasFavourites withTitles showFeedback={false} onPlayed={() => {}} /></section>
+          {section('current_user_top_tracks')}
+          {section('current_user_recently_played')}
+          {!!collections.length && <section className='canvas-player__section' aria-label='Your library'><div className='canvas-player__section-heading'><h3>Your library</h3></div>{cards(collections)}</section>}
+        </>}
+        {available && !browser.loading && !browser.error && (searching || !!folder) && !browser.items.length && <p>No music found.</p>}
         {browser.nextOffset !== null && <button disabled={browser.loading} onClick={browser.more}>Load more songs</button>}
-        {view === 'search' && browser.total > 0 && <p className='canvas-player__count'>{browser.items.length} of {browser.total} songs</p>}
-        {view === 'home' && !folders.length && <details className='canvas-player__favourites' open><summary>Sonos favourites</summary><CanvasFavourites onPlayed={onClose} /></details>}
+        {searching && browser.total > 0 && <p className='canvas-player__count'>{browser.items.length} of {browser.total} songs</p>}
       </>}
     </div>
-    <div className='canvas-player__now-playing'><CanvasMusic libraryEntrance={false} onOpenPlayer={() => navigate('search')} onOpenSpeakers={() => { if (!rooms.busy) rooms.begin(); setSpeakers(true); }} /></div>
-    {(view !== 'home' || !!folders.length || speakers) && playback.pending && <p role='status'>Starting {playback.pending.title}…</p>}
-    {(view !== 'home' || !!folders.length || speakers) && (playback.playError || playback.commandError) && <p role='alert'>{playback.playError || playback.commandError}</p>}
+    <section className='canvas-player__now-playing' aria-label='Music playback'><CanvasMusic libraryEntrance={false} showPlaybackStatus={false} onOpenPlayer={goHome} onOpenSpeakers={() => { if (!rooms.busy) rooms.begin(); setSpeakers(true); }} />
+    {playback.playStatus && <p role='status'>{playback.playStatus}</p>}
+    {playback.pending && <p role='status'>Starting {playback.pending.title}…</p>}
+    {(playback.playError || playback.commandError) && <p role='alert'>{playback.playError || playback.commandError}</p>}
+    </section>
   </div>;
-}
+};

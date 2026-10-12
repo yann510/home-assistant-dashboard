@@ -19,7 +19,7 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.useRealTimers(); });
 it('discovers account categories from Sonos and loads real home sections', async () => {
   const { result } = renderHook(() => useSpotifyBrowser('media_player.room', true, 'home', ''));
-  await waitFor(() => expect(result.current.sections.length).toBe(2));
+  await waitFor(() => expect(result.current.sections.length).toBe(3));
   expect(result.current.sections[0].items[0].title).toBe('Personal track');
   expect(result.current.categories.map(x => x.title)).toContain('Playlists');
 });
@@ -126,4 +126,17 @@ it('retries a failed later page without dropping the earlier page', async () => 
   expect(result.current.items[0].title).toBe('page 0');
   act(() => result.current.retry());
   await waitFor(() => expect(result.current.items.map(x => x.title)).toEqual(['page 0', 'page 10']));
+});
+it('puts real playlists first and derives bounded collection covers from actual children', async () => {
+  send.mockImplementation(async (m: Record<string, string>) => {
+    if (!m.media_content_id) return { children: [node('spotify://account/library')] };
+    if (m.media_content_id.endsWith('/library')) return { children: ['current_user_recently_played', 'current_user_saved_tracks', 'current_user_top_tracks', 'current_user_playlists', ...Array.from({ length: 8 }, (_, i) => `collection${i}`)].map(id => node(`spotify://account/${id}`, id)) };
+    return { children: Array.from({ length: 20 }, (_, i) => ({ ...node(`${m.media_content_id}/track${i}`), thumbnail: `/actual${i}.jpg`, can_play: true })) };
+  });
+  const { result } = renderHook(() => useSpotifyBrowser('media_player.room', true, 'home', ''));
+  await waitFor(() => expect(result.current.sections.length).toBe(3));
+  expect(result.current.sections.map(x => x.title)).toEqual(['current_user_playlists', 'current_user_top_tracks', 'current_user_recently_played']);
+  expect(result.current.sections[0].items).toHaveLength(8);
+  expect(result.current.categories.find(x => x.title === 'current_user_saved_tracks')?.previewArtwork).toEqual(['/actual0.jpg', '/actual1.jpg', '/actual2.jpg', '/actual3.jpg']);
+  expect(send).toHaveBeenCalledTimes(9); // root+library+3 primary folders+4 collection previews, never recursive.
 });
