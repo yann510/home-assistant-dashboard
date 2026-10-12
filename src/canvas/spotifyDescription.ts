@@ -13,7 +13,7 @@ export function spotifyDescriptionText(description: string): string {
     .replace(/<(script|style)\b[^>]*>[^]*?<\/\1\s*>/gi, '')
     .replace(/<\/?[a-z][a-z0-9:-]*(?=[\s/>])(?:"[^"]*"|'[^']*'|[^'">])*>/gi, tag => /^<br\b/i.test(tag) || /^<\/(?:p|div|li)\b/i.test(tag) ? '\n' : '')
     .replace(/&(#(?:x[0-9a-f]+|[0-9]+)|[a-z][a-z0-9]+);/gi, (entity: string, name: string) => {
-      if (!name.startsWith('#')) return entities[name] ?? entity;
+      if (!name.startsWith('#')) return Object.prototype.hasOwnProperty.call(entities, name) ? entities[name] : entity;
       const hexadecimal = name[1].toLowerCase() === 'x';
       const point = Number.parseInt(name.slice(hexadecimal ? 2 : 1), hexadecimal ? 16 : 10);
       return point > 0 && point <= 0x10ffff && !(point >= 0xd800 && point <= 0xdfff) ? String.fromCodePoint(point) : entity;

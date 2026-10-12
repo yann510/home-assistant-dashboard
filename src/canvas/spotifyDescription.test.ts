@@ -20,6 +20,9 @@ describe('spotifyDescriptionText', () => {
   it('removes resource-bearing markup and non-description script text', () => {
     expect(spotifyDescriptionText('Music<img src="https://example.com/pixel"><script>alert(1)</script><!-- hidden --><style>p{color:red}</style>!')).toBe('Music!');
   });
+  it('preserves names inherited from Object.prototype as unknown entities', () => {
+    expect(spotifyDescriptionText('&constructor; &toString; &valueOf;')).toBe('&constructor; &toString; &valueOf;');
+  });
   it('preserves invalid numeric entities without throwing', () => {
     expect(spotifyDescriptionText('&#x110000; &#xD800; &#0;')).toBe('&#x110000; &#xD800; &#0;');
   });
