@@ -127,12 +127,17 @@ class SearchGateway:
             return normalize_collection(await fetch(category, item_id, limit, offset, cursor), category, item_id, account, offset, limit)
         return await self.read(key, load)
 
-    async def read(self, key, load):
+    def check_available(self):
+        """Guard every admission and upstream start against shutdown/cooldown."""
         if self.closed:
             raise SearchError('spotify_unavailable', 'Spotify is disconnected. Reconnect to browse music.')
         now = monotonic()
         if now < self.cooldown_until:
             raise SearchError('rate_limited', 'Spotify is busy. Try again shortly.', max(1, int(self.cooldown_until - now + 1)))
+
+    async def read(self, key, load):
+        self.check_available()
+        now = monotonic()
         cached = self.cache.get(key)
         if cached and now - cached[0] < 60:
             self.cache.move_to_end(key)
@@ -148,21 +153,24 @@ class SearchGateway:
         return await asyncio.shield(self.inflight[key])
 
     async def _fetch(self, key, load):
-        try:
-            async with self.semaphore:
+        async with self.semaphore:
+            # A different admitted read may have received a 429 while this one waited.
+            # Guard outside the load exception handler so rejection does not renew cooldown.
+            self.check_available()
+            try:
                 async with asyncio.timeout(15):
                     result = await load()
-            self.cache[key] = monotonic(), result
-            self.cache.move_to_end(key)
-            while len(self.cache) > 64:
-                self.cache.popitem(last=False)
-            return result
-        except SearchError as error:
-            if error.retry_after:
-                self.cooldown_until = monotonic() + error.retry_after
-            raise
-        except Exception:
-            raise SearchError('spotify_unavailable', 'Spotify search could not be loaded. Try again.') from None
+            except SearchError as error:
+                if error.retry_after:
+                    self.cooldown_until = monotonic() + error.retry_after
+                raise
+            except Exception:
+                raise SearchError('spotify_unavailable', 'Spotify search could not be loaded. Try again.') from None
+        self.cache[key] = monotonic(), result
+        self.cache.move_to_end(key)
+        while len(self.cache) > 64:
+            self.cache.popitem(last=False)
+        return result
 
     async def close(self):
         self.closed = True

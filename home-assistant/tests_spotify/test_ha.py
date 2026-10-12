@@ -238,3 +238,22 @@ class HACollectionTests(HATests):
             again=await self.request({'entities':True},media_content_id='spotify://account/current_user_playlists')
         self.assertEqual(result['error']['code'],'rate_limited');self.assertEqual(result['error']['retry_after'],6)
         self.assertEqual(again['error']['code'],'rate_limited');self.assertEqual(calls,['refresh'])
+
+    async def test_collection_second_http_read_honors_cooldown_from_concurrent_read(self):
+        from time import monotonic
+        calls=[]
+        async def ensure():calls.append('refresh')
+        self.entry.runtime_data.session=SimpleNamespace(async_ensure_token_valid=ensure,token={'access_token':'secret'})
+        class Response:
+            status=200
+            async def __aenter__(self):return self
+            async def __aexit__(self,*args):pass
+            async def json(response):
+                self.hass.data['dashboard_spotify'].cooldown_until=monotonic()+20
+                return {'name':'Mix','uri':'spotify:playlist:0DiWol3AO6WpXZgp0goxAV','items':{'total':100}}
+        def get(url,**kwargs):calls.append(url);return Response()
+        with patch('homeassistant.helpers.aiohttp_client.async_get_clientsession',return_value=SimpleNamespace(get=get)):
+            result=await self.request({'entities':True},media_content_id='spotify://account/spotify:playlist:0DiWol3AO6WpXZgp0goxAV')
+        self.assertEqual(result['error']['code'],'rate_limited');self.assertGreaterEqual(result['error']['retry_after'],1)
+        self.assertEqual(calls,['refresh','https://api.spotify.com/v1/playlists/0DiWol3AO6WpXZgp0goxAV'])
+        self.assertEqual(self.hass.data['dashboard_spotify'].cache,{})

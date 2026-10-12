@@ -93,3 +93,27 @@ class CollectionLifecycleTests(unittest.IsolatedAsyncioTestCase):
         result=normalize_collection({'page':{'items':[{'album':ALBUM}],'total':1}},'current_user_saved_albums',None,'account',0,50)
         self.assertEqual(result['items'][0]['subtitle'],'Real Artist')
         self.assertEqual(result['items'][0]['thumbnail'],'https://i.scdn.co/cover')
+
+class QueuedCooldownTests(unittest.IsolatedAsyncioTestCase):
+    async def test_queued_collection_and_search_do_not_start_during_shared_retry_after(self):
+        gateway=SearchGateway();rate=asyncio.Event();block=asyncio.Event();calls=[]
+        async def limited(*args):
+            calls.append('rate');await rate.wait();raise SearchError('rate_limited','busy',20)
+        async def blocked(*args):
+            calls.append('block');await block.wait();return {'tracks':{'items':[],'total':0}}
+        async def queued(*args):
+            calls.append('queued');return {'page':{'items':[],'total':0},'tracks':{'items':[],'total':0}}
+        sentinel=(float('inf'),{'items':[],'total':0,'next_offset':None})
+        gateway.cache[('cached',)]=sentinel
+        tasks=[asyncio.create_task(gateway.search('account','rate',10,0,limited)),asyncio.create_task(gateway.search('account','block',10,0,blocked))]
+        await asyncio.sleep(.01)
+        tasks.extend([asyncio.create_task(gateway.collection('account','spotify://account/current_user_saved_tracks',50,0,None,queued)),asyncio.create_task(gateway.search('account','queued',10,0,queued))])
+        await asyncio.sleep(.01);self.assertEqual(calls,['rate','block'])
+        rate.set();await asyncio.sleep(.01);block.set()
+        results=await asyncio.gather(*tasks,return_exceptions=True)
+        self.assertEqual(calls,['rate','block'])
+        for result in [results[0],results[2],results[3]]:
+            self.assertIsInstance(result,SearchError);self.assertEqual(result.code,'rate_limited');self.assertGreaterEqual(result.retry_after,1)
+        self.assertEqual(gateway.cache[('cached',)],sentinel)
+        self.assertFalse(any('collection' in key or 'queued' in key for key in gateway.cache))
+        await gateway.close()

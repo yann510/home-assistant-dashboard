@@ -43,6 +43,7 @@ async def async_setup(hass, config):
             async def fetch(query, limit, offset):
                 session = entry.runtime_data.session
                 await session.async_ensure_token_valid()
+                gateway.check_available()
                 async with aiohttp_client.async_get_clientsession(hass).get(
                     'https://api.spotify.com/v1/search',
                     params={'q': query, 'type': ','.join(SEARCH_KINDS) if msg.get('kind') == 'all' else msg.get('kind', 'track'), 'limit': limit, 'offset': offset},
@@ -97,8 +98,10 @@ async def async_setup(hass, config):
                 raise SearchError('unauthorized', 'You do not have access to this Spotify account.')
 
             async def get(path, params):
+                gateway.check_available()
                 session = entry.runtime_data.session
                 await session.async_ensure_token_valid()
+                gateway.check_available()
                 async with aiohttp_client.async_get_clientsession(hass).get(
                     'https://api.spotify.com/v1/' + path,
                     params=params,
