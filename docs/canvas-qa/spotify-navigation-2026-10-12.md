@@ -10,4 +10,6 @@ Verification:
 - Release spotify-navigation-20261012 verified and promoted; served HTML matches built dist/index.html exactly.
 - Live production: View tracks opened 5K — Build to the Finish with7 real songs; Dust filtered to Rhyme Dust. Daft Punk catalog search returned real title/artist rows. Back returned to the playlist. Current paused audio was preserved; no live playback command was sent.
 
-The broader Spotify interface goal remains active. Queue, shuffle/repeat, broader search categories and metadata-rich complete collection pagination are outstanding.
+At this release, the broader Spotify interface goal was still active. Queue, shuffle/repeat, broader search categories and metadata-rich complete collection pagination were outstanding.
+
+Subsequent completion evidence: the remaining catalog and collection work is verified in [Spotify catalog QA](spotify-catalog-2026-10-12.md). The current scope and evidence are tracked in [Spotify interface parity](../spotify-interface-parity.md).

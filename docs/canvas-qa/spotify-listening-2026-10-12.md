@@ -23,4 +23,6 @@ Four reviewed runtime files were replaced with byte, drift, symlink and permissi
 
 One restart was requested. The HTTP request timed out during shutdown; no second restart was sent. APIs returned and the saved house mood, Follow me, paused track, shuffle and repeat states matched exactly. Live typed all search then returned real song, playlist, album and artist groups, proving the new handler was active; legacy track search still worked.
 
-Broader goal remains active: multi-type frontend search and complete, metadata-rich collection pagination are still pending.
+At this release, the broader goal was still active: multi-type frontend search and complete, metadata-rich collection pagination were pending.
+
+Subsequent completion evidence: the remaining catalog and collection work is verified in [Spotify catalog QA](spotify-catalog-2026-10-12.md). The current scope and evidence are tracked in [Spotify interface parity](../spotify-interface-parity.md).
