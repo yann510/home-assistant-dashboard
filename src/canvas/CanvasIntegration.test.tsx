@@ -149,6 +149,36 @@ it.each([false, true])('hands browsing to Spotify from the unchanged favourites 
   expect(screen.getByRole('dialog', { name: 'Favourites' })).toBe(dialog);
 });
 
+it('hands the current artwork and song title to Spotify without opening details or controlling playback', async () => {
+  speaker();
+  render(<CanvasDashboard />);
+  const music = screen.getByRole('region', { name: 'Music' });
+  const artwork = within(music).getByRole('link', { name: 'Open Spotify app' });
+  const title = within(music).getByRole('link', { name: 'A real track' });
+  for (const link of [artwork, title]) {
+    expect(link.getAttribute('href')).toBe('spotify:');
+    expect(link.getAttribute('target')).toBeNull();
+    link.focus();
+    expect(document.activeElement).toBe(link);
+    link.addEventListener('click', event => event.preventDefault(), { once: true });
+    fireEvent.click(link);
+  }
+  await act(async () => {});
+  expect(screen.queryByRole('dialog')).toBeNull();
+  expect(fixture.calls.filter(call => (call as { type: string }).type === 'call_service')).toHaveLength(0);
+  expect(within(music).getByRole('button', { name: 'Open favourites' })).toBeTruthy();
+});
+
+it.each(['idle', 'playing', 'unavailable'])('keeps %s music status non-clickable when no song title is available', state => {
+  fixture.publish('media_player.living_room', state, {
+    friendly_name: 'Living room', group_members: ['media_player.living_room'],
+  });
+  render(<CanvasDashboard />);
+  const music = screen.getByRole('region', { name: 'Music' });
+  expect(within(music).getByText(state === 'playing' ? 'Audio playing' : state === 'idle' ? 'Nothing playing' : 'Speaker unavailable')).toBeTruthy();
+  expect(within(music).queryByRole('link')).toBeNull();
+});
+
 it('recovers forecast failure through retry without replacing the dialog', async () => {
   fixture.publish('weather.forecast_home', 'sunny', { temperature: 18, supported_features: 3 });
   fixture.respondWith(async () => {

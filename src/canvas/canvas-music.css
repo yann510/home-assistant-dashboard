@@ -97,6 +97,11 @@
 .canvas .canvas-music__cover img { width: 100%; height: 100%; object-fit: cover; }
 .canvas .canvas-music__title { max-width: 100%; font-size: clamp(1.4rem, 2.2vw, 2rem); padding: 4px 0; border: 0; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .canvas .canvas-music__title--status { font-size: 1rem; font-weight: 700; }
+.canvas .canvas-music__track a { color: inherit; text-decoration: none; touch-action: manipulation; }
+.canvas .canvas-music__title[href] { min-height: 44px; }
+.canvas .canvas-music__title[href]:hover { text-decoration: underline; text-underline-offset: .15em; }
+.canvas .canvas-music__cover[href]:hover { opacity: .85; }
+.canvas .canvas-music__track a:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
 .canvas .canvas-music__transport button { border: 0; padding: 6px; }
 .canvas .canvas-music__transport button:nth-child(2) { border-radius: 50%; background: #302c26; color: #e6dcbc; }
 .canvas .canvas-music__bottom > button { border-radius: 28px; font-size: .8rem; }

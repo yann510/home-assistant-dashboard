@@ -89,6 +89,8 @@ export function CanvasMusic({
   const { joinHassUrl } = useHass();
   const [failedArtwork, setFailedArtwork] = useState<string>();
   const picture = !idle && !disabled ? attributes?.entity_picture : undefined;
+  const Cover = trackTitle ? 'a' : 'div';
+  const Title = trackTitle ? 'a' : 'div';
   const trackMotion = useFeatureMotion(
     JSON.stringify([
       attributes?.media_content_id ?? null,
@@ -104,16 +106,16 @@ export function CanvasMusic({
   return (
     <section className='canvas__music canvas-music' aria-label='Music'>
       <div key={trackMotion.revision} className='canvas-music__track' data-feature-motion={trackMotion.animate}>
-        <div className='canvas-music__cover' aria-hidden='true'>
+        <Cover className='canvas-music__cover' href={trackTitle ? 'spotify:' : undefined} aria-label={trackTitle ? 'Open Spotify app' : undefined} aria-hidden={trackTitle ? undefined : true}>
           {picture && failedArtwork !== picture ? (
             <img src={joinHassUrl(picture)} alt='' onError={() => setFailedArtwork(picture)} />
           ) : (
-            <span>♪</span>
+            <span aria-hidden='true'>♪</span>
           )}
-        </div>
+        </Cover>
         <div className='canvas-music__metadata'>
           <span className='canvas__eyebrow'>{trackTitle ? 'Music, for this moment' : 'Music'}</span>
-          <div className={`canvas-music__title${trackTitle ? '' : ' canvas-music__title--status'}`}>{title}</div>
+          <Title className={`canvas-music__title${trackTitle ? '' : ' canvas-music__title--status'}`} href={trackTitle ? 'spotify:' : undefined}>{title}</Title>
           {!idle && !disabled && attributes?.media_artist && <p>{attributes.media_artist}</p>}
         </div>
       </div>
