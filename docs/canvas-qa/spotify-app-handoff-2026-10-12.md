@@ -13,3 +13,9 @@ The dashboard's original heart opens Sonos Favourites again. The Spotify catalog
 - No playback actions, backend changes, or Home Assistant restart were performed.
 
 Live screenshot retained with this chat: `spotify-app-handoff-live.jpg`.
+
+## Artwork and title entry points
+
+The user confirmed the app handoff works in Chrome. Commit `7387bfc` adds the same `spotify:` destination to the current album artwork and song title. Status placeholders remain noninteractive, with the heart and playback controls unchanged. Independent review approved the change; all 621 frontend tests, lint, and dashboard build passed.
+
+Release `spotify-track-handoff-20261012` was verified and promoted; served HTML matches the build. The live Chrome dashboard exposes both links. Keyboard focus on the title has the music card's 2px currentColor outline. At 375 × 812, artwork is 72 × 72 and title height is 44px, without horizontal document overflow; the viewport was reset. Screenshot retained with the chat: `spotify-track-links-live.jpg`. Both links open the Spotify app itself, rather than a particular album or song. Native launch was not separately reverified for these two entry points.
