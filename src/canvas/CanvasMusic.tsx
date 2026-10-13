@@ -6,6 +6,7 @@ import { SpeakerVolume } from '../SpeakerVolume';
 import { useHass } from '@hakit/core';
 import { useState } from 'react';
 import { useCanvasMusic } from './CanvasMusicProvider';
+import { spotifyTrackUri } from './spotifyTrackUri';
 
 export function CanvasFollow() {
   const { session: s, rooms } = useCanvasMusic();
@@ -89,6 +90,8 @@ export function CanvasMusic({
   const { joinHassUrl } = useHass();
   const [failedArtwork, setFailedArtwork] = useState<string>();
   const picture = !idle && !disabled ? attributes?.entity_picture : undefined;
+  const currentTrackUri = spotifyTrackUri(attributes?.media_content_id);
+  const spotifyHref = trackTitle ? currentTrackUri ?? 'spotify:' : undefined;
   const Cover = trackTitle ? 'a' : 'div';
   const Title = trackTitle ? 'a' : 'div';
   const trackMotion = useFeatureMotion(
@@ -106,7 +109,7 @@ export function CanvasMusic({
   return (
     <section className='canvas__music canvas-music' aria-label='Music'>
       <div key={trackMotion.revision} className='canvas-music__track' data-feature-motion={trackMotion.animate}>
-        <Cover className='canvas-music__cover' href={trackTitle ? 'spotify:' : undefined} aria-label={trackTitle ? 'Open Spotify app' : undefined} aria-hidden={trackTitle ? undefined : true}>
+        <Cover className='canvas-music__cover' href={spotifyHref} aria-label={trackTitle ? currentTrackUri ? 'Open current song in Spotify' : 'Open Spotify app' : undefined} aria-hidden={trackTitle ? undefined : true}>
           {picture && failedArtwork !== picture ? (
             <img src={joinHassUrl(picture)} alt='' onError={() => setFailedArtwork(picture)} />
           ) : (
@@ -115,7 +118,7 @@ export function CanvasMusic({
         </Cover>
         <div className='canvas-music__metadata'>
           <span className='canvas__eyebrow'>{trackTitle ? 'Music, for this moment' : 'Music'}</span>
-          <Title className={`canvas-music__title${trackTitle ? '' : ' canvas-music__title--status'}`} href={trackTitle ? 'spotify:' : undefined}>{title}</Title>
+          <Title className={`canvas-music__title${trackTitle ? '' : ' canvas-music__title--status'}`} href={spotifyHref}>{title}</Title>
           {!idle && !disabled && attributes?.media_artist && <p>{attributes.media_artist}</p>}
         </div>
       </div>

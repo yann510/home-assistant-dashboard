@@ -164,6 +164,27 @@ afterEach(() => {
 });
 
 describe('Canvas music', () => {
+  it('opens the exact current Spotify song and updates both links as metadata changes', () => {
+    const id = '2qRWNDee5Hfi6DFjfiu58c';
+    updateEntity('media_player.living_room', { state: 'paused' }, {
+      media_title: 'Know Some',
+      media_artist: 'Vandelux',
+      media_content_id: `x-sonos-spotify:spotify%3atrack%3a${id}?sid=12&flags=8232&sn=12`,
+    });
+    mount();
+    expect(screen.getByRole('link', { name: 'Open current song in Spotify' }).getAttribute('href')).toBe(`spotify:track:${id}`);
+    expect(screen.getByRole('link', { name: 'Know Some' }).getAttribute('href')).toBe(`spotify:track:${id}`);
+    const nextId = '4uLU6hMCjMI75M1A2tKUQC';
+    updateEntity('media_player.living_room', {}, { media_title: 'Next song', media_content_id: `spotify:track:${nextId}` });
+    expect(screen.getByRole('link', { name: 'Open current song in Spotify' }).getAttribute('href')).toBe(`spotify:track:${nextId}`);
+    expect(screen.getByRole('link', { name: 'Next song' }).getAttribute('href')).toBe(`spotify:track:${nextId}`);
+    updateEntity('media_player.living_room', {}, { media_content_id: `spotify:playlist:${nextId}` });
+    expect(screen.getByRole('link', { name: 'Open Spotify app' }).getAttribute('href')).toBe('spotify:');
+    expect(screen.getByRole('link', { name: 'Next song' }).getAttribute('href')).toBe('spotify:');
+    expect(sendMessagePromise).not.toHaveBeenCalled();
+    expect(legacyCallService).not.toHaveBeenCalled();
+  });
+
   function publishGymMood(state = 'active', affectedDevices: unknown = ['light.gym', 'media_player.gym#playback']) {
     const entities = useStore.getState().entities;
     useStore.setState({ entities: { ...entities, 'sensor.house_mood': {
@@ -456,9 +477,10 @@ describe('Canvas music', () => {
     expect(sendMessagePromise.mock.calls.map(([message]) => message.service)).toEqual(['unjoin']);
   });
   it('shows an honest compact empty state for an idle speaker with stale track metadata', async () => {
-    updateEntity('media_player.living_room', { state: 'idle' });
+    updateEntity('media_player.living_room', { state: 'idle' }, { media_content_id: 'spotify:track:2qRWNDee5Hfi6DFjfiu58c' });
     mount();
     expect(screen.getByText('Nothing playing')).toBeTruthy();
+    expect(screen.queryByRole('link')).toBeNull();
     expect(screen.queryByRole('slider', { name: 'Track position' })).toBeNull();
     await userEvent.click(screen.getByRole('button', { name: 'Open favourites' }));
     expect(screen.queryByText('Nothing playing')).toBeNull();
@@ -486,9 +508,10 @@ describe('Canvas music', () => {
     expect(sendMessagePromise).not.toHaveBeenCalled();
   });
   it('shows speaker unavailable without presenting retained metadata as a track', async () => {
-    updateEntity('media_player.living_room', { state: 'unavailable' }, { entity_picture: '/stale-cover.jpg' });
+    updateEntity('media_player.living_room', { state: 'unavailable' }, { entity_picture: '/stale-cover.jpg', media_content_id: 'spotify:track:2qRWNDee5Hfi6DFjfiu58c' });
     mount();
     expect(screen.getByText('Speaker unavailable')).toBeTruthy();
+    expect(screen.queryByRole('link')).toBeNull();
     expect(screen.queryByText('Test artist')).toBeNull();
     expect(screen.queryByRole('img')).toBeNull();
     await userEvent.click(screen.getByRole('button', { name: 'Open favourites' }));
