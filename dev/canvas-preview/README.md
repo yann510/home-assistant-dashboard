@@ -14,6 +14,12 @@ Selecting a scenario clears fault flags and resets simulated state. Refreshing r
 
 This is an interaction preview, not a hardware emulator. Blind commands are accepted without fabricated position readings; appliance cycle timing, actual audio playback, physical motion-following, and real mood snapshot restoration require live hardware/backend testing.
 
+## Music motion playground
+
+Open `/dev/canvas-preview/index.html?view=canvas&musicPrototypes=1&artwork=1` to compare five decorative alternatives to the equalizer: **Orbit**, **Aurora**, **Floating notes**, **On air**, and **Mixtape**. Select a gallery tile to update the real dashboard card instantly, then use its simulated pause/play controls to see the resting state. The gallery remains in the playing state for comparison. At phone widths, swipe the gallery horizontally or use the radio buttons with a keyboard.
+
+The optional `musicPrototype=orbit|aurora|notes|on-air|cassette` parameter chooses the initial tile. Add `media=paused` to begin with a paused card. All five respect reduced motion. They illustrate playback state and do not claim to measure audio. This opt-in development CSS and picker never enter the production application, and the standard preview stays unchanged without `musicPrototypes=1`.
+
 ## Tablet layout
 
 The production dashboard automatically uses tablet typography and viewport rhythm at CSS viewport widths of at least 800px and heights of at least 540px. No query flag is needed; the former `tablet=1` option is retired. The preview uses the same production stylesheet.

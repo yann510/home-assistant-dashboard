@@ -1,0 +1,70 @@
+/* This sheet is imported only by the local preview tools. Every dashboard override
+   requires the opt-in picker, so the normal preview and production stay unchanged. */
+.music-prototypes { box-sizing: border-box; max-width: 1500px; margin: 16px auto 0; padding: 20px; border: 1px solid var(--canvas-line); border-radius: 20px; }
+.music-prototypes__heading { display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+.music-prototypes h2 { margin: 5px 0 12px; font-size: clamp(1.3rem, 3vw, 1.8rem); letter-spacing: -.035em; }
+.music-prototypes__heading p { max-width: 320px; margin: 0 0 12px; color: var(--canvas-muted); font-size: .8rem; }
+.music-prototypes__choices { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; border: 0; padding: 0; margin: 0; }
+.music-prototypes__choices legend { padding: 0; margin-bottom: 8px; color: var(--canvas-muted); font-size: .75rem; }
+.music-prototypes__choice { position: relative; cursor: pointer; min-width: 0; }
+.music-prototypes__choice input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.music-prototypes__tile { display: flex; flex-direction: column; min-height: 136px; padding: 12px; border: 1px solid var(--canvas-line); border-radius: 12px; background: var(--canvas-surface); transition: border-color 150ms, background 150ms; }
+.music-prototypes__choice:hover .music-prototypes__tile { border-color: var(--canvas-lilac); }
+.music-prototypes__choice input:checked + .music-prototypes__tile { border-color: var(--canvas-lilac); background: color-mix(in srgb, var(--canvas-lilac) 13%, var(--canvas-surface)); }
+.music-prototypes__choice input:focus-visible + .music-prototypes__tile { outline: 3px solid var(--canvas-yellow, #faf2c7); outline-offset: 3px; }
+.prototype-art { display: grid; place-items: center; height: 48px; margin-bottom: 6px; }
+.music-prototypes__tile strong { font-size: .85rem; }
+.music-prototypes__description { margin-top: 4px; font-size: .72rem; line-height: 1.35; color: var(--canvas-muted); }
+.music-prototypes__footnote { margin: 12px 0 0; color: var(--canvas-muted); font-size: .72rem; }
+@media (max-width: 700px) {
+ .music-prototypes { margin: 8px; padding: 12px; }
+ .music-prototypes__heading { display: block; }
+ .music-prototypes__heading p { max-width: none; }
+ .music-prototypes__choices { grid-template-columns: repeat(5, 138px); overflow-x: auto; padding: 4px 4px 10px; scroll-snap-type: x proximity; }
+ .music-prototypes__choice { scroll-snap-align: start; }
+}
+:is(body:has(#music-prototypes-title) .canvas, #preview-tools .music-prototypes) .canvas-music__equalizer { position: relative; display: inline-block; align-self: center; flex: 0 0 56px; width: 56px; height: 40px; margin: 0; gap: 0; color: var(--canvas-lilac); opacity: 1; background: none; border: 0; border-radius: 0; overflow: visible; }
+:is(body:has(#music-prototypes-title) .canvas, #preview-tools .music-prototypes) .canvas-music__equalizer > span { position: absolute; display: block; width: auto; height: auto; border: 0; border-radius: 0; background: none; transform: none; transform-origin: center; animation: none; }
+:is(body:has(#music-prototypes-title) .canvas, #preview-tools .music-prototypes) .canvas-music__equalizer::before, :is(body:has(#music-prototypes-title) .canvas, #preview-tools .music-prototypes) .canvas-music__equalizer::after, :is(body:has(#music-prototypes-title) .canvas, #preview-tools .music-prototypes) .canvas-music__equalizer > span::before, :is(body:has(#music-prototypes-title) .canvas, #preview-tools .music-prototypes) .canvas-music__equalizer > span::after { position: absolute; box-sizing: border-box; }
+:is(body:has(#music-prototypes-title) .canvas, #preview-tools .music-prototypes) .canvas-music__equalizer[data-active='false'] { opacity: .55; }
+/* Orbit: a grooved planet and an independent orbital path. */
+:is(body:has(#music-prototype-orbit:checked) #root .canvas, #preview-tools .prototype-art[data-prototype='orbit']) .canvas-music__equalizer::before { content: ''; width: 29px; height: 29px; left: 13px; top: 5px; border: 1px solid currentColor; border-radius: 50%; background: repeating-radial-gradient(circle, transparent 0 3px, color-mix(in srgb, currentColor 28%, transparent) 3px 4px); }
+:is(body:has(#music-prototype-orbit:checked) #root .canvas, #preview-tools .prototype-art[data-prototype='orbit']) .canvas-music__equalizer::after { content: ''; width: 7px; height: 7px; left: 24px; top: 16px; background: var(--canvas-coral); border-radius: 50%; }
+:is(body:has(#music-prototype-orbit:checked) #root .canvas, #preview-tools .prototype-art[data-prototype='orbit']) .canvas-music__equalizer > span:first-child { inset: 0; border: 1px solid color-mix(in srgb, currentColor 28%, transparent); border-radius: 50%; transform: rotate(-25deg); animation: prototype-orbit 12s linear infinite; }
+:is(body:has(#music-prototype-orbit:checked) #root .canvas, #preview-tools .prototype-art[data-prototype='orbit']) .canvas-music__equalizer > span:first-child::after { content: ''; width: 6px; height: 6px; left: 5px; top: 1px; border-radius: 50%; background: var(--canvas-ink); box-shadow: 0 0 9px currentColor; }
+@keyframes prototype-orbit { to { transform: rotate(335deg); } }
+/* Aurora: translucent sky ribbons, with no level or frequency metaphor. */
+:is(body:has(#music-prototype-aurora:checked) #root .canvas, #preview-tools .prototype-art[data-prototype='aurora']) .canvas-music__equalizer { width: 68px; flex-basis: 68px; overflow: hidden; border-radius: 50%; }
+:is(body:has(#music-prototype-aurora:checked) #root .canvas, #preview-tools .prototype-art[data-prototype='aurora']) .canvas-music__equalizer > span { width: 76px; height: 26px; left: -5px; top: 5px; border: 0 solid transparent; border-top: 8px solid currentColor; border-radius: 50%; opacity: .7; filter: blur(2px); transform: rotate(-12deg); animation: prototype-aurora 7s ease-in-out infinite alternate; }
+:is(body:has(#music-prototype-aurora:checked) #root .canvas, #preview-tools .prototype-art[data-prototype='aurora']) .canvas-music__equalizer > span:nth-child(2) { top: 12px; left: -18px; color: var(--canvas-coral); opacity: .5; animation-delay: -3s; }
+:is(body:has(#music-prototype-aurora:checked) #root .canvas, #preview-tools .prototype-art[data-prototype='aurora']) .canvas-music__equalizer > span:nth-child(3) { top: 20px; color: var(--canvas-ink); opacity: .25; animation-delay: -5s; }
+:is(body:has(#music-prototype-aurora:checked) #root .canvas, #preview-tools .prototype-art[data-prototype='aurora']) .canvas-music__equalizer > span:nth-child(4) { display: none; }
+@keyframes prototype-aurora { to { transform: translate(12px, 5px) rotate(12deg); } }
+/* Notes: small musical shapes bob along their own quiet paths. */
+:is(body:has(#music-prototype-notes:checked) #root .canvas, #preview-tools .prototype-art[data-prototype='notes']) .canvas-music__equalizer > span { left: 5px; top: 7px; font: 26px/1 Georgia, serif; animation: prototype-notes 5s ease-in-out infinite alternate; }
+:is(body:has(#music-prototype-notes:checked) #root .canvas, #preview-tools .prototype-art[data-prototype='notes']) .canvas-music__equalizer > span::before { content: '♪'; }
+:is(body:has(#music-prototype-notes:checked) #root .canvas, #preview-tools .prototype-art[data-prototype='notes']) .canvas-music__equalizer > span:nth-child(2) { left: 25px; top: 1px; font-size: 20px; color: var(--canvas-coral); animation-delay: -2s; }
+:is(body:has(#music-prototype-notes:checked) #root .canvas, #preview-tools .prototype-art[data-prototype='notes']) .canvas-music__equalizer > span:nth-child(3) { left: 43px; top: 17px; font-size: 16px; opacity: .65; animation-delay: -4s; }
+:is(body:has(#music-prototype-notes:checked) #root .canvas, #preview-tools .prototype-art[data-prototype='notes']) .canvas-music__equalizer > span:nth-child(4)::before { content: '✦'; font-size: 8px; }
+:is(body:has(#music-prototype-notes:checked) #root .canvas, #preview-tools .prototype-art[data-prototype='notes']) .canvas-music__equalizer > span:nth-child(4) { left: 19px; top: 26px; color: var(--canvas-ink); animation-duration: 7s; }
+@keyframes prototype-notes { to { transform: translate(2px, -6px) rotate(8deg); } }
+/* On air: a familiar studio sign, gently illuminated during playback. */
+:is(body:has(#music-prototype-on-air:checked) #root .canvas, #preview-tools .prototype-art[data-prototype='on-air']) .canvas-music__equalizer { width: 82px; flex-basis: 82px; height: 28px; border: 1px solid currentColor; border-radius: 8px; background: color-mix(in srgb, currentColor 10%, transparent); }
+:is(body:has(#music-prototype-on-air:checked) #root .canvas, #preview-tools .prototype-art[data-prototype='on-air']) .canvas-music__equalizer::after { content: 'ON AIR'; inset: 0; display: grid; place-items: center; padding-left: 12px; font: 700 10px/1 'Avenir Next', Avenir, sans-serif; letter-spacing: .09em; }
+:is(body:has(#music-prototype-on-air:checked) #root .canvas, #preview-tools .prototype-art[data-prototype='on-air']) .canvas-music__equalizer > span:first-child { left: 9px; top: 10px; width: 6px; height: 6px; border-radius: 50%; background: var(--canvas-coral); box-shadow: 0 0 9px var(--canvas-coral); animation: prototype-on-air 4s ease-in-out infinite alternate; }
+:is(body:has(#music-prototype-on-air:checked) #root .canvas, #preview-tools .prototype-art[data-prototype='on-air']) .canvas-music__equalizer[data-active='false']::after { content: 'PAUSED'; }
+:is(body:has(#music-prototype-on-air:checked) #root .canvas, #preview-tools .prototype-art[data-prototype='on-air']) .canvas-music__equalizer[data-active='false'] > span:first-child { box-shadow: none; background: currentColor; }
+@keyframes prototype-on-air { to { box-shadow: 0 0 2px var(--canvas-coral); opacity: .6; } }
+/* Mixtape: a cassette shell, revolving spokes and the tape between them. */
+:is(body:has(#music-prototype-cassette:checked) #root .canvas, #preview-tools .prototype-art[data-prototype='cassette']) .canvas-music__equalizer { width: 58px; flex-basis: 58px; height: 36px; border: 1px solid currentColor; border-radius: 6px; background: color-mix(in srgb, currentColor 8%, transparent); }
+:is(body:has(#music-prototype-cassette:checked) #root .canvas, #preview-tools .prototype-art[data-prototype='cassette']) .canvas-music__equalizer::before { content: ''; left: 5px; right: 5px; top: 6px; height: 16px; border: 1px solid color-mix(in srgb, currentColor 40%, transparent); border-radius: 8px; }
+:is(body:has(#music-prototype-cassette:checked) #root .canvas, #preview-tools .prototype-art[data-prototype='cassette']) .canvas-music__equalizer::after { content: ''; bottom: 0; left: 15px; right: 15px; height: 8px; border: 1px solid currentColor; border-bottom: 0; border-radius: 4px 4px 0 0; transform: skew(-12deg); opacity: .5; }
+:is(body:has(#music-prototype-cassette:checked) #root .canvas, #preview-tools .prototype-art[data-prototype='cassette']) .canvas-music__equalizer > span:nth-child(-n+2) { top: 8px; left: 8px; width: 12px; height: 12px; border: 1px solid currentColor; border-radius: 50%; background: conic-gradient(from 0deg, currentColor 0deg 20deg, transparent 20deg 120deg, currentColor 120deg 140deg, transparent 140deg 240deg, currentColor 240deg 260deg, transparent 260deg); animation: prototype-reel 6s linear infinite; }
+:is(body:has(#music-prototype-cassette:checked) #root .canvas, #preview-tools .prototype-art[data-prototype='cassette']) .canvas-music__equalizer > span:nth-child(2) { left: 36px; animation-duration: 8s; }
+:is(body:has(#music-prototype-cassette:checked) #root .canvas, #preview-tools .prototype-art[data-prototype='cassette']) .canvas-music__equalizer > span:nth-child(3) { top: 13px; left: 23px; width: 10px; height: 2px; background: var(--canvas-coral); }
+@keyframes prototype-reel { to { transform: rotate(360deg); } }
+/* Pause freezes motion at a stable frame; reduced motion also covers the gallery. */
+:is(body:has(#music-prototypes-title) .canvas, #preview-tools .music-prototypes) .canvas-music__equalizer[data-active='false'] > span { animation-play-state: paused !important; }
+@media (prefers-reduced-motion: reduce) {
+ :is(body:has(#music-prototypes-title) .canvas, #preview-tools .music-prototypes) .canvas-music__equalizer > span { animation: none !important; }
+}

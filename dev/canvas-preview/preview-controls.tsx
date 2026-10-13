@@ -1,5 +1,6 @@
 import { createRoot } from 'react-dom/client';
 import './preview-controls.css';
+import { MusicPrototypes } from './music-prototypes';
 
 const scenarios = [
   ['everyday', 'Everyday'],
@@ -22,29 +23,33 @@ export function PreviewControls() {
     location.assign(url.href);
   }
   return (
-    <details className='preview-controls'>
-      <summary>Preview tools</summary>
-      <div className='preview-controls__panel'>
-        <strong>Try the dashboard</strong>
-        <p>Simulated devices. These controls do not affect your home.</p>
-        <label htmlFor='preview-scene'>Scenario</label>
-        <select id='preview-scene' value={scene} onChange={event => selectScene(event.target.value)}>
-          {!scenarios.some(([value]) => value === scene) && <option value={scene}>{scene}</option>}
-          {scenarios.map(([value, label]) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
-          ))}
-        </select>
-        <button type='button' onClick={() => location.reload()}>
-          Reset this preview
-        </button>
-      </div>
-    </details>
+    <>
+      {params.get('musicPrototypes') === '1' && <MusicPrototypes />}
+      <details className='preview-controls'>
+        <summary>Preview tools</summary>
+        <div className='preview-controls__panel'>
+          <strong>Try the dashboard</strong>
+          <p>Simulated devices. These controls do not affect your home.</p>
+          <label htmlFor='preview-scene'>Scenario</label>
+          <select id='preview-scene' value={scene} onChange={event => selectScene(event.target.value)}>
+            {!scenarios.some(([value]) => value === scene) && <option value={scene}>{scene}</option>}
+            {scenarios.map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+          <button type='button' onClick={() => location.reload()}>
+            Reset this preview
+          </button>
+        </div>
+      </details>
+    </>
   );
 }
 
 const root = document.createElement('div');
 root.id = 'preview-tools';
-document.body.append(root);
+if (new URLSearchParams(location.search).get('musicPrototypes') === '1') document.body.prepend(root);
+else document.body.append(root);
 createRoot(root).render(<PreviewControls />);
