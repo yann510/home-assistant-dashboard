@@ -1,6 +1,7 @@
 import { createRoot } from 'react-dom/client';
 import './preview-controls.css';
 import { MusicPrototypes } from './music-prototypes';
+import { AuroraControls } from './aurora-controls';
 
 const scenarios = [
   ['everyday', 'Everyday'],
@@ -24,7 +25,7 @@ export function PreviewControls() {
   }
   return (
     <>
-      {params.get('musicPrototypes') === '1' && <MusicPrototypes />}
+      {params.get('auroraControls') === '1' ? <AuroraControls /> : params.get('musicPrototypes') === '1' && <MusicPrototypes />}
       <details className='preview-controls'>
         <summary>Preview tools</summary>
         <div className='preview-controls__panel'>
@@ -50,6 +51,6 @@ export function PreviewControls() {
 
 const root = document.createElement('div');
 root.id = 'preview-tools';
-if (new URLSearchParams(location.search).get('musicPrototypes') === '1') document.body.prepend(root);
+if (['musicPrototypes', 'auroraControls'].some(key => new URLSearchParams(location.search).get(key) === '1')) document.body.prepend(root);
 else document.body.append(root);
 createRoot(root).render(<PreviewControls />);
