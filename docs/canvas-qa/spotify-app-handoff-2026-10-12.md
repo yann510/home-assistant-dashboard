@@ -19,3 +19,9 @@ Live screenshot retained with this chat: `spotify-app-handoff-live.jpg`.
 The user confirmed the app handoff works in Chrome. Commit `7387bfc` adds the same `spotify:` destination to the current album artwork and song title. Status placeholders remain noninteractive, with the heart and playback controls unchanged. Independent review approved the change; all 621 frontend tests, lint, and dashboard build passed.
 
 Release `spotify-track-handoff-20261012` was verified and promoted; served HTML matches the build. The live Chrome dashboard exposes both links. Keyboard focus on the title has the music card's 2px currentColor outline. At 375 × 812, artwork is 72 × 72 and title height is 44px, without horizontal document overflow; the viewport was reset. Screenshot retained with the chat: `spotify-track-links-live.jpg`. Both links open the Spotify app itself, rather than a particular album or song. Native launch was not separately reverified for these two entry points.
+
+## Exact current track
+
+Commit `823da4e` extracts a validated Spotify track URI from the current song's metadata, including Sonos's encoded wrapper. Artwork and song title use this destination and update with metadata changes; missing/invalid/non-track IDs retain the app-home fallback. No Spotify API or playback write is involved. Independent review approved; 148 focused tests, lint, and dashboard build passed.
+
+Release `spotify-exact-track-20261012` was verified and promoted. Live Chrome exposes both links as `spotify:track:2qRWNDee5Hfi6DFjfiu58c`, matching the paused song Know Some by Vandelux; Spotify's public track page confirms that identity. The title link was clicked, but browser automation detached during the external app handoff, so the native Spotify screen was not observed. Screenshot retained with this chat: `spotify-exact-track-live.jpg`.
