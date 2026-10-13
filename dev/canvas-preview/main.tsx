@@ -34,7 +34,7 @@ for (const room of rooms)
 for (const room of ['living_room', 'bathroom', 'bedroom', 'gym'])
   publish(
     `media_player.${room}`,
-    room === 'living_room' ? (media === 'idle' ? 'idle' : media === 'paused' ? 'paused' : 'playing') : 'idle',
+    room === 'living_room' ? (['idle', 'paused', 'buffering', 'unavailable'].includes(media ?? '') ? media! : 'playing') : 'idle',
     {
       friendly_name: room.replaceAll('_', ' '),
       supported_features: 4127295,
@@ -52,6 +52,11 @@ for (const room of ['living_room', 'bathroom', 'bedroom', 'gym'])
       media_duration: room === 'living_room' && (media === 'idle' || media === 'untitled') ? undefined : 250,
       media_position: room === 'living_room' && (media === 'idle' || media === 'untitled') ? undefined : 42,
       media_position_updated_at: new Date().toISOString(),
+      entity_picture: room === 'living_room' && params.has('artwork')
+        ? params.get('artwork') === 'broken' ? '/missing-album-art.jpg'
+          : params.get('artwork') === 'bright' ? 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22400%22 height=%22400%22%3E%3Cpath fill=%22white%22 d=%22M0 0h400v400H0z%22/%3E%3C/svg%3E'
+          : '/public/concepts/assets/unwind.jpg'
+        : undefined,
     }
   );
 publish('input_boolean.speaker_follow_motion', 'off');

@@ -1072,26 +1072,89 @@ it('renders playback symbols as decorative vectors rather than platform emoji', 
   expect(sendMessagePromise).not.toHaveBeenCalled();
 });
 
-it('fades only reported track changes and keeps transport controls mounted across playback changes', () => {
+it('keeps track links, focus and controls mounted across position, playback and artwork changes', () => {
   const view = mount();
-  const initialTrack = view.container.querySelector('.canvas-music__track');
+  const track = view.container.querySelector('.canvas-music__track');
+  const title = screen.getByRole('link', { name: 'Test track' });
   const pause = screen.getByRole('button', { name: 'Pause' });
-  const initialPlayIcon = pause.querySelector('.canvas-music__play-motion');
-  expect(initialTrack?.getAttribute('data-feature-motion')).toBe('false');
-  updateEntity('media_player.living_room', {}, { media_position: 45, volume_level: .5 });
-  expect(view.container.querySelector('.canvas-music__track')).toBe(initialTrack);
-  expect(pause.querySelector('.canvas-music__play-motion')).toBe(initialPlayIcon);
-  updateEntity('media_player.living_room', {}, { media_title: 'A new reported track' });
-  const newTrack = view.container.querySelector('.canvas-music__track');
-  expect(newTrack).not.toBe(initialTrack);
-  expect(newTrack?.getAttribute('data-feature-motion')).toBe('true');
-  expect(screen.getByRole('button', { name: 'Pause' })).toBe(pause);
+  const follow = screen.getByRole('switch', { name: 'Follow me' });
+  const volume = screen.getByRole('button', { name: 'Open speaker volume' });
+  title.focus();
+  updateEntity('media_player.living_room', {}, { media_position: 45, entity_picture: '/first.jpg' });
+  updateEntity('media_player.living_room', {}, { media_title: 'Next track', entity_picture: '/next.jpg' });
+  expect(view.container.querySelector('.canvas-music__track')).toBe(track);
+  expect(screen.getByRole('link', { name: 'Next track' })).toBe(title);
+  expect(document.activeElement).toBe(title);
   updateEntity('media_player.living_room', { state: 'paused' });
   expect(screen.getByRole('button', { name: 'Resume' })).toBe(pause);
-  expect(pause.querySelector('.canvas-music__play-motion')).not.toBe(initialPlayIcon);
-  expect(view.container.querySelector('.canvas-music__track')).toBe(newTrack);
-  updateEntity('media_player.living_room', {}, { media_position: 46 });
-  expect(view.container.querySelector('.canvas-music__track')).toBe(newTrack);
+  expect(screen.getByRole('switch', { name: 'Follow me' })).toBe(follow);
+  expect(screen.getByRole('button', { name: 'Open speaker volume' })).toBe(volume);
+});
+
+it('shows loaded artwork and decorates only active playback, keeping paused and buffering artwork calm', async () => {
+  updateEntity('media_player.living_room', {}, { entity_picture: '/album.jpg' });
+  const view = mount();
+  const card = screen.getByRole('region', { name: 'Music' });
+  expect(card.getAttribute('data-artwork')).toBe('false');
+  fireEvent.load(view.container.querySelector('.canvas-music__cover img')!);
+  expect(card.getAttribute('data-artwork')).toBe('true');
+  expect(card.getAttribute('data-playing')).toBe('true');
+  const background = view.container.querySelector('.canvas-music__atmosphere img')!;
+  expect(background.getAttribute('src')).toBe('http://homeassistant.test/album.jpg');
+  expect(background.closest('[aria-hidden="true"]')).toBeTruthy();
+  expect(view.container.querySelectorAll('.canvas-music__equalizer span')).toHaveLength(4);
+  for (const state of ['paused', 'buffering']) {
+    updateEntity('media_player.living_room', { state });
+    expect(card.getAttribute('data-artwork')).toBe('true');
+    expect(card.getAttribute('data-playing')).toBe('false');
+  }
+  updateEntity('media_player.living_room', { state: 'playing' });
+  sendMessagePromise.mockImplementationOnce(() => new Promise(() => {}));
+  await userEvent.click(screen.getByRole('button', { name: 'Pause' }));
+  expect(card.getAttribute('data-playing')).toBe('false');
+});
+
+it('stops decorative playback motion after a transport error', async () => {
+  updateEntity('media_player.living_room', {}, { entity_picture: '/album.jpg' });
+  const view = mount();
+  fireEvent.load(view.container.querySelector('.canvas-music__cover img')!);
+  sendMessagePromise.mockRejectedValueOnce(new Error('Playback rejected'));
+  await userEvent.click(screen.getByRole('button', { name: 'Pause' }));
+  expect((await screen.findByRole('alert')).textContent).toContain('Playback rejected');
+  expect(screen.getByRole('region', { name: 'Music' }).getAttribute('data-playing')).toBe('false');
+});
+
+it.each(['cover', 'atmosphere'])('returns to the cream fallback after %s artwork fails and accepts the next image', layer => {
+  updateEntity('media_player.living_room', {}, { entity_picture: '/broken.jpg' });
+  const view = mount();
+  const card = screen.getByRole('region', { name: 'Music' });
+  fireEvent.load(view.container.querySelector('.canvas-music__cover img')!);
+  fireEvent.error(view.container.querySelector(`.canvas-music__${layer} img`)!);
+  expect(card.getAttribute('data-artwork')).toBe('false');
+  expect(view.container.querySelector('.canvas-music__cover img')).toBeNull();
+  expect(view.container.querySelector('.canvas-music__atmosphere img')).toBeNull();
+  updateEntity('media_player.living_room', {}, { entity_picture: '/replacement.jpg' });
+  expect(card.getAttribute('data-artwork')).toBe('false');
+  fireEvent.load(view.container.querySelector('.canvas-music__cover img')!);
+  expect(card.getAttribute('data-artwork')).toBe('true');
+  expect(card.getAttribute('data-playing')).toBe('true');
+  updateEntity('media_player.living_room', {}, { entity_picture: undefined });
+  expect(card.getAttribute('data-artwork')).toBe('false');
+});
+
+it.each(['idle', 'unavailable', 'disconnected'])('uses the fallback and stops artwork motion when %s', state => {
+  updateEntity('media_player.living_room', {}, { entity_picture: '/album.jpg' });
+  const view = mount();
+  fireEvent.load(view.container.querySelector('.canvas-music__cover img')!);
+  if (state === 'disconnected') act(() => useStore.setState({ connectionStatus: 'disconnected' }));
+  else {
+    updateEntity('media_player.living_room', { state });
+    updateEntity('media_player.gym', { state });
+  }
+  const card = screen.getByRole('region', { name: 'Music' });
+  expect(card.getAttribute('data-artwork')).toBe('false');
+  expect(card.getAttribute('data-playing')).toBe('false');
+  expect(view.container.querySelector('.canvas-music__atmosphere img')).toBeNull();
 });
 
 it('keeps Follow me on the music card and a stable group-volume heading across membership changes', async () => {

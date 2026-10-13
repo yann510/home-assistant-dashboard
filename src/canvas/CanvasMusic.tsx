@@ -1,4 +1,3 @@
-import { useFeatureMotion } from './useFeatureMotion';
 import './canvas-feature-motion.css';
 import { CanvasActionIcon } from './CanvasActionIcon';
 import { SpeakerSeek } from '../SpeakerSeek';
@@ -48,7 +47,6 @@ export function CanvasFollow() {
 export function CanvasTransport() {
   const { playback, disabled, playing, idle, attributes } = useCanvasMusic();
   const features = attributes?.supported_features ?? 0;
-  const playbackMotion = useFeatureMotion(playing ? 'playing' : 'paused');
   if (idle) return null;
   return (
     <div className='canvas-music__transport' aria-label='Playback controls' aria-busy={playback.busy}>
@@ -64,7 +62,7 @@ export function CanvasTransport() {
         disabled={disabled || playback.busy || !(features & (playing ? 1 : 16384))}
         onClick={() => void playback.transport(playing ? 'media_pause' : 'media_play', playing ? 'pause playback' : 'start playback')}
       >
-        <span key={playbackMotion.revision} className='canvas-music__play-motion' data-feature-motion={playbackMotion.animate}>
+        <span className='canvas-music__play-motion'>
           <CanvasActionIcon action={playing ? 'pause' : 'play'} size={20} />
         </span>
       </button>
@@ -86,39 +84,47 @@ export function CanvasMusic({
   onOpenPlayer(trigger: HTMLElement): void;
   onOpenSpeakers(trigger: HTMLElement): void;
 }) {
-  const { session, title, trackTitle, attributes, idle, rooms, disabled, favouritePlayback } = useCanvasMusic();
+  const { session, title, trackTitle, attributes, idle, rooms, disabled, playback, favouritePlayback } = useCanvasMusic();
   const { joinHassUrl } = useHass();
   const [failedArtwork, setFailedArtwork] = useState<string>();
-  const picture = !idle && !disabled ? attributes?.entity_picture : undefined;
+  const [loadedArtwork, setLoadedArtwork] = useState<string>();
+  const available = session.connected && session.coordinator && !['unknown', 'unavailable'].includes(session.coordinator.state);
+  const picture = !idle && available ? attributes?.entity_picture : undefined;
+  const artworkUrl = picture ? joinHassUrl(picture) : undefined;
+  const usableArtwork = artworkUrl && failedArtwork !== artworkUrl ? artworkUrl : undefined;
+  const hasArtwork = !!usableArtwork && loadedArtwork === usableArtwork;
+  const activePlayback = !!available && session.coordinator?.state === 'playing' && !disabled && !playback.busy
+    && !session.updating && !favouritePlayback.pending && !playback.error && !session.error && !rooms.error
+    && !favouritePlayback.playError && !favouritePlayback.commandError;
   const currentTrackUri = spotifyTrackUri(attributes?.media_content_id);
   const spotifyHref = trackTitle ? currentTrackUri ?? 'spotify:' : undefined;
   const Cover = trackTitle ? 'a' : 'div';
   const Title = trackTitle ? 'a' : 'div';
-  const trackMotion = useFeatureMotion(
-    JSON.stringify([
-      attributes?.media_content_id ?? null,
-      attributes?.media_title ?? attributes?.media_playlist ?? null,
-      attributes?.media_artist ?? null,
-      attributes?.entity_picture ?? null,
-    ])
-  );
   function openSpeakers(trigger: HTMLElement) {
     if (!rooms.busy) rooms.begin();
     onOpenSpeakers(trigger);
   }
   return (
-    <section className='canvas__music canvas-music' aria-label='Music'>
-      <div key={trackMotion.revision} className='canvas-music__track' data-feature-motion={trackMotion.animate}>
+    <section className='canvas__music canvas-music' aria-label='Music' data-artwork={hasArtwork} data-playing={activePlayback}>
+      <div className='canvas-music__atmosphere' aria-hidden='true'>
+        {usableArtwork && <img src={usableArtwork} alt='' onLoad={() => setLoadedArtwork(usableArtwork)} onError={() => setFailedArtwork(usableArtwork)} />}
+      </div>
+      <div className='canvas-music__track'>
         <Cover className='canvas-music__cover' href={spotifyHref} aria-label={trackTitle ? currentTrackUri ? 'Open current song in Spotify' : 'Open Spotify app' : undefined} aria-hidden={trackTitle ? undefined : true}>
-          {picture && failedArtwork !== picture ? (
-            <img src={joinHassUrl(picture)} alt='' onError={() => setFailedArtwork(picture)} />
+          {usableArtwork ? (
+            <img src={usableArtwork} alt='' onLoad={() => setLoadedArtwork(usableArtwork)} onError={() => setFailedArtwork(usableArtwork)} />
           ) : (
             <span aria-hidden='true'>♪</span>
           )}
         </Cover>
         <div className='canvas-music__metadata'>
           <span className='canvas__eyebrow'>{trackTitle ? 'Music, for this moment' : 'Music'}</span>
-          <Title className={`canvas-music__title${trackTitle ? '' : ' canvas-music__title--status'}`} href={spotifyHref}>{title}</Title>
+          <div className='canvas-music__title-row'>
+            <Title className={`canvas-music__title${trackTitle ? '' : ' canvas-music__title--status'}`} href={spotifyHref}>{title}</Title>
+            <span className='canvas-music__equalizer' aria-hidden='true' data-active={activePlayback}>
+              <span /><span /><span /><span />
+            </span>
+          </div>
           {!idle && !disabled && attributes?.media_artist && <p>{attributes.media_artist}</p>}
         </div>
       </div>

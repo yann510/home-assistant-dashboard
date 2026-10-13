@@ -10,9 +10,7 @@
 .canvas-mood[data-feature-motion='true'][data-mood='dinner'] .canvas-mood__art > circle:nth-child(2) { animation-delay: 80ms; }
 .canvas-mood[data-feature-motion='true'][data-mood='party'] .canvas-mood__art > * { animation: canvas-party-arrive 550ms ease-out backwards; }
 .canvas-mood[data-feature-motion='true'][data-mood='gym'] .canvas-mood__art > * { animation: canvas-gym-arrive 550ms ease-out backwards; }
-.canvas-music__track[data-feature-motion='true'] > :is(.canvas-music__cover, .canvas-music__metadata) { animation: canvas-feature-reveal 320ms ease both; }
 .canvas-music__play-motion { display: grid; place-items: center; width: var(--canvas-transport-icon-size, 20px); height: var(--canvas-transport-icon-size, 20px); }
-.canvas-music__play-motion[data-feature-motion='true'] { animation: canvas-play-change 200ms ease-out both; }
 .canvas-music__transport button > svg { transition: transform 160ms ease; }
 .canvas-music__transport button:first-of-type:active:not(:disabled) > svg { transform: translateX(-3px); }
 .canvas-music__transport button:nth-of-type(3):active:not(:disabled) > svg { transform: translateX(3px); }
@@ -24,12 +22,9 @@
 @keyframes canvas-dinner-arrive { from { transform: translateY(4px); } }
 @keyframes canvas-party-arrive { from { transform: translateY(6px); } }
 @keyframes canvas-gym-arrive { from { transform: translateX(-10px); } to { transform: translateX(0); } }
-@keyframes canvas-play-change { from { opacity: .4; transform: scale(.85); } to { opacity: 1; transform: scale(1); } }
 @media (prefers-reduced-motion: reduce) {
   :is(.canvas, .canvas-dialog) .canvas-mood,
   .canvas-music__transport button > svg { transition: none; }
-  .canvas-mood[data-feature-motion='true'] :is(.canvas-mood__title-motion, .canvas-mood__art, .canvas-mood__art > *),
-  .canvas-music__track[data-feature-motion='true'] > :is(.canvas-music__cover, .canvas-music__metadata),
-  .canvas-music__play-motion[data-feature-motion='true'] { animation: none; }
+  .canvas-mood[data-feature-motion='true'] :is(.canvas-mood__title-motion, .canvas-mood__art, .canvas-mood__art > *) { animation: none; }
   .canvas-music__transport button:is(:first-of-type, :nth-of-type(3)):active:not(:disabled) > svg { transform: none; }
 }
