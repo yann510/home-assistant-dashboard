@@ -7,3 +7,9 @@ Open `http://127.0.0.1:8773/dev/canvas-preview/index.html?view=canvas&musicProto
 Verification: 139 focused tests, lint, and dashboard build passed. Picker keyboard/query tests passed; subsequent development CSS fixes passed lint. Independent review approved after pause-specificity and fieldset-overflow fixes. Real Chrome checks selected all five variants and confirmed all four indicator spans report paused after Pause in each variant. Phone 375 × 812 no longer overflows horizontally; its gallery scrolls internally and On air selection succeeds. Viewport override reset. The gallery scrollbar uses theme tokens. Screenshot retained with chat: `five-music-prototypes.jpg`.
 
 Production was not deployed or changed. The local server remains running for the user's comparison.
+
+## Aurora transport and progress refinement
+
+User requested Aurora inside the play/pause button with the pause symbol retained, plus livelier progress. Commit `4a571be` adds development-only `?auroraControls=1&artwork=1` gallery with Comet, Light stream, and Halo choices. The button's animated ribbons appear only during active playing with an enabled control; paused and disabled buttons retain their normal treatment. The native slider and `--speaker-range-fill` remain the position source; decorations never run their own progress clock. The old five-concept gallery remains available.
+
+128 focused tests, lint, and dashboard build passed. Independent review approved after fixing the disabled-Pause activation selector. Chrome confirmed Aurora pseudo-element animation names while playing and `none` when paused; native keyboard seeking updated position/fill/time labels, and selecting different styles did not jump the position. Phone 375 × 812 had no horizontal overflow; central button stayed 44 × 44 and gallery selection worked. Viewport reset. Screenshot retained with chat: `aurora-controls-prototypes.jpg`. Production remains unchanged.
