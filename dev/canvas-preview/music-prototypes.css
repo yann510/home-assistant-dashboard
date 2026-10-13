@@ -4,7 +4,10 @@
 .music-prototypes__heading { display: flex; align-items: center; justify-content: space-between; gap: 24px; }
 .music-prototypes h2 { margin: 5px 0 12px; font-size: clamp(1.3rem, 3vw, 1.8rem); letter-spacing: -.035em; }
 .music-prototypes__heading p { max-width: 320px; margin: 0 0 12px; color: var(--canvas-muted); font-size: .8rem; }
-.music-prototypes__choices { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; min-inline-size: 0; max-inline-size: 100%; border: 0; padding: 0; margin: 0; }
+.music-prototypes__choices { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; min-inline-size: 0; max-inline-size: 100%; border: 0; padding: 0; margin: 0; scrollbar-color: var(--canvas-lilac) var(--canvas-surface); scrollbar-width: thin; }
+.music-prototypes__choices::-webkit-scrollbar { height: 6px; }
+.music-prototypes__choices::-webkit-scrollbar-track { background: var(--canvas-surface); border-radius: 12px; }
+.music-prototypes__choices::-webkit-scrollbar-thumb { background: var(--canvas-lilac); border: 1px solid var(--canvas-surface); border-radius: 12px; }
 .music-prototypes__choices legend { max-inline-size: 100%; padding: 0; margin-bottom: 8px; color: var(--canvas-muted); font-size: .75rem; white-space: normal; }
 .music-prototypes__choice { position: relative; cursor: pointer; min-width: 0; }
 .music-prototypes__choice input { position: absolute; opacity: 0; width: 1px; height: 1px; }
