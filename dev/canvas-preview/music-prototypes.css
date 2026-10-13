@@ -1,5 +1,11 @@
 /* This sheet is imported only by the local preview tools. Every dashboard override
    requires the opt-in picker, so the normal preview and production stay unchanged. */
+/* Retained track art belongs in the thumbnail while playback is stopped. Restore
+   the original cream card tokens, including Follow's checked and unchecked states. */
+body:has(:is(#music-prototypes-title, #aurora-controls-title)) #root .canvas .canvas-music[data-playing='false'] { --canvas-music-ink: #302c26; --canvas-music-muted: #514b3e; --canvas-music-surface: #e6dcbc; --canvas-music-track: #51473455; --canvas-music-line: #51473444; --canvas-music-border: #51473488; --canvas-music-hover: #51473418; }
+body:has(:is(#music-prototypes-title, #aurora-controls-title)) #root .canvas .canvas-music[data-playing='false'] > .canvas-music__atmosphere { display: none; }
+body:has(:is(#music-prototypes-title, #aurora-controls-title)) #root .canvas .canvas-music[data-playing='false'] .canvas-music__follow-indicator { background: var(--canvas-music-surface); }
+body:has(:is(#music-prototypes-title, #aurora-controls-title)) #root .canvas .canvas-music[data-playing='false'] .canvas-music__follow > button[aria-checked='true'] .canvas-music__follow-state { background: var(--canvas-music-ink); }
 .music-prototypes { box-sizing: border-box; max-width: 1500px; margin: 16px auto 0; padding: 20px; border: 1px solid var(--canvas-line); border-radius: 20px; }
 .music-prototypes__heading { display: flex; align-items: center; justify-content: space-between; gap: 24px; }
 .music-prototypes h2 { margin: 5px 0 12px; font-size: clamp(1.3rem, 3vw, 1.8rem); letter-spacing: -.035em; }
