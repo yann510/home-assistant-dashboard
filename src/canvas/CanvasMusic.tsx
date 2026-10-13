@@ -105,7 +105,7 @@ export function CanvasMusic({
     onOpenSpeakers(trigger);
   }
   return (
-    <section className='canvas__music canvas-music' aria-label='Music' data-artwork={hasArtwork} data-playing={activePlayback}>
+    <section className='canvas__music canvas-music' aria-label='Music' data-artwork={hasArtwork && activePlayback} data-playing={activePlayback}>
       <div className='canvas-music__atmosphere' aria-hidden='true'>
         {usableArtwork && <img src={usableArtwork} alt='' onLoad={() => setLoadedArtwork(usableArtwork)} onError={() => setFailedArtwork(usableArtwork)} />}
       </div>
@@ -121,9 +121,6 @@ export function CanvasMusic({
           <span className='canvas__eyebrow'>{trackTitle ? 'Music, for this moment' : 'Music'}</span>
           <div className='canvas-music__title-row'>
             <Title className={`canvas-music__title${trackTitle ? '' : ' canvas-music__title--status'}`} href={spotifyHref}>{title}</Title>
-            <span className='canvas-music__equalizer' aria-hidden='true' data-active={activePlayback}>
-              <span /><span /><span /><span />
-            </span>
           </div>
           {!idle && !disabled && attributes?.media_artist && <p>{attributes.media_artist}</p>}
         </div>

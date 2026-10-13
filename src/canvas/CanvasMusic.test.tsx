@@ -1091,7 +1091,7 @@ it('keeps track links, focus and controls mounted across position, playback and 
   expect(screen.getByRole('button', { name: 'Open speaker volume' })).toBe(volume);
 });
 
-it('shows loaded artwork and decorates only active playback, keeping paused and buffering artwork calm', async () => {
+it('shows background artwork only during active playback while retaining the paused cover', async () => {
   updateEntity('media_player.living_room', {}, { entity_picture: '/album.jpg' });
   const view = mount();
   const card = screen.getByRole('region', { name: 'Music' });
@@ -1102,16 +1102,18 @@ it('shows loaded artwork and decorates only active playback, keeping paused and 
   const background = view.container.querySelector('.canvas-music__atmosphere img')!;
   expect(background.getAttribute('src')).toBe('http://homeassistant.test/album.jpg');
   expect(background.closest('[aria-hidden="true"]')).toBeTruthy();
-  expect(view.container.querySelectorAll('.canvas-music__equalizer span')).toHaveLength(4);
   for (const state of ['paused', 'buffering']) {
     updateEntity('media_player.living_room', { state });
-    expect(card.getAttribute('data-artwork')).toBe('true');
+    expect(card.getAttribute('data-artwork')).toBe('false');
     expect(card.getAttribute('data-playing')).toBe('false');
+    expect(view.container.querySelector('.canvas-music__cover img')?.getAttribute('src')).toBe('http://homeassistant.test/album.jpg');
   }
   updateEntity('media_player.living_room', { state: 'playing' });
+  expect(card.getAttribute('data-artwork')).toBe('true');
   sendMessagePromise.mockImplementationOnce(() => new Promise(() => {}));
   await userEvent.click(screen.getByRole('button', { name: 'Pause' }));
   expect(card.getAttribute('data-playing')).toBe('false');
+  expect(card.getAttribute('data-artwork')).toBe('false');
 });
 
 it('stops decorative playback motion after a transport error', async () => {
