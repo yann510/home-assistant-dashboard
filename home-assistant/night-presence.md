@@ -76,3 +76,27 @@ python -m unittest discover -s home-assistant/tests -v
 Tests execute real HA scripts, templates, helper state triggers, and complete
 configuration validation. Hardware services are substitutes that record writes
 and update state; one raises a real HA error to verify per-device resilience.
+
+## Live verification — 2026-10-12
+
+Installed at 21:51 America/Toronto on HA 2026.9.3. A private backup of the
+original configs and states is in the original checkout at
+`backups.local/night-presence/config-2026-10-13T01-51-41-603Z.json`.
+
+Saved and runtime `script/config` readbacks exactly matched the bundled script;
+saved and runtime `automation/config` readbacks matched all three desired rules.
+Apply Night Mode and the 21:30 schedule were enabled; the retired 22:00 rule was
+disabled. The 21:00 automation and shared LocalTuya staging config remained equal
+to their originals. Morning stayed off and Night stayed on throughout installation.
+No lighting services were executed during installation.
+
+HA's native `/api/config/core/check_config` returned `valid`, with no errors or
+warnings. A read-only `/api/template` preview of the exact policy condition using
+live states preserved the occupied office bulbs and neon, marked the vacant
+kitchen main light eligible for shutdown, and skipped the other already-off lights.
+This verified configuration and template decisions; it was not a physical service
+trial or a natural scheduled run. The next 21:30 run will use the new rules.
+
+Independent review passed specification and quality checks with no findings.
+Final verification passed 98 HA tests, 164 backend tests (one existing skip), and
+663 frontend tests across 39 files.
