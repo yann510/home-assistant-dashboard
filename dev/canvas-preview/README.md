@@ -20,6 +20,12 @@ Open `/dev/canvas-preview/index.html?view=canvas&musicPrototypes=1&artwork=1` to
 
 The optional `musicPrototype=orbit|aurora|notes|on-air|cassette` parameter chooses the initial tile. Add `media=paused` to begin with a paused card. All five respect reduced motion. They illustrate playback state and do not claim to measure audio. This opt-in development CSS and picker never enter the production application, and the standard preview stays unchanged without `musicPrototypes=1`.
 
+## Aurora playback controls
+
+Open `/dev/canvas-preview/index.html?view=canvas&auroraControls=1&artwork=1` to compare **Comet** (the default) and **Halo** on the actual music card. The active play button and progress marker use the card’s cream, cover copper, and dark ink. Pausing settles the motion and restores the cream card. Seeking still uses the track’s real position and native slider.
+
+Use `progressPrototype=comet|halo` to select the initial style; the retired `flow` value falls back to Comet. Both styles respect reduced motion. These controls are opt-in development visuals and never enter the production application; the original five-option music gallery remains available separately.
+
 ## Tablet layout
 
 The production dashboard automatically uses tablet typography and viewport rhythm at CSS viewport widths of at least 800px and heights of at least 540px. No query flag is needed; the former `tablet=1` option is retired. The preview uses the same production stylesheet.

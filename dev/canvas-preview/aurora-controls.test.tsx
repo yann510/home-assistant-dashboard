@@ -10,21 +10,21 @@ afterEach(() => {
   history.replaceState(null, '', '/');
 });
 
-it('compares three progress directions in place with keyboard and pointer selection', async () => {
+it('compares two progress directions in place with keyboard and pointer selection', async () => {
   history.replaceState(null, '', '/?auroraControls=1&artwork=1');
   const originalUrl = location.href;
   render(<AuroraControls />);
   const user = userEvent.setup();
   const radios = screen.getAllByRole('radio') as HTMLInputElement[];
-  expect(radios).toHaveLength(3);
+  expect(radios).toHaveLength(2);
   expect(radios[0].checked).toBe(true);
   await user.tab();
   expect(document.activeElement).toBe(radios[0]);
   await user.click(radios[1]);
   expect(radios[1].checked).toBe(true);
-  radios[2].focus();
+  radios[0].focus();
   await user.keyboard(' ');
-  expect(radios[2].checked).toBe(true);
+  expect(radios[0].checked).toBe(true);
   expect(radios.filter(radio => radio.checked)).toHaveLength(1);
   expect(location.href).toBe(originalUrl);
 });
@@ -34,9 +34,12 @@ it('deep-links progress choices and defaults safely for unknown names', () => {
   const view = render(<AuroraControls />);
   expect((screen.getByRole('radio', { name: /Halo/ }) as HTMLInputElement).checked).toBe(true);
   view.unmount();
-  history.replaceState(null, '', '/?progressPrototype=unknown');
-  render(<AuroraControls />);
-  expect((screen.getByRole('radio', { name: /Comet/ }) as HTMLInputElement).checked).toBe(true);
+  for (const requested of ['unknown', 'flow']) {
+    history.replaceState(null, '', `/?progressPrototype=${requested}`);
+    const fallback = render(<AuroraControls />);
+    expect((screen.getByRole('radio', { name: /Comet/ }) as HTMLInputElement).checked).toBe(true);
+    fallback.unmount();
+  }
 });
 
 it('gates the button aurora by the preview picker and actual active playback', () => {

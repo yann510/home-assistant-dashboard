@@ -3,7 +3,6 @@ import './aurora-controls.css';
 
 const progressDirections = [
   { id: 'comet', title: 'Comet', description: 'A luminous head carries a soft, tapered trail along the song.' },
-  { id: 'flow', title: 'Light stream', description: 'A quiet ribbon of light flows through the part you’ve heard.' },
   { id: 'halo', title: 'Halo', description: 'A little orbit of light surrounds the song’s exact position.' },
 ] as const;
 
@@ -14,10 +13,10 @@ export function AuroraControls() {
     <section className='canvas music-prototypes aurora-controls' aria-labelledby='aurora-controls-title'>
       <div className='music-prototypes__heading'>
         <div>
-          <span className='canvas__eyebrow'>Local design playground · 3 directions</span>
+          <span className='canvas__eyebrow'>Local design playground · 2 directions</span>
           <h2 id='aurora-controls-title'>Aurora in the play button</h2>
         </div>
-        <p>One little northern sky, three ways to follow the song. Try pause, play, and seeking below.</p>
+        <p>Warm light in the play button, two ways to follow the song. Try pause, play, and seeking below.</p>
       </div>
       <fieldset className='music-prototypes__choices'>
         <legend>Choose the track progress style</legend>
