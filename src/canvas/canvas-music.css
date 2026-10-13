@@ -165,3 +165,9 @@
 }
 
 .canvas-dialog .canvas-speakers__volume .speaker-volume-heading output { min-width: 11ch; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+.canvas-dialog .canvas-player__spotify { display: flex; flex-wrap: wrap; gap: var(--canvas-space-2); }
+.canvas-dialog .canvas-player__spotify a { display: inline-flex; align-items: center; justify-content: center; gap: var(--canvas-space-2); min-height: 44px; box-sizing: border-box; padding: 8px 12px; border: 1px solid var(--canvas-line); border-radius: 12px; background: color-mix(in srgb, var(--canvas-lilac) 12%, var(--canvas-surface)); color: var(--canvas-ink); font: inherit; font-size: .8rem; text-decoration: none; }
+.canvas-dialog .canvas-player__spotify a:hover { border-color: var(--canvas-lilac); }
+.canvas-dialog .canvas-player__spotify a:active { background: color-mix(in srgb, var(--canvas-lilac) 24%, var(--canvas-surface)); }
+.canvas-dialog .canvas-player__spotify a:focus-visible { outline: 2px solid var(--canvas-lilac); outline-offset: 3px; }

@@ -126,6 +126,29 @@ it('keeps offline detail access, disables commands, and never replays writes on 
   expect(fixture.calls.filter(call => (call as { type: string }).type === 'call_service')).toHaveLength(0);
 });
 
+it.each([false, true])('hands browsing to Spotify from the unchanged favourites heart (offline: %s)', async offline => {
+  speaker();
+  if (offline) fixture.disconnect();
+  render(<CanvasDashboard />);
+  fireEvent.click(screen.getByRole('button', { name: 'Open favourites' }));
+  const dialog = screen.getByRole('dialog', { name: 'Favourites' });
+  const appLink = within(dialog).getByRole('link', { name: 'Open Spotify app' });
+  const webLink = within(dialog).getByRole('link', { name: 'Spotify web player' });
+  expect(appLink.getAttribute('href')).toBe('spotify:');
+  expect(appLink.getAttribute('target')).toBeNull();
+  expect(webLink.getAttribute('href')).toBe('https://open.spotify.com/');
+  expect(webLink.getAttribute('target')).toBe('_blank');
+  expect(webLink.getAttribute('rel')).toBe('noopener noreferrer');
+  // Preserve native navigation while testing that the gesture never writes to HA.
+  for (const link of [appLink, webLink]) {
+    link.addEventListener('click', event => event.preventDefault(), { once: true });
+    fireEvent.click(link);
+  }
+  await act(async () => {});
+  expect(fixture.calls.filter(call => (call as { type: string }).type === 'call_service')).toHaveLength(0);
+  expect(screen.getByRole('dialog', { name: 'Favourites' })).toBe(dialog);
+});
+
 it('recovers forecast failure through retry without replacing the dialog', async () => {
   fixture.publish('weather.forecast_home', 'sunny', { temperature: 18, supported_features: 3 });
   fixture.respondWith(async () => {
