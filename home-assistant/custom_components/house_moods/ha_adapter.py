@@ -2,6 +2,7 @@
 import asyncio
 from copy import deepcopy
 from homeassistant.core import Context, CoreState
+from homeassistant.exceptions import HomeAssistantError
 from .model import OperationTimeout
 from .lights import LightControls
 from .presets import NEON
@@ -50,7 +51,11 @@ class HAIO:
                     context=context, return_response=return_response)
         except TimeoutError:
             raise OperationTimeout(f'{domain}.{service} timed out; its device effect is unconfirmed.') from None
-        except Exception:
+        except Exception as err:
+            if (domain == 'media_player' and service == 'play_media' and targets
+                    and all(target in PLAYBACK_SOURCES for target in targets)
+                    and isinstance(err, HomeAssistantError)):
+                raise RuntimeError(f'{domain}.{service} did not complete: {err}') from err
             raise RuntimeError(f'{domain}.{service} did not complete.') from None
 
     async def wait(self, predicate, timeout=15):
@@ -207,6 +212,9 @@ class HAAdapter:
 
     def restoration_state(self, target, baseline):
         return self.control(target).restoration_state(target, baseline)
+
+    def failed_apply_is_restored(self, target, entry, current):
+        return self.sonos.failed_apply_is_restored(target, entry, current)
 
     def restore_dependencies(self):
         return {GROUPS, FOLLOW}

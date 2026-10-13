@@ -375,6 +375,11 @@ class MoodCoordinator:
                         else:
                             s.owned.add(target)
                             s.expected[target] = copy.deepcopy(current)
+                    elif (hasattr(self.adapter, 'failed_apply_is_restored')
+                          and self.adapter.failed_apply_is_restored(target, entry, current)):
+                        # A failed Sonos play can clear/partially replace its queue.
+                        # Safe restoration is already satisfied: do not replay or stop.
+                        s.owned.discard(target)
                     elif matches(target, entry['before'][target], current):
                         # A failed apply may leave earlier mood ownership intact.
                         pass

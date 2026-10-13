@@ -266,6 +266,17 @@ class SonosControls:
     def restoration_state(self, target, baseline):
         return {'state': 'stopped'} if target.endswith('#playback') else baseline
 
+    def failed_apply_is_restored(self, target, entry, current):
+        # Deployed journals predate write-action metadata. Recognize only the
+        # fixed favorite-play request; queue contents are deliberately not restored.
+        return (target in [e + '#playback' for e in PLAYBACK_SOURCES]
+                and entry['action'] == 'apply' and entry['targets'] == [target]
+                and not entry.get('uncertain')
+                and entry['requested'][target] == {'state': 'playing', 'source': None}
+                and current.get('state') == 'stopped'
+                and 'source' in current and current['source'] is None
+                and 'stream' in current and current['stream'] is None)
+
     async def prepare_restore(self, session):
         if FOLLOW not in session.owned or FOLLOW in session.overridden:
             return []
