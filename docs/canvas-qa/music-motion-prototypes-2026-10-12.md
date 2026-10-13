@@ -17,3 +17,7 @@ User requested Aurora inside the play/pause button with the pause symbol retaine
 ## Playing-only background artwork
 
 Commit `70161ce` refines both opt-in prototype pages: inactive playback restores the original cream background and control colors and hides the full-card atmosphere, retaining the small cover thumbnail and current Spotify links. Playing restores the existing artwork treatment. Only development CSS changed; production/default preview remain unchanged. Lint and diff checks passed; independent review approved. Chrome Pause/Resume checks confirmed `display:none` with cream `rgb(230,220,188)` while paused, then visible atmosphere on play. The original five-concept page also hides its background on pause. Screenshot retained with chat: `aurora-paused-plain-card.jpg`.
+
+## Warm music-card palette
+
+Commit `874b5c8` keeps Comet as the default, removes the visually similar Light stream option, and retains Halo for comparison. Aurora controls and gallery samples use the existing music card's cream/copper/ink/taupe palette rather than mood lilac. Retired `progressPrototype=flow` falls back to Comet. Five focused picker tests, lint, and diff checks passed; independent review approved. Chrome confirmed two choices, the warm active button/marker, and cream background with hidden atmosphere after Pause. Screenshot retained with chat: `warm-aurora-comet-preview.jpg`. Development files only; production remains unchanged.
