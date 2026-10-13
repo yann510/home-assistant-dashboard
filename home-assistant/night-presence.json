@@ -1,0 +1,283 @@
+{
+  "script": {
+    "entity_id": "script.night_presence_lights",
+    "id": "night_presence_lights",
+    "expected_config": null,
+    "config": {
+      "alias": "Night presence lights",
+      "description": "Only turn off currently-on lights in known-vacant rooms during Night Mode; living room always off. Never writes brightness or turns lights on.",
+      "mode": "single",
+      "sequence": [
+        {
+          "repeat": {
+            "for_each": [
+              {
+                "presence": "binary_sensor.aqara_fp2_presence_motion_sensor_presence_sensor_2",
+                "light": "light.office_bulbs"
+              },
+              {
+                "presence": "binary_sensor.aqara_fp2_presence_motion_sensor_presence_sensor_2",
+                "light": "light.neon_light_led_strip"
+              },
+              {
+                "presence": "binary_sensor.aqara_fp2_presence_motion_sensor_presence_sensor_3",
+                "light": "light.light_kitchen"
+              },
+              {
+                "presence": "binary_sensor.aqara_fp2_presence_motion_sensor_presence_sensor_3",
+                "light": "light.kitchen_range_light"
+              },
+              {
+                "presence": "binary_sensor.aqara_fp2_bathroom_presence_sensor_1",
+                "light": "light.light_toilet"
+              },
+              {
+                "presence": "binary_sensor.hue_motion_sensor_1_motion",
+                "light": "light.light_bedroom"
+              },
+              {
+                "presence": "binary_sensor.hue_motion_sensor_1_motion_3",
+                "light": "light.bedroom_closet"
+              },
+              {
+                "presence": "binary_sensor.hue_motion_sensor_1_motion_2",
+                "light": "light.gym"
+              },
+              {
+                "presence": "binary_sensor.hue_motion_sensor_2_motion",
+                "light": "light.light_front_door"
+              },
+              {
+                "presence": "binary_sensor.hue_motion_sensor_2_motion",
+                "light": "light.light_laundry_room"
+              },
+              {
+                "presence": null,
+                "light": "light.light_living_room_bulbs"
+              },
+              {
+                "presence": null,
+                "light": "light.living_room_led_strip"
+              }
+            ],
+            "sequence": [
+              {
+                "if": [
+                  {
+                    "condition": "template",
+                    "value_template": "{{ is_state('input_boolean.night_mode', 'on') and (repeat.item.presence is none or is_state(repeat.item.presence, 'off')) and is_state(repeat.item.light, 'on') }}"
+                  }
+                ],
+                "then": [
+                  {
+                    "action": "light.turn_off",
+                    "target": {
+                      "entity_id": "{{ repeat.item.light }}"
+                    },
+                    "continue_on_error": true
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "automations": [
+    {
+      "entity_id": "automation.apply_night_mode",
+      "enabled": true,
+      "expected_config": {
+        "id": "1786600000004",
+        "alias": "Apply Night Mode",
+        "description": "Keeps motion-triggered lights off, immediately turns off the toilet light, and stages LocalTuya lights at 10% without powering off lights that are already on.",
+        "triggers": [
+          {
+            "entity_id": "input_boolean.night_mode",
+            "from": "off",
+            "to": "on",
+            "trigger": "state"
+          }
+        ],
+        "conditions": [],
+        "actions": [
+          {
+            "action": "input_boolean.turn_off",
+            "target": {
+              "entity_id": "input_boolean.morning_mode"
+            }
+          },
+          {
+            "action": "light.turn_off",
+            "target": {
+              "entity_id": "light.light_toilet"
+            }
+          },
+          {
+            "action": "script.set_localtuya_lights_brightness",
+            "data": {
+              "brightness_value": 126
+            }
+          }
+        ],
+        "mode": "restart"
+      },
+      "config": {
+        "id": "1786600000004",
+        "alias": "Apply Night Mode",
+        "description": "Keeps motion-triggered lights blocked, disables Morning Mode, and shuts down only currently-on lights in known-vacant rooms. Occupied or uncertain rooms keep their brightness, color, and effect. Living-room lights turn off unconditionally.",
+        "triggers": [
+          {
+            "entity_id": "input_boolean.night_mode",
+            "from": "off",
+            "to": "on",
+            "trigger": "state"
+          }
+        ],
+        "conditions": [],
+        "actions": [
+          {
+            "action": "input_boolean.turn_off",
+            "target": {
+              "entity_id": "input_boolean.morning_mode"
+            }
+          },
+          {
+            "action": "script.night_presence_lights"
+          }
+        ],
+        "mode": "restart"
+      }
+    },
+    {
+      "entity_id": "automation.reset_morning_mode_at_9_30pm",
+      "enabled": true,
+      "expected_config": {
+        "id": "1786600000002",
+        "alias": "Enable Night Mode at 9:30pm",
+        "description": "Starts the protected sleep period automatically even if Night Mode was not enabled manually from Google Home or the dashboard.",
+        "triggers": [
+          {
+            "at": "21:30:00",
+            "trigger": "time"
+          }
+        ],
+        "conditions": [],
+        "actions": [
+          {
+            "action": "input_boolean.turn_off",
+            "target": {
+              "entity_id": "input_boolean.morning_mode"
+            }
+          },
+          {
+            "action": "input_boolean.turn_on",
+            "target": {
+              "entity_id": "input_boolean.night_mode"
+            }
+          }
+        ],
+        "mode": "single"
+      },
+      "config": {
+        "id": "1786600000002",
+        "alias": "Enable Night Mode at 9:30pm",
+        "description": "Enables Night Mode at 21:30. The helper transition applies vacancy shutdown once; when Night is already on, directly reruns the same presence checks. No brightness staging.",
+        "triggers": [
+          {
+            "at": "21:30:00",
+            "trigger": "time"
+          }
+        ],
+        "conditions": [],
+        "actions": [
+          {
+            "action": "input_boolean.turn_off",
+            "target": {
+              "entity_id": "input_boolean.morning_mode"
+            }
+          },
+          {
+            "if": [
+              {
+                "condition": "state",
+                "entity_id": "input_boolean.night_mode",
+                "state": "on"
+              }
+            ],
+            "then": [
+              {
+                "action": "script.night_presence_lights"
+              }
+            ],
+            "else": [
+              {
+                "action": "input_boolean.turn_on",
+                "target": {
+                  "entity_id": "input_boolean.night_mode"
+                }
+              }
+            ]
+          }
+        ],
+        "mode": "single"
+      }
+    },
+    {
+      "entity_id": "automation.wind_down_stage_2_dim_lights_to_10_at_10_00pm",
+      "enabled": false,
+      "expected_config": {
+        "id": "1786538000001",
+        "alias": "Wind-down safety pass: set lights to 10% at 10:00pm",
+        "description": "Reapplies the Night Mode brightness locally as an idempotent safety pass. It never powers on a light that is off.",
+        "triggers": [
+          {
+            "at": "22:00:00",
+            "trigger": "time"
+          }
+        ],
+        "conditions": [
+          {
+            "condition": "state",
+            "entity_id": "input_boolean.night_mode",
+            "state": "on"
+          }
+        ],
+        "actions": [
+          {
+            "action": "script.set_localtuya_lights_brightness",
+            "data": {
+              "brightness_value": 126
+            }
+          }
+        ],
+        "mode": "single"
+      },
+      "config": {
+        "id": "1786538000001",
+        "alias": "Wind-down safety pass: set lights to 10% at 10:00pm",
+        "description": "Retired: occupied rooms retain their existing brightness after 21:30. Saved actions are inert even if manually triggered or accidentally enabled.",
+        "triggers": [
+          {
+            "at": "22:00:00",
+            "trigger": "time"
+          }
+        ],
+        "conditions": [
+          {
+            "condition": "state",
+            "entity_id": "input_boolean.night_mode",
+            "state": "on"
+          }
+        ],
+        "actions": [
+          {
+            "stop": "Retired 10% brightness safety pass."
+          }
+        ],
+        "mode": "single"
+      }
+    }
+  ]
+}
