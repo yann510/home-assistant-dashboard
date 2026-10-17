@@ -26,6 +26,7 @@
 - House Mood presets continue their current playback behavior in this scope. Manual Spotify launches must safely override mood-owned playback; End mood must not stop that manual session.
 - Work in the existing managed worktree from current main. Preserve unrelated changes in the original checkout. Fetch before integration, push verified work directly to `origin/main`, never force-push or open a PR.
 - Execution is subagent-driven with independent reviews, already selected by the user. Do not ask them to choose an execution mode again.
+- Final UI validation must use the Fire HD 10 Home Assistant app's measured dashboard iframe CSS viewport in landscape, including effective scaling. Desktop emulation is supplementary and cannot establish the physical device's measurements.
 
 ## Review Focus
 
@@ -75,7 +76,7 @@ type SpotifySavedTrack = { track_uri: string; saved: boolean };
 
 ## Task 1: Prove and pin the SpotifyPlus route
 
-**Files:** Create `scripts/configure-dashboard-music.mjs`, `home-assistant/spotify-connect-verification.md`, and `scripts/configure-dashboard-music.test.ts`.
+**Files:** Create `scripts/configure-dashboard-music.mjs`, `home-assistant/spotify-connect-verification.md`, and `scripts/configure-dashboard-music.test.ts`. Include isolated read-only viewport diagnostic support under `home-assistant/diagnostics/` for the actual Fire measurement; temporary production measurement tags must have targeted rollback and must not alter dashboard feature assets.
 
 **Interfaces:** Produces a recorded compatible SpotifyPlus version and verified service-response schemas for the gateway; no frontend changes. Installer exports pure `validatePreflight(report)` and defaults to inspection. Explicit `--install` backs up targeted files/settings; `--rollback BACKUP` restores only this task's changes.
 
@@ -116,7 +117,7 @@ type SpotifySavedTrack = { track_uri: string; saved: boolean };
 
 ## Task 4: Replace favourites with the Spotify playlist sheet
 
-**Files:** Create `src/spotifyMusicTypes.ts`, `src/useSpotifyPlaylists.ts`, `src/useSpotifyPlaylistPlayback.ts`, their adjacent `.test.tsx` files, and `src/canvas/CanvasPlaylists.tsx`. Modify `src/canvas/{CanvasMusicProvider.tsx,CanvasMusic.tsx,CanvasPlayer.tsx,CanvasMusic.test.tsx,canvas-music.css}` and remove `CanvasFavourites.tsx` only after no imports remain. Keep old generic Sonos hooks if other callers still need them.
+**Files:** Create `src/spotifyMusicTypes.ts`, `src/useSpotifyPlaylists.ts`, `src/useSpotifyPlaylistPlayback.ts`, their adjacent `.test.tsx` files, and `src/canvas/CanvasPlaylists.tsx`. Modify `src/canvas/{CanvasMusicProvider.tsx,CanvasMusic.tsx,CanvasPlayer.tsx,CanvasMusic.test.tsx,canvas-music.css}` and remove `CanvasFavourites.tsx` only after no imports remain. Keep old generic Sonos hooks if other callers still need them. Add `dev/canvas-preview/spotify-services.ts` plus adjacent tests and wire it through `dev/canvas-preview/main.tsx` so the existing isolated preview supports the new playlist WS/service contracts without live-home commands.
 
 **Interfaces:** `useSpotifyPlaylists(enabled: boolean)` returns `{items, loading, loadingMore, error, hasMore, loadMore, refresh, retry}`. `useSpotifyPlaylistPlayback(sourceEntity: string, disabled: boolean)` returns `{play(item: SpotifyPlaylist): Promise<boolean>, pending, error, status}`. Provider exposes `playlists`, `playlistPlayback`, and the existing session/rooms/playback fields; update all consumers together.
 
@@ -130,7 +131,7 @@ type SpotifySavedTrack = { track_uri: string; saved: boolean };
 
 ## Task 5: Add the song heart and cute confirmed-state animations
 
-**Files:** Create `src/useSpotifyTrackSaved.ts`, `src/useSpotifyTrackSaved.test.tsx`, `src/canvas/{CanvasTrackHeart.tsx,CanvasTrackHeart.test.tsx,trackHeartAnimation.ts,trackHeartAnimation.test.ts}`. Modify `src/canvas/{CanvasMusicProvider.tsx,CanvasMusic.tsx,canvas-music.css}`. Consume the existing `src/canvas/spotifyTrackUri.ts` parser.
+**Files:** Create `src/useSpotifyTrackSaved.ts`, `src/useSpotifyTrackSaved.test.tsx`, `src/canvas/{CanvasTrackHeart.tsx,CanvasTrackHeart.test.tsx,trackHeartAnimation.ts,trackHeartAnimation.test.ts}`. Modify `src/canvas/{CanvasMusicProvider.tsx,CanvasMusic.tsx,canvas-music.css}` and `dev/canvas-preview/spotify-services.ts` plus tests for saved-state reads/writes and failures. Consume the existing `src/canvas/spotifyTrackUri.ts` parser.
 
 **Interfaces:** `useSpotifyTrackSaved(trackUri: string | undefined, enabled: boolean)` returns `{saved: boolean | null, loading: boolean, pending: boolean, error: string | null, setSaved(saved: boolean): Promise<boolean>, retry(): void}`. `CanvasTrackHeart({trackUri, title, enabled})` owns presentation and uses this hook. `animateTrackHeart(element: HTMLElement, saved: boolean): () => void` returns cleanup and is best-effort only.
 
@@ -151,7 +152,7 @@ type SpotifySavedTrack = { track_uri: string; saved: boolean };
 - [ ] Add failing regressions for an externally changed coordinator during launch and manual Follow me handoff while playlist start is pending. Assert no unintended transfer/restart, no double skip, and per-room volume still targets individual members. Test failed start recovery after reconnect without automatically issuing another play.
 - [ ] Run focused tests to confirm failures, implement only missing guards/routing established by actual evidence, then rerun those tests. If no transport routing change is needed, keep existing commands and document the verified result.
 - [ ] Run `npm test`, `npm run lint`, `npm run build:dashboard`, `python3 -m unittest discover -s home-assistant/tests -v`, and `git diff --check`. Use Node 24 and the repository lockfile (`npm ci` in this worktree if required); do not run the broad formatter as an incidental build step. All applicable checks must pass.
-- [ ] In a local preview inspect phone 375×812 and tablet 960×540, then restore viewport settings. Verify no horizontal overflow, word-button width, empty/long/duplicate playlist names, focus/disabled/selected/pending/error states, heart effects at both sizes, reduced motion, and touch targets. Use mocks for failure/loading states without disturbing real playback.
+- [ ] Record the actual Fire HD 10 landscape Home Assistant app dashboard iframe `innerWidth`/`innerHeight`, document client dimensions, `devicePixelRatio`, and visual viewport scale from the read-only probe, then remove its temporary production tag safely. In local preview inspect that measured CSS viewport and phone 375×812, plus conservative tablet 960×540; restore viewport settings afterward. Verify no horizontal overflow, word-button width, empty/long/duplicate playlist names, focus/disabled/selected/pending/error states, heart effects, reduced motion, and touch targets. Use mocks for failure/loading states without disturbing real playback. Do not label a simulated viewport as a physical Fire measurement.
 - [ ] Commit with `test: cover Spotify library and speaker control integration`. Record test commands/results and screenshots/paths without credentials. Independent task review must distinguish code verification from still-pending live acceptance.
 
 ## Task 7: Live acceptance, independent final review, and atomic release

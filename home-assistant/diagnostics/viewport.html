@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Dashboard viewport diagnostics</title>
+    <style>
+      body {
+        font:
+          18px/1.5 system-ui,
+          sans-serif;
+        margin: 24px;
+      }
+      pre {
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Dashboard viewport</h1>
+    <p>Read these measurements on the tablet in landscape. This page sends no measurements.</p>
+    <pre id="measurements"></pre>
+    <script>
+      function update() {
+        const v = window.visualViewport;
+        document.getElementById('measurements').textContent = JSON.stringify(
+          {
+            innerWidth: window.innerWidth,
+            innerHeight: window.innerHeight,
+            visualViewport: v ? { width: v.width, height: v.height, scale: v.scale } : null,
+            devicePixelRatio: window.devicePixelRatio,
+            screen: { width: screen.width, height: screen.height },
+            orientation: screen.orientation?.type ?? window.orientation ?? null,
+            userAgent: navigator.userAgent,
+          },
+          null,
+          2
+        );
+      }
+      update();
+      window.addEventListener('resize', update);
+      window.visualViewport?.addEventListener('resize', update);
+      window.addEventListener('orientationchange', update);
+    </script>
+  </body>
+</html>
