@@ -1,7 +1,7 @@
 # Spotify-controlled Sonos playback
 
 Date: 2026-10-17
-Status: proposed design for user review; implementation has not started.
+Status: user-approved design, including save/unsave behavior; implementation planning authorized. The user additionally requested a cute animation for liking/unliking.
 
 ## Agreed outcome
 
@@ -47,6 +47,7 @@ First implementation milestone is a real-device feasibility check, before changi
 - A tap starts that exact playlist URI on the current speaker group's coordinator. With no explicit speaker preference or active group, retain the current session's Living Room default.
 - Place a separate song heart beside the current song metadata, visually distinct from Playlists. Outline means not saved; filled means saved. Accessible labels are **Save [song] to Liked Songs** and **Remove [song] from Liked Songs**, with `aria-pressed` reflecting confirmed state. Unknown/loading state must not imply that the song is unsaved.
 - Disable the song heart when no valid Spotify track can be identified, while saved-state lookup/write is pending, or when authorization is unavailable. Paused identified tracks remain saveable. Missing metadata, local files, episodes, ads, and non-Spotify sources must not cause a guessed save. Successful saves add to Yann's Liked Songs without altering playback, queue, groups, or Follow me.
+- On a confirmed user-initiated save, animate a small heart pop with a few decorative sparkles over 420 ms. On a confirmed removal, use a soft shrink-and-settle over 240 ms. Keep effects within the control's visual neighborhood, use existing theme colors, and avoid layout movement or blocking interaction. Do not animate initial saved-state loading, failed requests, external Spotify changes, or a response for a track no longer displayed. Under `prefers-reduced-motion: reduce`, update the filled/outline state immediately without either effect. Decorative particles are hidden from accessibility APIs and cannot intercept clicks. Unsupported/cancelled animations and unmounting clean up without changing save behavior.
 - Show the existing pending state and prevent repeat starts while a request is running. Coordinate playlist starts with grouping and Follow me transitions.
 - Close the chooser only after the requested Spotify context and target are confirmed. An already-playing match is a no-op only when account, target, and context are positively identified.
 - Display specific actionable errors for missing authorization, unavailable speaker, unavailable playlist, busy topology transition, or unconfirmed playback. Keep choices available for retry. Library write errors appear by the song heart, preserving the last confirmed state.
