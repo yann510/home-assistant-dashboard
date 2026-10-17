@@ -17,15 +17,15 @@ Individual settings retains the in-card editor, scoped to that light. Brightness
 
 ## Browser geometry
 
-The standard two-light room fits the existing overview height at the 1280px and 1024px landscape sizes below. The shortest 960×540 simulation uses 18px of natural vertical scrolling with both header rows restored. Effective power, settings, swatch, and custom-colour targets measured at least 44px in both dimensions. Phone layouts have natural vertical scrolling and no horizontal overflow.
+The Lights room icon and picker share the Blinds room controls’ centre line, using the same row height and heading gap. Browser checks confirmed exact centre alignment at 1280×800, 1280×680, 1024×600, 960×540, and 800×1280. The standard two-light room fits the overview at both 1280px landscape sizes below. The 1024×600 simulation uses 26px of natural vertical scrolling; 960×540 uses 40px. Effective power, settings, swatch, and custom-colour targets measured at least 44px in both dimensions. Phone layouts have natural vertical scrolling and no horizontal overflow.
 
 | CSS viewport | Lights card height | Individual tile height | Document height |
 | --- | ---: | ---: | ---: |
-| 1280×800 | 264.5px | 62.5px | 800px |
-| 1280×680 | 234.5px | 68.5px | 680px |
-| 1024×600 | 218px | 52px | 600px |
-| 960×540 | 206px | 52px | 558px |
+| 1280×800 | 290px | 52px | 800px |
+| 1280×680 | 246px | 52px | 680px |
+| 1024×600 | 246px | 52px | 626px |
+| 960×540 | 228px | 52px | 580px |
 
-A single-light room spans the full light-grid width and shares the same tile height at 1280×800. A four-light fixture wraps into two rows, each with at least 52px tiles. All lights also retains accessible actions for the four-light room. Tested phone viewports were 393×852 and 320×740.
+Earlier inventory checks confirmed a single light spans the grid width and four lights wrap into two rows with at least 52px tiles; All lights retains actions for all four. The alignment refinement leaves that grid unchanged. Phone alignment rules remain unchanged; the 393×852 layout was rechecked for touch targets and horizontal overflow. Earlier phone checks also covered 320×740.
 
 These are Chromium checks using the repository's simulated preview and current capability fixture. They do not establish the physical tablet's effective CSS viewport, browser chrome, Android scaling, or hardware command delivery. See the existing Fire HD 10 QA notes for device validation limits.
