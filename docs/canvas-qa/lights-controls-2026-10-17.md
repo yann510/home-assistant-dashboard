@@ -1,0 +1,30 @@
+# Room lights controls — 2026-10-17
+
+The Fire HD 10 landscape dashboard keeps its Canvas layout. The home lights header now combines the room picker, room power, and All lights. Separate power and Settings buttons make each light's actions explicit. All lights in the selected room are shown; one spans the width, two share the row, and additional lights wrap. Tiles stretch into spare card height while retaining touch targets in shorter viewports.
+
+Room brightness and colour presets appear together. Brightness retains its existing on-only behavior. Room colour turns on and colours available colour-capable lights in the selected room, including lights currently off; white-only and unavailable lights are excluded. The room identifies compatible lights and mixed/unknown colour readings. A custom colour input complements the presets.
+
+Individual settings retains the in-card editor, scoped to that light. Brightness, colour presets, and the colour wheel are visible together; supported warmth and effects remain available without switching adjustment tabs. Longer settings content scrolls within its panel.
+
+## Verification
+
+- Baseline: 39 test files, 665 passing tests.
+- Updated suite: 39 files, 670 passing tests. Focused light suite: 64 passing tests, with failing-before-implementation evidence for the new behavior.
+- TypeScript, ESLint, and production dashboard build passed. The existing large bundle advisory remains.
+- Independent task review and whole-branch review approved the implementation with no actionable findings.
+- Simulated preview interactions verified room/individual targeting, off-light activation, unsupported-light exclusion, custom RGB, disconnected controls, command errors, Escape, and return focus. No physical devices were operated during these checks.
+
+## Browser geometry
+
+The standard two-light room fits the existing overview height at every landscape tablet size below. Effective power, settings, swatch, and custom-colour targets measured at least 44px in both dimensions. Phone layouts have natural vertical scrolling and no horizontal overflow.
+
+| CSS viewport | Lights card height | Individual tile height | Document height |
+| --- | ---: | ---: | ---: |
+| 1280×800 | 264.5px | 96.5px | 800px |
+| 1280×680 | 234.5px | 94.5px | 680px |
+| 1024×600 | 198.2px | 58.2px | 600px |
+| 960×540 | 183.6px | 55.6px | 540px |
+
+A single-light room spans the full light-grid width and shares the same 96.5px tile height at 1280×800. A four-light fixture wraps into two rows, each with 52px tiles, and keeps the overview within 800px; the lights card uses 280px. All lights also retains accessible actions for the four-light room. Tested phone viewports were 393×852 and 320×740.
+
+These are Chromium checks using the repository's simulated preview and current capability fixture. They do not establish the physical tablet's effective CSS viewport, browser chrome, Android scaling, or hardware command delivery. See the existing Fire HD 10 QA notes for device validation limits.
