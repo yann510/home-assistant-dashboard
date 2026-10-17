@@ -17,14 +17,14 @@ Individual settings retains the in-card editor, scoped to that light. Brightness
 
 ## Browser geometry
 
-The Lights room icon and picker share the Blinds room controls’ centre line, using the same row height and heading gap. Browser checks confirmed exact centre alignment at 1280×800, 1280×680, 1024×600, 960×540, and 800×1280. The standard two-light room fits the overview at both 1280px landscape sizes below. The 1024×600 simulation uses 26px of natural vertical scrolling; 960×540 uses 40px. Effective power, settings, swatch, and custom-colour targets measured at least 44px in both dimensions. Phone layouts have natural vertical scrolling and no horizontal overflow.
+The Lights room icon and picker align with the top edge of the Blinds room buttons, using the same heading gap while retaining each control’s natural height. Browser checks confirmed exact top-edge alignment at 1280×800, 1280×680, 1024×600, 960×540, and 800×1280. The standard two-light room fits the overview at both 1280px landscape sizes and 1024×600. The shortest 960×540 simulation uses 18px of natural vertical scrolling. Effective power, settings, swatch, and custom-colour targets measured at least 44px in both dimensions. Phone layouts have natural vertical scrolling and no horizontal overflow.
 
 | CSS viewport | Lights card height | Individual tile height | Document height |
 | --- | ---: | ---: | ---: |
-| 1280×800 | 290px | 52px | 800px |
-| 1280×680 | 246px | 52px | 680px |
-| 1024×600 | 246px | 52px | 626px |
-| 960×540 | 228px | 52px | 580px |
+| 1280×800 | 264.5px | 62.5px | 800px |
+| 1280×680 | 234.5px | 68.5px | 680px |
+| 1024×600 | 218px | 52px | 600px |
+| 960×540 | 206px | 52px | 558px |
 
 Earlier inventory checks confirmed a single light spans the grid width and four lights wrap into two rows with at least 52px tiles; All lights retains actions for all four. The alignment refinement leaves that grid unchanged. Phone alignment rules remain unchanged; the 393×852 layout was rechecked for touch targets and horizontal overflow. Earlier phone checks also covered 320×740.
 
