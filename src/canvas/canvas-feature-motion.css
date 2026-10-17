@@ -7,6 +7,10 @@
 .canvas-mood__art-entrance,
 .canvas-mood__art-motion { transform-box: view-box; transform-origin: center; }
 .canvas-mood__art-motion :is(path, circle) { transform-box: fill-box; transform-origin: center; }
+@media (prefers-reduced-motion: no-preference) {
+  /* Repaint the small vector artwork instead of scaling a cached bitmap. */
+  .canvas-mood[data-active-motion='true'][data-page-visible='true'] .canvas-mood__art-motion { will-change: contents; }
+}
 .canvas-mood[data-feature-motion='true'][data-mood='love'] .canvas-mood__art-entrance { animation: canvas-love-arrive 650ms ease-out backwards; }
 .canvas-mood[data-feature-motion='true'][data-mood='unwind'] .canvas-mood__art-entrance { animation: canvas-unwind-arrive 900ms ease-out backwards; }
 .canvas-mood[data-feature-motion='true'][data-mood='dinner'] .canvas-mood__art-entrance { animation: canvas-dinner-arrive 650ms ease-out backwards; }
