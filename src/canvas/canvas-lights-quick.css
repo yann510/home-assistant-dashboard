@@ -15,6 +15,7 @@
 :is(.canvas .canvas-lights--compact, .canvas-dialog .canvas-lights--all) .canvas-lights__slider output { min-width: 5ch; }
 
 /* The home card shares its spare height with every room light. */
+.canvas .canvas-lights.canvas-lights--compact .canvas-lights__room-line { min-height: 44px; flex-shrink: 0; }
 .canvas .canvas-lights--compact { display: flex; flex-direction: column; container-type: inline-size; }
 .canvas .canvas-lights--compact > div:first-child { display: flex; flex-direction: column; flex: 1; gap: 8px; min-width: 0; }
 .canvas .canvas-lights--compact .canvas-lights__heading { flex-wrap: wrap; gap: 8px; flex-shrink: 0; }
