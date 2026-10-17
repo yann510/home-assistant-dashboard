@@ -16,12 +16,16 @@
 .canvas-mood[data-active-motion='true'][data-mood='unwind'] .canvas-mood__art-motion path { animation: canvas-chill-wave 4.5s ease-in-out infinite; }
 .canvas-mood[data-active-motion='true'][data-mood='unwind'] .canvas-mood__art-motion path:nth-child(2) { animation-delay: -1.5s; }
 .canvas-mood[data-active-motion='true'][data-mood='unwind'] .canvas-mood__art-motion path:nth-child(3) { animation-delay: -3s; }
-.canvas-mood[data-active-motion='true'][data-mood='dinner'] .canvas-mood__art-motion circle { animation: canvas-dinner-ripple 4.8s ease-in-out infinite; }
-.canvas-mood[data-active-motion='true'][data-mood='dinner'] .canvas-mood__art-motion circle:nth-child(2) { animation-delay: -1.2s; }
+.canvas-mood__dinner-plate { transform-box: view-box; transform-origin: 160px 130px; }
+.canvas-mood[data-active-motion='true'][data-mood='dinner'] .canvas-mood__dinner-plate { animation: canvas-dinner-rock 3.2s ease-in-out infinite; }
+.canvas-mood[data-active-motion='true'][data-mood='dinner'] .canvas-mood__dinner-ripple { animation: canvas-dinner-ripple 3.2s ease-in-out infinite; }
+.canvas-mood[data-active-motion='true'][data-mood='dinner'] :is(.canvas-mood__dinner-fork, .canvas-mood__dinner-knife) { animation: canvas-dinner-tap 3.2s ease-in-out infinite; }
+.canvas-mood[data-active-motion='true'][data-mood='dinner'] .canvas-mood__dinner-knife { animation-delay: -1.6s; }
 /* The star's stroke extends beyond its view box during a turn. Keep the SVG unclipped. */
 .canvas-mood[data-mood='party'] .canvas-mood__art { overflow: visible; }
 .canvas-mood[data-active-motion='true'][data-mood='party'] .canvas-mood__art-motion { transform-origin: 160px 132px; animation: canvas-party-spin 9s ease-in-out infinite; }
-.canvas-mood[data-active-motion='true'][data-mood='gym'] .canvas-mood__art-motion { animation: canvas-gym-rhythm 2.4s ease-in-out infinite; }
+.canvas-mood[data-active-motion='true'][data-mood='gym'] .canvas-mood__gym-drive { transform-origin: center bottom; animation: canvas-gym-drive 2.4s ease-in-out infinite; }
+.canvas-mood[data-active-motion='true'][data-mood='gym'] .canvas-mood__gym-drive:nth-child(2) { animation-delay: -1.2s; }
 .canvas-mood[data-mood][data-active-motion][data-page-visible='false'] :is(.canvas-mood__title-motion, .canvas-mood__art, .canvas-mood__art-entrance, .canvas-mood__art-motion, .canvas-mood__art-motion *) { animation-play-state: paused; }
 .canvas-music__play-motion { display: grid; place-items: center; width: var(--canvas-transport-icon-size, 20px); height: var(--canvas-transport-icon-size, 20px); }
 .canvas-music__transport button > svg { transition: transform 160ms ease; }
@@ -37,19 +41,32 @@
   0%, 100% { transform: translate(-6px, 2px); }
   50% { transform: translate(6px, -2px); }
 }
+@keyframes canvas-dinner-rock {
+  0%, 50%, 100% { transform: translateY(0) rotate(0deg) scale(1); }
+  18% { transform: translateY(4px) rotate(-4deg) scale(1.025, .965); }
+  68% { transform: translateY(-4px) rotate(4deg) scale(.98, 1.025); }
+}
 @keyframes canvas-dinner-ripple {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.045); }
+  0%, 50%, 100% { transform: scale(1); }
+  26%, 76% { transform: scale(1.1); }
+}
+@keyframes canvas-dinner-tap {
+  0%, 46%, 100% { transform: translate(0, 0) rotate(0deg); }
+  14% { transform: translate(3px, -12px) rotate(3deg); }
+  24% { transform: translate(2px, 5px) rotate(-2deg); }
+  34% { transform: translate(1px, -4px) rotate(1deg); }
 }
 @keyframes canvas-party-spin {
   0%, 18% { transform: rotate(0deg); }
   25% { transform: rotate(-10deg); }
   55%, 100% { transform: rotate(360deg); }
 }
-@keyframes canvas-gym-rhythm {
-  0%, 24%, 48%, 100% { transform: translate(0, 0); }
-  12% { transform: translate(3px, -4px); }
-  36% { transform: translate(2px, -3px); }
+@keyframes canvas-gym-drive {
+  0%, 48%, 100% { transform: translate(0, 0) scale(1); }
+  8% { transform: translate(-2px, 5px) scale(1.035, .96); }
+  22% { transform: translate(7px, -18px) scale(.98, 1.035); }
+  32% { transform: translate(1px, 4px) scale(1.03, .97); }
+  40% { transform: translate(2px, -4px) scale(.99, 1.015); }
 }
 @keyframes canvas-art-reveal { from { opacity: .15; } }
 @keyframes canvas-feature-reveal { from { opacity: .35; } to { opacity: 1; } }

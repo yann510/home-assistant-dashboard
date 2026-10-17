@@ -27,14 +27,20 @@ function MoodArt({ id }: { id: MoodId | null }) {
             </g>
           ) : id === 'dinner' ? (
             <>
-              <circle cx='160' cy='130' r='91' />
-              <circle cx='160' cy='130' r='59' />
-              <path d='M34 40v190M16 40v50h36V40M287 40v190' />
+              <g className='canvas-mood__dinner-plate'>
+                <circle cx='160' cy='130' r='91' />
+                <circle className='canvas-mood__dinner-ripple' cx='160' cy='130' r='59' />
+              </g>
+              <path className='canvas-mood__dinner-fork' d='M34 40v190M16 40v50h36V40' />
+              <path className='canvas-mood__dinner-knife' d='M287 40v190' />
             </>
           ) : id === 'party' ? (
             <path d='M160 12l23 64 64-31-31 64 65 23-65 23 31 64-64-31-23 64-23-64-64 31 31-64-65-23 65-23-31-64 64 31z' />
           ) : id === 'gym' ? (
-            <path d='M58 217L146 38h76l-88 179zM160 217l88-179' />
+            <>
+              <path className='canvas-mood__gym-drive' d='M58 217L146 38h76l-88 179z' />
+              <path className='canvas-mood__gym-drive' d='M160 217l88-179' />
+            </>
           ) : (
             <>
               <path d='M0 170C70 170 80 20 160 20S240 170 320 170' />
