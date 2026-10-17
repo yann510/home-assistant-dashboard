@@ -196,3 +196,29 @@
     min-height: min(100svh, 800px);
   }
 }
+
+/* Paired room selectors share a centerline; spare card height belongs below
+   them. Keep a minimum rather than a fixed height so room names can wrap. */
+@media (min-width: 701px) {
+  .canvas .canvas__shortcuts {
+    --canvas-room-row-height: 80px;
+    --canvas-room-heading-gap: 8px;
+  }
+  .canvas .canvas-lights--compact > div:first-child { gap: var(--canvas-room-heading-gap); }
+  .canvas .canvas-lights.canvas-lights--compact .canvas-lights__room-line,
+  .canvas .canvas__shortcuts > .canvas-blinds .canvas-blinds__rooms {
+    min-height: var(--canvas-room-row-height);
+    flex: 0 0 auto;
+  }
+  .canvas .canvas__shortcuts > .canvas-blinds .canvas-blinds__rooms {
+    margin-top: var(--canvas-room-heading-gap);
+    align-items: stretch;
+  }
+  .canvas .canvas-lights.canvas-lights--compact .canvas-lights__room-line { align-items: center; }
+}
+@media (min-width: 800px) and (min-height: 540px) and (max-height: 719px) {
+  .canvas .canvas__shortcuts { --canvas-room-heading-gap: 0px; }
+}
+@media (min-width: 800px) and (max-width: 1000px) and (min-height: 720px) {
+  .canvas .canvas__shortcuts { --canvas-room-row-height: 104px; }
+}
