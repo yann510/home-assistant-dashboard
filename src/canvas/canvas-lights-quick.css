@@ -26,12 +26,11 @@
 :is(.canvas .canvas-lights--compact, .canvas-dialog .canvas-lights--all) .canvas-lights__quick-power strong,
 :is(.canvas .canvas-lights--compact, .canvas-dialog .canvas-lights--all) .canvas-lights__quick-power small { display: block; white-space: normal; overflow-wrap: anywhere; }
 :is(.canvas .canvas-lights--compact, .canvas-dialog .canvas-lights--all) .canvas-lights__quick-power strong { font-weight: 600; }
-:is(.canvas .canvas-lights--compact, .canvas-dialog .canvas-lights--all) .canvas-lights__quick-power small { color: var(--canvas-muted); font-size: .875rem; margin-top: 4px; }
+:is(.canvas .canvas-lights--compact, .canvas-dialog .canvas-lights--all) .canvas-lights__quick-power small { color: inherit; opacity: .8; font-size: .875rem; margin-top: 4px; }
 :is(.canvas .canvas-lights--compact, .canvas-dialog .canvas-lights--all) .canvas-lights__quick-power-icon { width: 20px; height: 20px; flex: 0 0 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
 :is(.canvas .canvas-lights--compact, .canvas-dialog .canvas-lights--all) .canvas-lights__quick .canvas-lights__quick-settings { flex: 0 0 70px; flex-direction: column; gap: 4px; font-size: .7rem; }
 :is(.canvas .canvas-lights--compact, .canvas-dialog .canvas-lights--all) .canvas-lights__quick button:hover:not(:disabled) { background: color-mix(in srgb, var(--canvas-ink) 23%, var(--canvas-surface)); }
 :is(.canvas .canvas-lights--compact, .canvas-dialog .canvas-lights--all) .canvas-lights__quick-light[data-on='true'] .canvas-lights__quick-power { background: var(--canvas-room-accent); color: var(--canvas-bg); }
-:is(.canvas .canvas-lights--compact, .canvas-dialog .canvas-lights--all) .canvas-lights__quick-light[data-on='true'] .canvas-lights__quick-power small { color: inherit; opacity: .8; }
 :is(.canvas .canvas-lights--compact, .canvas-dialog .canvas-lights--all) .canvas-lights__quick-light[data-on='true'] .canvas-lights__quick-power:hover:not(:disabled) { background: color-mix(in srgb, var(--canvas-room-accent) 85%, var(--canvas-ink)); }
 :is(.canvas .canvas-lights--compact, .canvas-dialog .canvas-lights--all) .canvas-lights__quick-light[data-on='true'] .canvas-lights__quick-power:focus-visible { outline-color: var(--canvas-bg); }
 .canvas .canvas-lights--compact .canvas-lights__adjustments { display: grid; grid-template-columns: minmax(0, 1fr) 232px; gap: 12px; flex-shrink: 0; }
