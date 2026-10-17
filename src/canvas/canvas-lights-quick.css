@@ -41,9 +41,9 @@
 .canvas-lights__colour-heading { display: flex; flex-direction: column; gap: 2px; font-size: .8rem; }
 .canvas-lights__colour-heading small { color: var(--canvas-muted); font-size: .875rem; }
 :is(.canvas, .canvas-dialog) .canvas-light-palette { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
-:is(.canvas, .canvas-dialog) .canvas-light-palette button { display: grid; place-items: center; min-width: 44px; min-height: 44px; padding: 4px; border: 1px solid transparent; background: transparent; border-radius: 10px; }
-:is(.canvas, .canvas-dialog) .canvas-light-palette button span { display: block; width: 24px; height: 24px; border-radius: 50%; background: var(--canvas-swatch); border: 1px solid var(--canvas-line); }
-:is(.canvas, .canvas-dialog) .canvas-light-palette button[aria-pressed='true'] { border-color: var(--canvas-ink); background: color-mix(in srgb, var(--canvas-ink) 8%, transparent); }
+:is(.canvas, .canvas-dialog) .canvas-light-palette button { position: relative; display: grid; place-items: center; min-width: 44px; min-height: 44px; padding: 4px; border: 1px solid transparent; background: transparent; border-radius: 10px; }
+:is(.canvas, .canvas-dialog) .canvas-light-palette button span { position: relative; display: block; width: 24px; height: 24px; border-radius: 50%; background: var(--canvas-swatch); border: 1px solid var(--canvas-line); }
+:is(.canvas, .canvas-dialog) .canvas-light-palette button[aria-pressed='true']::before { content: ''; position: absolute; inset: 5px; border: 1px solid var(--canvas-ink); border-radius: 8px; background: color-mix(in srgb, var(--canvas-ink) 8%, transparent); pointer-events: none; }
 :is(.canvas, .canvas-dialog) .canvas-light-palette button:hover:not(:disabled) { background: color-mix(in srgb, var(--canvas-ink) 12%, transparent); }
 :is(.canvas, .canvas-dialog) .canvas-light-palette :disabled { opacity: .4; cursor: not-allowed; }
 .canvas-light-palette__custom { display: flex; align-items: center; position: relative; min-width: 44px; min-height: 44px; font-size: .7rem; cursor: pointer; }
