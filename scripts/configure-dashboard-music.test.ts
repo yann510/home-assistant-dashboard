@@ -1,4 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
+import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { execFileSync } from 'node:child_process';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 // Missing guards would allow unverified/local-queue playback or mutate a dry run.
 async function installer() {
@@ -173,13 +177,25 @@ it('removes only its newly added HACS repository registration on rollback', asyn
     request: async (payload: { type: string }) => {
       if (payload.type === 'config_entries/get') return [];
       if (payload.type === 'hacs/repositories/list')
-        return [{ full_name: 'thlucas1/homeassistantcomponent_spotifyplus', id: '763230666', installed: true, custom: true }];
+        return [
+          {
+            full_name: 'thlucas1/homeassistantcomponent_spotifyplus',
+            id: '763230666',
+            installed: true,
+            installed_version: 'v1.0.224',
+            custom: true,
+          },
+        ];
       mutations.push(payload);
       return {};
     },
   };
   let reads = 0;
-  const ssh = { close() {}, python: async () => (++reads === 1 ? { hacsRepository: null } : true) };
+  const ssh = {
+    close() {},
+    python: async () =>
+      ++reads === 1 ? { prior: { hacsRepository: null }, installed: taskInstallation } : reads === 2 ? installedArtifact : true,
+  };
   const remote = await createRemote({}, { ha: async () => ha, ssh: async () => ssh });
   try {
     await remote.rollback('/homeassistant/backups.local/dashboard-music-20261017T170231376043Z');
@@ -189,5 +205,185 @@ it('removes only its newly added HACS repository registration on rollback', asyn
     ]);
   } finally {
     remote.close();
+  }
+});
+
+const installedArtifact = { exists: true, version: 'v1.0.224', fingerprint: 'a'.repeat(64) };
+const taskInstallation = { kind: 'dashboard-music-installed-v1', artifact: installedArtifact };
+const backupPath = '/homeassistant/backups.local/dashboard-music-20261017T170231376043Z';
+
+async function rollbackFixture(
+  currentArtifact: object,
+  priorRepository: object | null = null,
+  installation: object | null = taskInstallation
+) {
+  const { createRemote } = await installer();
+  const mutations: object[] = [];
+  const responses = [{ prior: { hacsRepository: priorRepository }, installed: installation }, currentArtifact, true];
+  const python = vi.fn(async () => responses.shift());
+  const ha = {
+    close() {},
+    request: async (payload: { type: string }) => {
+      if (payload.type === 'config_entries/get') return [];
+      if (payload.type === 'hacs/repositories/list')
+        return [
+          {
+            full_name: 'thlucas1/homeassistantcomponent_spotifyplus',
+            id: '763230666',
+            installed: true,
+            installed_version: 'v1.0.224',
+            custom: true,
+          },
+        ];
+      mutations.push(payload);
+      return {};
+    },
+  };
+  const remote = await createRemote({}, { ha: async () => ha, ssh: async () => ({ close() {}, python }) });
+  return { remote, mutations, python };
+}
+
+it('refuses rollback over a newer installation and preserves its HACS registration', async () => {
+  const { remote, mutations, python } = await rollbackFixture({ ...installedArtifact, version: 'v1.0.225' });
+  try {
+    await expect(remote.rollback(backupPath)).rejects.toThrow(/ownership|changed|owned/i);
+    expect(mutations).toEqual([]);
+    expect(python.mock.calls.length).toBeLessThanOrEqual(2);
+  } finally {
+    remote.close();
+  }
+});
+
+it('refuses rollback over same-version modified files instead of restoring an older baseline', async () => {
+  const { remote, mutations, python } = await rollbackFixture(
+    { ...installedArtifact, fingerprint: 'b'.repeat(64) },
+    { installed: true, installedVersion: 'v1.0.223' }
+  );
+  try {
+    await expect(remote.rollback(backupPath)).rejects.toThrow(/ownership|changed|owned/i);
+    expect(mutations).toEqual([]);
+    expect(python.mock.calls.length).toBeLessThanOrEqual(2);
+  } finally {
+    remote.close();
+  }
+});
+
+it('refuses rollback when current files disappeared or the backup lacks installation ownership', async () => {
+  for (const [current, installation] of [
+    [{ exists: false, version: null, fingerprint: null }, taskInstallation],
+    [installedArtifact, null],
+  ]) {
+    const { remote, mutations, python } = await rollbackFixture(current, null, installation);
+    try {
+      await expect(remote.rollback(backupPath)).rejects.toThrow(/ownership|changed|owned/i);
+      expect(mutations).toEqual([]);
+      expect(python.mock.calls.length).toBeLessThanOrEqual(2);
+    } finally {
+      remote.close();
+    }
+  }
+});
+
+it('allows rollback when the recorded installed artifact is unchanged', async () => {
+  const { remote, mutations } = await rollbackFixture(installedArtifact);
+  try {
+    await remote.rollback(backupPath);
+    expect(mutations).toEqual([
+      { type: 'hacs/repository/remove', repository: '763230666' },
+      { type: 'hacs/repositories/remove', repository: '763230666' },
+    ]);
+  } finally {
+    remote.close();
+  }
+});
+
+it('records the task-installed fingerprint alongside its backup after HACS download', async () => {
+  const { createRemote } = await installer();
+  const calls: string[] = [];
+  const python = vi.fn(async () => {
+    calls.push('python');
+    return calls.filter(x => x === 'python').length === 1 ? installedArtifact : true;
+  });
+  const ha = {
+    close() {},
+    request: async (payload: { type: string }) => {
+      if (payload.type === 'hacs/repositories/list')
+        return [
+          {
+            full_name: 'thlucas1/homeassistantcomponent_spotifyplus',
+            id: '763230666',
+            installed: true,
+            installed_version: 'v1.0.224',
+            custom: true,
+          },
+        ];
+      calls.push(payload.type);
+      return {};
+    },
+  };
+  const remote = await createRemote({}, { ha: async () => ha, ssh: async () => ({ close() {}, python }) });
+  try {
+    expect(await remote.install({}, backupPath)).toEqual(taskInstallation);
+    expect(calls).toEqual(['hacs/repositories/add', 'hacs/repository/download', 'python', 'python']);
+  } finally {
+    remote.close();
+  }
+});
+
+it('records real file content and rejects an edited file while tolerating generated Python cache', async () => {
+  const { createRemote } = await installer();
+  const root = await mkdtemp(join(tmpdir(), 'dashboard-music-ownership-'));
+  const component = join(root, 'custom_components/spotifyplus');
+  const mutations: string[] = [];
+  let configured = false;
+  // This connector emulates the remote Python interpreter in a disposable local filesystem.
+  // HACS and all external connections remain mocked; actual hashing/storage code executes.
+  const python = async (source: string) => {
+    const output = execFileSync('python3', ['-c', source.replaceAll('/homeassistant', root)], { encoding: 'utf8' });
+    const value = JSON.parse(output);
+    return typeof value === 'string' ? value.replace(root, '/homeassistant') : value;
+  };
+  const ha = {
+    close() {},
+    request: async (payload: { type: string }) => {
+      if (payload.type === 'hacs/repositories/list')
+        return [
+          {
+            full_name: 'thlucas1/homeassistantcomponent_spotifyplus',
+            id: '763230666',
+            installed: true,
+            installed_version: 'v1.0.224',
+            custom: true,
+          },
+        ];
+      if (payload.type === 'config_entries/get') return configured ? [{ domain: 'spotifyplus' }] : [];
+      mutations.push(payload.type);
+      if (payload.type === 'hacs/repository/download') {
+        await mkdir(component, { recursive: true });
+        await writeFile(join(component, 'manifest.json'), JSON.stringify({ version: 'v1.0.224' }));
+        await writeFile(join(component, 'media_player.py'), 'original source');
+      }
+      return {};
+    },
+  };
+  const remote = await createRemote({}, { ha: async () => ha, ssh: async () => ({ close() {}, python }) });
+  try {
+    const backup = await remote.backup({ hacsRepository: null });
+    const installed = await remote.install({}, backup);
+    const recorded = JSON.parse(await readFile(join(root, backup.slice('/homeassistant/'.length), 'installed-artifact.json'), 'utf8'));
+    expect(recorded).toEqual(installed);
+    expect(recorded.artifact.fingerprint).toMatch(/^[a-f0-9]{64}$/);
+    mutations.length = 0;
+    configured = true;
+    await mkdir(join(component, '__pycache__'));
+    await writeFile(join(component, '__pycache__/media_player.cpython-314.pyc'), 'generated bytecode');
+    await expect(remote.rollback(backup)).rejects.toThrow(/Remove only the task-created/);
+    await writeFile(join(component, 'media_player.py'), 'newer custom source');
+    await expect(remote.rollback(backup)).rejects.toThrow(/files changed/i);
+    expect(mutations).toEqual([]);
+    expect(await readFile(join(component, 'media_player.py'), 'utf8')).toBe('newer custom source');
+  } finally {
+    remote.close();
+    await rm(root, { recursive: true, force: true });
   }
 });

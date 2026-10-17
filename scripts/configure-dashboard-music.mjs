@@ -3,6 +3,30 @@ import { pathToFileURL } from 'node:url';
 
 export const PINNED_VERSION = '1.0.224';
 const REPOSITORY = 'thlucas1/homeassistantcomponent_spotifyplus';
+const ARTIFACT_PYTHON = `import pathlib,json,hashlib,os
+
+def music_artifact(p):
+ if not p.exists(): return {'exists':False,'version':None,'fingerprint':None}
+ if p.is_symlink() or not p.is_dir(): return {'exists':True,'version':None,'fingerprint':None}
+ digest=hashlib.sha256()
+ for f in sorted(p.rglob('*'),key=lambda f:f.relative_to(p).as_posix()):
+  relative=f.relative_to(p)
+  if '__pycache__' in relative.parts or f.suffix in ('.pyc','.pyo'): continue
+  name=relative.as_posix().encode('utf-8')
+  if f.is_symlink(): digest.update(b'L\\0'+name+b'\\0'+os.readlink(f).encode('utf-8')+b'\\0')
+  elif f.is_file(): digest.update(b'F\\0'+name+b'\\0'+hashlib.sha256(f.read_bytes()).digest())
+  elif f.is_dir(): digest.update(b'D\\0'+name+b'\\0')
+  else: return {'exists':True,'version':None,'fingerprint':None}
+ try: version=json.loads((p/'manifest.json').read_text()).get('version')
+ except (OSError,ValueError): version=None
+ return {'exists':True,'version':version,'fingerprint':digest.hexdigest()}
+`;
+function validateBackupPath(backup) {
+ if (!/^\/homeassistant\/backups\.local\/dashboard-music-\d{8}T\d{12}Z$/.test(backup ?? '')) throw new Error('Invalid task backup path');
+}
+function validArtifact(artifact) {
+ return artifact?.exists === true && typeof artifact.version === 'string' && /^[a-f0-9]{64}$/.test(artifact.fingerprint ?? '');
+}
 const REQUIRED = {
   get_playlist_favorites: ['entity_id', 'limit', 'offset', 'sort_result'],
   get_spotify_connect_devices: ['entity_id', 'refresh'],
@@ -51,7 +75,7 @@ export async function configureMusic(options = {}, remote) {
   }
   validateRuntime(report);
   const backup = await remote.backup(report);
-  await remote.install(report);
+  await remote.install(report, backup);
   return { mode: 'install', backup, version: PINNED_VERSION, ready: false, next: 'Restart Home Assistant, complete SpotifyPlus OAuth and Spotify for Desktop consent, then inspect and perform live acceptance checks. Installation alone is not compatibility proof.' };
 }
 
@@ -157,22 +181,31 @@ export async function createRemote(env, connectors = {}) {
     async backup(report) {
       return ssh.python(`import pathlib,json,datetime,shutil,os\np=pathlib.Path('/homeassistant')\nb=p/'backups.local'/('dashboard-music-'+datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%S%fZ'))\nb.mkdir(parents=True,mode=0o700)\nos.chmod(b,0o700)\nfor name in ['core.config_entries','application_credentials','spotifyplus_tokens.json','hacs.repositories','hacs.data']:\n f=p/'.storage'/name\n if f.exists():\n  shutil.copy2(f,b/name);os.chmod(b/name,0o600)\nf=p/'custom_components/spotifyplus'\nif f.exists(): shutil.copytree(f,b/'spotifyplus')\nm={'kind':'dashboard-music-v1','report':${JSON.stringify(JSON.stringify(report))}}\n(b/'manifest.json').write_text(json.dumps(m))\nos.chmod(b/'manifest.json',0o600)\nprint(json.dumps(str(b)))`);
     },
-    async install() {
+    async install(_report, backup) {
+      validateBackupPath(backup);
       if (!repository) {
         await ha.request({ type: 'hacs/repositories/add', repository: REPOSITORY, category: 'integration' });
         await repositories();
       }
       if (!repository) throw new Error('SpotifyPlus repository is unavailable in HACS');
       await ha.request({ type: 'hacs/repository/download', repository: String(repository.id), version: `v${PINNED_VERSION}` });
-      const version = await ssh.python("import json,pathlib\nprint(json.dumps(json.loads(pathlib.Path('/homeassistant/custom_components/spotifyplus/manifest.json').read_text())['version']))");
-      if (version?.replace(/^v/, '') !== PINNED_VERSION) throw new Error('Installed SpotifyPlus version mismatch; stop and use backup');
+      const artifact = await ssh.python(`${ARTIFACT_PYTHON}\nprint(json.dumps(music_artifact(pathlib.Path('/homeassistant/custom_components/spotifyplus'))))`);
+      if (!validArtifact(artifact) || artifact.version.replace(/^v/, '') !== PINNED_VERSION) throw new Error('Installed SpotifyPlus version or fingerprint mismatch; stop and use backup');
+      const installed = { kind: 'dashboard-music-installed-v1', artifact };
+      await ssh.python(`import pathlib,json,os\nb=pathlib.Path(${JSON.stringify(backup)})\nassert json.loads((b/'manifest.json').read_text())['kind']=='dashboard-music-v1'\nrecord=json.loads(${JSON.stringify(JSON.stringify(installed))})\nwith os.fdopen(os.open(b/'installed-artifact.json',os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600),'w') as f:\n json.dump(record,f);f.flush();os.fsync(f.fileno())\nprint(json.dumps(True))`);
+      return installed;
     },
     async rollback(backup) {
-      if (!/^\/homeassistant\/backups\.local\/dashboard-music-\d{8}T\d{12}Z$/.test(backup)) throw new Error('Invalid task backup path');
-      const prior = await ssh.python(`import pathlib,json\np=pathlib.Path(${JSON.stringify(backup)})\nm=json.loads((p/'manifest.json').read_text())\nassert m['kind']=='dashboard-music-v1'\nprint(m['report'])`);
+      validateBackupPath(backup);
+      const snapshot = await ssh.python(`import pathlib,json\np=pathlib.Path(${JSON.stringify(backup)})\nm=json.loads((p/'manifest.json').read_text())\nassert m['kind']=='dashboard-music-v1'\nf=p/'installed-artifact.json'\nprint(json.dumps({'prior':json.loads(m['report']),'installed':json.loads(f.read_text()) if f.exists() else None}))`);
+      const { prior, installed } = snapshot;
+      if (installed?.kind !== 'dashboard-music-installed-v1' || !validArtifact(installed.artifact)) throw new Error('Backup lacks recorded task installation ownership; manual review required');
+      const artifact = await ssh.python(`${ARTIFACT_PYTHON}\nprint(json.dumps(music_artifact(pathlib.Path('/homeassistant/custom_components/spotifyplus'))))`);
+      if (!validArtifact(artifact) || artifact.version !== installed.artifact.version || artifact.fingerprint !== installed.artifact.fingerprint) throw new Error('SpotifyPlus files changed since this task installed them; rollback ownership not confirmed');
       const current = await ha.request({ type: 'config_entries/get' });
       if (current.some(entry => entry.domain === 'spotifyplus')) throw new Error('Remove only the task-created SpotifyPlus config entry in HA before rolling back integration code; existing integrations are never removed automatically');
       await repositories();
+      if (!repository?.installed || repository.installed_version?.replace(/^v/, '') !== installed.artifact.version.replace(/^v/, '')) throw new Error('SpotifyPlus HACS installation changed; rollback ownership not confirmed');
       if (prior.hacsRepository?.installed) {
         await ha.request({ type: 'hacs/repository/download', repository: String(repository.id), version: prior.hacsRepository.installedVersion });
       } else if (repository?.installed) {
