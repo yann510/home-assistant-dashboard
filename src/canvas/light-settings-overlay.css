@@ -27,9 +27,6 @@
 :is(.canvas, .canvas-dialog) .canvas-light-settings .canvas-lights__heading h3 { font-size: .85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 :is(.canvas, .canvas-dialog) .canvas-light-settings .canvas-lights__heading button { display: grid; place-items: center; flex: 0 0 44px; width: 44px; padding: 0; }
 :is(.canvas, .canvas-dialog) .canvas-light-settings .canvas-lights__heading button:last-child { font-size: 1.3rem; }
-:is(.canvas, .canvas-dialog) .canvas-light-settings__switcher { display: flex; flex-shrink: 0; gap: 4px; }
-:is(.canvas, .canvas-dialog) .canvas-light-settings__switcher button { flex: 1; min-width: 0; padding: 0 6px; font-size: .75rem; border-color: transparent; background: transparent; }
-:is(.canvas, .canvas-dialog) .canvas-light-settings__switcher button[aria-pressed='true'] { border-color: var(--canvas-room-accent); background: color-mix(in srgb, var(--canvas-room-accent) 18%, var(--canvas-surface)); color: var(--canvas-ink); }
 :is(.canvas, .canvas-dialog) .canvas-light-settings__controls { min-height: 0; overflow: auto; overscroll-behavior: contain; }
 :is(.canvas, .canvas-dialog) .canvas-light-settings .canvas-lights--detail .canvas-lights__slider { grid-template-columns: minmax(0, 1fr) auto; margin: 0; font-size: .8rem; gap: 8px; }
 :is(.canvas, .canvas-dialog) .canvas-light-settings .canvas-lights--detail .canvas-lights__slider input { grid-column: 1; grid-row: 1; }
@@ -55,3 +52,13 @@
 :is(.canvas, .canvas-dialog) .canvas-lights__full-name summary h3 { min-width: 0; }
 :is(.canvas, .canvas-dialog) .canvas-lights__full-name summary::after { content: '+'; flex-shrink: 0; font-size: .85rem; }
 :is(.canvas, .canvas-dialog) .canvas-lights__full-name[open] summary::after { content: '−'; }
+:is(.canvas, .canvas-dialog) .canvas-light-settings .canvas-lights__heading { height: auto; min-height: 54px; }
+:is(.canvas, .canvas-dialog) .canvas-light-settings .canvas-lights__full-name summary { min-height: 44px; }
+:is(.canvas, .canvas-dialog) .canvas-light-settings__controls { display: flex; flex-direction: column; gap: 8px; }
+:is(.canvas, .canvas-dialog) .canvas-light-settings .canvas-lights--detail .canvas-lights__slider { grid-template-columns: auto minmax(60px, 1fr) auto; }
+:is(.canvas, .canvas-dialog) .canvas-light-settings .canvas-lights--detail .canvas-lights__slider input { grid-column: 2; }
+:is(.canvas, .canvas-dialog) .canvas-light-settings .canvas-lights--detail .canvas-lights__slider output { grid-column: 3; }
+:is(.canvas, .canvas-dialog) .canvas-light-settings .canvas-light-colour { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 4px 8px; }
+:is(.canvas, .canvas-dialog) .canvas-light-settings .canvas-light-colour__label { font-size: .8rem; }
+:is(.canvas, .canvas-dialog) .canvas-light-settings .canvas-light-palette { grid-column: 1; }
+:is(.canvas, .canvas-dialog) .canvas-light-settings .canvas-colour-wheel { grid-column: 2; grid-row: 1 / span 2; }

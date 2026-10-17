@@ -13,3 +13,43 @@
 :is(.canvas .canvas-lights--compact, .canvas-dialog .canvas-lights--all) .canvas-lights__quick-settings svg { width: 18px; height: 18px; stroke: currentColor; fill: var(--canvas-surface); stroke-width: 1.4; }
 :is(.canvas .canvas-lights--compact, .canvas-dialog .canvas-lights--all) .canvas-lights__quick button:focus-visible { outline-offset: -3px; }
 :is(.canvas .canvas-lights--compact, .canvas-dialog .canvas-lights--all) .canvas-lights__slider output { min-width: 5ch; }
+
+/* The home card shares its spare height with every room light. */
+.canvas .canvas-lights--compact { display: flex; flex-direction: column; container-type: inline-size; }
+.canvas .canvas-lights--compact > div:first-child { display: flex; flex-direction: column; flex: 1; gap: 8px; min-width: 0; }
+.canvas .canvas-lights--compact .canvas-lights__heading { flex-wrap: wrap; gap: 8px; flex-shrink: 0; }
+.canvas .canvas-lights--compact .canvas-lights__heading .canvas-lights__room-summary { flex: 1; min-width: 100px; }
+.canvas .canvas-lights--compact .canvas-lights__heading h2 { flex-shrink: 0; }
+.canvas .canvas-lights--compact .canvas-lights__all-link { white-space: nowrap; }
+.canvas .canvas-lights--compact .canvas-lights__quick { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: minmax(52px, 1fr); flex: 1; margin-top: 0; }
+.canvas .canvas-lights--compact .canvas-lights__quick-light:only-child { grid-column: 1 / -1; }
+:is(.canvas .canvas-lights--compact, .canvas-dialog .canvas-lights--all) .canvas-lights__quick-power strong,
+:is(.canvas .canvas-lights--compact, .canvas-dialog .canvas-lights--all) .canvas-lights__quick-power small { display: block; white-space: normal; overflow-wrap: anywhere; }
+:is(.canvas .canvas-lights--compact, .canvas-dialog .canvas-lights--all) .canvas-lights__quick-power strong { font-weight: 600; }
+:is(.canvas .canvas-lights--compact, .canvas-dialog .canvas-lights--all) .canvas-lights__quick-power small { color: var(--canvas-muted); font-size: .875rem; margin-top: 4px; }
+:is(.canvas .canvas-lights--compact, .canvas-dialog .canvas-lights--all) .canvas-lights__quick-power-icon { width: 20px; height: 20px; flex: 0 0 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+:is(.canvas .canvas-lights--compact, .canvas-dialog .canvas-lights--all) .canvas-lights__quick .canvas-lights__quick-settings { flex: 0 0 70px; flex-direction: column; gap: 4px; font-size: .7rem; }
+:is(.canvas .canvas-lights--compact, .canvas-dialog .canvas-lights--all) .canvas-lights__quick button:hover:not(:disabled) { background: color-mix(in srgb, var(--canvas-ink) 9%, transparent); }
+.canvas .canvas-lights--compact .canvas-lights__adjustments { display: grid; grid-template-columns: minmax(0, 1fr) 232px; gap: 12px; flex-shrink: 0; }
+.canvas .canvas-lights--compact .canvas-lights__adjustments .canvas-lights__slider { grid-template-columns: minmax(0, 1fr) auto; margin: 0; padding: 0; align-content: start; gap: 0 8px; }
+.canvas .canvas-lights--compact .canvas-lights__adjustments .canvas-lights__slider input { grid-column: 1 / -1; grid-row: 2; }
+.canvas .canvas-lights--compact .canvas-lights__adjustments .canvas-lights__brightness-label { width: auto; }
+.canvas-lights__room-colour { min-width: 0; }
+.canvas-lights__colour-heading { display: flex; flex-direction: column; gap: 2px; font-size: .8rem; }
+.canvas-lights__colour-heading small { color: var(--canvas-muted); font-size: .875rem; }
+:is(.canvas, .canvas-dialog) .canvas-light-palette { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+:is(.canvas, .canvas-dialog) .canvas-light-palette button { display: grid; place-items: center; min-width: 44px; min-height: 44px; padding: 4px; border: 1px solid transparent; background: transparent; border-radius: 10px; }
+:is(.canvas, .canvas-dialog) .canvas-light-palette button span { display: block; width: 24px; height: 24px; border-radius: 50%; background: var(--canvas-swatch); border: 1px solid var(--canvas-line); }
+:is(.canvas, .canvas-dialog) .canvas-light-palette button[aria-pressed='true'] { border-color: var(--canvas-ink); background: color-mix(in srgb, var(--canvas-ink) 8%, transparent); }
+:is(.canvas, .canvas-dialog) .canvas-light-palette button:hover:not(:disabled) { background: color-mix(in srgb, var(--canvas-ink) 12%, transparent); }
+:is(.canvas, .canvas-dialog) .canvas-light-palette :disabled { opacity: .4; cursor: not-allowed; }
+.canvas-light-palette__custom { display: flex; align-items: center; position: relative; min-width: 44px; min-height: 44px; font-size: .7rem; cursor: pointer; }
+.canvas-light-palette__custom input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+.canvas-light-palette__custom:focus-within { outline: 2px solid var(--canvas-ink); outline-offset: 2px; border-radius: 6px; }
+@container (max-width: 340px) {
+  .canvas .canvas-lights--compact .canvas-lights__adjustments { grid-template-columns: 1fr; gap: 8px; }
+}
+@container (max-width: 300px) {
+  .canvas .canvas-lights--compact .canvas-lights__quick { grid-template-columns: 1fr; }
+}
+.canvas-light-palette__custom:has(input:disabled) { opacity: .4; cursor: not-allowed; }

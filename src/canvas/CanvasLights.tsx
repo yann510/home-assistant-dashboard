@@ -9,7 +9,9 @@ import './canvas-lights-quick.css';
 import './canvas-lights-all.css';
 import './canvas-controls-motion.css';
 import { useControlChangeFade } from './useControlChangeFade';
-import { useCanvasLights, lightSupportsBrightness, type CanvasRoom } from './useCanvasLights';
+import { LightColourPalette } from './LightColourPalette';
+import { hexFromRgb, rgbFromHex } from './lightColours';
+import { useCanvasLights, lightSupportsBrightness, lightSupportsColour, type CanvasRoom } from './useCanvasLights';
 
 function CommandFeedback({ compact = false }: { compact?: boolean }) {
   const { result, rooms } = useCanvasLights();
@@ -155,16 +157,14 @@ function IndividualLights({
   room,
   all = false,
   onOpenLight,
-  onOpenAll,
 }: {
   room: CanvasRoom;
   all?: boolean;
   onOpenLight?(entityId: string, trigger: HTMLElement): void;
-  onOpenAll?(trigger: HTMLElement): void;
 }) {
   const { connected, power, busy } = useCanvasLights();
   const [quickPending, setQuickPending] = useState<Set<string>>(() => new Set());
-  const lights = all ? room.lights : room.lights.slice(0, 2);
+  const lights = room.lights;
   return (
     <div className='canvas-lights__quick' role='group' aria-label={`${room.name} individual lights`}>
       {lights.map(light => (
@@ -187,8 +187,19 @@ function IndividualLights({
               );
             }}
           >
-            <span className='canvas-lights__quick-dot' aria-hidden='true' />
-            <span title={light.name}>{quickPending.has(light.id) ? 'Updating…' : light.label}</span>
+            <svg className='canvas-lights__quick-power-icon' viewBox='0 0 24 24' aria-hidden='true'>
+              <path d='M12 3v9m-5-7a8 8 0 1 0 10 0' />
+            </svg>
+            <span title={light.name}>
+              <strong>{light.label}</strong>
+              <small>
+                {quickPending.has(light.id)
+                  ? 'Updating…'
+                  : light.state === 'unavailable'
+                    ? 'Unavailable'
+                    : `${light.state === 'on' ? 'On · turn off' : 'Off · turn on'}`}
+              </small>
+            </span>
           </button>
           {onOpenLight && (
             <button
@@ -204,15 +215,41 @@ function IndividualLights({
                 <circle cx='13' cy='10' r='2' />
                 <circle cx='8' cy='15' r='2' />
               </svg>
+              <span>Settings</span>
             </button>
           )}
         </div>
       ))}
-      {onOpenAll && room.lights.length > 2 && (
-        <button type='button' className='canvas-lights__quick-more' onClick={event => onOpenAll(event.currentTarget)}>
-          More
-        </button>
-      )}
+    </div>
+  );
+}
+
+function RoomColour({ room }: { room: CanvasRoom }) {
+  const { colour, connected, busy } = useCanvasLights();
+  const compatible = room.lights.filter(light => light.state !== 'unavailable' && lightSupportsColour(light.entity));
+  const colours = compatible.map(light => (light.state === 'on' ? hexFromRgb(light.entity?.attributes.rgb_color) : undefined));
+  const unknown = !colours.length || colours.some(value => value === undefined);
+  const mixed = !unknown && new Set(colours).size > 1;
+  const value = !unknown && !mixed ? colours[0] : undefined;
+  return (
+    <div className='canvas-lights__room-colour'>
+      <div className='canvas-lights__colour-heading'>
+        <span>Room colour</span>
+        <small>
+          {compatible.length} compatible{unknown ? ' · Unknown colour' : mixed ? ' · Mixed colours' : ''}
+        </small>
+      </div>
+      <LightColourPalette
+        scope='Room'
+        value={value}
+        disabled={!connected || !compatible.length || compatible.some(light => busy.has(light.id))}
+        onChange={hex => {
+          void colour(
+            room.lights.map(light => light.id),
+            rgbFromHex(hex)
+          );
+        }}
+      />
     </div>
   );
 }
@@ -221,7 +258,7 @@ export function CanvasLights({ onOpenAll }: { onOpenAll(trigger: HTMLElement): v
   const settings = useLightSettings('home-light-settings');
   const { rooms, selectedRoom, setSelectedRoom, connected } = useCanvasLights();
   const room = rooms.find(item => item.name === selectedRoom) ?? rooms[0];
-  const contentRef = useControlChangeFade<HTMLElement>(room.name, '.canvas-lights__room-artwork, .canvas-lights__quick-light span');
+  const contentRef = useControlChangeFade<HTMLElement>(room.name, '.canvas-lights__quick-light span');
   return (
     <section
       ref={contentRef}
@@ -236,6 +273,10 @@ export function CanvasLights({ onOpenAll }: { onOpenAll(trigger: HTMLElement): v
       <div inert={Boolean(settings.active)} aria-hidden={settings.active ? true : undefined}>
         <div className='canvas-lights__heading'>
           <h2>Lights</h2>
+          <div className='canvas-lights__room-summary'>
+            <CanvasRoomPicker rooms={rooms} connected={connected} value={room.name} onChange={setSelectedRoom} />
+          </div>
+          <RoomPower room={room} compact />
           <button type='button' className='canvas-lights__all-link' onClick={event => onOpenAll(event.currentTarget)}>
             All lights{' '}
             <span aria-hidden='true'>
@@ -243,18 +284,14 @@ export function CanvasLights({ onOpenAll }: { onOpenAll(trigger: HTMLElement): v
             </span>
           </button>
         </div>
-        <div className='canvas-lights__room-line'>
-          <RoomArtwork room={room.name} className='canvas-lights__room-artwork' />
-          <div className='canvas-lights__room-summary'>
-            <CanvasRoomPicker rooms={rooms} connected={connected} value={room.name} onChange={setSelectedRoom} />
-            {(!connected || room.available < room.lights.length) && (
-              <p className='canvas-lights__muted'>{!connected ? 'Reconnecting…' : `${room.lights.length - room.available} unavailable`}</p>
-            )}
-          </div>
-          <RoomPower room={room} compact />
+        {(!connected || room.available < room.lights.length) && (
+          <p className='canvas-lights__muted'>{!connected ? 'Reconnecting…' : `${room.lights.length - room.available} unavailable`}</p>
+        )}
+        <IndividualLights room={room} onOpenLight={settings.open} />
+        <div className='canvas-lights__adjustments'>
+          <RoomBrightness room={room} compact />
+          <RoomColour room={room} />
         </div>
-        <IndividualLights room={room} onOpenAll={onOpenAll} onOpenLight={settings.open} />
-        <RoomBrightness room={room} compact />
         <CommandFeedback compact />
       </div>
       {settings.active && <LightSettingsOverlay entityId={settings.active.entityId} onClose={settings.close} />}

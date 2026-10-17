@@ -1,18 +1,13 @@
 import { useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { useStore, type LightEntity } from '@hakit/core';
 import { ColourWheel } from './ColourWheel';
-import { lightSupportsBrightness, useCanvasLights } from './useCanvasLights';
+import { LightColourPalette } from './LightColourPalette';
+import { hexFromRgb, rgbFromHex } from './lightColours';
+import { lightSupportsBrightness, lightSupportsColour, useCanvasLights } from './useCanvasLights';
 
 function numeric(value: unknown): number | undefined {
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
 }
-function rgbFromHex(hex: string): [number, number, number] {
-  return [1, 3, 5].map(index => parseInt(hex.slice(index, index + 2), 16)) as [number, number, number];
-}
-function hexFromRgb(rgb?: [number, number, number]): string {
-  return rgb?.length === 3 ? `#${rgb.map(value => Math.max(0, Math.min(255, value)).toString(16).padStart(2, '0')).join('')}` : '#ffffff';
-}
-
 export function CanvasLightDetails({
   entityId,
   embedded = false,
@@ -25,13 +20,13 @@ export function CanvasLightDetails({
   const { rooms, power, sendLive, busy, connected, result } = useCanvasLights();
   const light = rooms.flatMap(room => room.lights).find(item => item.id === entityId);
   const roomName = rooms.find(room => room.lights.some(item => item.id === entityId))?.name;
-  const title = light ? (embedded ? light.label : `${roomName} · ${light.label}`) : 'Light';
+  const title = light ? (embedded ? `${light.label} settings` : `${roomName} · ${light.label}`) : 'Light';
   const entity = light?.entity;
   const attrs = entity?.attributes;
   const available = Boolean(connected && light && light.state !== 'unavailable');
   const working = busy.has(entityId);
   const modes = attrs?.supported_color_modes ?? [];
-  const colour = modes.some(mode => ['hs', 'xy', 'rgb', 'rgbw', 'rgbww'].includes(mode));
+  const colour = lightSupportsColour(entity);
   const effects = attrs?.effect_list?.filter(Boolean) ?? [];
   const kelvinMin = numeric(attrs?.min_color_temp_kelvin);
   const kelvinMax = numeric(attrs?.max_color_temp_kelvin);
@@ -50,15 +45,7 @@ export function CanvasLightDetails({
   const [temperatureDraft, setTemperatureDraft] = useState<number | null>(null);
   const [colourDraft, setColourDraft] = useState<string | null>(null);
   const [effectDraft, setEffectDraft] = useState<string | null>(null);
-  const [selectedControl, setSelectedControl] = useState('Brightness');
-  const controls = [
-    ...(lightSupportsBrightness(entity) ? ['Brightness'] : []),
-    ...(colour ? ['Colour'] : []),
-    ...(temperature ? ['Warmth'] : []),
-    ...(effects.length ? ['Effect'] : []),
-  ];
-  const activeControl = controls.includes(selectedControl) ? selectedControl : controls[0];
-  const showControl = (name: string) => !embedded || activeControl === name;
+  const hasControls = lightSupportsBrightness(entity) || colour || temperature || effects.length > 0;
   if (!light) return <p role='status'>This light is not in the current inventory.</p>;
   const sendValue = async (data: Record<string, unknown>, observe: (next: LightEntity) => boolean, clear: () => void) => {
     if (!available || working) return;
@@ -78,7 +65,7 @@ export function CanvasLightDetails({
   const temperaturePosition =
     temperatureDraft ?? temperatureValue ?? (temperature ? Math.round((temperature.min + temperature.max) / 2) : 0);
   const reportedColour = entity?.state === 'on' ? attrs?.rgb_color : undefined;
-  const colourValue = colourDraft ?? hexFromRgb(reportedColour);
+  const colourValue = colourDraft ?? hexFromRgb(reportedColour) ?? '#ffffff';
   const changeBrightness = (percent: number) => {
     setBrightnessDraft(percent);
     const value = Math.round((percent / 100) * 255);
@@ -129,6 +116,7 @@ export function CanvasLightDetails({
             </summary>
             <p>{light.name}</p>
           </details>
+          {embedded && <p className='canvas-lights__muted'>{roomName} · this light only</p>}
           {!embedded && (
             <p className='canvas-lights__muted'>{light.state === 'unavailable' ? 'Unavailable' : light.state === 'on' ? 'On' : 'Off'}</p>
           )}
@@ -151,25 +139,16 @@ export function CanvasLightDetails({
         </button>
         {closeControl}
       </div>
-      {embedded && controls.length > 0 && (
-        <div className='canvas-light-settings__switcher' role='group' aria-label='Light adjustments'>
-          {controls.map(control => (
-            <button type='button' key={control} aria-pressed={activeControl === control} onClick={() => setSelectedControl(control)}>
-              {control}
-            </button>
-          ))}
-        </div>
-      )}
       <div className={embedded ? 'canvas-light-settings__controls' : undefined}>
         {embedded && !available && (
           <p className='canvas-lights__muted' role='status'>
             {connected ? 'Unavailable' : 'Reconnecting…'}
           </p>
         )}
-        {embedded && controls.length === 0 && available && <p className='canvas-lights__muted'>Power control only</p>}
-        {lightSupportsBrightness(entity) && showControl('Brightness') && (
+        {embedded && !hasControls && available && <p className='canvas-lights__muted'>Power control only</p>}
+        {lightSupportsBrightness(entity) && (
           <label className='canvas-lights__slider'>
-            {!embedded && 'Brightness'}
+            <span>Brightness</span>
             <input
               aria-label='Light brightness'
               aria-valuetext={`${brightnessDraft !== null || brightnessPercent === undefined ? 'proposed' : 'reported'} ${brightnessPosition} percent${brightnessPercent === undefined ? '; current brightness unknown' : ''}`}
@@ -193,15 +172,22 @@ export function CanvasLightDetails({
             )}
           </label>
         )}
-        {colour && showControl('Colour') && (
+        {colour && (
           <div className='canvas-light-colour'>
+            <span className='canvas-light-colour__label'>Light colour</span>
+            <LightColourPalette
+              scope='Light'
+              value={colourDraft ?? (entity?.state === 'on' ? hexFromRgb(reportedColour) : undefined)}
+              disabled={!available || working}
+              onChange={changeColour}
+            />
             <ColourWheel value={colourValue} disabled={!available || working} onChange={changeColour} />
             {reportedColour === undefined && <span className='canvas-light-settings__sr-only'>Current colour unknown</span>}
           </div>
         )}
-        {temperature && showControl('Warmth') && (
+        {temperature && (
           <label className='canvas-lights__slider'>
-            {!embedded && 'Colour temperature'}
+            <span>Warmth</span>
             <input
               aria-label='Light colour temperature'
               aria-valuetext={`${temperatureDraft !== null || temperatureValue === undefined ? 'proposed' : 'reported'} ${temperaturePosition} ${temperature.unit}${temperatureValue === undefined ? '; current colour temperature unknown' : ''}`}
@@ -231,9 +217,9 @@ export function CanvasLightDetails({
             )}
           </label>
         )}
-        {effects.length > 0 && showControl('Effect') && (
+        {effects.length > 0 && (
           <label className='canvas-lights__field'>
-            {!embedded && 'Effect'}
+            <span>Effect</span>
             <select
               aria-label='Light effect'
               value={effectDraft ?? attrs?.effect ?? ''}

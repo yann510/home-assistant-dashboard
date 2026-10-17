@@ -7,6 +7,7 @@ import { CanvasLightsProvider } from './useCanvasLights';
 import { CanvasAllLights, CanvasLights } from './CanvasLights';
 import { CanvasLightDetails } from './CanvasLightDetails';
 import { deferred } from './testing/haFixture';
+import { rooms as lightInventory } from '../useLightSummary';
 
 const ref = vi.hoisted(() => ({ current: null as ReturnType<typeof createHaFixture> | null }));
 vi.mock('@hakit/core', () => ({
@@ -223,7 +224,6 @@ it('keeps warmth available in another current colour mode and falls back to vali
       <CanvasLightDetails entityId='light.gym' embedded />
     </CanvasLightsProvider>
   );
-  fireEvent.click(screen.getByRole('button', { name: 'Warmth' }));
   const slider = screen.getByRole('slider', { name: 'Light colour temperature' });
   expect(slider.getAttribute('min')).toBe('153');
   expect(slider.getAttribute('max')).toBe('500');
@@ -421,7 +421,9 @@ it.each([
     choose: async () => {
       fireEvent.keyDown(screen.getByRole('slider', { name: 'Colour wheel' }), { key: 'End' });
       await waitFor(() =>
-        expect((ref.current!.calls[ref.current!.calls.length - 1] as { service_data: unknown }).service_data).toEqual({ rgb_color: [255, 0, 0] })
+        expect((ref.current!.calls[ref.current!.calls.length - 1] as { service_data: unknown }).service_data).toEqual({
+          rgb_color: [255, 0, 0],
+        })
       );
     },
     retained: { rgb_color: [255, 0, 0], supported_color_modes: ['rgb'] },
@@ -966,7 +968,7 @@ it('keeps a pending brightness command alive after closing inline settings', asy
   expect(fixture.calls).toHaveLength(1);
 });
 
-it('shows only the chosen supported adjustment and applies changes as they are made', async () => {
+it('shows supported adjustments together and applies changes as they are made', async () => {
   const fixture = ref.current!;
   fixture.publish('light.gym', 'on', {
     brightness: 128,
@@ -983,9 +985,8 @@ it('shows only the chosen supported adjustment and applies changes as they are m
     </CanvasLightsProvider>
   );
   expect(screen.getByRole('slider', { name: 'Light brightness' })).toBeTruthy();
-  expect(screen.queryByRole('slider', { name: 'Colour wheel' })).toBeNull();
-  fireEvent.click(screen.getByRole('button', { name: 'Colour' }));
-  expect(screen.queryByRole('slider', { name: 'Light brightness' })).toBeNull();
+  expect(screen.queryByRole('group', { name: 'Light adjustments' })).toBeNull();
+  expect(screen.getByRole('slider', { name: 'Light brightness' })).toBeTruthy();
   expect(screen.getByRole('slider', { name: 'Colour wheel' })).toBeTruthy();
   const colour = screen.getByRole('slider', { name: 'Colour wheel' });
   expect(screen.queryByRole('textbox')).toBeNull();
@@ -993,15 +994,11 @@ it('shows only the chosen supported adjustment and applies changes as they are m
   fireEvent.keyDown(colour, { key: 'ArrowRight', shiftKey: true });
   fireEvent.blur(colour);
   expect(fixture.calls).toHaveLength(1);
-  fireEvent.click(screen.getByRole('button', { name: 'Effect' }));
   fireEvent.change(screen.getByRole('combobox'), { target: { value: 'Pulse' } });
-  expect(screen.queryByRole('slider', { name: 'Colour wheel' })).toBeNull();
-  fireEvent.click(screen.getByRole('button', { name: 'Warmth' }));
+  expect(screen.getByRole('slider', { name: 'Colour wheel' })).toBeTruthy();
   expect(screen.getByRole('slider', { name: 'Light colour temperature' })).toBeTruthy();
-  expect(screen.queryByRole('combobox')).toBeNull();
-  fireEvent.click(screen.getByRole('button', { name: 'Effect' }));
+  expect(screen.getByRole('combobox')).toBeTruthy();
   expect((screen.getByRole('combobox') as HTMLSelectElement).value).toBe('Pulse');
-  fireEvent.click(screen.getByRole('button', { name: 'Colour' }));
   expect(screen.getByRole('slider', { name: 'Colour wheel' }).getAttribute('aria-valuetext')).toBe(
     'Hue 10 degrees, saturation 100 percent'
   );
@@ -1018,7 +1015,7 @@ it('omits unsupported adjustment choices and keeps missing brightness visibly un
       <CanvasLightDetails entityId='light.gym' embedded />
     </CanvasLightsProvider>
   );
-  expect(screen.getByRole('group', { name: 'Light adjustments' }).querySelectorAll('button')).toHaveLength(1);
+  expect(screen.queryByRole('group', { name: 'Light adjustments' })).toBeNull();
   expect(screen.getByText('—')).toBeTruthy();
   expect(screen.getByRole('slider').getAttribute('aria-valuetext')).toContain('current brightness unknown');
 });
@@ -1031,10 +1028,10 @@ it('shows compact dashboard labels while keeping the full name available in sett
       <CanvasLights onOpenAll={() => {}} />
     </CanvasLightsProvider>
   );
-  expect(screen.getByRole('button', { name: `Turn off ${fullName}` }).textContent).toBe('LED strip');
+  expect(screen.getByRole('button', { name: `Turn off ${fullName}` }).textContent).toContain('LED strip');
   await userEvent.click(screen.getByRole('button', { name: `${fullName} settings` }));
-  expect(screen.getByRole('heading', { name: 'LED strip' })).toBeTruthy();
-  const disclosure = screen.getByText('LED strip', { selector: 'h3' }).closest('details')!;
+  expect(screen.getByRole('heading', { name: 'LED strip settings' })).toBeTruthy();
+  const disclosure = screen.getByText('LED strip settings', { selector: 'h3' }).closest('details')!;
   expect(disclosure.open).toBe(false);
   await userEvent.click(disclosure.querySelector('summary')!);
   expect(disclosure.open).toBe(true);
@@ -1235,8 +1232,14 @@ it('reconciles each room independently when switching rooms before acknowledgeme
   fixture.publish(living, 'on', { brightness: 100, supported_color_modes: ['brightness'] });
   fixture.publish(kitchen, 'on', { brightness: 100, supported_color_modes: ['brightness'] });
   const livingAck = deferred();
-  fixture.respondWith(message => (message as { target: { entity_id: string[] } }).target.entity_id[0] === living ? livingAck.promise : Promise.resolve({}));
-  render(<CanvasLightsProvider><CanvasLights onOpenAll={() => {}} /></CanvasLightsProvider>);
+  fixture.respondWith(message =>
+    (message as { target: { entity_id: string[] } }).target.entity_id[0] === living ? livingAck.promise : Promise.resolve({})
+  );
+  render(
+    <CanvasLightsProvider>
+      <CanvasLights onOpenAll={() => {}} />
+    </CanvasLightsProvider>
+  );
   fireEvent.input(screen.getByRole('slider', { name: 'Room brightness' }), { target: { value: '55' } });
   await userEvent.click(screen.getByRole('button', { name: 'Lights room' }));
   await userEvent.click(screen.getByRole('option', { name: 'Kitchen' }));
@@ -1251,4 +1254,107 @@ it('reconciles each room independently when switching rooms before acknowledgeme
   const slider = screen.getByRole('slider', { name: 'Room brightness' });
   await waitFor(() => expect(slider.getAttribute('aria-valuetext')).toContain('reported 55 percent'));
   expect(slider.getAttribute('aria-busy')).toBe('false');
+});
+
+it('applies room colour to on and off compatible lights only, and honours selected-room scope', async () => {
+  const fixture = ref.current!;
+  fixture.publish('light.light_living_room_bulbs', 'on', { supported_color_modes: ['rgb'], rgb_color: [255, 0, 0] });
+  fixture.publish('light.living_room_led_strip', 'off', { supported_color_modes: ['xy'] });
+  fixture.publish('light.office_bulbs', 'on', { supported_color_modes: ['rgb'] });
+  fixture.publish('light.neon_light_led_strip', 'unavailable', { supported_color_modes: ['rgb'] });
+  fixture.publish('light.light_kitchen', 'on', { supported_color_modes: ['brightness'] });
+  render(
+    <CanvasLightsProvider>
+      <CanvasLights onOpenAll={() => {}} />
+    </CanvasLightsProvider>
+  );
+  const palette = screen.getByRole('group', { name: 'Room colour presets' });
+  expect(screen.getByText('2 compatible · Unknown colour')).toBeTruthy();
+  await userEvent.click(within(palette).getByRole('button', { name: 'Warm' }));
+  expect(fixture.calls).toHaveLength(2);
+  expect(fixture.calls).toMatchObject([
+    { service: 'turn_on', target: { entity_id: ['light.light_living_room_bulbs'] }, service_data: { rgb_color: [240, 180, 120] } },
+    { service: 'turn_on', target: { entity_id: ['light.living_room_led_strip'] }, service_data: { rgb_color: [240, 180, 120] } },
+  ]);
+  await userEvent.click(screen.getByRole('button', { name: 'Lights room' }));
+  await userEvent.click(screen.getByRole('option', { name: 'Office' }));
+  await userEvent.click(within(screen.getByRole('group', { name: 'Room colour presets' })).getByRole('button', { name: 'Blue' }));
+  expect(fixture.calls[2]).toMatchObject({ target: { entity_id: ['light.office_bulbs'] }, service_data: { rgb_color: [141, 185, 237] } });
+  await userEvent.click(screen.getByRole('button', { name: 'Lights room' }));
+  await userEvent.click(screen.getByRole('option', { name: 'Kitchen' }));
+  expect(within(screen.getByRole('group', { name: 'Room colour presets' })).getByRole('button', { name: 'Warm' })).toHaveProperty(
+    'disabled',
+    true
+  );
+});
+
+it('shows mixed room colours, custom input and disables colour while disconnected', () => {
+  const fixture = ref.current!;
+  fixture.publish('light.light_living_room_bulbs', 'on', { supported_color_modes: ['rgb'], rgb_color: [255, 0, 0] });
+  fixture.publish('light.living_room_led_strip', 'on', { supported_color_modes: ['rgb'], rgb_color: [0, 0, 255] });
+  render(
+    <CanvasLightsProvider>
+      <CanvasLights onOpenAll={() => {}} />
+    </CanvasLightsProvider>
+  );
+  expect(screen.getByText('2 compatible · Mixed colours')).toBeTruthy();
+  fireEvent.change(screen.getByLabelText('Custom room colour'), { target: { value: '#bca0e3' } });
+  expect(fixture.calls[0]).toMatchObject({ service_data: { rgb_color: [188, 160, 227] } });
+  act(() => fixture.socketDisconnect());
+  expect(screen.getByLabelText('Custom room colour')).toHaveProperty('disabled', true);
+});
+
+it('keeps individual swatches scoped to that light with brightness and colour visible together', async () => {
+  ref.current!.publish('light.gym', 'off', { supported_color_modes: ['rgb'] });
+  render(
+    <CanvasLightsProvider>
+      <CanvasLightDetails entityId='light.gym' embedded />
+    </CanvasLightsProvider>
+  );
+  expect(screen.getByRole('slider', { name: 'Light brightness' })).toBeTruthy();
+  expect(screen.getByRole('slider', { name: 'Colour wheel' })).toBeTruthy();
+  await userEvent.click(within(screen.getByRole('group', { name: 'Light colour presets' })).getByRole('button', { name: 'Pink' }));
+  expect(ref.current!.calls).toMatchObject([{ target: { entity_id: ['light.gym'] }, service_data: { rgb_color: [232, 155, 185] } }]);
+});
+
+it('renders every room light with separate settings and power actions without More', async () => {
+  const ids = lightInventory[0].lights as unknown as string[];
+  ids.push('light.extra_room_light');
+  try {
+    ref.current!.publish('light.extra_room_light', 'on', { friendly_name: 'Extra lamp', supported_color_modes: ['brightness'] });
+    render(
+      <CanvasLightsProvider>
+        <CanvasLights onOpenAll={() => {}} />
+      </CanvasLightsProvider>
+    );
+    const group = screen.getByRole('group', { name: 'Living Room individual lights' });
+    expect(within(group).getAllByRole('button')).toHaveLength(6);
+    expect(within(group).queryByRole('button', { name: 'More' })).toBeNull();
+    await userEvent.click(within(group).getByRole('button', { name: 'Extra lamp settings' }));
+    expect(ref.current!.calls).toHaveLength(0);
+    expect(screen.getByRole('heading', { name: 'Extra lamp settings' })).toBeTruthy();
+    await userEvent.click(screen.getByRole('button', { name: 'Close light settings' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Turn off Extra lamp' }));
+    expect(ref.current!.calls[0]).toMatchObject({ service: 'turn_off', target: { entity_id: ['light.extra_room_light'] } });
+  } finally {
+    ids.pop();
+  }
+});
+
+it('reports room colour service failures without claiming a new shared colour', async () => {
+  ref.current!.publish('light.living_room_led_strip', 'off', { supported_color_modes: ['rgb'] });
+  ref.current!.respondWith(() => Promise.reject(new Error('Colour refused')));
+  render(
+    <CanvasLightsProvider>
+      <CanvasLights onOpenAll={() => {}} />
+    </CanvasLightsProvider>
+  );
+  await userEvent.click(within(screen.getByRole('group', { name: 'Room colour presets' })).getByRole('button', { name: 'Pink' }));
+  expect(await screen.findByRole('alert')).toHaveProperty('textContent', expect.stringContaining('1 light needs attention'));
+  expect(screen.getByText('1 compatible · Unknown colour')).toBeTruthy();
+  expect(
+    within(screen.getByRole('group', { name: 'Room colour presets' }))
+      .getByRole('button', { name: 'Pink' })
+      .getAttribute('aria-pressed')
+  ).toBe('false');
 });
