@@ -33,6 +33,18 @@
 :is(.canvas .canvas-lights--compact, .canvas-dialog .canvas-lights--all) .canvas-lights__quick-light[data-on='true'] .canvas-lights__quick-power { background: var(--canvas-room-accent); color: var(--canvas-bg); }
 :is(.canvas .canvas-lights--compact, .canvas-dialog .canvas-lights--all) .canvas-lights__quick-light[data-on='true'] .canvas-lights__quick-power:hover:not(:disabled) { background: color-mix(in srgb, var(--canvas-room-accent) 85%, var(--canvas-ink)); }
 :is(.canvas .canvas-lights--compact, .canvas-dialog .canvas-lights--all) .canvas-lights__quick-light[data-on='true'] .canvas-lights__quick-power:focus-visible { outline-color: var(--canvas-bg); }
+/* Home settings stay secondary to the filled light controls. */
+.canvas .canvas-lights--compact .canvas-lights__quick .canvas-lights__quick-settings {
+  flex-basis: 44px;
+  min-width: 44px;
+  background: var(--canvas-surface);
+  color: var(--canvas-muted);
+}
+.canvas .canvas-lights--compact .canvas-lights__quick-settings > span { display: none; }
+.canvas .canvas-lights--compact .canvas-lights__quick .canvas-lights__quick-settings:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--canvas-ink) 7%, var(--canvas-surface));
+  color: var(--canvas-ink);
+}
 .canvas .canvas-lights--compact .canvas-lights__adjustments { display: grid; grid-template-columns: minmax(0, 1fr) 232px; gap: 12px; flex-shrink: 0; }
 .canvas .canvas-lights--compact .canvas-lights__adjustments .canvas-lights__slider { grid-template-columns: minmax(0, 1fr) auto; margin: 0; padding: 0; align-content: start; gap: 0 8px; }
 .canvas .canvas-lights--compact .canvas-lights__adjustments .canvas-lights__slider input { grid-column: 1 / -1; grid-row: 2; }
