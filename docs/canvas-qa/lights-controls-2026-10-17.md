@@ -1,6 +1,6 @@
 # Room lights controls — 2026-10-17
 
-The Fire HD 10 landscape dashboard keeps its Canvas layout. The home lights header has two rows: Lights / All lights, then the room artwork, picker, and room power. Separate power and Settings buttons make each light's actions explicit. All lights in the selected room are shown; one spans the width, two share the row, and additional lights wrap. Tiles stretch into spare card height while retaining touch targets in shorter viewports.
+The Fire HD 10 landscape dashboard keeps its Canvas layout. The home lights header has two rows: Lights / All lights, then the room artwork and picker. Individual power buttons use the room accent when on and a distinct neutral fill when off, with separate filled Settings actions. Visible status is simply On or Off; accessible names retain the Turn on/off action. All lights in the selected room are shown; one spans the width, two share the row, and additional lights wrap. Tiles stretch into spare card height while retaining touch targets in shorter viewports. Grouped room power remains available in All lights, alongside the whole-house All off action.
 
 Room brightness and colour presets appear together. Brightness retains its existing on-only behavior. Room colour turns on and colours available colour-capable lights in the selected room, including lights currently off; white-only and unavailable lights are excluded. Compatibility counts are omitted; a concise Mixed indicator appears when the known colours differ. A custom colour input complements the presets.
 
@@ -13,6 +13,7 @@ Individual settings retains the in-card editor, scoped to that light. Brightness
 - TypeScript, ESLint, and production dashboard build passed. The existing large bundle advisory remains.
 - Independent task review and whole-branch review approved the implementation with no actionable findings.
 - Simulated preview interactions verified room/individual targeting, off-light activation, unsupported-light exclusion, custom RGB, disconnected controls, command errors, Escape, and return focus. No physical devices were operated during these checks.
+- Filled-button refinement checks verified distinct On/Off backgrounds, text contrast above 4.5:1 in both states, and a visible dark keyboard-focus ring on the pastel On surface. Main-card room power is removed; grouped power controls remain in All lights.
 
 ## Browser geometry
 
