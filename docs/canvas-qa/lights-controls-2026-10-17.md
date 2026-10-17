@@ -30,3 +30,11 @@ The Lights room icon and picker align with the top edge of the Blinds room butto
 Earlier inventory checks confirmed a single light spans the grid width and four lights wrap into two rows with at least 52px tiles; All lights retains actions for all four. The alignment refinement leaves that grid unchanged. Phone alignment rules remain unchanged; the 393×852 layout was rechecked for touch targets and horizontal overflow. Earlier phone checks also covered 320×740.
 
 These are Chromium checks using the repository's simulated preview and current capability fixture. They do not establish the physical tablet's effective CSS viewport, browser chrome, Android scaling, or hardware command delivery. See the existing Fire HD 10 QA notes for device validation limits.
+
+## Production release
+
+Release `d0a983c` was published to the main dashboard on October 17, 2026 using guarded staging, uploaded-file hash verification, and promotion with the previous release retained for rollback. The full 670-test suite and fresh TypeScript/production build passed before publication; lint and independent implementation review passed for the final refinement.
+
+Independent LAN HTTP verification confirmed release `d0a983c`, all 68 current build files (index and 67 assets) matching local SHA-256 hashes and the release manifest, and all 244 manifest entries matching their fetched bytes, including retained assets and metadata. The live index returns HTTP 200. No household commands or Home Assistant restart were required. Physical tablet acceptance remains a device check.
+
+[Refresh the deployed dashboard](http://homeassistant.local:8123/local/dashboard/index.html?release=d0a983c). The existing `npm run rollback:dashboard` command retains the previous release recovery path.
