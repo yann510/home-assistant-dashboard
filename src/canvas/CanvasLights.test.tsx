@@ -1269,7 +1269,6 @@ it('applies room colour to on and off compatible lights only, and honours select
     </CanvasLightsProvider>
   );
   const palette = screen.getByRole('group', { name: 'Room colour presets' });
-  expect(screen.getByText('2 compatible · Unknown colour')).toBeTruthy();
   await userEvent.click(within(palette).getByRole('button', { name: 'Warm' }));
   expect(fixture.calls).toHaveLength(2);
   expect(fixture.calls).toMatchObject([
@@ -1297,7 +1296,7 @@ it('shows mixed room colours, custom input and disables colour while disconnecte
       <CanvasLights onOpenAll={() => {}} />
     </CanvasLightsProvider>
   );
-  expect(screen.getByText('2 compatible · Mixed colours')).toBeTruthy();
+  expect(screen.getByText('Mixed')).toBeTruthy();
   fireEvent.change(screen.getByLabelText('Custom room colour'), { target: { value: '#bca0e3' } });
   expect(fixture.calls[0]).toMatchObject({ service_data: { rgb_color: [188, 160, 227] } });
   act(() => fixture.socketDisconnect());
@@ -1351,7 +1350,6 @@ it('reports room colour service failures without claiming a new shared colour', 
   );
   await userEvent.click(within(screen.getByRole('group', { name: 'Room colour presets' })).getByRole('button', { name: 'Pink' }));
   expect(await screen.findByRole('alert')).toHaveProperty('textContent', expect.stringContaining('1 light needs attention'));
-  expect(screen.getByText('1 compatible · Unknown colour')).toBeTruthy();
   expect(
     within(screen.getByRole('group', { name: 'Room colour presets' }))
       .getByRole('button', { name: 'Pink' })

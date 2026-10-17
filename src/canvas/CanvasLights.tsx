@@ -235,9 +235,7 @@ function RoomColour({ room }: { room: CanvasRoom }) {
     <div className='canvas-lights__room-colour'>
       <div className='canvas-lights__colour-heading'>
         <span>Room colour</span>
-        <small>
-          {compatible.length} compatible{unknown ? ' · Unknown colour' : mixed ? ' · Mixed colours' : ''}
-        </small>
+        {mixed && <small>Mixed</small>}
       </div>
       <LightColourPalette
         scope='Room'
@@ -273,16 +271,19 @@ export function CanvasLights({ onOpenAll }: { onOpenAll(trigger: HTMLElement): v
       <div inert={Boolean(settings.active)} aria-hidden={settings.active ? true : undefined}>
         <div className='canvas-lights__heading'>
           <h2>Lights</h2>
-          <div className='canvas-lights__room-summary'>
-            <CanvasRoomPicker rooms={rooms} connected={connected} value={room.name} onChange={setSelectedRoom} />
-          </div>
-          <RoomPower room={room} compact />
           <button type='button' className='canvas-lights__all-link' onClick={event => onOpenAll(event.currentTarget)}>
             All lights{' '}
             <span aria-hidden='true'>
               <CanvasActionIcon action='open' />
             </span>
           </button>
+        </div>
+        <div className='canvas-lights__room-line'>
+          <RoomArtwork room={room.name} className='canvas-lights__room-artwork' />
+          <div className='canvas-lights__room-summary'>
+            <CanvasRoomPicker rooms={rooms} connected={connected} value={room.name} onChange={setSelectedRoom} />
+          </div>
+          <RoomPower room={room} compact />
         </div>
         {(!connected || room.available < room.lights.length) && (
           <p className='canvas-lights__muted'>{!connected ? 'Reconnecting…' : `${room.lights.length - room.available} unavailable`}</p>

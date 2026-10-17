@@ -18,7 +18,6 @@
 .canvas .canvas-lights--compact { display: flex; flex-direction: column; container-type: inline-size; }
 .canvas .canvas-lights--compact > div:first-child { display: flex; flex-direction: column; flex: 1; gap: 8px; min-width: 0; }
 .canvas .canvas-lights--compact .canvas-lights__heading { flex-wrap: wrap; gap: 8px; flex-shrink: 0; }
-.canvas .canvas-lights--compact .canvas-lights__heading .canvas-lights__room-summary { flex: 1; min-width: 100px; }
 .canvas .canvas-lights--compact .canvas-lights__heading h2 { flex-shrink: 0; }
 .canvas .canvas-lights--compact .canvas-lights__all-link { white-space: nowrap; }
 .canvas .canvas-lights--compact .canvas-lights__quick { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: minmax(52px, 1fr); flex: 1; margin-top: 0; }
