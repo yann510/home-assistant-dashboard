@@ -5,7 +5,9 @@ Status: proposed design for user review; implementation has not started.
 
 ## Agreed outcome
 
-One tap on a dashboard favourite starts playback on the selected Sonos speaker/group, even with Spotify closed on the phone. Every dashboard launch uses Yann's Spotify account. Opening Spotify afterward exposes the active session for queue control and starting a Jam. Preserve Follow me, the speaker grouping interface, per-room volumes, current track links, and the dashboard's visual design.
+One tap on a playlist from Yann's Spotify library starts playback on the selected Sonos speaker/group, even with Spotify closed on the phone. Every dashboard launch uses Yann's Spotify account. Opening Spotify afterward exposes the active session for queue control and starting a Jam. Preserve Follow me, the speaker grouping interface, per-room volumes, current track links, and the dashboard's visual design.
+
+Revision requested by the user: replace Sonos favourites with Spotify saved playlists; replace the playlist-opening heart with a clear word label; reserve a separate heart for saving the currently playing song to Liked Songs. Proposed interpretation for review: saved playlists means playlists owned or followed by Yann, and the song heart is a save/unsave toggle. Liked Songs itself is not an ordinary playlist URI and its playback is outside this revision.
 
 The user selected SpotifyPlus and authorized developing this design. Successful playback must remain a Spotify Connect session. Hearing Spotify tracks from a Sonos local queue does not meet the requirement.
 
@@ -26,6 +28,9 @@ Sources:
 - [SpotifyPlus Desktop authorization](https://github.com/thlucas1/homeassistantcomponent_spotifyplus/wiki/Device-Configuration-Options#spotify-desktop-player-authentication-configuration)
 - [SpotifyPlus services](https://github.com/thlucas1/homeassistantcomponent_spotifyplus/wiki/Services-Provided)
 - [Spotify Jam](https://support.spotify.com/ws/article/jam/)
+- [Spotify current user's playlists](https://developer.spotify.com/documentation/web-api/reference/get-a-list-of-current-users-playlists)
+- [Spotify library writes](https://developer.spotify.com/documentation/web-api/reference/save-library-items)
+- [Spotify 2026 API migration](https://developer.spotify.com/documentation/web-api/tutorials/february-2026-migration-guide)
 
 ## Chosen approach and alternatives
 
@@ -37,26 +42,28 @@ First implementation milestone is a real-device feasibility check, before changi
 
 ## User experience
 
-- Keep the existing heart/favourites sheet, tile appearance, ordering, thumbnails, speaker picker, Follow me control, and transport/volume layout.
-- Migrate the existing Spotify favourites using exact Spotify identifiers. Do not replace the list with the account's entire Spotify library.
-- A tap starts the favourite on the current speaker group's coordinator. With no explicit speaker preference or active group, retain the current session's Living Room default.
+- Replace the heart that opens favourites with a compact text button labelled **Playlists**, opening the existing sheet with the heading **Your Spotify playlists**. Reuse existing theme, tiles, artwork treatment, focus states, and touch targets. Preserve the speaker picker, Follow me control, and transport/volume layout.
+- Populate this sheet from Yann's owned/followed Spotify playlists, including private/collaborative playlists when authorization permits. Preserve the API's ordering; do not claim it matches Spotify's app-specific custom ordering or folders. Display playlist title, artwork, and owner where useful for duplicate titles. Use paginated loading, a simple name filter over loaded playlists, clear loading/empty/error states, and an explicit load-more action; never silently truncate the library.
+- A tap starts that exact playlist URI on the current speaker group's coordinator. With no explicit speaker preference or active group, retain the current session's Living Room default.
+- Place a separate song heart beside the current song metadata, visually distinct from Playlists. Outline means not saved; filled means saved. Accessible labels are **Save [song] to Liked Songs** and **Remove [song] from Liked Songs**, with `aria-pressed` reflecting confirmed state. Unknown/loading state must not imply that the song is unsaved.
+- Disable the song heart when no valid Spotify track can be identified, while saved-state lookup/write is pending, or when authorization is unavailable. Paused identified tracks remain saveable. Missing metadata, local files, episodes, ads, and non-Spotify sources must not cause a guessed save. Successful saves add to Yann's Liked Songs without altering playback, queue, groups, or Follow me.
 - Show the existing pending state and prevent repeat starts while a request is running. Coordinate playlist starts with grouping and Follow me transitions.
 - Close the chooser only after the requested Spotify context and target are confirmed. An already-playing match is a no-op only when account, target, and context are positively identified.
-- Display specific actionable errors for missing authorization, unavailable speaker, unresolved favourite, busy topology transition, or unconfirmed playback. Keep choices available for retry.
+- Display specific actionable errors for missing authorization, unavailable speaker, unavailable playlist, busy topology transition, or unconfirmed playback. Keep choices available for retry. Library write errors appear by the song heart, preserving the last confirmed state.
 - Preserve current song/app links. The user starts and shares the Jam inside Spotify; this change does not create or invite people to a Jam automatically.
 - Credentials stay in Home Assistant/integration storage, never dashboard source, build variables, logs, or Git. Spotify's consent/login steps require the user's interaction during setup.
 
 ## Backend boundary
 
-Add a small `dashboard_music` Home Assistant component with a response-capable `play_spotify` service. It delegates playback to SpotifyPlus; it does not implement Spotify authentication or a separate Spotify client. Keep the deployed catalog-read component separate.
+Add a small `dashboard_music` Home Assistant component with a response-capable `play_spotify` service and authenticated library read/save operations. It delegates to SpotifyPlus's supported library and playback services and uses its configured OAuth/account. It does not implement Spotify authentication or a separate Spotify client. Keep the deployed catalog-read component separate.
 
-Configuration fixes Yann's SpotifyPlus entity/account, the four existing Sonos entity mappings, and the curated favourite-to-Spotify-URI mappings. Discover/validate the installed service schemas and account identity during setup. Pin a version compatible with the actual HA/Python runtime and test its token refresh behavior. Do not infer compatibility from a manifest alone.
+Configuration fixes Yann's SpotifyPlus entity/account and the four existing Sonos entity mappings. Discover/validate installed library/playback service schemas, granted scopes, and account identity during setup. Require private/collaborative playlist read access where supported, plus library read/modify access for the song heart. Pin a version compatible with the actual HA/Python runtime and current Spotify API, and test its token refresh behavior. Do not infer compatibility from a manifest alone. Spotify deprecated the old track save/contains endpoints in favor of `/me/library` and `/me/library/contains`; verify the chosen SpotifyPlus release handles the account's actual API access before promising library writes.
 
-The service accepts an allowlisted favourite key, requested Sonos source entity, and a request ID. It returns a structured confirmed, already-playing, busy, failed, or unconfirmed outcome. It rejects arbitrary device/account selection. Enforce normal HA service permissions and permission checks on the affected speaker/account entities.
+The playback service accepts a validated Spotify playlist URI returned by this account's playlist listing, requested Sonos source entity, and a request ID. Validate membership against a bounded backend cache, with a bounded refresh on a cache miss. It returns a structured confirmed, already-playing, busy, failed, or unconfirmed outcome. It rejects arbitrary device/account selection and URIs outside the supported playlist library. Enforce normal HA service permissions and permission checks on affected speaker/account entities. Library reads require account read permission; song save/unsave requires account control permission.
 
 Processing:
 
-1. Validate configuration, account authorization, favourite URI, permissions, and speaker availability before issuing playback effects.
+1. Validate configuration, account authorization, playlist URI/library membership, permissions, and speaker availability before issuing playback effects.
 2. Take one bounded operation lock for this configured Spotify account. Repeated request IDs return the same in-flight/completed result for a bounded five-minute retention period; a different simultaneous request gets busy instead of queuing stale music selections.
 3. Read current Sonos membership and Follow me state. If grouping/follow cleanup is in transition, fail busy. Resolve a requested follower to its actual coordinator; while following, respect the saved Follow me source. Require consistent group reports and revalidate immediately before playback.
 4. Resolve the coordinator's Spotify Connect identity using configured Sonos identity plus fresh discovery. Do not depend on a permanently cached group display name or guess among duplicate device names. Fail if the mapping is ambiguous.
@@ -69,13 +76,15 @@ Set a total operation deadline of 30 seconds, with shorter per-call timeouts. An
 
 The backend lock serializes playlist launches across clients. Existing grouping clients are not covered by that lock, so topology revalidation is mandatory; the design does not claim a global topology transaction. The initiating dashboard disables conflicting controls during its pending start, and rejects a launch while its grouping/follow operation is pending.
 
-## Favourite identity migration
+## Spotify library and song saves
 
-Sonos `favorite_item_id` values are opaque and cannot be sent to Spotify. Read the existing favourites and resolve their underlying Spotify URIs through available read-only metadata. Store exact mappings keyed by the favourite identity; titles are labels, never the sole playback identifier.
+Replace the dashboard's Sonos-favourites data source with a paginated listing from Yann's Spotify account. Use returned playlist URIs as stable identity; titles are display labels. Deduplicate by URI, tolerate removed/null entries, and preserve already loaded pages if a subsequent page fails. Respect rate-limit retry intervals and use short-lived account-specific caches. Refresh on sheet reopening when stale and provide manual retry/refresh. Pagination and filtering must not change the playback identity of a selected tile.
 
-If underlying metadata cannot identify a favourite unambiguously, obtain and verify its exact Spotify share URI during setup. No fuzzy search, title substitution, or guessed playlist IDs. Validate mappings against the current favourite ID and available metadata; report a changed/missing favourite explicitly. Unsupported radio/service favourites remain visible with an explanation and cannot silently start a Sonos queue.
+No migration of opaque Sonos favourite IDs, manual playlist mapping, title search, or playlist-track expansion is needed. Do not require permission to read every track in a followed playlist before starting its context: Spotify's development-mode restrictions can prevent reading items while context playback may still be possible. A playlist missing from this account's library must be refreshed/rejected rather than substituted. House Mood's existing Sonos favourites remain separate and unchanged.
 
-Support the valid Spotify media types actually found in the curated list. The initial requirement is playlists; do not silently convert an unsupported artist/radio context into a playlist. Preserve the existing browser traversal bounds and error/retry behavior.
+For the song heart, derive an exact track URI from the current coordinator's Spotify track metadata using the existing URI parser and fresh session evidence. Bind saved-state reads and writes to account plus track URI, not a component's current title. Capture the URI when tapped: a natural track change during the request must not save the next track or apply the old response to its heart. Cancel/invalidate stale lookups; serialize writes for each track and send explicit desired saved state, never a blind server-side toggle.
+
+Show saved state only after a successful lookup. After a write, re-read to reconcile the confirmed state; on uncertain completion, show a retryable message and reconcile before another write. Reflect changes made in Spotify through a bounded refresh on track change, app focus/reconnection, and stale state. Do not poll aggressively or keep an indefinite stale saved-state cache. Saving a song neither acquires playback ownership nor interrupts grouping; its pending guard is separate from playlist playback.
 
 ## Follow me, grouping, and existing playback controls
 
@@ -88,7 +97,7 @@ Support the valid Spotify media types actually found in the curated list. The in
 
 ## Verification and rollout
 
-Automated tests cover fixed-account enforcement, URI/favourite resolution, unavailable/ambiguous targets, coordinator changes, duplicate requests, concurrent clients, timeouts with late completion, reconnects, already-playing context, auth failure, and rejection of local-queue/unrelated-track confirmation. Add focused frontend tests for existing pending/error behavior and shared guards with grouping/Follow me. Add a House Mood regression proving manual Spotify supersession survives End mood and an in-progress mood activation.
+Automated tests cover fixed-account enforcement, playlist pagination/membership, duplicate titles and URIs, private playlists, API rate limits, unavailable/ambiguous targets, coordinator changes, duplicate requests, concurrent clients, timeouts with late completion, reconnects, already-playing context, auth failure, and rejection of local-queue/unrelated-track confirmation. Cover heart saved/unsaved/unknown/error states, explicit save/unsave, permission failure, missing/invalid tracks, track changes during lookup/write, external Spotify changes, and stale responses after disconnection. Add focused frontend tests for pending/error behavior and shared guards with grouping/Follow me. Add a House Mood regression proving manual Spotify supersession survives End mood and an in-progress mood activation.
 
 Real-device acceptance must demonstrate:
 
@@ -99,7 +108,9 @@ Real-device acceptance must demonstrate:
 5. Follow me joins each mapped room without restarting music or losing the Spotify/Jam session. Turning it off retains playback on the original source.
 6. Manual grouping, ungrouping, per-room volume, and manual-mode handoff keep their existing behavior and preserve the Spotify/Jam session.
 7. Auth expiration/refresh, HA restart, disconnection, and a failed launch leave understandable recoverable state without an automatic local-queue fallback.
-8. Starting a favourite during a mood relinquishes only relevant ownership; ending the mood cannot stop the manually started music.
+8. Starting a library playlist during a mood relinquishes only relevant ownership; ending the mood cannot stop the manually started music.
+9. The playlist sheet shows Yann's real saved library across pages, with working private playlist access and exact-URI playback. Sonos favourites no longer populate this dashboard list.
+10. Saving the current song appears in Yann's Spotify Liked Songs, and removing it clears that saved state. Spotify-side changes reconcile in the dashboard. A track change during a heart request cannot affect a different track; saving/removing does not interrupt playback, Jam, Follow me, or grouping.
 
 Inspect phone/tablet preview states, focus, disabled and pending controls with existing theme tokens. Run the repository's relevant frontend/backend tests, lint, and build once implementation is complete; use independent implementation reviews as the user's standing preference requires.
 
