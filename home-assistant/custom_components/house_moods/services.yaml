@@ -23,6 +23,16 @@ follow_join:
         entity:
           domain: media_player
 
+follow_leave:
+  name: Remove following room
+  description: Internal journaled departure when a following room light turns off.
+  fields:
+    room:
+      required: true
+      selector:
+        entity:
+          domain: media_player
+
 apply_mode:
   name: Apply home mode
   description: End the mood overlay and serialize the verified Day or Night routine. Requires coordinated mode rollout.

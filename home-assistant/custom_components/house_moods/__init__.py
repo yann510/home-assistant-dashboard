@@ -165,7 +165,7 @@ class Runtime:
         try:
             if not self.engine._loaded and not self.engine._lock.locked():
                 await self.engine.reconcile()
-            if call.service == 'follow_join':
+            if call.service in ('follow_join', 'follow_leave'):
                 if self.engine._lock.locked():
                     result = self.engine.status(False)
                     result['errors'] = [{'target': 'coordinator', 'message': 'Operation in progress'}]
@@ -174,8 +174,9 @@ class Runtime:
                     from .sonos import FOLLOW, GROUPS
                     session = self.engine.session
                     if session and {FOLLOW, GROUPS} <= session.overridden:
-                        return await self.manual_follow_join(call.data['room'])
-                    write = await self.adapter.sonos.plan_join(call.data['room'])
+                        return await self.manual_follow_change(call.data['room'], leave=call.service == 'follow_leave')
+                    planner = self.adapter.sonos.plan_leave if call.service == 'follow_leave' else self.adapter.sonos.plan_join
+                    write = await planner(call.data['room'])
                     return await self.engine.apply_owned_write(write) if write else self.engine.status()
                 except (ValueError, RuntimeError) as err:
                     result = self.engine.status(False)
@@ -193,7 +194,7 @@ class Runtime:
         finally:
             self.tasks.discard(task)
 
-    async def manual_follow_join(self, room):
+    async def manual_follow_change(self, room, *, leave=False):
         from .sonos import FOLLOW, FOLLOW_SOURCE, GROUPS, SPEAKERS
         # Serialize against End, without calling the follow script recursively.
         async with self.engine._lock:
@@ -201,6 +202,10 @@ class Runtime:
             if not session or session.phase != 'active' or not {FOLLOW, GROUPS} <= session.overridden:
                 raise ValueError('An active manually controlled Follow me session is required.')
             source = self.io.state(FOLLOW_SOURCE)['state']
+            if leave:
+                if self.adapter.sonos.can_leave(room, source):
+                    await self.io.call('media_player', 'unjoin', [room], {})
+                return self.engine.status()
             if (self.io.state(FOLLOW)['state'] != 'on' or source not in SPEAKERS
                     or room not in SPEAKERS[1:] or room == source
                     or self.io.state(source)['state'] not in ('playing', 'buffering')
@@ -222,7 +227,7 @@ class Runtime:
         for task in tasks:
             task.cancel()
         await asyncio.gather(*tasks, return_exceptions=True)
-        for name in ('activate', 'end', 'retry_restoration', 'follow_join', 'apply_mode'):
+        for name in ('activate', 'end', 'retry_restoration', 'follow_join', 'follow_leave', 'apply_mode'):
             self.hass.services.async_remove('house_moods', name)
 
 async def async_setup(hass, config):
@@ -243,8 +248,8 @@ async def async_setup(hass, config):
         runtime.adapter.native_subscribe(lambda: runtime.observe(NEON)),
         hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, runtime.close),
     ])
-    for name in ('activate', 'end', 'retry_restoration', 'follow_join', 'apply_mode'):
-        schema = vol.Schema({vol.Required('mood'): vol.In(MOODS)}) if name == 'activate' else vol.Schema({vol.Required('room'): str}) if name == 'follow_join' else vol.Schema({vol.Required('mode'): vol.In(('day', 'night'))}) if name == 'apply_mode' else vol.Schema({})
+    for name in ('activate', 'end', 'retry_restoration', 'follow_join', 'follow_leave', 'apply_mode'):
+        schema = vol.Schema({vol.Required('mood'): vol.In(MOODS)}) if name == 'activate' else vol.Schema({vol.Required('room'): str}) if name in ('follow_join', 'follow_leave') else vol.Schema({vol.Required('mode'): vol.In(('day', 'night'))}) if name == 'apply_mode' else vol.Schema({})
         hass.services.async_register('house_moods', name, runtime.handle, schema=schema, supports_response=SupportsResponse.ONLY)
     async def started(event=None):
         runtime.unsubscribers.append(runtime.adapter.native_subscribe(lambda: runtime.observe(NEON)))

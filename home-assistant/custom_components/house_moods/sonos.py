@@ -16,6 +16,11 @@ FOLLOW = 'input_boolean.speaker_follow_motion'
 FOLLOW_SOURCE = 'input_text.speaker_follow_source'
 FOLLOW_SCRIPT = 'script.speaker_follow_motion'
 GROUPS = 'sonos#groups'
+ROOM_LIGHTS = {
+    'media_player.bathroom': 'light.light_toilet',
+    'media_player.bedroom': 'light.light_bedroom',
+    'media_player.gym': 'light.gym',
+}
 FAVORITES = {
     'gym': ('FV:2/2', 'Bangers Workout Mix', None, False),
     'love': ('FV:2/1', 'Crush Radio', .25, True),
@@ -226,6 +231,21 @@ class SonosControls:
         current = next(g for g in groups if SOURCE in g)
         current.append(room)
         return self._write('sonos.join', {GROUPS: {'groups': _canonical(groups)}}, {'entity': room})
+
+    def can_leave(self, room, source):
+        """Recheck current light and topology immediately before a departure."""
+        if (source not in SPEAKERS or room not in ROOM_LIGHTS or room == source
+                or self._follow() != {'state': 'on', 'source': source}
+                or self.io.state(ROOM_LIGHTS[room])['state'] != 'off'):
+            return False
+        members = self.io.state(source)['attributes'].get('group_members') or [source]
+        room_members = self.io.state(room)['attributes'].get('group_members') or [room]
+        return room in members and room_members[0] == source
+
+    async def plan_leave(self, room):
+        if not self.can_leave(room, SOURCE):
+            return None
+        return self._write('sonos.unjoin', {GROUPS: {'groups': _remove(self._groups(), room)}}, {'entity': room})
 
     async def apply_write(self, write, session_id):
         data, action = write.data, write.action
