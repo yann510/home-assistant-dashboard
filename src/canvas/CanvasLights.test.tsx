@@ -25,13 +25,13 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
-it('targets only available lights in the selected room and never sends a toggle', async () => {
+it('targets only available lights in an expanded room and never sends a toggle', async () => {
   const fixture = ref.current!;
   fixture.publish('light.light_living_room_bulbs', 'on', { brightness: 128, supported_color_modes: ['brightness'] });
   fixture.publish('light.living_room_led_strip', 'unavailable');
   render(
     <CanvasLightsProvider>
-      <CanvasLights onOpenAll={() => {}} />
+      <CanvasAllLights />
     </CanvasLightsProvider>
   );
   await userEvent.click(screen.getByRole('button', { name: 'Turn off Living Room lights' }));
@@ -73,7 +73,7 @@ it('captures the selected room before the user switches rooms', async () => {
       <CanvasLights onOpenAll={() => {}} />
     </CanvasLightsProvider>
   );
-  await userEvent.click(screen.getByRole('button', { name: 'Turn on Living Room lights' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Turn on Living Room Bulbs' }));
   await userEvent.click(screen.getByRole('button', { name: 'Lights room' }));
   await userEvent.click(screen.getByRole('option', { name: 'Kitchen' }));
   expect((fixture.calls[0] as { target: { entity_id: string[] } }).target.entity_id).toEqual(['light.light_living_room_bulbs']);
@@ -256,11 +256,9 @@ it('targets only the on member of a mixed room', async () => {
   fixture.publish('light.bedroom_closet', 'off');
   render(
     <CanvasLightsProvider>
-      <CanvasLights onOpenAll={() => {}} />
+      <CanvasAllLights />
     </CanvasLightsProvider>
   );
-  await userEvent.click(screen.getByRole('button', { name: 'Lights room' }));
-  await userEvent.click(screen.getByRole('option', { name: 'Bedroom' }));
   await userEvent.click(screen.getByRole('button', { name: 'Turn off Bedroom lights' }));
   expect(fixture.calls).toMatchObject([{ service: 'turn_off', target: { entity_id: ['light.light_bedroom'] } }]);
 });
@@ -281,15 +279,15 @@ it('keeps an earlier room failure visible while another room command is pending'
       <CanvasLights onOpenAll={() => {}} />
     </CanvasLightsProvider>
   );
-  await userEvent.click(screen.getByRole('button', { name: 'Turn on Living Room lights' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Turn on Living Room Bulbs' }));
   await userEvent.click(screen.getByRole('button', { name: 'Lights room' }));
   await userEvent.click(screen.getByRole('option', { name: 'Kitchen' }));
-  await userEvent.click(screen.getByRole('button', { name: 'Turn on Kitchen lights' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Turn on Kitchen' }));
   await act(async () => {
     living.reject(new Error('Living denied'));
   });
   expect(await screen.findByRole('alert')).toHaveProperty('textContent', expect.stringContaining('1 light needs attention'));
-  expect(screen.getByRole('button', { name: 'Updating Kitchen lights' }).getAttribute('aria-busy')).toBe('true');
+  expect(screen.getByRole('button', { name: 'Turn on Kitchen' }).getAttribute('aria-busy')).toBe('true');
   await act(async () => {
     kitchen.resolve({});
   });
@@ -505,23 +503,23 @@ it('keeps compact command progress in the power control and removes success feed
       <CanvasLights onOpenAll={() => {}} />
     </CanvasLightsProvider>
   );
-  await userEvent.click(screen.getByRole('button', { name: 'Turn on Living Room lights' }));
-  expect(screen.getByRole('button', { name: 'Updating Living Room lights' }).getAttribute('aria-busy')).toBe('true');
+  await userEvent.click(screen.getByRole('button', { name: 'Turn on Living Room Bulbs' }));
+  expect(screen.getByRole('button', { name: 'Turn on Living Room Bulbs' }).getAttribute('aria-busy')).toBe('true');
   expect(screen.queryByText(/Sending to|Sent; waiting|reported the requested state/)).toBeNull();
   await userEvent.click(screen.getByRole('button', { name: 'Lights room' }));
   await userEvent.click(screen.getByRole('option', { name: 'Kitchen' }));
-  expect(screen.getByRole('button', { name: 'Turn on Kitchen lights' }).getAttribute('aria-busy')).toBe('false');
+  expect(screen.getByRole('button', { name: 'Turn on Kitchen' }).getAttribute('aria-busy')).toBe('false');
   await userEvent.click(screen.getByRole('button', { name: 'Lights room' }));
   await userEvent.click(screen.getByRole('option', { name: 'Living Room' }));
-  expect(screen.getByRole('button', { name: 'Updating Living Room lights' })).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Turn on Living Room Bulbs' }).getAttribute('aria-busy')).toBe('true');
   await act(async () => {
     ack.resolve({});
   });
-  expect(screen.getByRole('button', { name: 'Updating Living Room lights' })).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Turn on Living Room Bulbs' }).getAttribute('aria-busy')).toBe('true');
   await act(async () => {
     fixture.publish('light.light_living_room_bulbs', 'on', { supported_color_modes: ['brightness'] });
   });
-  await waitFor(() => expect(screen.getByRole('button', { name: 'Turn off Living Room lights' }).getAttribute('aria-busy')).toBe('false'));
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Turn off Living Room Bulbs' }).getAttribute('aria-busy')).toBe('false'));
   expect(screen.queryByText(/Sending to|Sent; waiting|reported the requested state/)).toBeNull();
 });
 
@@ -534,7 +532,7 @@ it('retains compact errors while suppressing normal command feedback', async () 
       <CanvasLights onOpenAll={() => {}} />
     </CanvasLightsProvider>
   );
-  await userEvent.click(screen.getByRole('button', { name: 'Turn off Living Room lights' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Turn off Living Room Bulbs' }));
   expect((await screen.findByRole('alert')).textContent).toContain('needs attention');
   expect(screen.queryByText(/Sending to|Sent; waiting|reported the requested state/)).toBeNull();
 });
@@ -555,7 +553,7 @@ it('shows brightness progress in place while retaining proposed and reported rea
   expect(slider.getAttribute('aria-busy')).toBe('true');
   expect(screen.getByText('Updating…')).toBeTruthy();
   expect(screen.getByLabelText('Proposed brightness').textContent).toBe('70%');
-  expect(screen.getByRole('button', { name: 'Turn off Living Room lights' }).getAttribute('aria-busy')).toBe('false');
+  expect(screen.getByRole('button', { name: 'Turn off Living Room Bulbs' }).getAttribute('aria-busy')).toBe('false');
   await act(async () => {
     ack.resolve({});
   });

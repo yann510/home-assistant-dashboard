@@ -2,7 +2,7 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { CanvasLightDetails } from './CanvasLightDetails';
-import { CanvasLights } from './CanvasLights';
+import { CanvasAllLights } from './CanvasLights';
 import { CanvasLightsProvider, useCanvasLights } from './useCanvasLights';
 import { createHaFixture } from './testing/haFixture';
 
@@ -30,13 +30,9 @@ it.each(['room', 'detail'])('boosts explicit kitchen Night power-on through the 
   fixture.publish(kitchen, 'off', { ...dimmable, brightness: 25 });
   render(
     <CanvasLightsProvider>
-      {route === 'room' ? <CanvasLights onOpenAll={() => {}} /> : <CanvasLightDetails entityId={kitchen} />}
+      {route === 'room' ? <CanvasAllLights /> : <CanvasLightDetails entityId={kitchen} />}
     </CanvasLightsProvider>
   );
-  if (route === 'room') {
-    fireEvent.click(screen.getByRole('button', { name: 'Lights room' }));
-    fireEvent.click(screen.getByRole('option', { name: 'Kitchen' }));
-  }
   // Mode changes after rendering must affect the next request.
   act(() => fixture.publish('input_boolean.night_mode', 'on'));
   await act(async () =>
@@ -174,11 +170,9 @@ it('applies the Night floor to grouped office bulbs while leaving neon unchanged
   fixture.publish('light.neon_light_led_strip', 'off', { supported_color_modes: ['rgb'], brightness: 25 });
   render(
     <CanvasLightsProvider>
-      <CanvasLights onOpenAll={() => {}} />
+      <CanvasAllLights />
     </CanvasLightsProvider>
   );
-  fireEvent.click(screen.getByRole('button', { name: 'Lights room' }));
-  fireEvent.click(screen.getByRole('option', { name: 'Office' }));
   await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Turn on Office lights' })));
   expect(fixture.calls).toMatchObject([
     { target: { entity_id: ['light.office_bulbs'] }, service_data: { brightness: 51 } },

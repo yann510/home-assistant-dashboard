@@ -197,7 +197,9 @@ function IndividualLights({
                   ? 'Updating…'
                   : light.state === 'unavailable'
                     ? 'Unavailable'
-                    : `${light.state === 'on' ? 'On · turn off' : 'Off · turn on'}`}
+                    : light.state === 'on'
+                      ? 'On'
+                      : 'Off'}
               </small>
             </span>
           </button>
@@ -283,7 +285,6 @@ export function CanvasLights({ onOpenAll }: { onOpenAll(trigger: HTMLElement): v
           <div className='canvas-lights__room-summary'>
             <CanvasRoomPicker rooms={rooms} connected={connected} value={room.name} onChange={setSelectedRoom} />
           </div>
-          <RoomPower room={room} compact />
         </div>
         {(!connected || room.available < room.lights.length) && (
           <p className='canvas-lights__muted'>{!connected ? 'Reconnecting…' : `${room.lights.length - room.available} unavailable`}</p>
