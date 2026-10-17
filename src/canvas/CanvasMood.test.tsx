@@ -148,3 +148,42 @@ it('keeps confirmed active moods moving through updates and pauses when the mood
     vi.restoreAllMocks();
   }
 });
+
+it('retains the action slot throughout activation and restoration without exposing an idle control', () => {
+  const base: HouseMoodCardProps = {
+    status: { phase: 'idle', activeMood: null, pendingMood: null, errors: [] },
+    connected: true,
+    available: true,
+    onActivate: vi.fn(),
+    onEnd: vi.fn(),
+    onRetry: vi.fn(),
+  };
+  const view = render(<CanvasMood controller={base} />);
+  const card = screen.getByRole('region', { name: 'House Mood' });
+  const actions = card.querySelector('.canvas-mood__actions');
+  expect(actions).not.toBeNull();
+  expect(actions?.childElementCount).toBe(0);
+  expect(screen.getAllByRole('button')).toHaveLength(5);
+
+  fireEvent.click(screen.getByRole('button', { name: 'Love mood' }));
+  expect(base.onActivate).toHaveBeenCalledExactlyOnceWith('love');
+  view.rerender(<CanvasMood controller={{ ...base, status: { ...base.status, phase: 'starting', pendingMood: 'love' } }} />);
+  expect(card.querySelector('.canvas-mood__actions')).toBe(actions);
+  expect(actions?.childElementCount).toBe(0);
+  expect(screen.queryByRole('button', { name: 'End mood' })).toBeNull();
+
+  const active: HouseMoodCardProps = { ...base, status: { ...base.status, phase: 'active', activeMood: 'love' } };
+  view.rerender(<CanvasMood controller={active} />);
+  const endButton = screen.getByRole('button', { name: 'End mood' });
+  expect(endButton.parentElement).toBe(actions);
+  fireEvent.click(endButton);
+  expect(base.onEnd).toHaveBeenCalledOnce();
+  view.rerender(<CanvasMood controller={{ ...active, status: { ...active.status, phase: 'restoring' } }} />);
+  expect(screen.getByRole('button', { name: 'End mood' })).toBe(endButton);
+  expect((endButton as HTMLButtonElement).disabled).toBe(true);
+
+  view.rerender(<CanvasMood controller={base} />);
+  expect(card.querySelector('.canvas-mood__actions')).toBe(actions);
+  expect(actions?.childElementCount).toBe(0);
+  expect(screen.getAllByRole('button')).toHaveLength(5);
+});

@@ -52,6 +52,8 @@
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+  /* Reserve the action row through idle and pending states, without hidden controls. */
+  min-height: 44px;
 }
 .canvas .canvas-mood button,
 .canvas-dialog .canvas-mood button {
