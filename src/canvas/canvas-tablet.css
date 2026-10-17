@@ -217,8 +217,13 @@
   .canvas .canvas-lights.canvas-lights--compact .canvas-lights__room-line { align-items: center; }
 }
 @media (min-width: 800px) and (min-height: 540px) and (max-height: 719px) {
-  .canvas .canvas__shortcuts { --canvas-room-heading-gap: 0px; }
+  .canvas .canvas__shortcuts { --canvas-room-heading-gap: 0px; --canvas-room-row-height: 72px; }
 }
 @media (min-width: 800px) and (max-width: 1000px) and (min-height: 720px) {
-  .canvas .canvas__shortcuts { --canvas-room-row-height: 104px; }
+  /* Window + gap + two label lines + button padding and borders. */
+  .canvas .canvas__shortcuts { --canvas-room-row-height: calc(50px + 4px + 2.4 * var(--tablet-label) + 18px); }
+}
+
+@media (min-width: 800px) and (min-height: 540px) and (max-height: 579px) {
+  .canvas .canvas__shortcuts { --canvas-room-row-height: 66px; }
 }
