@@ -21,6 +21,19 @@ def music_artifact(p):
  except (OSError,ValueError): version=None
  return {'exists':True,'version':version,'fingerprint':digest.hexdigest()}
 `;
+const CONFIG_PYTHON = `import pathlib,json,hashlib,os,re,datetime,base64,stat
+
+def replace_config(p,before,after):
+ if p.is_symlink() or not p.is_file() or p.read_bytes()!=before: raise RuntimeError('Configuration changed; ownership not confirmed')
+ temp=p.with_name('.dashboard-music-'+os.urandom(8).hex()+'.tmp')
+ try:
+  with os.fdopen(os.open(temp,os.O_WRONLY|os.O_CREAT|os.O_EXCL,stat.S_IMODE(p.stat().st_mode)),'wb') as f:
+   f.write(after);f.flush();os.fsync(f.fileno())
+  if p.is_symlink() or p.read_bytes()!=before: raise RuntimeError('Configuration changed; ownership not confirmed')
+  os.replace(temp,p)
+ finally:
+  if temp.exists(): temp.unlink()
+`;
 function validateBackupPath(backup) {
  if (!/^\/homeassistant\/backups\.local\/dashboard-music-\d{8}T\d{12}Z$/.test(backup ?? '')) throw new Error('Invalid task backup path');
 }
@@ -62,11 +75,36 @@ export function validatePreflight(report) {
   }
   return { ready: true };
 }
+const LIBRARY_SCOPES = ['playlist-read-private', 'playlist-read-collaborative', 'user-library-read', 'user-library-modify'];
+const LIBRARY_METHODS = ['get_playlist_favorites', 'check_track_favorites', 'save_track_favorites', 'remove_track_favorites'];
+function validateMusicEntity(entity) {
+  if (!/^media_player\.[a-z0-9_]+$/.test(entity ?? '')) throw new Error('Invalid SpotifyPlus entity');
+}
+export function validateLibraryPreflight(report) {
+  if (report.installedVersion?.replace(/^v/, '') !== PINNED_VERSION) throw new Error('Installed version does not match pinned SpotifyPlus release');
+  if (!report.accountVerified) throw new Error('SpotifyPlus account identity has not been verified');
+  if (!LIBRARY_SCOPES.every(scope => report.scopes?.includes(scope))) throw new Error('Required library scope is missing');
+  for (const name of LIBRARY_METHODS) {
+    const service = report.services?.[name];
+    if (!service || REQUIRED[name].some(field => !(field in (service.fields ?? {}))) || (READS.has(name) && !service.response)) throw new Error(`Missing library service schema: spotifyplus.${name}`);
+  }
+  return { ready: true };
+}
 export async function configureMusic(options = {}, remote) {
-  if (options.install && options.rollback) throw new Error('Install and rollback modes are mutually exclusive');
+  if ([options.install, options.rollback, options.configureComponent, options.rollbackComponent].filter(Boolean).length > 1) throw new Error('Install, configuration and rollback modes are mutually exclusive');
+  if (options.rollbackComponent) {
+    await remote.rollbackComponent(options.rollbackComponent);
+    return { mode: 'rollback-component', restored: true };
+  }
   if (options.rollback) {
     await remote.rollback(options.rollback);
     return { mode: 'rollback', restored: true };
+  }
+  if (options.configureComponent) {
+    validateMusicEntity(options.configureComponent);
+    validateLibraryPreflight(await remote.inspectLibrary(options.configureComponent));
+    return { mode: 'configure-component', ...await remote.configureComponent(options.configureComponent), ready: false,
+      next: 'Library YAML prepared. Check configuration and restart Home Assistant. Desktop consent and live Connect/Jam acceptance remain separate playback rollout gates.' };
   }
   const report = await remote.inspect();
   if (!options.install) {
@@ -158,6 +196,62 @@ export async function createRemote(env, connectors = {}) {
   };
   return {
     close() { ha.close(); ssh.close(); },
+    async inspectLibrary(entity) {
+      validateMusicEntity(entity);
+      const registry = await ha.request({ type: 'config/entity_registry/list' });
+      const selected = registry.find(item => item.entity_id === entity);
+      if (!selected || selected.platform !== 'spotifyplus' || !selected.config_entry_id) throw new Error('Configured SpotifyPlus account entity is missing');
+      // Return only the canonical ID and granted scope names internally, never tokens.
+      const identity = await ssh.python(`import pathlib,json\np=pathlib.Path('/homeassistant')\nentries=json.loads((p/'.storage/core.config_entries').read_text())['data']['entries']\ne=next(e for e in entries if e['entry_id']==${JSON.stringify(selected.config_entry_id)} and e['domain']=='spotifyplus')\nprint(json.dumps({'account_id':e['data'].get('id'),'unique_id':e.get('unique_id'),'scopes':e['data'].get('token',{}).get('scope','').split(),'installedVersion':json.loads((p/'custom_components/spotifyplus/manifest.json').read_text()).get('version')}))`);
+      if (!identity.account_id || identity.unique_id !== identity.account_id + '_spotifyplus' || selected.unique_id !== identity.unique_id) throw new Error('SpotifyPlus account identity mismatch');
+      const services = (await ha.request({ type: 'get_services' })).spotifyplus ?? {};
+      const report = { installedVersion: identity.installedVersion, scopes: identity.scopes, accountVerified: true,
+        services: Object.fromEntries(LIBRARY_METHODS.map(name => [name, services[name]])) };
+      validateLibraryPreflight(report);
+      const states = await ha.request({ type: 'get_states' });
+      const stateId = states.find(item => item.entity_id === entity)?.attributes?.sp_user_id;
+      if (stateId !== undefined && stateId !== identity.account_id) throw new Error('SpotifyPlus account state mismatch');
+      const read = await ha.request({ type: 'call_service', domain: 'spotifyplus', service: 'get_playlist_favorites',
+        service_data: { entity_id: entity, offset: 0, limit: 1, sort_result: false }, return_response: true });
+      if (read?.response?.user_profile?.id !== identity.account_id) throw new Error('SpotifyPlus provider account mismatch');
+      return report;
+    },
+    async configureComponent(entity) {
+      validateMusicEntity(entity);
+      // Code copying is a separate deployment step. This mode owns YAML only.
+      return ssh.python(`${CONFIG_PYTHON}
+p=pathlib.Path('/homeassistant');c=p/'configuration.yaml'
+if c.is_symlink() or not c.is_file(): raise RuntimeError('Regular configuration.yaml required')
+before=c.read_bytes()
+if re.search(r'''(?m)^\\s*["']?dashboard_music["']?\\s*:''',before.decode('utf-8')): raise RuntimeError('Existing dashboard_music configuration is not owned')
+manifest=p/'custom_components/dashboard_music/manifest.json'
+if not manifest.is_file() or json.loads(manifest.read_text()).get('domain')!='dashboard_music': raise RuntimeError('Deploy dashboard_music component code first')
+b=p/'backups.local'/('dashboard-music-'+datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%S%fZ'))
+b.mkdir(parents=True,mode=0o700);os.chmod(b,0o700)
+with os.fdopen(os.open(b/'configuration.yaml',os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600),'wb') as f: f.write(before)
+tag=b.name
+block=('' if before.endswith(b'\\n') or not before else '\\n')+'# BEGIN '+tag+'\\ndashboard_music:\\n  spotifyplus_entity: '+${JSON.stringify(entity)}+'\\n  speakers:\\n    - media_player.bathroom\\n    - media_player.bedroom\\n    - media_player.gym\\n    - media_player.living_room\\n# END '+tag+'\\n'
+block=block.encode('utf-8')
+record={'kind':'dashboard-music-component-v1','block':base64.b64encode(block).decode(),'fingerprint':hashlib.sha256(block).hexdigest()}
+with os.fdopen(os.open(b/'component-config.json',os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600),'w') as f: json.dump(record,f);f.flush();os.fsync(f.fileno())
+replace_config(c,before,before+block)
+print(json.dumps({'backup':str(b)}))`);
+    },
+    async rollbackComponent(backup) {
+      validateBackupPath(backup);
+      return ssh.python(`${CONFIG_PYTHON}
+b=pathlib.Path(${JSON.stringify(backup)});c=pathlib.Path('/homeassistant/configuration.yaml')
+if b.is_symlink() or not b.is_dir(): raise RuntimeError('Task backup ownership missing')
+record=json.loads((b/'component-config.json').read_text())
+if record.get('kind')!='dashboard-music-component-v1': raise RuntimeError('Task backup ownership missing')
+block=base64.b64decode(record['block'],validate=True)
+if not block or hashlib.sha256(block).hexdigest()!=record['fingerprint'] or ('# BEGIN '+b.name+'\\n').encode() not in block: raise RuntimeError('Task block ownership mismatch')
+if c.is_symlink() or not c.is_file(): raise RuntimeError('Configuration ownership missing')
+before=c.read_bytes()
+if before.count(block)!=1: raise RuntimeError('Task configuration changed; preserve newer settings')
+replace_config(c,before,before.replace(block,b'',1))
+print(json.dumps(True))`);
+    },
     async inspect() {
       const config = await ha.request({ type: 'get_config' });
       const services = await ha.request({ type: 'get_services' });
@@ -226,8 +320,10 @@ async function main() {
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '--install') options.install = true;
     else if (args[i] === '--rollback' && args[i + 1]) options.rollback = args[++i];
+    else if (args[i] === '--configure-component' && args[i + 1]) options.configureComponent = args[++i];
+    else if (args[i] === '--rollback-component' && args[i + 1]) options.rollbackComponent = args[++i];
     else if (args[i] === '--env' && args[i + 1]) envPath = resolve(args[++i]);
-    else throw new Error('Usage: node scripts/configure-dashboard-music.mjs [--env PATH] [--install | --rollback BACKUP]');
+    else throw new Error('Usage: node scripts/configure-dashboard-music.mjs [--env PATH] [--install | --rollback BACKUP | --configure-component ENTITY | --rollback-component BACKUP]');
   }
   const { config } = await import('dotenv');
   config({ path: envPath, quiet: true });

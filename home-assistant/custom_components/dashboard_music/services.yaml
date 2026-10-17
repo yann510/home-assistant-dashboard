@@ -1,0 +1,3 @@
+# Library commands are authenticated WebSocket commands.
+# Playback service registration is reserved for the Connect rollout.
+{}

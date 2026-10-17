@@ -387,3 +387,103 @@ it('records real file content and rejects an edited file while tolerating genera
     await rm(root, { recursive: true, force: true });
   }
 });
+
+it('configures only the component through explicit preflight and separate rollback mode', async () => {
+  const { configureMusic } = await installer();
+  const configureComponent = vi.fn(async () => ({ backup: backupPath }));
+  const remote = { inspect: async () => ready(), inspectLibrary: async () => ready(), configureComponent, rollbackComponent: vi.fn(), install: vi.fn(), backup: vi.fn() };
+  expect(await configureMusic({ configureComponent: 'media_player.spotifyplus_test' }, remote)).toMatchObject({ mode: 'configure-component', backup: backupPath });
+  expect(configureComponent).toHaveBeenCalledWith('media_player.spotifyplus_test');
+  expect(remote.install).not.toHaveBeenCalled();
+  expect(remote.backup).not.toHaveBeenCalled();
+  await configureMusic({ rollbackComponent: backupPath }, remote);
+  expect(remote.rollbackComponent).toHaveBeenCalledWith(backupPath);
+  await expect(configureMusic({ install: true, configureComponent: 'media_player.spotifyplus_test' }, remote)).rejects.toThrow(/exclusive/i);
+  await expect(configureMusic({ configureComponent: 'media_player.spotifyplus_test' }, { ...remote, inspectLibrary: async () => ({ ...ready(), accountVerified: false }) })).rejects.toThrow(/account/i);
+});
+
+it('backs up component YAML and removes only its unchanged block, preserving concurrent settings', async () => {
+  const { createRemote } = await installer();
+  const root = await mkdtemp(join(tmpdir(), 'dashboard-music-config-'));
+  const configPath = join(root, 'configuration.yaml');
+  const original = 'default_config:\n# Existing setup\nsensor: !include sensors.yaml\n';
+  await writeFile(configPath, original);
+  await mkdir(join(root, 'custom_components/dashboard_music'), { recursive: true });
+  await writeFile(join(root, 'custom_components/dashboard_music/manifest.json'), '{"domain":"dashboard_music"}');
+  const python = async (source: string) => {
+    const output = execFileSync('python3', ['-c', source.replaceAll('/homeassistant', root)], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+    const value = JSON.parse(output);
+    return value?.backup ? { ...value, backup: value.backup.replace(root, '/homeassistant') } : value;
+  };
+  const remote = await createRemote({}, { ha: async () => ({ close() {}, request: async () => { throw new Error('No HA mutation expected'); } }), ssh: async () => ({ close() {}, python }) });
+  try {
+    const result = await remote.configureComponent('media_player.spotifyplus_test');
+    const installed = await readFile(configPath, 'utf8');
+    expect(installed).toContain('spotifyplus_entity: media_player.spotifyplus_test');
+    expect(installed).toContain('media_player.bathroom');
+    expect(await readFile(join(root, result.backup.slice('/homeassistant/'.length), 'configuration.yaml'), 'utf8')).toBe(original);
+    await writeFile(configPath, installed + '\n# Concurrent unrelated change\n');
+    await remote.rollbackComponent(result.backup);
+    expect(await readFile(configPath, 'utf8')).toBe(original + '\n# Concurrent unrelated change\n');
+    await expect(remote.rollbackComponent(result.backup)).rejects.toThrow();
+  } finally {
+    remote.close();
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+it('refuses component rollback for changed or unowned settings and refuses duplicate config', async () => {
+  const { createRemote } = await installer();
+  const root = await mkdtemp(join(tmpdir(), 'dashboard-music-config-edits-'));
+  const configPath = join(root, 'configuration.yaml');
+  await writeFile(configPath, 'default_config:\n');
+  await mkdir(join(root, 'custom_components/dashboard_music'), { recursive: true });
+  await writeFile(join(root, 'custom_components/dashboard_music/manifest.json'), '{"domain":"dashboard_music"}');
+  const python = async (source: string) => {
+    const value = JSON.parse(execFileSync('python3', ['-c', source.replaceAll('/homeassistant', root)], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }));
+    return value?.backup ? { ...value, backup: value.backup.replace(root, '/homeassistant') } : value;
+  };
+  const remote = await createRemote({}, { ha: async () => ({ close() {}, request: async () => [] }), ssh: async () => ({ close() {}, python }) });
+  try {
+    await expect(remote.configureComponent('media_player.invalid; rm')).rejects.toThrow(/entity/i);
+    const result = await remote.configureComponent('media_player.spotifyplus_test');
+    await expect(remote.configureComponent('media_player.spotifyplus_test')).rejects.toThrow();
+    const installed = await readFile(configPath, 'utf8');
+    const modified = installed.replace('media_player.gym', 'media_player.office');
+    await writeFile(configPath, modified);
+    await expect(remote.rollbackComponent(result.backup)).rejects.toThrow();
+    expect(await readFile(configPath, 'utf8')).toBe(modified);
+    await expect(remote.rollbackComponent(backupPath)).rejects.toThrow();
+    expect(await readFile(configPath, 'utf8')).toBe(modified);
+  } finally {
+    remote.close();
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+it('inspects the selected library account from registry, protected config and provider identity without Desktop consent', async () => {
+  const { createRemote, validateLibraryPreflight } = await installer();
+  let providerAccount = 'canonical-in-fixture';
+  const requests: { type: string; service_data?: object }[] = [];
+  const ha = {
+    close() {},
+    request: async (payload: { type: string; service_data?: object }) => {
+      requests.push(payload);
+      if (payload.type === 'config/entity_registry/list') return [{ entity_id: 'media_player.spotifyplus_test', platform: 'spotifyplus', config_entry_id: 'entry', unique_id: 'canonical-in-fixture_spotifyplus' }];
+      if (payload.type === 'get_services') return { spotifyplus: services };
+      if (payload.type === 'get_states') return [{ entity_id: 'media_player.spotifyplus_test', attributes: { sp_user_id: 'canonical-in-fixture' } }];
+      if (payload.type === 'call_service') return { context: {}, response: { user_profile: { id: providerAccount, email: 'never print' }, result: { items: [] } } };
+      throw new Error('Unexpected request');
+    },
+  };
+  const remote = await createRemote({}, { ha: async () => ha, ssh: async () => ({ close() {}, python: async () => ({ account_id: 'canonical-in-fixture', unique_id: 'canonical-in-fixture_spotifyplus', installedVersion: 'v1.0.224', scopes: ready().scopes }) }) });
+  try {
+    const report = await remote.inspectLibrary('media_player.spotifyplus_test');
+    expect(validateLibraryPreflight(report)).toEqual({ ready: true });
+    expect(JSON.stringify(report)).not.toMatch(/canonical-in-fixture|never print|user_profile/);
+    expect(requests.find(x => x.type === 'call_service')?.service_data).toEqual({ entity_id: 'media_player.spotifyplus_test', offset: 0, limit: 1, sort_result: false });
+    providerAccount = 'wrong-account';
+    await expect(remote.inspectLibrary('media_player.spotifyplus_test')).rejects.toThrow(/account/i);
+    expect(() => validateLibraryPreflight({ ...report, scopes: [] })).toThrow(/scope/i);
+  } finally { remote.close(); }
+});

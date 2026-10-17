@@ -1,0 +1,11 @@
+{
+  "domain": "dashboard_music",
+  "name": "Dashboard Music",
+  "version": "1.0.0",
+  "documentation": "https://github.com/thlucas1/homeassistantcomponent_spotifyplus",
+  "dependencies": ["spotifyplus", "websocket_api"],
+  "after_dependencies": ["sonos"],
+  "codeowners": [],
+  "requirements": [],
+  "iot_class": "cloud_polling"
+}

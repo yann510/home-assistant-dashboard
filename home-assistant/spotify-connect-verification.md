@@ -106,3 +106,55 @@ Probe backup: `/homeassistant/backups.local/dashboard-viewport-probe-20261017T13
 ## Local validation
 
 `npm ci` passed after the minimal optional transitive lock repair. `VITE_FOLDER_NAME=dashboard npm test` baseline passed 39 files / 664 tests; final passed **40 files / 678 tests**. Focused installer suite passed **14 tests**, with recorded missing-implementation and regression red/green runs. Scoped ESLint, Node syntax check, and Git whitespace checks passed. No frontend deployment was performed.
+
+## Fixed-account library component (local implementation; not deployed)
+
+`custom_components/dashboard_music` exposes authenticated WebSocket commands
+`dashboard_music/playlists`, `dashboard_music/track_saved`, and
+`dashboard_music/set_track_saved`. Configuration selects one SpotifyPlus entity;
+there is no client account selector. The component derives and pins the canonical
+account from that entity's registry/config entry, checks the existing SpotifyPlus
+runtime profile and granted library scopes, and validates response profile IDs.
+Only playlist URI/title/owner/artwork and confirmed track-save booleans reach the
+socket. A user needs account-entity read permission for reads and both read and
+control permission for saves. Playlist reads do not depend on Sonos availability.
+
+The library uses the verified `get_playlist_favorites` service with
+`sort_result:false`, preserving slot offsets across null entries and duplicate
+titles. The pinned SpotifyPlus service schema caps offsets at **10000**. The
+public request validator accepts 0–100000, but an offset above the upstream cap
+returns an explicit `unavailable` error before a provider call. Previous pages and
+the next cursor remain available; a large library is never declared complete at
+that limit. Membership checks refresh from offset zero and scan no more than 200
+pages or 30 seconds before explicitly rejecting an unestablished membership.
+
+Playlist pages stay fresh for 60 seconds (at most 200 cached pages); track saves
+stay fresh for 30 seconds (at most 500 tracks). Each track's writes and read-back
+are serialized, with actual returned state used even if a save did not take
+hold. Provider calls time out after 12 seconds, and provider rate limits retain
+a shared account cooldown with `Retry-After` clamped to 1–300 seconds. An upstream
+executor operation may still finish after a timeout; no successful write is
+reported without a subsequent read. This component does not retry writes.
+
+After separately copying the component code, explicit library-only YAML setup is:
+
+```sh
+node scripts/configure-dashboard-music.mjs --env /absolute/path/to/.env --configure-component media_player.spotifyplus_yann_luche_thibodeau
+```
+
+This mode performs its own read-only registry/config-entry/provider account and
+scope verification; Desktop consent is a separate playback gate. It refuses a
+pre-existing `dashboard_music` stanza, backs up `configuration.yaml` under a
+protected task directory, then appends an owned stanza with only
+`spotifyplus_entity` and the four existing `speakers`. Review/check HA
+configuration before restarting; configuration preparation does not demonstrate
+Connect or Jam readiness. To undo only that exact unchanged stanza:
+
+```sh
+node scripts/configure-dashboard-music.mjs --env /absolute/path/to/.env --rollback-component /homeassistant/backups.local/dashboard-music-YYYYMMDDTHHMMSSffffffZ
+```
+
+Rollback preserves surrounding and later YAML changes and refuses a modified or
+missing owned block. Existing SpotifyPlus installation ownership/rollback guards
+are unchanged. No configuration mode, component deployment, save/remove call,
+Connect playback, or Jam test was performed while implementing this component.
