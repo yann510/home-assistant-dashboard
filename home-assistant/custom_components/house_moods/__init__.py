@@ -3,6 +3,8 @@ import asyncio
 import logging
 
 _LOGGER = logging.getLogger(__name__)
+STARTUP_READINESS_TIMEOUT = 60
+STARTUP_READINESS_POLL = .5
 
 # Exported lazily so importing pure coordinator modules needs no HA installation.
 def HAAdapter(*args):
@@ -24,8 +26,49 @@ class Runtime:
         self.pending = set()
         self.dirty = set()
         self.closed = False
+        self._startup_ready = False
+        self._startup_lock = asyncio.Lock()
         from .modes import MODE_ENTITIES
         self.mode_states = {entity: self.io.state(entity)["state"] for entity in MODE_ENTITIES.values()}
+
+    async def ensure_startup_ready(self):
+        """Read startup Sonos telemetry before the first durable reconciliation.
+
+        State events and service requests can arrive before HA's started event.
+        All entry points share this gate; waiting never issues device controls or
+        alters the saved session. The ordinary reconciler handles timeout and
+        interrupted journals, so readiness cannot promote genuine recovery.
+        """
+        if self._startup_ready or self.engine._loaded:
+            return
+        async with self._startup_lock:
+            if self._startup_ready or self.engine._loaded:
+                return
+            from .sonos import FOLLOW, GROUPS, SPEAKERS, PLAYBACK_SOURCES
+            sonos_targets = {FOLLOW, GROUPS, *[e + '#volume' for e in SPEAKERS],
+                             *[e + '#playback' for e in PLAYBACK_SOURCES]}
+            try:
+                saved = await self.engine.store.load()
+            except Exception:
+                saved = None  # The reconciler reports corrupt storage safely.
+            targets = sorted(saved.owned & sonos_targets) if saved and saved.phase == 'active' else []
+            try:
+                async with asyncio.timeout(STARTUP_READINESS_TIMEOUT):
+                    while targets:
+                        ready = True
+                        for target in targets:
+                            try:
+                                await self.adapter.read(target)
+                            except (ValueError, RuntimeError, TimeoutError):
+                                ready = False
+                                break
+                        if ready:
+                            break
+                        await asyncio.sleep(STARTUP_READINESS_POLL)
+            except TimeoutError:
+                pass  # Preserve normal recovery when telemetry never returns.
+            await self.engine.reconcile()
+            self._startup_ready = True
 
     def publish(self, status):
         from .modes import ModeControls
@@ -54,6 +97,7 @@ class Runtime:
         self.pending.add(key)
         async def update():
             try:
+                await self.ensure_startup_ready()
                 # Explicit service intent alone proves an override, even offline.
                 while True:
                     self.dirty.discard(key)
@@ -142,6 +186,7 @@ class Runtime:
                     self.schedule(self.apply_external_mode(mode))
 
     async def apply_external_mode(self, mode):
+        await self.ensure_startup_ready()
         from .modes import MODE_ENTITIES
         result = await self.engine.apply_mode(mode)
         if result['success']:
@@ -163,6 +208,7 @@ class Runtime:
         task = asyncio.current_task()
         self.tasks.add(task)
         try:
+            await self.ensure_startup_ready()
             if not self.engine._loaded and not self.engine._lock.locked():
                 await self.engine.reconcile()
             if call.service in ('follow_join', 'follow_leave'):
@@ -253,7 +299,7 @@ async def async_setup(hass, config):
         hass.services.async_register('house_moods', name, runtime.handle, schema=schema, supports_response=SupportsResponse.ONLY)
     async def started(event=None):
         runtime.unsubscribers.append(runtime.adapter.native_subscribe(lambda: runtime.observe(NEON)))
-        await runtime.engine.reconcile()
+        await runtime.ensure_startup_ready()
     if hass.state == CoreState.running:
         await started()
     else:
