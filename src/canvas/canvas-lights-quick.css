@@ -53,3 +53,10 @@
   .canvas .canvas-lights--compact .canvas-lights__quick { grid-template-columns: 1fr; }
 }
 .canvas-light-palette__custom:has(input:disabled) { opacity: .4; cursor: not-allowed; }
+/* Keep the complete palette and its readable action labels on one tablet row. */
+@media (min-width: 800px) {
+  .canvas .canvas-lights--compact .canvas-lights__adjustments { grid-template-columns: minmax(0, 1fr) 248px; }
+  .canvas .canvas-lights--compact .canvas-lights__colour-heading,
+  :is(.canvas, .canvas-dialog) .canvas-light-palette__custom,
+  :is(.canvas .canvas-lights--compact, .canvas-dialog .canvas-lights--all) .canvas-lights__quick .canvas-lights__quick-settings { font-size: .875rem; }
+}
