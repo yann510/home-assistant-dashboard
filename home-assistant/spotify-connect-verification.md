@@ -133,8 +133,12 @@ stay fresh for 30 seconds (at most 500 tracks). Each track's writes and read-bac
 are serialized, with actual returned state used even if a save did not take
 hold. Provider calls time out after 12 seconds, and provider rate limits retain
 a shared account cooldown with `Retry-After` clamped to 1–300 seconds. An upstream
-executor operation may still finish after a timeout; no successful write is
-reported without a subsequent read. This component does not retry writes.
+executor operation may still finish after a caller timeout. The gateway retains
+that operation and rejects same-track reads or writes while it remains pending,
+including cached confirmations. After settlement, a fresh read establishes state
+before another mutation or confirmation. Retained operations are bounded at eight
+per account, with at most 500 uncertain tracks awaiting reconciliation; excess
+mutations fail before provider dispatch. This component does not retry writes.
 
 After separately copying the component code, explicit library-only YAML setup is:
 

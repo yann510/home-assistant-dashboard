@@ -92,7 +92,7 @@ class GatewayTests(unittest.IsolatedAsyncioTestCase):
         self.assertIs(await self.gateway.track_saved(TRACK), False)
         await self.gateway.set_track_saved(TRACK, True)
         await self.gateway.set_track_saved(TRACK, False)
-        self.assertEqual([c[1] for c in self.hass.services.calls], ['check_track_favorites', 'save_track_favorites', 'remove_track_favorites'])
+        self.assertEqual([c[1] for c in self.hass.services.calls], ['check_track_favorites', 'save_track_favorites', 'check_track_favorites', 'remove_track_favorites'])
         self.assertTrue(all(c[2] == {'entity_id': ENTITY, 'ids': 'a' * 22} for c in self.hass.services.calls))
         self.hass.services.result = {}
         with self.assertRaises(MusicError):
@@ -178,3 +178,168 @@ class GatewayTests(unittest.IsolatedAsyncioTestCase):
             self.hass.services.result = result
             with self.assertRaises(MusicError):
                 await self.gateway.list_playlists(0, 50)
+
+class ThreadedMutationServices(Services):
+    """HA service awaits an executor operation cancellation cannot stop."""
+    def __init__(self, fail_late=False):
+        super().__init__()
+        import threading
+        self.started = threading.Event()
+        self.release = threading.Event()
+        self.effect_done = threading.Event()
+        self.service_done = asyncio.Event()
+        self.saved = False
+        self.cancelled = 0
+        self.fail_late = fail_late
+        self.reads = 0
+    async def async_call(self, domain, name, data, **kwargs):
+        self.calls.append((domain, name, data, kwargs))
+        if name == 'check_track_favorites':
+            self.reads += 1
+            return {'user_profile': {'id': ACCOUNT}, 'result': {TRACK: self.saved}}
+        if name == 'remove_track_favorites':
+            self.saved = False
+            return None
+        if name == 'save_track_favorites':
+            def delayed_effect():
+                self.started.set()
+                if not self.release.wait(2):
+                    raise RuntimeError('Test did not release delayed mutation')
+                self.saved = True
+                self.effect_done.set()
+                if self.fail_late:
+                    raise RuntimeError('sensitive late provider failure')
+            try:
+                return await asyncio.to_thread(delayed_effect)
+            except asyncio.CancelledError:
+                self.cancelled += 1
+                raise
+            finally:
+                self.service_done.set()
+        raise AssertionError(name)
+    async def settle(self):
+        self.release.set()
+        await asyncio.wait_for(asyncio.to_thread(self.effect_done.wait, 1), 1.5)
+        await asyncio.wait_for(self.service_done.wait(), 1)
+        await asyncio.sleep(0)
+
+class MutationLifetimeTests(unittest.IsolatedAsyncioTestCase):
+    def setUp(self):
+        self.hass, registry, _, _ = make_hass()
+        self.services = self.hass.services = ThreadedMutationServices()
+        self.gateway = SpotifyGateway(self.hass, ENTITY, lambda _: registry)
+        self.gateway.call_timeout = .01
+    async def test_timed_out_executor_mutation_blocks_opposite_write_until_actual_settlement(self):
+        try:
+            with self.assertRaises(MusicError):
+                await self.gateway.set_track_saved(TRACK, True)
+            with self.assertRaises(MusicError):
+                await self.gateway.set_track_saved(TRACK, False)
+            with self.assertRaises(MusicError):
+                await self.gateway.track_saved(TRACK)
+            self.assertEqual([call[1] for call in self.services.calls], ['save_track_favorites'])
+            self.assertEqual(self.services.cancelled, 0)
+        finally:
+            await self.services.settle()
+        reads = self.services.reads
+        await self.gateway.set_track_saved(TRACK, False)
+        self.assertGreater(self.services.reads, reads)  # Fresh reconciliation before next mutation.
+        self.assertFalse(await self.gateway.track_saved(TRACK))
+        self.assertFalse(self.services.saved)
+    async def test_caller_cancel_does_not_cancel_actual_mutation(self):
+        request = asyncio.create_task(self.gateway.set_track_saved(TRACK, True))
+        try:
+            self.assertTrue(await asyncio.to_thread(self.services.started.wait, 1))
+            request.cancel()
+            with self.assertRaises(asyncio.CancelledError):
+                await request
+            with self.assertRaises(MusicError):
+                await self.gateway.set_track_saved(TRACK, False)
+            self.assertEqual(self.services.cancelled, 0)
+        finally:
+            await self.services.settle()
+        self.assertTrue(await self.gateway.track_saved(TRACK))
+    async def test_late_failure_is_consumed_and_requires_fresh_readback(self):
+        self.services.fail_late = True
+        errors = []
+        loop = asyncio.get_running_loop()
+        previous = loop.get_exception_handler()
+        loop.set_exception_handler(lambda _loop, context: errors.append(context))
+        try:
+            with self.assertRaises(MusicError):
+                await self.gateway.set_track_saved(TRACK, True)
+            await self.services.settle()
+            self.assertTrue(await self.gateway.track_saved(TRACK))
+            self.assertEqual(self.services.cancelled, 0)
+            self.assertEqual(errors, [])
+        finally:
+            self.services.release.set()
+            loop.set_exception_handler(previous)
+
+    async def test_read_started_before_mutation_cannot_confirm_obsolete_state(self):
+        read_started, return_read = asyncio.Event(), asyncio.Event()
+        original = self.services.async_call
+        async def stale_read(domain, name, data, **kwargs):
+            if name == 'check_track_favorites' and not read_started.is_set():
+                captured = self.services.saved
+                read_started.set()
+                await return_read.wait()
+                return {'user_profile': {'id': ACCOUNT}, 'result': {TRACK: captured}}
+            return await original(domain, name, data, **kwargs)
+        self.services.async_call = stale_read
+        self.gateway.call_timeout = 1
+        request = asyncio.create_task(self.gateway.track_saved(TRACK))
+        try:
+            await read_started.wait()
+            self.services.release.set()
+            await self.gateway.set_track_saved(TRACK, True)
+            return_read.set()
+            with self.assertRaises(MusicError):
+                await request
+            self.assertTrue(await self.gateway.track_saved(TRACK))
+        finally:
+            return_read.set()
+            await self.services.settle()
+
+    async def test_pending_mutations_are_bounded_without_queuing_more_effects(self):
+        release, finished = asyncio.Event(), asyncio.Event()
+        calls = []
+        ended = 0
+        async def blocked_service(_domain, name, data, **kwargs):
+            nonlocal ended
+            calls.append(data['ids'])
+            try:
+                await release.wait()
+            finally:
+                ended += 1
+                if ended == 2:
+                    finished.set()
+        self.hass.services.async_call = blocked_service
+        self.gateway.max_pending_mutations = 2
+        try:
+            for suffix in ('b', 'c', 'd'):
+                with self.assertRaises(MusicError):
+                    await self.gateway.set_track_saved('spotify:track:' + suffix*22, True)
+            self.assertEqual(calls, ['b'*22, 'c'*22])
+        finally:
+            release.set()
+            await asyncio.wait_for(finished.wait(), 1)
+            await asyncio.sleep(0)
+
+    async def test_uncertain_tracks_are_bounded_and_fresh_read_frees_capacity(self):
+        calls = []
+        async def failed_service(_domain, name, data, **kwargs):
+            if name == 'check_track_favorites':
+                return {'user_profile': {'id': ACCOUNT}, 'result': {'spotify:track:' + data['ids']: False}}
+            calls.append(data['ids'])
+            raise RuntimeError('unknown mutation result')
+        self.hass.services.async_call = failed_service
+        self.gateway.max_uncertain_tracks = 2
+        for suffix in ('b', 'c', 'd'):
+            with self.assertRaises(MusicError):
+                await self.gateway.set_track_saved('spotify:track:' + suffix*22, True)
+        self.assertEqual(calls, ['b'*22, 'c'*22])
+        await self.gateway.track_saved('spotify:track:' + 'b'*22)
+        with self.assertRaises(MusicError):
+            await self.gateway.set_track_saved('spotify:track:' + 'd'*22, True)
+        self.assertEqual(calls, ['b'*22, 'c'*22, 'd'*22])

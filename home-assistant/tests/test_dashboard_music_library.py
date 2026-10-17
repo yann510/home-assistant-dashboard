@@ -135,3 +135,71 @@ class LibraryTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(await self.library.page(0, 1), first)
         self.assertEqual(first['nextOffset'], 1)
         self.provider.list_playlists = original
+
+class RealGatewayMutationLifetimeTests(unittest.IsolatedAsyncioTestCase):
+    def setUp(self):
+        from test_dashboard_music_gateway import make_hass, ThreadedMutationServices, ENTITY
+        from custom_components.dashboard_music.gateway import SpotifyGateway
+        self.hass, registry, _, _ = make_hass()
+        self.services = self.hass.services = ThreadedMutationServices()
+        self.gateway = SpotifyGateway(self.hass, ENTITY, lambda _: registry)
+        self.gateway.call_timeout = .01
+        self.library = Library(self.gateway)
+    async def test_late_save_cannot_overtake_confirmed_opposite_write(self):
+        self.assertFalse((await self.library.saved_track(TRACK))['saved'])
+        try:
+            with self.assertRaises(MusicError):
+                await self.library.set_saved_track(TRACK, True)
+            with self.assertRaises(MusicError):
+                await self.library.set_saved_track(TRACK, False)
+            with self.assertRaises(MusicError):
+                await self.library.saved_track(TRACK)
+            self.assertNotIn(TRACK, self.library.saved)
+            self.assertEqual([c[1] for c in self.services.calls], ['check_track_favorites', 'save_track_favorites'])
+        finally:
+            await self.services.settle()
+        self.assertTrue((await self.library.saved_track(TRACK))['saved'])
+        result = await self.library.set_saved_track(TRACK, False)
+        self.assertEqual(result, {'track_uri': TRACK, 'saved': False})
+        self.assertEqual((await self.library.saved_track(TRACK))['saved'], self.services.saved)
+    async def test_cache_never_hides_gateway_pending_or_late_mutation(self):
+        self.assertFalse((await self.library.saved_track(TRACK))['saved'])
+        try:
+            with self.assertRaises(MusicError):
+                await self.gateway.set_track_saved(TRACK, True)
+            with self.assertRaises(MusicError):
+                await self.library.saved_track(TRACK)
+        finally:
+            await self.services.settle()
+        self.assertTrue((await self.library.saved_track(TRACK))['saved'])
+    async def test_cancelling_library_request_keeps_late_effect_uncertain(self):
+        request = asyncio.create_task(self.library.set_saved_track(TRACK, True))
+        try:
+            self.assertTrue(await asyncio.to_thread(self.services.started.wait, 1))
+            request.cancel()
+            with self.assertRaises(asyncio.CancelledError):
+                await request
+            with self.assertRaises(MusicError):
+                await self.library.set_saved_track(TRACK, False)
+        finally:
+            await self.services.settle()
+        self.assertTrue((await self.library.saved_track(TRACK))['saved'])
+        self.assertEqual(self.library.track_locks, {})
+
+    async def test_shutdown_keeps_pending_effect_uncertain_without_replay_or_cache(self):
+        from custom_components.dashboard_music import Runtime
+        from test_dashboard_music_gateway import ENTITY
+        from test_dashboard_music_permissions import Connection, SPEAKERS
+        runtime = Runtime(self.hass, ENTITY, SPEAKERS, library=self.library)
+        connection = Connection(True)
+        request = asyncio.create_task(runtime.handle(connection, {'id': 1, 'type': 'dashboard_music/set_track_saved', 'track_uri': TRACK, 'saved': True}))
+        try:
+            self.assertTrue(await asyncio.to_thread(self.services.started.wait, 1))
+            await asyncio.wait_for(runtime.close(), .1)
+            self.assertTrue(request.cancelled())
+            self.assertEqual(self.services.cancelled, 0)
+        finally:
+            await self.services.settle()
+        self.assertEqual(self.library.saved, {})
+        self.assertFalse(self.gateway.saved_state_current(TRACK))
+        self.assertEqual([c[1] for c in self.services.calls], ['save_track_favorites'])

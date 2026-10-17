@@ -94,9 +94,11 @@ class Library:
         async with asyncio.timeout(30):
             async with self._track_lock(uri):
                 cached = self.saved.get(uri)
-                if cached and self.clock() - cached[0] < 30:
+                current = getattr(self.gateway, 'saved_state_current', lambda _uri: True)(uri)
+                if cached and current and self.clock() - cached[0] < 30:
                     self.saved.move_to_end(uri)
                     return {'track_uri': uri, 'saved': cached[1]}
+                self.saved.pop(uri, None)
                 return self._cache_saved(uri, await self.gateway.track_saved(uri))
 
     async def set_saved_track(self, uri: str, saved: bool) -> dict:

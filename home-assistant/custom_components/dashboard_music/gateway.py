@@ -74,6 +74,8 @@ def _playlist_page(result, offset, limit):
 
 class SpotifyGateway:
     call_timeout = 12
+    max_pending_mutations = 8
+    max_uncertain_tracks = 500
 
     def __init__(self, hass, entity_id, registry_get, clock=time.monotonic):
         self.hass = hass
@@ -83,6 +85,9 @@ class SpotifyGateway:
         self.account_id = None
         self._blocked_until = 0
         self._entry_id = None
+        self._pending_mutations = {}
+        self._uncertain_tracks = set()
+        self._track_reads = {}
 
     def verify_account(self):
         entity = self.registry_get(self.entity_id)
@@ -114,15 +119,14 @@ class SpotifyGateway:
         self.account_id, self._entry_id = account, entry.entry_id
         return account
 
-    async def _call(self, name, data, response=True):
+    async def _execute_call(self, name, data, response=True):
         account = self.verify_account()
         remaining = self._blocked_until - self.clock()
         if remaining > 0:
             raise MusicError('rate_limited', retry_after=math.ceil(remaining))
         try:
-            async with asyncio.timeout(self.call_timeout):
-                result = await self.hass.services.async_call('spotifyplus', name,
-                    {'entity_id': self.entity_id, **data}, blocking=True, return_response=response)
+            result = await self.hass.services.async_call('spotifyplus', name,
+                {'entity_id': self.entity_id, **data}, blocking=True, return_response=response)
         except Exception as error:
             public = _provider_error(error)
             if public.code == 'rate_limited':
@@ -130,6 +134,50 @@ class SpotifyGateway:
             raise public from None
         self.verify_account()
         return _result(result, account) if response else None
+
+    async def _call(self, name, data, response=True):
+        try:
+            async with asyncio.timeout(self.call_timeout):
+                return await self._execute_call(name, data, response)
+        except TimeoutError:
+            raise MusicError('unavailable') from None
+
+    def _check_track_settled(self, uri):
+        pending = self._pending_mutations.get(uri)
+        if pending is not None and not pending.done():
+            raise MusicError('unavailable', 'Spotify is still finishing an earlier song save. Refresh before trying again.')
+
+    def saved_state_current(self, uri):
+        """A cached confirmation cannot hide pending or late provider effects."""
+        pending = self._pending_mutations.get(uri)
+        return uri not in self._uncertain_tracks and (pending is None or pending.done())
+
+    async def _mutate_track(self, uri, name, data):
+        self._check_track_settled(uri)
+        if (len(self._pending_mutations) >= self.max_pending_mutations
+                or (uri not in self._uncertain_tracks and len(self._uncertain_tracks) >= self.max_uncertain_tracks)):
+            raise MusicError('unavailable')
+        # Invalidate reads already in flight before any provider effect can run.
+        for read in self._track_reads.get(uri, ()):
+            read.set()
+        self._uncertain_tracks.add(uri)
+        operation = asyncio.create_task(self._execute_call(name, data, response=False))
+        self._pending_mutations[uri] = operation
+        def settled(done):
+            if self._pending_mutations.get(uri) is done:
+                self._pending_mutations.pop(uri)
+            # Completion only establishes that no effect is still in flight.
+            # A fresh successful read must establish the resulting saved state.
+            if not done.cancelled():
+                done.exception()
+        operation.add_done_callback(settled)
+        try:
+            async with asyncio.timeout(self.call_timeout):
+                # The service may await a non-cancellable executor operation.
+                # Caller cancellation/deadline must not cancel that lifetime.
+                await asyncio.shield(operation)
+        except TimeoutError:
+            raise MusicError('unavailable') from None
 
     async def list_playlists(self, offset: int, limit: int) -> dict:
         validate_page(offset, limit)
@@ -140,17 +188,31 @@ class SpotifyGateway:
 
     async def track_saved(self, track_uri: str) -> bool:
         validate_uri(track_uri, 'track')
-        result = await self._call('check_track_favorites', {'ids': track_uri.rsplit(':', 1)[1]})
-        if not isinstance(result, dict) or type(result.get(track_uri)) is not bool:
-            raise MusicError('unavailable')
-        return result[track_uri]
+        self._check_track_settled(track_uri)
+        read = asyncio.Event()
+        reads = self._track_reads.setdefault(track_uri, set())
+        reads.add(read)
+        try:
+            result = await self._call('check_track_favorites', {'ids': track_uri.rsplit(':', 1)[1]})
+            if read.is_set() or not isinstance(result, dict) or type(result.get(track_uri)) is not bool:
+                raise MusicError('unavailable')
+            self._check_track_settled(track_uri)
+            self._uncertain_tracks.discard(track_uri)
+            return result[track_uri]
+        finally:
+            reads.discard(read)
+            if not reads:
+                self._track_reads.pop(track_uri)
 
     async def set_track_saved(self, track_uri: str, saved: bool) -> None:
         validate_uri(track_uri, 'track')
         if type(saved) is not bool:
             raise MusicError('invalid_request')
-        await self._call('save_track_favorites' if saved else 'remove_track_favorites',
-                         {'ids': track_uri.rsplit(':', 1)[1]}, response=False)
+        self._check_track_settled(track_uri)
+        if track_uri in self._uncertain_tracks:
+            await self.track_saved(track_uri)
+        await self._mutate_track(track_uri, 'save_track_favorites' if saved else 'remove_track_favorites',
+                                 {'ids': track_uri.rsplit(':', 1)[1]})
 
     # Task 3 supplies the Connect orchestration after real-device acceptance.
     async def resolve_device(self, source_entity: str) -> str:
