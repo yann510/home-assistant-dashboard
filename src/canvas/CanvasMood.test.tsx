@@ -100,3 +100,51 @@ it('names Chill consistently while retaining its backend ID and distinct artwork
   expect(screen.queryByText('Unwind')).toBeNull();
   expect(paths()).not.toEqual(neutralArtwork);
 });
+
+it('keeps confirmed active moods moving through updates and pauses when the mood or page cannot be active', () => {
+  const base: HouseMoodCardProps = {
+    status: { phase: 'active', activeMood: 'love', pendingMood: null, errors: [] },
+    connected: true,
+    available: true,
+    onActivate: vi.fn(),
+    onEnd: vi.fn(),
+    onRetry: vi.fn(),
+  };
+  const view = render(<CanvasMood controller={base} />);
+  const card = screen.getByRole('region', { name: 'House Mood' });
+  const art = card.querySelector('.canvas-mood__art');
+  const endButton = screen.getByRole('button', { name: 'End mood' });
+  endButton.focus();
+  expect(card.getAttribute('data-active-motion')).toBe('true');
+  view.rerender(<CanvasMood controller={{ ...base, status: { ...base.status } }} />);
+  expect(card.getAttribute('data-active-motion')).toBe('true');
+  expect(card.querySelector('.canvas-mood__art')).toBe(art);
+  expect(document.activeElement).toBe(endButton);
+
+  for (const controller of [
+    { ...base, connected: false },
+    { ...base, available: false },
+    { ...base, status: { ...base.status, phase: 'starting' as const, pendingMood: 'party' as const } },
+    { ...base, status: { ...base.status, phase: 'restoring' as const } },
+    { ...base, status: { ...base.status, phase: 'recovery_required' as const } },
+    { ...base, status: { ...base.status, phase: 'idle' as const } },
+    { ...base, status: { ...base.status, activeMood: null } },
+  ]) {
+    view.rerender(<CanvasMood controller={controller} />);
+    expect(card.getAttribute('data-active-motion')).toBe('false');
+  }
+
+  view.rerender(<CanvasMood controller={base} />);
+  expect(card.getAttribute('data-active-motion')).toBe('true');
+  try {
+    vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
+    fireEvent(document, new Event('visibilitychange'));
+    expect(card.getAttribute('data-page-visible')).toBe('false');
+    expect(card.getAttribute('data-active-motion')).toBe('true');
+    vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible');
+    fireEvent(document, new Event('visibilitychange'));
+    expect(card.getAttribute('data-page-visible')).toBe('true');
+  } finally {
+    vi.restoreAllMocks();
+  }
+});

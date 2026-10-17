@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { useFeatureMotion } from './useFeatureMotion';
 import './canvas-feature-motion.css';
 import type { HouseMoodCardProps, MoodId } from '../moodTypes';
@@ -14,31 +15,33 @@ const moods: { id: MoodId; name: string; colour: string; caption: string }[] = [
 function MoodArt({ id }: { id: MoodId | null }) {
   return (
     <svg className='canvas-mood__art' viewBox='0 0 320 260' fill='none' stroke='currentColor' strokeWidth='18' aria-hidden='true'>
-      {id === 'love' ? (
-        <path d='M160 214C130 180 40 135 40 76a62 62 0 01120-17 62 62 0 01120 17c0 59-90 104-120 138z' />
-      ) : id === 'unwind' ? (
-        <g strokeLinecap='round'>
-          <path d='M24 80C58 50 92 50 126 80S194 110 228 80S280 50 296 65' />
-          <path d='M24 130C58 100 92 100 126 130S194 160 228 130S280 100 296 115' />
-          <path d='M24 180C58 150 92 150 126 180S194 210 228 180S280 150 296 165' />
-        </g>
-      ) : id === 'dinner' ? (
-        <>
-          <circle cx='160' cy='130' r='91' />
-          <circle cx='160' cy='130' r='59' />
-          <path d='M34 40v190M16 40v50h36V40M287 40v190' />
-        </>
-      ) : id === 'party' ? (
-        <path d='M160 12l23 64 64-31-31 64 65 23-65 23 31 64-64-31-23 64-23-64-64 31 31-64-65-23 65-23-31-64 64 31z' />
-      ) : id === 'gym' ? (
-        <path d='M58 217L146 38h76l-88 179zM160 217l88-179' />
-      ) : (
-        <>
-          <path d='M0 170C70 170 80 20 160 20S240 170 320 170' />
-          <path d='M0 205C70 205 80 55 160 55S240 205 320 205' />
-          <path d='M0 240C70 240 80 90 160 90S240 240 320 240' />
-        </>
-      )}
+      <g className='canvas-mood__art-motion'>
+        {id === 'love' ? (
+          <path d='M160 214C130 180 40 135 40 76a62 62 0 01120-17 62 62 0 01120 17c0 59-90 104-120 138z' />
+        ) : id === 'unwind' ? (
+          <g strokeLinecap='round'>
+            <path d='M24 80C58 50 92 50 126 80S194 110 228 80S280 50 296 65' />
+            <path d='M24 130C58 100 92 100 126 130S194 160 228 130S280 100 296 115' />
+            <path d='M24 180C58 150 92 150 126 180S194 210 228 180S280 150 296 165' />
+          </g>
+        ) : id === 'dinner' ? (
+          <>
+            <circle cx='160' cy='130' r='91' />
+            <circle cx='160' cy='130' r='59' />
+            <path d='M34 40v190M16 40v50h36V40M287 40v190' />
+          </>
+        ) : id === 'party' ? (
+          <path d='M160 12l23 64 64-31-31 64 65 23-65 23 31 64-64-31-23 64-23-64-64 31 31-64-65-23 65-23-31-64 64 31z' />
+        ) : id === 'gym' ? (
+          <path d='M58 217L146 38h76l-88 179zM160 217l88-179' />
+        ) : (
+          <>
+            <path d='M0 170C70 170 80 20 160 20S240 170 320 170' />
+            <path d='M0 205C70 205 80 55 160 55S240 205 320 205' />
+            <path d='M0 240C70 240 80 90 160 90S240 240 320 240' />
+          </>
+        )}
+      </g>
     </svg>
   );
 }
@@ -61,6 +64,13 @@ export function CanvasMood({
   const confirmedMood = status.phase === 'active' || status.phase === 'starting' ? status.activeMood : null;
   const current = moods.find(mood => mood.id === confirmedMood);
   const { revision, animate } = useFeatureMotion(confirmedMood);
+  const [pageVisible, setPageVisible] = useState(() => document.visibilityState !== 'hidden');
+  useEffect(() => {
+    const updateVisibility = () => setPageVisible(document.visibilityState !== 'hidden');
+    document.addEventListener('visibilitychange', updateVisibility);
+    return () => document.removeEventListener('visibilitychange', updateVisibility);
+  }, []);
+  const activeMotion = status.phase === 'active' && Boolean(current) && connected && available;
   const locked = !connected || !available || busy || recovery;
   const showActions = recovery || Boolean(status.activeMood);
   const message = !connected
@@ -78,6 +88,8 @@ export function CanvasMood({
     <section
       data-mood={current?.id ?? 'neutral'}
       data-feature-motion={animate}
+      data-active-motion={activeMotion}
+      data-page-visible={pageVisible}
       className='canvas-mood'
       style={{ background: current?.colour ?? '#cbb5ed' }}
       aria-label='House Mood'
