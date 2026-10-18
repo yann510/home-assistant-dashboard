@@ -196,3 +196,12 @@
     min-height: min(100svh, 800px);
   }
 }
+
+/* Paired room selectors start below their headings with the same gap.
+   Each card keeps its own natural control height. */
+@media (min-width: 701px) {
+  .canvas .canvas__shortcuts > .canvas-blinds .canvas-blinds__rooms { margin-top: 8px; }
+}
+@media (min-width: 800px) and (min-height: 540px) and (max-height: 719px) {
+  .canvas .canvas__shortcuts > .canvas-blinds .canvas-blinds__rooms { margin-top: 0; }
+}

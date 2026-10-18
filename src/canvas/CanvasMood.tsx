@@ -80,7 +80,6 @@ export function CanvasMood({
   }, []);
   const activeMotion = status.phase === 'active' && Boolean(current) && connected && available;
   const locked = !connected || !available || busy || recovery;
-  const showActions = recovery || Boolean(status.activeMood);
   const message = !connected
     ? 'Reconnecting to Home Assistant…'
     : !available
@@ -128,21 +127,19 @@ export function CanvasMood({
             </button>
           </div>
         )}
-        {showActions && (
-          <div className='canvas-mood__actions'>
-            {recovery ? (
-              <button type='button' disabled={!connected || !available || busy} onClick={onRetry}>
-                Retry restoration
+        <div className='canvas-mood__actions'>
+          {recovery ? (
+            <button type='button' disabled={!connected || !available || busy} onClick={onRetry}>
+              Retry restoration
+            </button>
+          ) : (
+            status.activeMood && (
+              <button type='button' disabled={!connected || !available || busy} onClick={onEnd}>
+                End mood
               </button>
-            ) : (
-              status.activeMood && (
-                <button type='button' disabled={!connected || !available || busy} onClick={onEnd}>
-                  End mood
-                </button>
-              )
-            )}
-          </div>
-        )}
+            )
+          )}
+        </div>
       </div>
       <MoodArt key={revision} id={current?.id ?? null} />
       <div className='canvas-mood__picker' role='group' aria-label='Choose a house mood'>

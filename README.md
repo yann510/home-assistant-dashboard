@@ -16,13 +16,13 @@ Run `npm run build` and it will build the files for you, you can then upload the
 
 ## Speaker motion following
 
-The speaker card's **Follow me** switch enables motion following without immediately grouping any speakers. Motion in the bathroom, bedroom, or gym joins only that room to the saved original Sonos speaker. It works with any playing audio source, without playlist, queue-size, or content-type restrictions. A paused source can be armed; rooms join once it is playing. Rooms stay grouped until Follow me is turned off.
+The speaker card's **Follow me** switch enables motion following without immediately grouping any speakers. Motion in the bathroom, bedroom, or gym joins only that room to the saved original Sonos speaker. It works with any playing audio source, without playlist, queue-size, or content-type restrictions. A paused source can be armed; rooms join once it is playing. When a room light turns off, that room leaves the group. The existing light automations determine the absence delay (bathroom: five minutes; bedroom and gym: three minutes), and manually switching off the light also removes its follower. The saved original speaker always keeps playing, including when its own room light turns off.
 
 Switching it off disables motion following and unjoins the followers, leaving playback on the original speaker. The original speaker and enabled state are stored in Home Assistant, so following works with the dashboard closed and survives dashboard reloads. Playback controls target only the actual group. Failed cleanup retains the original source and offers **Retry ungrouping**; it cannot be overwritten by re-enabling the switch.
 
-Commands use the dashboard's authenticated Home Assistant WebSocket connection. The queued Home Assistant script serializes enable, motion joins, and disable, and re-checks the enabled state before each join. Service errors are shown with their actual message. Sonos device timeouts during motion appear in that room automation's trace; another room's motion does not request the failing speaker.
+Commands use the dashboard's authenticated Home Assistant WebSocket connection. The queued Home Assistant script serializes enable, motion joins, light-off departures, and disable. Each departure rechecks that Follow me is enabled, the light is still off, and the room is a follower of the saved original speaker. It never removes the original speaker or a speaker in another group. Active house moods journal departures so automatic following preserves mood ownership and restoration. Service errors are shown with their actual message. Sonos device timeouts during motion appear in that room automation's trace; another room's motion does not request the failing speaker.
 
-Install the backend before deploying the dashboard, using Node.js 24 and the existing `.env` credentials:
+Before installing the follow configuration, deploy the updated `home-assistant/custom_components/house_moods/` integration to Home Assistant's `custom_components/house_moods/` directory and restart Home Assistant. Confirm that the `house_moods.follow_leave` service is available: active mood departures use it to preserve group ownership and restoration. Then install the follow configuration before deploying the dashboard, using Node.js 24 and the existing `.env` credentials:
 
 ```sh
 node scripts/configure-speaker-follow.mjs
@@ -34,7 +34,7 @@ The installer backs up the current configuration under `backups.local/`, creates
 - `automation.group_gym_sonos_speaker_if_music_is_playing_in_living_room`
 - `automation.group_bedroom_sonos_speaker_if_music_is_playing_in_living_room`
 
-The three automations remain enabled but only act while **Follow me** is on. Their existing room sensors are preserved. There is no living-room motion mapping in this configuration; Living Room can be the original source. The separate TV-triggered ungrouping automation remains in place.
+The three automations remain enabled but only act while **Follow me** is on. Their existing room sensors are preserved. Each room automation queues motion and light events in order, using `light.light_toilet`, `light.light_bedroom`, and `light.gym` for departures; no separate no-motion timer is added. There is no living-room motion mapping in this configuration; Living Room can be the original source. The separate TV-triggered ungrouping automation remains in place.
 
 ## Deploy to Home Assistant via SSH
 1. Replace the values in the .env file provided with your `VITE_SSH_USERNAME`, `VITE_SSH_HOSTNAME` and `VITE_SSH_PASSWORD`.

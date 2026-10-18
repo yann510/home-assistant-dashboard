@@ -26,6 +26,9 @@ const current = (id: string) => useStore.getState().entities[id] as LightEntity 
 const supportsBrightness = (entity?: LightEntity) =>
   Boolean(entity?.attributes.supported_color_modes?.some(mode => !['onoff', 'unknown'].includes(mode)));
 
+export const lightSupportsColour = (entity?: LightEntity) =>
+  Boolean(entity?.attributes.supported_color_modes?.some(mode => ['hs', 'xy', 'rgb', 'rgbw', 'rgbww'].includes(mode)));
+
 function useCanvasLightsController() {
   const entities = useStore(state => state.entities);
   const connected = useStore(state => Boolean(state.connection?.connected && state.connectionStatus === 'connected'));
@@ -126,6 +129,16 @@ function useCanvasLightsController() {
     },
     [sendLive]
   );
+  const colour = useCallback(
+    (ids: readonly string[], rgb: [number, number, number]) => {
+      const targets = ids.filter(id => usable(current(id)) && lightSupportsColour(current(id)) && !busyRef.current.has(id));
+      return sendLive({ domain: 'light', service: 'turn_on', targets, data: { rgb_color: rgb } }, id => {
+        const next = current(id);
+        return next?.state === 'on' && next.attributes.rgb_color?.every((value, index) => Math.abs(value - rgb[index]) <= 1) === true;
+      });
+    },
+    [sendLive]
+  );
   const results = Object.values(outcomes);
   return {
     rooms,
@@ -137,6 +150,7 @@ function useCanvasLightsController() {
     sendLive,
     power,
     brightness,
+    colour,
   };
 }
 type Controller = ReturnType<typeof useCanvasLightsController>;

@@ -17,26 +17,31 @@
     "id": "speaker_follow_motion",
     "config": {
       "alias": "Speaker Follow Motion",
-      "description": "Enable without grouping; join only the room reporting motion; disable and keep the saved original speaker.",
+      "description": "Enable without grouping; join on room motion and leave when its light turns off; preserve the saved original speaker.",
       "mode": "queued",
       "max": 20,
       "fields": {
         "command": {
-          "description": "enable, disable, or join",
+          "description": "enable, disable, join, or leave",
           "required": true
         },
         "source_entity": {
           "description": "Source speaker when enabling"
         },
         "room": {
-          "description": "Room speaker reporting motion"
+          "description": "Room speaker reporting motion or its light turning off"
         }
       },
       "sequence": [
         {
           "variables": {
             "speakers": ["media_player.living_room", "media_player.bathroom", "media_player.bedroom", "media_player.gym"],
-            "motion_rooms": ["media_player.bathroom", "media_player.gym", "media_player.bedroom"]
+            "motion_rooms": ["media_player.bathroom", "media_player.gym", "media_player.bedroom"],
+            "room_lights": {
+              "media_player.bathroom": "light.light_toilet",
+              "media_player.bedroom": "light.light_bedroom",
+              "media_player.gym": "light.gym"
+            }
           }
         },
         {
@@ -216,6 +221,45 @@
                   }
                 }
               ]
+            },
+            {
+              "conditions": "{{ command == 'leave' }}",
+              "sequence": [
+                {
+                  "condition": "state",
+                  "entity_id": "input_boolean.speaker_follow_motion",
+                  "state": "on"
+                },
+                {
+                  "variables": {
+                    "original": "{{ states('input_text.speaker_follow_source') }}"
+                  }
+                },
+                {
+                  "condition": "template",
+                  "value_template": "{{ original in speakers and room | default('') in motion_rooms and room != original and is_state(room_lights.get(room, ''), 'off') and room in (state_attr(original, 'group_members') or []) and (state_attr(room, 'group_members') or [room])[0] == original }}"
+                },
+                {
+                  "if": "{{ state_attr('sensor.house_mood', 'session_id') is not none }}",
+                  "then": [
+                    {
+                      "service": "house_moods.follow_leave",
+                      "data": { "room": "{{ room }}" },
+                      "response_variable": "result"
+                    },
+                    {
+                      "stop": "Mood follow departure completed.",
+                      "response_variable": "result"
+                    }
+                  ]
+                },
+                {
+                  "service": "media_player.unjoin",
+                  "target": {
+                    "entity_id": "{{ room }}"
+                  }
+                }
+              ]
             }
           ],
           "default": [
@@ -253,13 +297,21 @@
       "config": {
         "id": "unique_identifier_for_this_automation",
         "alias": "Follow speaker audio on bathroom motion",
-        "description": "Armed by the speaker card Follow me switch. No playlist or queue requirement.",
+        "description": "While Follow me is on, join this room on motion and remove its follower when the room light turns off.",
         "trigger": [
           {
             "platform": "state",
             "entity_id": ["binary_sensor.aqara_fp2_bathroom_presence_sensor_1"],
             "from": "off",
-            "to": "on"
+            "to": "on",
+            "id": "join"
+          },
+          {
+            "platform": "state",
+            "entity_id": ["light.light_toilet"],
+            "from": "on",
+            "to": "off",
+            "id": "leave"
           }
         ],
         "condition": [
@@ -273,12 +325,13 @@
           {
             "service": "script.speaker_follow_motion",
             "data": {
-              "command": "join",
+              "command": "{{ trigger.id }}",
               "room": "media_player.bathroom"
             }
           }
         ],
-        "mode": "single"
+        "mode": "queued",
+        "max": 20
       }
     },
     {
@@ -286,13 +339,21 @@
       "config": {
         "id": "1696799091938",
         "alias": "Follow speaker audio on gym motion",
-        "description": "Armed by the speaker card Follow me switch. No playlist or queue requirement.",
+        "description": "While Follow me is on, join this room on motion and remove its follower when the room light turns off.",
         "trigger": [
           {
             "platform": "state",
             "entity_id": ["binary_sensor.hue_motion_sensor_1_motion_2"],
             "from": "off",
-            "to": "on"
+            "to": "on",
+            "id": "join"
+          },
+          {
+            "platform": "state",
+            "entity_id": ["light.gym"],
+            "from": "on",
+            "to": "off",
+            "id": "leave"
           }
         ],
         "condition": [
@@ -306,12 +367,13 @@
           {
             "service": "script.speaker_follow_motion",
             "data": {
-              "command": "join",
+              "command": "{{ trigger.id }}",
               "room": "media_player.gym"
             }
           }
         ],
-        "mode": "single"
+        "mode": "queued",
+        "max": 20
       }
     },
     {
@@ -319,13 +381,21 @@
       "config": {
         "id": "1696799299222",
         "alias": "Follow speaker audio on bedroom motion",
-        "description": "Armed by the speaker card Follow me switch. No playlist or queue requirement.",
+        "description": "While Follow me is on, join this room on motion and remove its follower when the room light turns off.",
         "trigger": [
           {
             "platform": "state",
             "entity_id": ["binary_sensor.hue_motion_sensor_1_motion"],
             "from": "off",
-            "to": "on"
+            "to": "on",
+            "id": "join"
+          },
+          {
+            "platform": "state",
+            "entity_id": ["light.light_bedroom"],
+            "from": "on",
+            "to": "off",
+            "id": "leave"
           }
         ],
         "condition": [
@@ -339,12 +409,13 @@
           {
             "service": "script.speaker_follow_motion",
             "data": {
-              "command": "join",
+              "command": "{{ trigger.id }}",
               "room": "media_player.bedroom"
             }
           }
         ],
-        "mode": "single"
+        "mode": "queued",
+        "max": 20
       }
     }
   ]
