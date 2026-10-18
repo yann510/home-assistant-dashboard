@@ -1,6 +1,7 @@
 """One-house YAML integration. HA imports stay lazy for pure Python tests."""
 import asyncio
 import logging
+from contextlib import asynccontextmanager
 
 _LOGGER = logging.getLogger(__name__)
 STARTUP_READINESS_TIMEOUT = 60
@@ -261,6 +262,49 @@ class Runtime:
             if room not in members:
                 await self.io.call('media_player', 'join', [source], {'group_members': [room]})
             return self.engine.status()
+
+    @asynccontextmanager
+    async def manual_playback(self, source_entity, context_id):
+        """Release playback durably, then gate moods over the delegated effect.
+
+        The caller must retain this context through actual service settlement,
+        even if its own response deadline expires. Follow me and observers use
+        the ordinary engine lock while the network operation is yielded.
+        """
+        from .coordinator import PersistenceError
+        from .sonos import SPEAKERS, PLAYBACK_SOURCES
+        if source_entity not in SPEAKERS or not isinstance(context_id, str) or not context_id:
+            raise ValueError('A known speaker and real caller context are required.')
+        self.io.check_open()
+        engine = self.engine
+        engine._manual_playback_active += 1
+        try:
+            groups = self.adapter.sonos._groups()
+            members = next(group for group in groups if source_entity in group)
+            targets = {entity + '#playback' for entity in PLAYBACK_SOURCES if entity in members}
+            # Capture manual intent before any awaited old write can resume.
+            for target in targets:
+                engine.note_external(target)
+            await self.ensure_startup_ready()
+            async with engine._lock:
+                # A timed-out HA service may still be running in its executor.
+                # Settling the coordinator coroutine alone is insufficient.
+                await self.io.settle_pending()
+                await engine._load()
+                if engine._storage_failed:
+                    raise PersistenceError('Mood ownership persistence is unavailable.')
+                if engine.session:
+                    for target in targets:
+                        engine.note_external(target)
+                    await engine._save()  # Failure must reach the manual launcher.
+            yield
+        finally:
+            engine._manual_playback_active -= 1
+
+    async def async_supersede_playback(self, source_entity, context_id):
+        """Compatibility release hook; launchers use the full transaction above."""
+        async with self.manual_playback(source_entity, context_id):
+            pass
 
     async def close(self, event=None):
         if self.closed:

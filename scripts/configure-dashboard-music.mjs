@@ -80,6 +80,9 @@ const LIBRARY_METHODS = ['get_playlist_favorites', 'check_track_favorites', 'sav
 function validateMusicEntity(entity) {
   if (!/^media_player\.[a-z0-9_]+$/.test(entity ?? '')) throw new Error('Invalid SpotifyPlus entity');
 }
+function validateRelayDevice(relayDevice) {
+  if (relayDevice !== undefined && (typeof relayDevice !== 'string' || !/^[0-9a-f]{40}$/.test(relayDevice))) throw new Error('Invalid relay device identity');
+}
 export function validateLibraryPreflight(report) {
   if (report.installedVersion?.replace(/^v/, '') !== PINNED_VERSION) throw new Error('Installed version does not match pinned SpotifyPlus release');
   if (!report.accountVerified) throw new Error('SpotifyPlus account identity has not been verified');
@@ -91,6 +94,8 @@ export function validateLibraryPreflight(report) {
   return { ready: true };
 }
 export async function configureMusic(options = {}, remote) {
+  validateRelayDevice(options.relayDevice);
+  if (options.relayDevice !== undefined && !options.configureComponent) throw new Error('Relay device requires component configuration');
   if ([options.install, options.rollback, options.configureComponent, options.rollbackComponent].filter(Boolean).length > 1) throw new Error('Install, configuration and rollback modes are mutually exclusive');
   if (options.rollbackComponent) {
     await remote.rollbackComponent(options.rollbackComponent);
@@ -103,7 +108,7 @@ export async function configureMusic(options = {}, remote) {
   if (options.configureComponent) {
     validateMusicEntity(options.configureComponent);
     validateLibraryPreflight(await remote.inspectLibrary(options.configureComponent));
-    return { mode: 'configure-component', ...await remote.configureComponent(options.configureComponent), ready: false,
+    return { mode: 'configure-component', ...await remote.configureComponent(options.configureComponent, options.relayDevice), ready: false,
       next: 'Library YAML prepared. Check configuration and restart Home Assistant. Desktop consent and live Connect/Jam acceptance remain separate playback rollout gates.' };
   }
   const report = await remote.inspect();
@@ -216,8 +221,9 @@ export async function createRemote(env, connectors = {}) {
       if (read?.response?.user_profile?.id !== identity.account_id) throw new Error('SpotifyPlus provider account mismatch');
       return report;
     },
-    async configureComponent(entity) {
+    async configureComponent(entity, relayDevice) {
       validateMusicEntity(entity);
+      validateRelayDevice(relayDevice);
       // Code copying is a separate deployment step. This mode owns YAML only.
       return ssh.python(`${CONFIG_PYTHON}
 p=pathlib.Path('/homeassistant');c=p/'configuration.yaml'
@@ -230,7 +236,7 @@ b=p/'backups.local'/('dashboard-music-'+datetime.datetime.now(datetime.timezone.
 b.mkdir(parents=True,mode=0o700);os.chmod(b,0o700)
 with os.fdopen(os.open(b/'configuration.yaml',os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600),'wb') as f: f.write(before)
 tag=b.name
-block=('' if before.endswith(b'\\n') or not before else '\\n')+'# BEGIN '+tag+'\\ndashboard_music:\\n  spotifyplus_entity: '+${JSON.stringify(entity)}+'\\n  speakers:\\n    - media_player.bathroom\\n    - media_player.bedroom\\n    - media_player.gym\\n    - media_player.living_room\\n# END '+tag+'\\n'
+block=('' if before.endswith(b'\\n') or not before else '\\n')+'# BEGIN '+tag+'\\ndashboard_music:\\n  spotifyplus_entity: '+${JSON.stringify(entity)}+'\\n'+${JSON.stringify(relayDevice === undefined ? '' : '  relay_device_id: ' + relayDevice + '\n')}+'  speakers:\\n    - media_player.bathroom\\n    - media_player.bedroom\\n    - media_player.gym\\n    - media_player.living_room\\n# END '+tag+'\\n'
 block=block.encode('utf-8')
 record={'kind':'dashboard-music-component-v1','block':base64.b64encode(block).decode(),'fingerprint':hashlib.sha256(block).hexdigest()}
 with os.fdopen(os.open(b/'component-config.json',os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600),'w') as f: json.dump(record,f);f.flush();os.fsync(f.fileno())
@@ -321,9 +327,10 @@ async function main() {
     if (args[i] === '--install') options.install = true;
     else if (args[i] === '--rollback' && args[i + 1]) options.rollback = args[++i];
     else if (args[i] === '--configure-component' && args[i + 1]) options.configureComponent = args[++i];
+    else if (args[i] === '--relay-device' && args[i + 1]) options.relayDevice = args[++i];
     else if (args[i] === '--rollback-component' && args[i + 1]) options.rollbackComponent = args[++i];
     else if (args[i] === '--env' && args[i + 1]) envPath = resolve(args[++i]);
-    else throw new Error('Usage: node scripts/configure-dashboard-music.mjs [--env PATH] [--install | --rollback BACKUP | --configure-component ENTITY | --rollback-component BACKUP]');
+    else throw new Error('Usage: node scripts/configure-dashboard-music.mjs [--env PATH] [--install | --rollback BACKUP | --configure-component ENTITY [--relay-device HEX40] | --rollback-component BACKUP]');
   }
   const { config } = await import('dotenv');
   config({ path: envPath, quiet: true });

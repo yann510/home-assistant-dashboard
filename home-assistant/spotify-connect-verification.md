@@ -162,3 +162,87 @@ Rollback preserves surrounding and later YAML changes and refuses a modified or
 missing owned block. Existing SpotifyPlus installation ownership/rollback guards
 are unchanged. No configuration mode, component deployment, save/remove call,
 Connect playback, or Jam test was performed while implementing this component.
+
+## Relay playback backend contract
+
+`dashboard_music.play_spotify` is a response-only HA service accepting exactly
+`playlist_uri`, `source_entity`, and `request_id`. Identity comes from the HA
+caller context. It requires account and affected-speaker read/control permission,
+resolves the actual Sonos coordinator (including the saved Follow me source),
+and validates the full reported group graph. Completed results are retained for
+five minutes, account/user bound, up to 128 requests. A different simultaneous
+request returns busy; it is never queued for later playback. The response deadline
+is 30 seconds. A timeout or disconnect retains delegated effects and the account
+and manual-mood guards until the actual services settle, with no late handoff or
+automatic replay after that request has ended.
+
+The backend-only optional `relay_device_id` is the relay's exact 40-character
+Connect ID. Library and save operations remain usable without it. The owned YAML
+installer accepts `--configure-component ENTITY --relay-device HEX40`, includes
+the relay in its initial backed-up stanza, and fingerprints that exact block for
+rollback. Clients cannot choose an account, relay, device ID, or host address.
+
+The supported pinned route starts the exact context only on that freshly verified,
+unrestricted, non-Sonos relay listed for the configured account. After fresh relay
+account/device/context/playing confirmation, it calls `zeroconf_device_connect`
+on the registry-RINCON-matched Sonos discovery endpoint with
+`verify_device_list_entry:false`, `pre_disconnect:false`, fixed verified account
+username/loginid, and an empty password for the verified `authorization_code`
+token type. This service requires `return_response:true`; its account-verified
+acknowledgment is not playback confirmation. It then calls
+`player_transfer_playback` with explicit target and relay-from IDs, `play:true`,
+`delay:0.5`, and `force_activate_device:true`, without requesting a response.
+That last flag does not replace the preceding unconditional Zeroconf activation.
+No context-play call ever targets Sonos, and no Sonos local-queue fallback exists.
+
+Confirmation combines fresh account/context/playing evidence with actual native
+Sonos `Spotify Connect` state and unchanged coordinator, group, and Follow me
+snapshot. `get_spotify_connect_devices(refresh:true)` refreshes dynamic cloud
+discovery; it does not re-probe every cached LAN `DeviceInfo`. SpotifyPlus may
+also normalize a restricted cloud device's absent ID by cached display name.
+The adapter never presents that value as a raw Spotify ID: it additionally calls
+the supported read-only `zeroconf_device_getinfo` service for currently discovered
+Sonos coordinators, concurrently at most four and within a bounded read deadline.
+Each response must match the exact discovered Connect ID and the target's stable
+Sonos registry RINCON identity. Actual native remote names and aliases must be
+unique against the other outputs and non-Sonos discovery aliases. Thus a restricted
+group named `Gym + 1` can be positively identified from its fresh native name;
+the adapter never constructs that suffix. Known HA followers are excluded before
+probing because their Connect endpoint can be disabled while stale discovery still
+lists them. Unknown speakers, changed identities, missing evidence, and ambiguous
+names fail closed.
+
+`dashboard_music/current_track` is an authenticated read-only WebSocket command
+accepting `{source_entity}` and returning
+`{source_entity: resolvedCoordinator, track_uri: exactSpotifyTrackUriOrNull}`.
+It requires account and group read permission but no relay configuration. Fresh
+account/device identity, native `Spotify Connect` source, playing/paused state,
+and a valid non-local track item are required. TV, local queues, episodes,
+unrelated active devices, and changed source/topology never supply a guessed URI.
+This supports the real `x-sonos-vli` session-wrapper content ID, which contains no
+exact track URI. It makes no playback or library mutation.
+
+Manual launch durably releases only mood playback ownership in the affected group,
+including a mood-owned follower whose stop command would forward to its coordinator.
+New mood activation, End, retry, and mode restoration return busy during delegated
+manual playback. The long network transaction does not hold the mood engine lock:
+Follow me motion joins, light-off departures, and observations remain available.
+The short lock is used for earlier-effect settlement and durable ownership release.
+Persistence failure prevents launch; caller timeout does not pretend an older
+executor command stopped. Existing mood presets keep their existing playback route.
+
+Pure tests cover service payloads, identity drift/ambiguity, grouped missing IDs,
+true executor lifetimes, request races, affected-control ownership, Follow me,
+and the current-track permission/source boundary. `tests_ha/test_dashboard_music_setup.py`
+adds isolated real-HA registration/schema/context tests. Actual household release
+and final acceptance evidence is recorded separately by the rollout controller;
+the backend author's tests do not stand in for those checks.
+
+The rollout controller ran isolated native tests in actual Core Python 3.14.6:
+**39 passed in 3.689s**, including the new component setup/service Context/WS
+schema/permission tests and existing integration, Follow light and startup
+readiness tests. This temp HA used fake providers and changed no household
+configuration or playback. Local final pure discovery passed **260 tests with
+one existing skip**; JavaScript passed **698 tests**, lint and dashboard build
+passed (existing bundle size warnings). Independent review and final live
+rollout acceptance remain separate checkpoints.

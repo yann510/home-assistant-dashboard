@@ -1,3 +1,18 @@
-# Library commands are authenticated WebSocket commands.
-# Playback service registration is reserved for the Connect rollout.
-{}
+# Library and saved-song operations use authenticated WebSocket commands.
+play_spotify:
+  name: Play Spotify playlist
+  description: Start a verified Spotify Connect playlist using the configured account and relay.
+  fields:
+    playlist_uri:
+      required: true
+      selector:
+        text:
+    source_entity:
+      required: true
+      selector:
+        entity:
+          domain: media_player
+    request_id:
+      required: true
+      selector:
+        text:

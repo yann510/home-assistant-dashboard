@@ -43,3 +43,4 @@ class PlaybackState:
     context_uri: str | None = None
     is_playing: bool | None = None
     is_connect: bool | None = None
+    track_uri: str | None = None

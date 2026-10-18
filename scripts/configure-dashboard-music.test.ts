@@ -393,7 +393,7 @@ it('configures only the component through explicit preflight and separate rollba
   const configureComponent = vi.fn(async () => ({ backup: backupPath }));
   const remote = { inspect: async () => ready(), inspectLibrary: async () => ready(), configureComponent, rollbackComponent: vi.fn(), install: vi.fn(), backup: vi.fn() };
   expect(await configureMusic({ configureComponent: 'media_player.spotifyplus_test' }, remote)).toMatchObject({ mode: 'configure-component', backup: backupPath });
-  expect(configureComponent).toHaveBeenCalledWith('media_player.spotifyplus_test');
+  expect(configureComponent).toHaveBeenCalledWith('media_player.spotifyplus_test', undefined);
   expect(remote.install).not.toHaveBeenCalled();
   expect(remote.backup).not.toHaveBeenCalled();
   await configureMusic({ rollbackComponent: backupPath }, remote);
@@ -402,7 +402,7 @@ it('configures only the component through explicit preflight and separate rollba
   await expect(configureMusic({ configureComponent: 'media_player.spotifyplus_test' }, { ...remote, inspectLibrary: async () => ({ ...ready(), accountVerified: false }) })).rejects.toThrow(/account/i);
 });
 
-it('backs up component YAML and removes only its unchanged block, preserving concurrent settings', async () => {
+it.each([undefined, 'a'.repeat(40)])('backs up component YAML including optional relay %s and rolls back its exact block', async relayDevice => {
   const { createRemote } = await installer();
   const root = await mkdtemp(join(tmpdir(), 'dashboard-music-config-'));
   const configPath = join(root, 'configuration.yaml');
@@ -417,10 +417,12 @@ it('backs up component YAML and removes only its unchanged block, preserving con
   };
   const remote = await createRemote({}, { ha: async () => ({ close() {}, request: async () => { throw new Error('No HA mutation expected'); } }), ssh: async () => ({ close() {}, python }) });
   try {
-    const result = await remote.configureComponent('media_player.spotifyplus_test');
+    const result = await remote.configureComponent('media_player.spotifyplus_test', relayDevice);
     const installed = await readFile(configPath, 'utf8');
     expect(installed).toContain('spotifyplus_entity: media_player.spotifyplus_test');
     expect(installed).toContain('media_player.bathroom');
+    expect(installed.includes('relay_device_id:')).toBe(relayDevice !== undefined);
+    if (relayDevice) expect(installed).toContain('relay_device_id: ' + relayDevice);
     expect(await readFile(join(root, result.backup.slice('/homeassistant/'.length), 'configuration.yaml'), 'utf8')).toBe(original);
     await writeFile(configPath, installed + '\n# Concurrent unrelated change\n');
     await remote.rollbackComponent(result.backup);

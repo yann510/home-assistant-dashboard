@@ -22,6 +22,7 @@ class HAIO:
         self.closed = False
         self.active_controls = set()
         self.guard = lambda controls: False
+        self.pending_services = set()
 
     def origin(self, context):
         origin = self.contexts.get(context.id) or self.contexts.get(context.parent_id)
@@ -44,11 +45,20 @@ class HAIO:
         context = Context()
         if session_id:
             self.contexts[context.id] = session_id
+        if len(self.pending_services) >= 32:
+            raise RuntimeError('Earlier device commands are still finishing.')
+        operation = asyncio.create_task(self.hass.services.async_call(domain, service, deepcopy(data),
+            target={'entity_id': targets} if targets else None, blocking=True,
+            context=context, return_response=return_response))
+        self.pending_services.add(operation)
+        def settled(done):
+            self.pending_services.discard(done)
+            if not done.cancelled():
+                done.exception()  # Retrieve late failures without exposing provider data.
+        operation.add_done_callback(settled)
         try:
             async with asyncio.timeout(SERVICE_TIMEOUT):
-                return await self.hass.services.async_call(domain, service, deepcopy(data),
-                    target={'entity_id': targets} if targets else None, blocking=True,
-                    context=context, return_response=return_response)
+                return await asyncio.shield(operation)
         except TimeoutError:
             raise OperationTimeout(f'{domain}.{service} timed out; its device effect is unconfirmed.') from None
         except Exception as err:
@@ -57,6 +67,11 @@ class HAIO:
                     and isinstance(err, HomeAssistantError)):
                 raise RuntimeError(f'{domain}.{service} did not complete: {err}') from err
             raise RuntimeError(f'{domain}.{service} did not complete.') from None
+
+    async def settle_pending(self):
+        """Await actual service lifetimes, including effects past caller timeout."""
+        while self.pending_services:
+            await asyncio.gather(*(asyncio.shield(task) for task in tuple(self.pending_services)), return_exceptions=True)
 
     async def wait(self, predicate, timeout=15):
         async with asyncio.timeout(timeout):

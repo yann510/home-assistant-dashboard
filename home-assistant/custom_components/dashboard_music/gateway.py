@@ -2,6 +2,8 @@
 import asyncio
 import math
 import time
+import ipaddress
+import re
 from .models import MusicError, PlaybackState, validate_page, validate_uri
 
 REQUIRED_SCOPES = frozenset(('playlist-read-private', 'playlist-read-collaborative', 'user-library-read', 'user-library-modify'))
@@ -77,7 +79,7 @@ class SpotifyGateway:
     max_pending_mutations = 8
     max_uncertain_tracks = 500
 
-    def __init__(self, hass, entity_id, registry_get, clock=time.monotonic):
+    def __init__(self, hass, entity_id, registry_get, clock=time.monotonic, relay_device_id=None, device_registry_get=None):
         self.hass = hass
         self.entity_id = entity_id
         self.registry_get = registry_get
@@ -88,6 +90,11 @@ class SpotifyGateway:
         self._pending_mutations = {}
         self._uncertain_tracks = set()
         self._track_reads = {}
+        self.relay_device_id = relay_device_id
+        self.device_registry_get = device_registry_get
+        self._devices = {}
+        self._targets = {}
+        self._pending_playback = set()
 
     def verify_account(self):
         entity = self.registry_get(self.entity_id)
@@ -214,12 +221,254 @@ class SpotifyGateway:
         await self._mutate_track(track_uri, 'save_track_favorites' if saved else 'remove_track_favorites',
                                  {'ids': track_uri.rsplit(':', 1)[1]})
 
-    # Task 3 supplies the Connect orchestration after real-device acceptance.
+    def _verify_playback(self, write=False):
+        account = self.verify_account()
+        runtime = self.hass.data['spotifyplus'][self._entry_id]
+        scope = runtime.session.token.get('scope', '')
+        required = {'user-read-playback-state', 'user-read-private'} | ({'user-modify-playback-state'} if write else set())
+        if not required <= set(scope.split()):
+            raise MusicError('auth_required')
+        services = {'get_spotify_connect_devices', 'get_player_playback_state'}
+        if write:
+            services.update(('player_media_play_context', 'zeroconf_device_connect', 'player_transfer_playback'))
+        if any(not self.hass.services.has_service('spotifyplus', name) for name in services):
+            raise MusicError('unavailable')
+        return account
+
+    async def _discovery(self):
+        self._verify_playback()
+        result = await self._call('get_spotify_connect_devices', {'refresh': True})
+        if not isinstance(result, dict) or not isinstance(result.get('Items'), list):
+            raise MusicError('unavailable')
+        devices, aliases = {}, {}
+        for raw in result['Items']:
+            if not isinstance(raw, dict) or not isinstance(raw.get('DeviceInfo'), dict):
+                raise MusicError('unavailable')
+            ident = raw.get('Id')
+            if not isinstance(ident, str) or not re.fullmatch('[0-9a-f]{40}', ident) or ident in devices:
+                raise MusicError('unavailable')
+            names = {name.strip().casefold() for name in (raw.get('Name'), raw['DeviceInfo'].get('RemoteName')) if isinstance(name, str) and name.strip()}
+            if not names:
+                raise MusicError('unavailable')
+            for name in names:
+                if name in aliases and aliases[name] != ident:
+                    # SpotifyPlus normalizes restricted IDs using device names.
+                    # Ambiguous dynamic, Sonos or alias entries cannot confirm.
+                    raise MusicError('unavailable')
+                aliases[name] = ident
+            devices[ident] = raw
+        self._devices = devices
+        return devices
+
+    def _sonos_device(self, source_entity, devices):
+        entity = self.registry_get(source_entity)
+        device = self.device_registry_get(entity.device_id) if entity and getattr(entity, 'platform', None) == 'sonos' and self.device_registry_get else None
+        identifiers = [ident for domain, ident in getattr(device, 'identifiers', ()) if domain == 'sonos' and isinstance(ident, str) and re.fullmatch('RINCON_[0-9A-Fa-f]+', ident)]
+        if len(identifiers) != 1:
+            raise MusicError('unavailable')
+        rincon = identifiers[0].casefold()
+        candidates = []
+        for raw in devices.values():
+            discovery = raw.get('DiscoveryResult') or {}
+            name = discovery.get('Name')
+            match = re.fullmatch(r'sonos(RINCON_[0-9A-Fa-f]+)\._spotify-connect\._tcp\.local\.', name) if isinstance(name, str) else None
+            if raw.get('IsSonos') is True and match and match[1].casefold() == rincon:
+                if (raw['DeviceInfo'].get('DeviceId') != raw['Id']
+                        or raw['DeviceInfo'].get('TokenType') != 'authorization_code'
+                        or discovery.get('Key', '').casefold() != name.casefold()):
+                    raise MusicError('unavailable')
+                candidates.append(raw)
+        if len(candidates) != 1:
+            raise MusicError('unavailable')
+        return candidates[0]
+
     async def resolve_device(self, source_entity: str) -> str:
-        raise MusicError('not_configured')
+        from ..house_moods.sonos import SPEAKERS
+        if source_entity not in SPEAKERS:
+            raise MusicError('invalid_request')
+        raw = self._sonos_device(source_entity, await self._discovery())
+        self._targets[raw['Id']] = source_entity
+        return raw['Id']
+
+    def _relay(self, devices):
+        if not isinstance(self.relay_device_id, str) or not re.fullmatch('[0-9a-f]{40}', self.relay_device_id):
+            raise MusicError('not_configured', 'Spotify playback relay is not configured.')
+        raw = devices.get(self.relay_device_id)
+        if (not raw or raw.get('IsSonos') is not False or raw.get('IsRestricted') is not False
+                or raw.get('IsInDeviceList') is not True or raw['DeviceInfo'].get('DeviceId') != self.relay_device_id
+                or raw['DeviceInfo'].get('IsAvailable') is not True):
+            raise MusicError('unavailable', 'The configured Spotify playback relay is unavailable.')
+        return raw
+
+    async def resolve_relay(self):
+        self._verify_playback(write=True)
+        if self.relay_device_id is None:
+            raise MusicError('not_configured', 'Spotify playback relay is not configured.')
+        return self._relay(await self._discovery())['Id']
+
+    async def _playback_mutation(self, name, data, response=False):
+        self._verify_playback(write=True)
+        if self._pending_playback:
+            raise MusicError('unavailable', 'An earlier Spotify playback command is still finishing.')
+        operation = asyncio.create_task(self._execute_call(name, data, response))
+        self._pending_playback.add(operation)
+        def settled(done):
+            self._pending_playback.discard(done)
+            if not done.cancelled():
+                done.exception()
+        operation.add_done_callback(settled)
+        try:
+            async with asyncio.timeout(self.call_timeout):
+                return await asyncio.shield(operation)
+        except TimeoutError:
+            raise MusicError('unavailable') from None
+
+    async def wait_playback_settled(self):
+        while self._pending_playback:
+            await asyncio.gather(*(asyncio.shield(task) for task in tuple(self._pending_playback)), return_exceptions=True)
 
     async def start_playlist(self, playlist_uri: str, device_id: str) -> None:
-        raise MusicError('not_configured')
+        validate_uri(playlist_uri, 'playlist')
+        relay = self._relay(await self._discovery())
+        if device_id != relay['Id']:
+            raise MusicError('invalid_request')
+        # Never send context-play to Sonos: this pinned provider would use its
+        # local queue. The verified non-Sonos relay takes the Connect API route.
+        await self._playback_mutation('player_media_play_context', {'context_uri': playlist_uri, 'device_id': device_id, 'delay': .5})
+
+    async def handoff(self, device_id, guard=lambda: True):
+        source = self._targets.get(device_id)
+        if source is None:
+            raise MusicError('invalid_request')
+        devices = await self._discovery()
+        target, relay = self._sonos_device(source, devices), self._relay(devices)
+        if target['Id'] != device_id or not guard():
+            raise MusicError('unavailable')
+        network = self._sonos_network(target)
+        account = self._verify_playback(write=True)
+        activated = await self._playback_mutation('zeroconf_device_connect', {
+            **network, 'username': account, 'password': '', 'loginid': account, 'pre_disconnect': False,
+            'verify_device_list_entry': False, 'delay': .5}, response=True)
+        if not isinstance(activated, dict) or activated.get('Status') != 101 or activated.get('SpotifyError') != 0 or not guard():
+            raise MusicError('unavailable')
+        # force_activate_device is retained for the verified service payload;
+        # it does not substitute for the unconditional Zeroconf step above.
+        await self._playback_mutation('player_transfer_playback', {'device_id': device_id, 'device_id_from': relay['Id'],
+            'play': True, 'delay': .5, 'force_activate_device': True})
+
+    @staticmethod
+    def _sonos_network(raw):
+        discovery = raw.get('DiscoveryResult') or {}
+        try:
+            host = str(ipaddress.IPv4Address(discovery.get('HostIpAddress')))
+        except ipaddress.AddressValueError:
+            raise MusicError('unavailable') from None
+        port, path, version = discovery.get('HostIpPort'), discovery.get('SpotifyConnectCPath'), discovery.get('SpotifyConnectVersion')
+        if type(port) is not int or not 1 <= port <= 65535 or path != '/spotifyzc' or version != '1' or not ipaddress.ip_address(host).is_private:
+            raise MusicError('unavailable')
+        return {'host_ipv4_address': host, 'host_ip_port': port, 'cpath': path, 'version': version, 'use_ssl': False}
+
+    async def _native_sonos_names(self, devices):
+        """Read actual group names; discovery names can remain the solo names."""
+        from ..house_moods.sonos import SPEAKERS
+        sonos = []
+        for raw in devices.values():
+            if raw.get('IsSonos') is not True:
+                continue
+            matches = []
+            for entity in SPEAKERS:
+                try:
+                    self._sonos_device(entity, {raw['Id']: raw})
+                    matches.append(entity)
+                except MusicError:
+                    pass
+            if len(matches) != 1:
+                raise MusicError('unavailable')
+            source = matches[0]
+            state = self.hass.states.get(source)
+            group = state.attributes.get('group_members') if state else None
+            if (not isinstance(group, list) or not group or source not in group or len(set(group)) != len(group)
+                    or any(member not in SPEAKERS for member in group)):
+                raise MusicError('unavailable')
+            for member in group:
+                reported = self.hass.states.get(member)
+                members = reported.attributes.get('group_members') if reported else None
+                if not isinstance(members, list) or not members or members[0] != group[0] or set(members) != set(group):
+                    raise MusicError('unavailable')
+            if group[0] == source:
+                sonos.append(raw)
+            # Stale discovery may still list a just-joined follower. Its Connect
+            # endpoint is disabled; only the actual HA coordinator is an output.
+        if len(sonos) > 16 or not self.hass.services.has_service('spotifyplus', 'zeroconf_device_getinfo'):
+            raise MusicError('unavailable')
+        semaphore = asyncio.Semaphore(4)
+        async def read(raw):
+            async with semaphore:
+                info = await self._call('zeroconf_device_getinfo', self._sonos_network(raw))
+                if (not isinstance(info, dict) or info.get('Status') != 101 or info.get('DeviceId') != raw['Id']
+                        or info.get('BrandDisplayName') != 'Sonos' or info.get('TokenType') != 'authorization_code'
+                        or not isinstance(info.get('RemoteName'), str) or not info['RemoteName'].strip()
+                        or not isinstance(info.get('Aliases'), list)):
+                    raise MusicError('unavailable')
+                return raw, info
+        async with asyncio.timeout(self.call_timeout):
+            responses = await asyncio.gather(*(read(raw) for raw in sonos))
+        names = {}
+        def record(name, ident):
+            key = name.strip().casefold()
+            if not key or (key in names and names[key] != ident):
+                raise MusicError('unavailable')
+            names[key] = ident
+        for raw in devices.values():
+            if raw.get('IsSonos') is not True:
+                for name in (raw.get('Name'), raw['DeviceInfo'].get('RemoteName')):
+                    if isinstance(name, str) and name.strip():
+                        record(name, raw['Id'])
+        for raw, info in responses:
+            record(info['RemoteName'], raw['Id'])
+            for alias in info['Aliases']:
+                if not isinstance(alias, dict) or not isinstance(alias.get('Name'), str):
+                    raise MusicError('unavailable')
+                record(alias['Name'], raw['Id'])
+        # Match exact native RemoteName only. Aliases guard ambiguity but cannot
+        # guess a different native target or invent the provider's group suffix.
+        return {info['RemoteName']: raw['Id'] for raw, info in responses}
 
     async def playback_state(self) -> PlaybackState:
-        raise MusicError('not_configured')
+        account = self._verify_playback()
+        devices = await self._discovery()
+        result = await self._call('get_player_playback_state', {})
+        if not isinstance(result, dict):
+            raise MusicError('unavailable')
+        device, context, item = result.get('device') or {}, result.get('context') or {}, result.get('item') or {}
+        if any(not isinstance(value, dict) for value in (device, context, item)):
+            raise MusicError('unavailable')
+        ident, connect = device.get('id'), None
+        native_names = {}
+        if device.get('is_restricted') is True and result.get('is_device_state') is not True:
+            native_names = await self._native_sonos_names(devices)
+            native_id = native_names.get(device.get('name'))
+            if native_id and ident in (None, '', native_id):
+                ident = native_id
+        known = devices.get(ident) if isinstance(ident, str) else None
+        if known and result.get('is_device_state') is not True:
+            if known.get('IsSonos') is True and ident in self._targets:
+                source = self._targets[ident]
+                resolved = self._sonos_device(source, devices)
+                native = self.hass.states.get(source)
+                name_matches = (native_names.get(device.get('name')) == ident if device.get('is_restricted') is True
+                                else device.get('name') == resolved.get('Name'))
+                connect = (resolved['Id'] == ident and name_matches and native is not None
+                           and native.attributes.get('source') == 'Spotify Connect'
+                           and result.get('device_music_source') in (None, 'SPOTIFY_CONNECT'))
+            elif known.get('IsSonos') is False:
+                connect = (known.get('IsRestricted') is False and known.get('IsInDeviceList') is True
+                           and device.get('is_restricted') is False)
+        track = None
+        if item.get('type') == 'track' and item.get('is_local') is not True:
+            try:
+                track = validate_uri(item.get('uri'), 'track')
+            except MusicError:
+                pass
+        return PlaybackState(account, ident, context.get('uri'), result.get('is_playing') if type(result.get('is_playing')) is bool else None,
+                             connect, track)

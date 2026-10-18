@@ -56,6 +56,13 @@ class PermissionTests(unittest.IsolatedAsyncioTestCase):
         for config in ({'spotifyplus_entity': [ENTITY], 'speakers': SPEAKERS}, {'spotifyplus_entity': ENTITY, 'speakers': SPEAKERS[:-1]}, {'spotifyplus_entity': ENTITY, 'speakers': SPEAKERS + ['media_player.office']}, {'spotifyplus_entity': ENTITY, 'speakers': SPEAKERS, 'account_id': 'other'}):
             with self.assertRaises(MusicError):
                 validate_config(config)
+
+    async def test_optional_relay_is_fixed_backend_identity(self):
+        config = {'spotifyplus_entity': ENTITY, 'speakers': SPEAKERS, 'relay_device_id': 'a' * 40}
+        self.assertEqual(validate_config(config)['relay_device_id'], 'a' * 40)
+        for relay in ('', 'relay-name', 'g' * 40, None, ['a' * 40]):
+            with self.subTest(relay=relay), self.assertRaises(MusicError):
+                validate_config({**config, 'relay_device_id': relay})
     async def test_sanitized_rate_limit_and_shutdown(self):
         async def limited(*_):
             raise MusicError('rate_limited', retry_after=999)
@@ -67,6 +74,22 @@ class PermissionTests(unittest.IsolatedAsyncioTestCase):
         connection.error = None
         await self.runtime.handle(connection, {'id': 1, 'type': 'dashboard_music/playlists', 'offset': 0})
         self.assertEqual(connection.error['code'], 'unavailable')
+
+    async def test_play_service_uses_only_authenticated_context_and_fixed_backend(self):
+        self.assertTrue(hasattr(self.runtime, 'handle_play'), 'playback response service is missing')
+        calls = []
+        async def play(*args, **kwargs):
+            calls.append((args, kwargs))
+            return {'status': 'confirmed'}
+        self.runtime.playback = NS(play=play)
+        call = NS(data={'playlist_uri': P1, 'source_entity': SPEAKERS[2], 'request_id': 'intent'},
+                  context=NS(user_id='authenticated-user', id='real-ha-context'))
+        self.assertEqual(await self.runtime.handle_play(call), {'status': 'confirmed'})
+        self.assertEqual(calls, [((P1, SPEAKERS[2], 'intent', 'authenticated-user'), {'context_id': 'real-ha-context'})])
+        for extra in ('device_id', 'relay_device_id', 'account_id', 'user_id', 'host_ipv4_address'):
+            with self.assertRaises(MusicError):
+                await self.runtime.handle_play(NS(data={**call.data, extra: 'untrusted'}, context=call.context))
+        self.assertEqual(len(calls), 1)
 
     async def test_socket_registration_routes_to_permissions_and_cleanup_preserves_replacement(self):
         from unittest.mock import patch
@@ -88,16 +111,31 @@ class PermissionTests(unittest.IsolatedAsyncioTestCase):
         constants.EVENT_HOMEASSISTANT_STOP = 'stop'
         registry = types.ModuleType('homeassistant.helpers.entity_registry')
         registry.async_get = lambda _: NS(async_get=lambda _: None)
+        devices = types.ModuleType('homeassistant.helpers.device_registry')
+        devices.async_get = registry.async_get
         vol = types.ModuleType('voluptuous')
         vol.ALLOW_EXTRA = object()
+        core = types.ModuleType('homeassistant.core')
+        core.SupportsResponse = NS(ONLY='only')
+        exceptions = types.ModuleType('homeassistant.exceptions')
+        exceptions.HomeAssistantError = type('HomeAssistantError', (Exception,), {})
         modules = {'homeassistant': types.ModuleType('homeassistant'), 'homeassistant.components': types.ModuleType('homeassistant.components'),
                    'homeassistant.components.websocket_api': ws, 'homeassistant.const': constants,
-                   'homeassistant.helpers': types.ModuleType('homeassistant.helpers'), 'homeassistant.helpers.entity_registry': registry, 'voluptuous': vol}
-        hass = NS(data={}, bus=NS(async_listen_once=lambda event, handler: listeners.append((event, handler)) or (lambda: None)))
+                   'homeassistant.helpers': types.ModuleType('homeassistant.helpers'), 'homeassistant.helpers.entity_registry': registry, 'homeassistant.helpers.device_registry': devices, 'voluptuous': vol,
+                   'homeassistant.core': core, 'homeassistant.exceptions': exceptions}
+        services = {}
+        hass = NS(data={}, bus=NS(async_listen_once=lambda event, handler: listeners.append((event, handler)) or (lambda: None)),
+                  services=NS(async_register=lambda domain, service, handler, **options: services.update({(domain, service): (handler, options)}),
+                              async_remove=lambda domain, service: services.pop((domain, service), None)))
         with patch.dict(sys.modules, modules):
             self.assertTrue(await async_setup(hass, {'dashboard_music': {'spotifyplus_entity': ENTITY, 'speakers': SPEAKERS}}))
-            self.assertEqual(set(registrations), {'dashboard_music/playlists', 'dashboard_music/track_saved', 'dashboard_music/set_track_saved'})
+            self.assertEqual(set(registrations), {'dashboard_music/playlists', 'dashboard_music/track_saved', 'dashboard_music/set_track_saved', 'dashboard_music/current_track'})
             runtime = hass.data['dashboard_music']
+            self.assertIn(('dashboard_music', 'play_spotify'), services)
+            handler, options = services[('dashboard_music', 'play_spotify')]
+            self.assertEqual(options['supports_response'], 'only')
+            with self.assertRaises(exceptions.HomeAssistantError):
+                await handler(NS(data={'device_id': 'untrusted'}, context=NS(user_id='user', id='context')))
             runtime.gateway = None
             runtime.library = Library(self.provider)
             connection = Connection()
@@ -108,6 +146,7 @@ class PermissionTests(unittest.IsolatedAsyncioTestCase):
             await listeners[0][1]()
             self.assertEqual(hass.data['websocket_api'], {'dashboard_music/playlists': replacement})
             self.assertNotIn('dashboard_music', hass.data)
+            self.assertEqual(services, {})
 
     async def test_shutdown_cancels_pending_provider_operation_and_clears_cache(self):
         import asyncio

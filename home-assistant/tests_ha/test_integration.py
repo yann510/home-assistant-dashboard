@@ -131,9 +131,10 @@ class IntegrationTests(unittest.IsolatedAsyncioTestCase):
         adapter = Adapter()
         io = HAIO(self.hass)
         cancelled = asyncio.Event()
+        release = asyncio.Event()
         async def blocked(call):
             try:
-                await asyncio.Event().wait()
+                await release.wait()
             finally:
                 cancelled.set()
         self.hass.services.async_register('light', 'turn_on', blocked)
@@ -146,6 +147,9 @@ class IntegrationTests(unittest.IsolatedAsyncioTestCase):
         with patch('custom_components.house_moods.ha_adapter.SERVICE_TIMEOUT', .01, create=True):
             result = await asyncio.wait_for(engine.activate('love'), .5)
         self.assertEqual(result['phase'], 'recovery_required')
+        self.assertFalse(cancelled.is_set())
+        release.set()
+        await io.settle_pending()
         self.assertTrue(cancelled.is_set())
         self.assertFalse(engine._lock.locked())
         self.assertEqual(store.value.journal[-1]['status'], 'planned')
@@ -163,15 +167,18 @@ class IntegrationTests(unittest.IsolatedAsyncioTestCase):
     async def test_production_service_cancellation_is_not_converted_to_timeout(self):
         io = HAIO(self.hass)
         entered = asyncio.Event()
+        release = asyncio.Event()
         async def blocked(call):
             entered.set()
-            await asyncio.Event().wait()
+            await release.wait()
         self.hass.services.async_register('light', 'turn_on', blocked)
         task = asyncio.create_task(io.call('light', 'turn_on', ['light.test'], {}, 'session'))
         await entered.wait()
         task.cancel()
         with self.assertRaises(asyncio.CancelledError):
             await task
+        release.set()
+        await io.settle_pending()
         io.closed = True
         with self.assertRaises(asyncio.CancelledError):
             await io.call('light', 'turn_on', [], {}, 'session')

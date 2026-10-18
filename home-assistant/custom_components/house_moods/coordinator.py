@@ -20,6 +20,7 @@ class MoodCoordinator:
         self._last_errors = []
         self._storage_failed = False
         self._manual_during_operation = set()
+        self._manual_playback_active = 0
 
     def status(self, success=True):
         s = self.session
@@ -88,7 +89,7 @@ class MoodCoordinator:
 
     async def apply_mode(self, mode):
         # Do not queue a stale opposite mode behind a running transition.
-        if self._lock.locked():
+        if self._lock.locked() or self._manual_playback_active:
             result = self.status(False)
             result['errors'] = [{'target': 'coordinator', 'message': 'Operation in progress'}]
             return result
@@ -169,7 +170,7 @@ class MoodCoordinator:
         return result
 
     async def activate(self, mood):
-        if self._lock.locked():
+        if self._lock.locked() or self._manual_playback_active:
             result = self.status(False)
             result['errors'] = [{'target': 'coordinator', 'message': 'Operation in progress'}]
             return result
@@ -521,7 +522,7 @@ class MoodCoordinator:
         await self._save()
 
     async def end(self):
-        if self._lock.locked():
+        if self._lock.locked() or self._manual_playback_active:
             result = self.status(False)
             result['errors'] = [{'target': 'coordinator', 'message': 'Operation in progress'}]
             return result
@@ -550,6 +551,8 @@ class MoodCoordinator:
                 return self.status(False)
 
     async def retry_restoration(self):
+        if self._manual_playback_active:
+            return await self.end()
         # Explicit retry also allows recovery from a transient Store outage.
         if self._storage_failed:
             self._storage_failed = False
