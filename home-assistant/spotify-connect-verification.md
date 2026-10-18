@@ -16,18 +16,20 @@ checks. Earlier installation-only “unverified” statuses are superseded here.
 | Relay isolation and restart recovery | PASS | Private paced PulseAudio null sink, UID/GID 1000, zero capabilities, no privileged/device/physical audio access; automatic boot/watchdog; relay restart and HA Core restart recovery succeeded |
 | Exact playlist/account/relay to native Sonos Connect | PASS | Fresh account/relay/context/playing, explicit supported Zeroconf activation and transfer, then fresh native Sonos Connect plus cloud target/context/playing confirmation; first/second playlists and repeated launches to already-listed devices succeeded |
 | Request identity and already-playing no-op | PASS | Duplicate request ID returned the identical result; new intent for the confirmed same context returned `already_playing` |
-| Existing group and requested follower | PASS, scoped | Gym + Bedroom launch requested through the follower resolved Gym; exact current track, group, and individual volumes were preserved. Living Room, Bathroom and Bedroom cold starts subsequently confirmed, supplementing prior Gym confirmation; reversed-group discovery fix still awaits reviewed live upgrade |
+| Existing group and requested follower | PASS, scoped | Gym + Bedroom launch requested through the follower resolved Gym; exact current track, group, and individual volumes were preserved. Living Room, Bathroom and Bedroom cold starts subsequently confirmed, supplementing prior Gym confirmation; reversed-group discovery fix is independently approved, with live restart/retest pending |
 | Spotify phone output, queue/control and Jam | PASS, scoped | User: “yes I see it on my phone and jam works :D”. A second participant adding a track before/after topology changes was not separately narrated and remains pending |
 | Physical Follow me on/off with Spotify/Jam | PASS | User was asked to resume Gym, start Jam, enable Follow, walk through mapped lit rooms, verify joins without Spotify/Jam interruption, and disable Follow while Gym keeps playing. User confirmed: “yes all of this works this is awesome!!” |
 | Native Sonos transport/seek/room volume | PASS, scoped | Actual Bedroom coordinator + Gym follower Connect/cloud: pause/resume, one next, one previous returning the prior track, seek to 35 s confirmed by cloud at 34–42 s, Gym volume .20 → .21 → .20 while Bedroom stayed .19. Sonos transport is retained |
-| Manual grouping/ungrouping and reversed coordinator | PARTIAL | Reversed Bedroom + Gym group exposed the exact known-follower SDK placeholder described below; local regression/fix passes, independent review and live backend upgrade/recheck remain pending |
+| Manual grouping/ungrouping and reversed coordinator | PARTIAL | Reversed Bedroom + Gym group exposed the exact known-follower SDK placeholder described below; local regression/fix passes and independent task review approved it. Reviewed gateway copied to HA; configuration check passed, restart in progress and live recheck pending |
 | Manual launch supersedes mood playback | PASS | Gym mood active → manual Spotify `confirmed` → End mood idle left manual session playing; relevant lighting/group/volume/Follow state restored |
 | Playlist listing and pagination | PASS | Seven real playlists, two owned/five followed; offsets 0/2/4/6 returned 2/2/2/1 and preserved full-read URI order |
 | Private/collaborative real playlists | PENDING | Required scopes and mock coverage exist; all seven actual playlists are public/noncollaborative. No real sample was created |
 | Save/remove and external saved-state reconciliation | PASS, scoped | Paused Connect exact-track WebSocket write to opposite state → direct provider check → prior state restored; external provider change reconciled through WebSocket after 31 seconds, then restored. Track races and pending/error behavior have automated coverage |
 | Failed launch/disconnection recovery | AUTOMATED; live final check pending | New frontend/backend regressions require a new explicit intent and prohibit automatic replay; real restart recovery passed separately |
+| Natural authorization expiry recovery | PENDING | Read-only inspection confirmed the Desktop cache naturally expired before the latest restart, with a refresh token present. Normal activation/automatic refresh after this expiry still awaits verification; earlier normal SDK refresh and restart recovery passed separately |
 | Actual Fire viewport | PASS | Physical photographs establish dashboard iframe inner/document/visual 1224×614 CSS px, visual scale 1, DPR 1.5; screen 1280×800 landscape-primary |
-| Responsive states and final production release | IN PROGRESS | Supplemental preview at 1224×614, 375×812 and 960×540 uses DPR 1; controller owns final state/screenshots, complete checks, independent review and atomic deployment/push evidence |
+| Responsive states | PASS, preview scope | Actual HA host with collapsed sidebar at 1280×614 yields iframe inner/document/visual 1224×614, scale 1, DPR 1 emulation and no overflow. Supplemental fixtures cover 375×812 and 960×540; new UI has not been verified on the physical Fire |
+| Trial/production release and remote main | PENDING | Controller owns final whole-branch independent review, affected native HA checks, atomic trial/production publication, served-asset hashes and final push/remote HEAD verification |
 
 The Fire photos include a Silk address bar, HA sidebar and Android navigation.
 The user calls this the HA app; this is not evidence of a chrome-free fullscreen
@@ -35,14 +37,23 @@ viewport. The measured music card remains x=647.796875, y=150,
 width=556.203125, height=232 CSS px. Existing controller preview evidence includes
 no tablet overflow, 44 px heart, visible Fire/phone error, paused Connect save,
 TV-disabled heart, and grouping/Follow remaining available after heart save.
-Animation timings (save 420 ms/remove 240 ms), reduced motion, pending races and
-stale heart responses have unit coverage. Simulated viewports supplement the
-physical measurement; they are not physical Fire proof.
+Sticky playlist feedback stayed visible for both first and last items in a
+56-item fixture during pending/error states at Fire and phone sizes. The empty
+960×540 state, broken-art fallback and long names were inspected without overflow.
+The 44 px heart's focus, paused save, TV-disabled state, visible error and particle
+cleanup were checked in the browser. Animation timings (save 420 ms/remove 240 ms),
+reduced motion, pending races and stale heart responses have unit coverage.
+Simulated viewports supplement the physical measurement; they are not physical
+Fire proof. See [dated UI and acceptance QA](../docs/canvas-qa/spotify-connect-2026-10-17.md).
 
 ## Current installation and protected recovery records
 
-The live backend was verified at commit `8f01e72`; subsequent frontend regression
-and documentation changes do not imply a newer household backend deployment.
+The full live backend was verified at commit `8f01e72`. The reviewed gateway
+update from `6545cef` was subsequently copied to HA, SHA256
+`a680b92a4534df39579318882e9b755471d7941247185ba4fcccc34f80bacb91`;
+configuration check passed, restart is in progress and reversed-group recheck
+remains pending. Frontend or documentation changes do not imply a newer household
+dashboard deployment.
 The controller records the final release ID and served/remote hashes after rollout.
 After the latest native control checks, the controller restored Gym coordinator +
 Bedroom group, Follow on with saved Gym source, original volumes and paused state;
@@ -51,10 +62,11 @@ restored; no exact prior-track or queue-restoration claim is made.
 
 - Backend runtime backup: `/homeassistant/backups.local/dashboard-music-runtime-20261018T004733191Z`.
 - Owned component YAML backup: `/homeassistant/backups.local/dashboard-music-20261018T004745349110Z`.
+- Gateway update backup: `/homeassistant/backups.local/dashboard-music-gateway-20261018T011727616Z`.
 - Relay installation backup: `/homeassistant/backups.local/dashboard-spotify-relay-20261018T002244009423Z`.
 - Relay credential merge backup: `/homeassistant/backups.local/spotify-relay-credentials-20261018T002705Z`.
 - Relay add-on `local_dashboard_spotify_relay`, version 1.0.0; stable name `Dashboard Relay d41bd14b`, configured Connect ID `ccd3841721c7b3bc03a5859311f40e34975b3817`.
-- Relay credential file `cache/data/credentials/credentials.json` is mode 0600; bootstrap credential is absent. Other component files and shared integration storage remain untouched.
+- Relay durable credential file `/data/credentials/credentials.json` is mode 0600; bootstrap credential is absent. It is deliberately outside the upstream anonymous `/data/cache` volume. The separately merged SpotifyPlus store is `/config/.storage/SpotifyWebApiPython_librespot_credentials.json` inside HA Core (`/homeassistant/.storage/SpotifyWebApiPython_librespot_credentials.json` through SSH); unrelated account entries were preserved. Desktop token cache `/config/.storage/spotifyplus_tokens.json` is mode 0600. Other component files and unrelated shared integration storage remain untouched.
 
 Credentials stay in ignored private tooling and HA/integration storage. They do
 not belong in source, build variables, logs, screenshots, reports or Git. Consent
@@ -260,7 +272,8 @@ regressions now cover that exact shape: exclusion requires matching discovery
 Name/Key/RemoteName, one stable registry RINCON match, no duplicate discovery
 identity, and fresh complete consistent HA topology proving it is a follower.
 Coordinator, unknown, ambiguous, malformed and inconsistent-topology placeholders
-remain errors. This narrow fix awaits independent review and live upgrade/recheck.
+remain errors. Independent task review approved this narrow fix; the reviewed
+gateway has been copied to HA and awaits restart and live recheck.
 Unknown speakers, changed identities, missing evidence, and ambiguous names fail
 closed.
 
@@ -312,7 +325,13 @@ needed. These are mock regressions, not live Spotify/Jam acceptance.
 
 `PYTHONPATH=home-assistant/tests python3 -m unittest test_dashboard_music_connect test_dashboard_music_gateway test_dashboard_music_current_track test_dashboard_music_playback -v`: **70 tests passed** after the discovery fix. The actual-shape positive regression first failed at the invalid discovery ID check; unknown/coordinator/ambiguous and malformed topology cases continue to fail closed.
 
-The controller runs the final complete JavaScript/Python/lint/dashboard-build and
-whitespace checks after all fixes, performs independent final review, and records
-remaining live/UI acceptance and the atomic production release separately. No
-final deployment or remote-main completion is claimed by this focused test task.
+The controller's complete run at `6545cef` passed **758 JavaScript tests in 48
+files (21.95 s)**, **274 pure Python tests (3.314 s, one existing skip)**, lint,
+dashboard build and `git diff --check`. Relay verification separately passed
+**8 relay unit tests** and **7 Python installer tests**. The build's existing
+large-chunk advisory remains. Pure Python tests do not establish the actual
+HA Core runtime; the 40 native HA tests above belong to `8f01e72`, before the
+gateway update. Affected native verification after restart, final whole-branch
+independent review and release/remote checks remain controller-owned gates.
+No atomic trial/production release, served hash or final remote-main completion
+is claimed by this documentation checkpoint.
