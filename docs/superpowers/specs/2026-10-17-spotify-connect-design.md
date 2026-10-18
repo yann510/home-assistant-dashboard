@@ -122,3 +122,18 @@ Fetch again before final integration. Work from current main, preserve unrelated
 ## Review and next stage
 
 Review this written specification before creating the implementation plan. Then use the writing-plans skill and the user's already-selected subagent-driven execution with independent reviews. No need to ask the user to select an execution method again. Account authorization and hands-on Jam acceptance remain explicit user participation points, not reasons to leave independently executable work incomplete.
+
+
+## Approved relay revision — 2026-10-17
+
+The user approved the Home Assistant relay after comparing alternatives. Keep every existing requirement and all unrelated dashboard behavior, including the current Follow me light-off/startup fixes from main. The original direct SpotifyPlus context-start assumption is superseded: the installed API routes that call to the Sonos queue.
+
+Add a small local Home Assistant add-on running pinned, maintained librespot with a private PulseAudio server containing only a paced null sink. No physical audio devices, shared HA audio socket, privileged mode, host filesystem access or public control API are needed. Advertise its Connect device on the LAN; persist its stable identity and protected account credentials across restarts. Boot/watchdog supervision must recover it. Never use bare /dev/null, a browser tab, a phone, a desktop app, or Sonos volume zero as the silence mechanism. Credentials stay in add-on data/HA storage, never source or logs.
+
+A playlist launch captures and validates the actual Sonos coordinator, group and Follow me state, plus a backend-configured exact relay device ID. Start the exact account-library context on the unrestricted relay through SpotifyPlus, confirm account/relay/context, then activate/transfer Spotify Connect to the captured Sonos coordinator and confirm account/target/context/playing. The relay only stages playback; Sonos streams directly from Spotify after handoff. Never call a Sonos context-start service or create a local queue.
+
+Validate the installed supported zeroconf_device_connect schema for explicit activation when normal transfer skips an already-listed target. Do not trust the ineffective force_activate_device parameter. Activation acknowledgements are not playback confirmation; no automatic command replay or guessed target is permitted. Keep one account operation guard across both stages and actual late effects; preserve the existing 30-second caller deadline. Failures leave a clear retryable state, not a local-queue fallback.
+
+Resolve exact fixed account/relay identity server-side. If relay setup is absent, library reads and song saves can remain available but playback fails not-configured. Skip staging for positively confirmed already-playing account/target/context. After handoff, transport and grouping must act on the Sonos session and must not reactivate the relay. Do not promise that selecting a new playlist preserves an existing Jam until separately tested.
+
+First prove real silent, normally paced relay playback, multiple different playlist launches after transfers, cold Sonos/restart recovery, existing and changed coordinators, and Spotify-visible control/Jam. No dashboard feature rollout until the original acceptance matrix passes. Keep the direct private Connect-state controller only as an explicitly investigated fallback if the selected route fails; do not silently install it.
