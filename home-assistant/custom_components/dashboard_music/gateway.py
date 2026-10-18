@@ -235,6 +235,51 @@ class SpotifyGateway:
             raise MusicError('unavailable')
         return account
 
+    def _sonos_rincon(self, source_entity):
+        entity = self.registry_get(source_entity)
+        device = self.device_registry_get(entity.device_id) if entity and getattr(entity, 'platform', None) == 'sonos' and self.device_registry_get else None
+        identifiers = [ident for domain, ident in getattr(device, 'identifiers', ()) if domain == 'sonos' and isinstance(ident, str) and re.fullmatch('RINCON_[0-9A-Fa-f]+', ident)]
+        if len(identifiers) != 1:
+            raise MusicError('unavailable')
+        return identifiers[0].casefold()
+
+    def _known_follower_placeholder(self, raw):
+        """A joined follower can disable getInfo; never ignore unknown bad rows."""
+        from ..house_moods.sonos import SPEAKERS
+        info, discovery = raw.get('DeviceInfo'), raw.get('DiscoveryResult')
+        if (raw.get('Id') != 'getInfoError' or raw.get('IsSonos') is not False
+                or not isinstance(info, dict) or info.get('DeviceId') != 'getInfoError' or info.get('Status') != 9999
+                or not isinstance(discovery, dict) or discovery.get('IsDynamicDevice') is not False):
+            return False
+        name, key = discovery.get('Name'), discovery.get('Key')
+        match = re.fullmatch(r'sonos(RINCON_[0-9A-Fa-f]+)\._spotify-connect\._tcp\.local\.', name) if isinstance(name, str) else None
+        if (not match or not isinstance(key, str) or key.casefold() != name.casefold()
+                or raw.get('Name') != 'sonos' + match[1] or info.get('RemoteName') != raw.get('Name')):
+            return False
+        try:
+            identities = {entity: self._sonos_rincon(entity) for entity in SPEAKERS}
+        except MusicError:
+            return False
+        if len(set(identities.values())) != len(identities):
+            return False
+        source = next((entity for entity, rincon in identities.items() if rincon == match[1].casefold()), None)
+        if source is None:
+            return False
+        # Re-read all HA reports after fresh provider discovery. Only a fully
+        # consistent graph can prove this exact registered speaker is a follower.
+        reports = {}
+        for entity in SPEAKERS:
+            state = self.hass.states.get(entity)
+            group = state.attributes.get('group_members') if state else None
+            if (state is None or state.state in ('unknown', 'unavailable') or not isinstance(group, list)
+                    or not group or any(not isinstance(member, str) or member not in SPEAKERS for member in group)
+                    or entity not in group or len(set(group)) != len(group)):
+                return False
+            reports[entity] = (group[0], *sorted(group[1:]))
+        if any(reports[member] != group for group in reports.values() for member in group):
+            return False
+        return reports[source][0] != source
+
     async def _discovery(self):
         self._verify_playback()
         result = await self._call('get_spotify_connect_devices', {'refresh': True})
@@ -244,6 +289,15 @@ class SpotifyGateway:
         for raw in result['Items']:
             if not isinstance(raw, dict) or not isinstance(raw.get('DeviceInfo'), dict):
                 raise MusicError('unavailable')
+            if self._known_follower_placeholder(raw):
+                name = raw['DiscoveryResult']['Name'].casefold()
+                matches = [entry for entry in result['Items'] if isinstance(entry, dict)
+                           and isinstance(entry.get('DiscoveryResult'), dict)
+                           and isinstance(entry['DiscoveryResult'].get('Name'), str)
+                           and entry['DiscoveryResult']['Name'].casefold() == name]
+                if len(matches) != 1:
+                    raise MusicError('unavailable')
+                continue
             ident = raw.get('Id')
             if not isinstance(ident, str) or not re.fullmatch('[0-9a-f]{40}', ident) or ident in devices:
                 raise MusicError('unavailable')
@@ -261,12 +315,7 @@ class SpotifyGateway:
         return devices
 
     def _sonos_device(self, source_entity, devices):
-        entity = self.registry_get(source_entity)
-        device = self.device_registry_get(entity.device_id) if entity and getattr(entity, 'platform', None) == 'sonos' and self.device_registry_get else None
-        identifiers = [ident for domain, ident in getattr(device, 'identifiers', ()) if domain == 'sonos' and isinstance(ident, str) and re.fullmatch('RINCON_[0-9A-Fa-f]+', ident)]
-        if len(identifiers) != 1:
-            raise MusicError('unavailable')
-        rincon = identifiers[0].casefold()
+        rincon = self._sonos_rincon(source_entity)
         candidates = []
         for raw in devices.values():
             discovery = raw.get('DiscoveryResult') or {}

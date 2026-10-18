@@ -5,6 +5,7 @@ from types import SimpleNamespace as NS
 import unittest
 from test_dashboard_music_gateway import Services, make_hass, ACCOUNT, ENTITY, P1, TRACK
 from custom_components.dashboard_music.gateway import SpotifyGateway
+from custom_components.dashboard_music import Runtime
 from custom_components.dashboard_music.models import MusicError
 from custom_components.dashboard_music.playback import PlaybackController, SpeakerPort
 from test_dashboard_music_playback import house, Listed
@@ -181,6 +182,136 @@ class ConnectGatewayTests(unittest.IsolatedAsyncioTestCase):
         state = await self.gateway.playback_state()
         self.assertEqual((state.device_id, state.is_connect), (TARGET, True))
         self.assertEqual([data['host_ipv4_address'] for _, name, data, _ in self.services.calls if name == 'zeroconf_device_getinfo'], ['192.168.0.40'])
+
+    def configure_failed_follower_discovery(self):
+        """Actual SDK shape after Gym joins Bedroom and disables its endpoint."""
+        coordinator = 'media_player.bedroom'
+        rincons = {entity: f'RINCON_{index:016X}' for index, entity in enumerate(SPEAKERS, 1)}
+        rincons[SOURCE] = RINCON
+        placeholder = {
+            'Id': 'getInfoError', 'Name': 'sonos' + RINCON, 'IsSonos': False,
+            'DeviceInfo': {'DeviceId': 'getInfoError', 'RemoteName': 'sonos' + RINCON,
+                           'Status': 9999, 'BrandDisplayName': None, 'TokenType': None},
+            'DiscoveryResult': {'Name': 'sonos' + RINCON + '._spotify-connect._tcp.local.',
+                                'Key': ('sonos' + RINCON + '._spotify-connect._tcp.local.').lower(),
+                                'IsDynamicDevice': False},
+        }
+        target = self.services.devices[0]
+        target['Name'] = target['DeviceInfo']['RemoteName'] = 'Bedroom'
+        target['DiscoveryResult']['Name'] = 'sonos' + rincons[coordinator] + '._spotify-connect._tcp.local.'
+        target['DiscoveryResult']['Key'] = target['DiscoveryResult']['Name'].lower()
+        self.services.devices.append(placeholder)
+        account = self.gateway.registry_get(ENTITY)
+        self.gateway.registry_get = lambda entity: account if entity == ENTITY else NS(platform='sonos', device_id=entity) if entity in rincons else None
+        self.registries = {entity: NS(identifiers={('sonos', rincon)}) for entity, rincon in rincons.items()}
+        self.gateway.device_registry_get = self.registries.get
+        local, self.states, _ = house()
+        self.hass.auth = local.auth
+        self.states[ENTITY] = NS(state='playing', attributes={'sp_user_id': ACCOUNT})
+        for entity in SPEAKERS:
+            self.states[entity].attributes['source'] = 'Spotify Connect'
+        for entity in (coordinator, SOURCE):
+            self.states[entity].attributes['group_members'] = [coordinator, SOURCE]
+        self.hass.states.get = self.states.get
+        self.services.cloud['device'].update(id=None, name='Bedroom + 1')
+        self.services.native[TARGET] = {'Status': 101, 'DeviceId': TARGET, 'RemoteName': 'Bedroom + 1',
+                                       'BrandDisplayName': 'Sonos', 'TokenType': 'authorization_code', 'Aliases': []}
+        return coordinator, placeholder
+
+    async def test_actual_getinfoerror_follower_placeholder_preserves_exact_coordinator_and_track(self):
+        coordinator, _ = self.configure_failed_follower_discovery()
+        self.assertEqual(await self.gateway.resolve_device(coordinator), TARGET)
+        self.assertEqual(await self.gateway.resolve_relay(), RELAY)
+        state = await self.gateway.playback_state()
+        self.assertEqual((state.account_id, state.device_id, state.context_uri, state.track_uri, state.is_connect),
+                         (ACCOUNT, TARGET, P1, TRACK, True))
+        self.assertEqual([data['host_ipv4_address'] for _, name, data, _ in self.services.calls if name == 'zeroconf_device_getinfo'], ['192.168.0.40'])
+        self.assertTrue(all(name in ('get_spotify_connect_devices', 'get_player_playback_state', 'zeroconf_device_getinfo')
+                            for _, name, *_ in self.services.calls))
+
+    async def test_current_track_with_actual_follower_placeholder_remains_exact_and_read_only(self):
+        coordinator, _ = self.configure_failed_follower_discovery()
+        runtime = Runtime(self.hass, ENTITY, SPEAKERS, registry_get=self.gateway.registry_get,
+                          device_registry_get=self.gateway.device_registry_get)
+        runtime.gateway = self.gateway
+        self.assertEqual(await runtime.current_track(SOURCE, 'user'), {'source_entity': coordinator, 'track_uri': TRACK})
+        self.assertTrue(all(name in ('get_spotify_connect_devices', 'get_player_playback_state', 'zeroconf_device_getinfo')
+                            for _, name, *_ in self.services.calls))
+
+    async def test_getinfoerror_unknown_coordinator_or_ambiguous_registry_fails_closed(self):
+        coordinator, _ = self.configure_failed_follower_discovery()
+        original = copy.deepcopy(self.registries)
+        for kind in ('unknown', 'coordinator', 'ambiguous'):
+            with self.subTest(kind=kind):
+                self.registries.clear()
+                self.registries.update(copy.deepcopy(original))
+                for entity in (coordinator, SOURCE):
+                    self.states[entity].attributes['group_members'] = [coordinator, SOURCE]
+                if kind == 'unknown':
+                    self.registries[SOURCE].identifiers = {('sonos', 'RINCON_FFFF')}
+                elif kind == 'coordinator':
+                    for entity in (coordinator, SOURCE):
+                        self.states[entity].attributes['group_members'] = [SOURCE, coordinator]
+                else:
+                    self.registries['media_player.bathroom'].identifiers = {('sonos', RINCON)}
+                with self.assertRaises(MusicError):
+                    await self.gateway.resolve_device(coordinator)
+        self.assertFalse(any(name in ('player_media_play_context', 'zeroconf_device_connect', 'player_transfer_playback')
+                             for _, name, *_ in self.services.calls))
+
+    async def test_getinfoerror_inconsistent_unavailable_or_invalid_topology_fails_closed(self):
+        coordinator, _ = self.configure_failed_follower_discovery()
+        original = copy.deepcopy(self.states)
+        for kind in ('mismatched-coordinator', 'duplicate-member', 'unknown-member', 'unavailable', 'unrelated-inconsistent'):
+            with self.subTest(kind=kind):
+                self.states.clear()
+                self.states.update(copy.deepcopy(original))
+                if kind == 'mismatched-coordinator':
+                    self.states[SOURCE].attributes['group_members'] = [SOURCE, coordinator]
+                elif kind == 'duplicate-member':
+                    self.states[SOURCE].attributes['group_members'] = [coordinator, SOURCE, SOURCE]
+                elif kind == 'unknown-member':
+                    self.states[SOURCE].attributes['group_members'] = [coordinator, SOURCE, 'media_player.unknown']
+                elif kind == 'unavailable':
+                    self.states[SOURCE].state = 'unavailable'
+                else:
+                    self.states['media_player.bathroom'].attributes['group_members'] = ['media_player.living_room', 'media_player.bathroom']
+                with self.assertRaises(MusicError):
+                    await self.gateway.resolve_device(coordinator)
+
+    async def test_getinfoerror_malformed_identity_or_duplicate_discovery_fails_closed(self):
+        coordinator, placeholder = self.configure_failed_follower_discovery()
+        original = copy.deepcopy(placeholder)
+        for kind in ('dynamic', 'wrong-key', 'wrong-remote-name', 'wrong-status', 'wrong-device-id', 'other-invalid-id', 'duplicate'):
+            with self.subTest(kind=kind):
+                placeholder.clear()
+                placeholder.update(copy.deepcopy(original))
+                self.services.devices = self.services.devices[:2] + [placeholder]
+                if kind == 'dynamic':
+                    placeholder['DiscoveryResult']['IsDynamicDevice'] = True
+                elif kind == 'wrong-key':
+                    placeholder['DiscoveryResult']['Key'] = 'another-device'
+                elif kind == 'wrong-remote-name':
+                    placeholder['DeviceInfo']['RemoteName'] = 'Gym'
+                elif kind == 'wrong-status':
+                    placeholder['DeviceInfo']['Status'] = 101
+                elif kind == 'wrong-device-id':
+                    placeholder['DeviceInfo']['DeviceId'] = 'b' * 40
+                elif kind == 'other-invalid-id':
+                    placeholder['Id'] = 'invalid'
+                else:
+                    self.services.devices.append(copy.deepcopy(placeholder))
+                with self.assertRaises(MusicError):
+                    await self.gateway.resolve_device(coordinator)
+
+    async def test_follower_placeholder_becoming_a_coordinator_is_rechecked_on_fresh_discovery(self):
+        coordinator, _ = self.configure_failed_follower_discovery()
+        await self.gateway.resolve_device(coordinator)
+        for entity in (coordinator, SOURCE):
+            self.states[entity].attributes['group_members'] = [entity]
+        with self.assertRaises(MusicError):
+            await self.gateway.playback_state()
+
     async def test_episode_local_and_malformed_items_never_supply_track_uri(self):
         await self.gateway.resolve_device(SOURCE)
         for item in ({'type': 'episode', 'uri': TRACK}, {'type': 'track', 'uri': TRACK, 'is_local': True}, {'type': 'track', 'uri': 'spotify:track:bad'}, None):

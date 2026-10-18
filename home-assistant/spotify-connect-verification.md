@@ -16,10 +16,11 @@ checks. Earlier installation-only “unverified” statuses are superseded here.
 | Relay isolation and restart recovery | PASS | Private paced PulseAudio null sink, UID/GID 1000, zero capabilities, no privileged/device/physical audio access; automatic boot/watchdog; relay restart and HA Core restart recovery succeeded |
 | Exact playlist/account/relay to native Sonos Connect | PASS | Fresh account/relay/context/playing, explicit supported Zeroconf activation and transfer, then fresh native Sonos Connect plus cloud target/context/playing confirmation; first/second playlists and repeated launches to already-listed devices succeeded |
 | Request identity and already-playing no-op | PASS | Duplicate request ID returned the identical result; new intent for the confirmed same context returned `already_playing` |
-| Existing group and requested follower | PASS, scoped | Gym + Bedroom launch requested through the follower resolved Gym; exact current track, group, and individual volumes were preserved. All-room idle cold starts and changed-coordinator live cases remain pending |
+| Existing group and requested follower | PASS, scoped | Gym + Bedroom launch requested through the follower resolved Gym; exact current track, group, and individual volumes were preserved. Living Room, Bathroom and Bedroom cold starts subsequently confirmed, supplementing prior Gym confirmation; reversed-group discovery fix still awaits reviewed live upgrade |
 | Spotify phone output, queue/control and Jam | PASS, scoped | User: “yes I see it on my phone and jam works :D”. A second participant adding a track before/after topology changes was not separately narrated and remains pending |
 | Physical Follow me on/off with Spotify/Jam | PASS | User was asked to resume Gym, start Jam, enable Follow, walk through mapped lit rooms, verify joins without Spotify/Jam interruption, and disable Follow while Gym keeps playing. User confirmed: “yes all of this works this is awesome!!” |
-| Manual grouping/ungrouping, changed coordinator, transport/seek/room volume with Connect/Jam | PENDING | Controller owns remaining native transport and room/coordinator acceptance. Existing Sonos commands are retained; no evidence currently establishes a need for Spotify transport rerouting |
+| Native Sonos transport/seek/room volume | PASS, scoped | Actual Bedroom coordinator + Gym follower Connect/cloud: pause/resume, one next, one previous returning the prior track, seek to 35 s confirmed by cloud at 34–42 s, Gym volume .20 → .21 → .20 while Bedroom stayed .19. Sonos transport is retained |
+| Manual grouping/ungrouping and reversed coordinator | PARTIAL | Reversed Bedroom + Gym group exposed the exact known-follower SDK placeholder described below; local regression/fix passes, independent review and live backend upgrade/recheck remain pending |
 | Manual launch supersedes mood playback | PASS | Gym mood active → manual Spotify `confirmed` → End mood idle left manual session playing; relevant lighting/group/volume/Follow state restored |
 | Playlist listing and pagination | PASS | Seven real playlists, two owned/five followed; offsets 0/2/4/6 returned 2/2/2/1 and preserved full-read URI order |
 | Private/collaborative real playlists | PENDING | Required scopes and mock coverage exist; all seven actual playlists are public/noncollaborative. No real sample was created |
@@ -43,6 +44,10 @@ physical measurement; they are not physical Fire proof.
 The live backend was verified at commit `8f01e72`; subsequent frontend regression
 and documentation changes do not imply a newer household backend deployment.
 The controller records the final release ID and served/remote hashes after rollout.
+After the latest native control checks, the controller restored Gym coordinator +
+Bedroom group, Follow on with saved Gym source, original volumes and paused state;
+Living Room/Bathroom were idle after transfer. The prior track/queue was not
+restored; no exact prior-track or queue-restoration claim is made.
 
 - Backend runtime backup: `/homeassistant/backups.local/dashboard-music-runtime-20261018T004733191Z`.
 - Owned component YAML backup: `/homeassistant/backups.local/dashboard-music-20261018T004745349110Z`.
@@ -249,8 +254,15 @@ unique against the other outputs and non-Sonos discovery aliases. Thus a restric
 group named `Gym + 1` can be positively identified from its fresh native name;
 the adapter never constructs that suffix. Known HA followers are excluded before
 probing because their Connect endpoint can be disabled while stale discovery still
-lists them. Unknown speakers, changed identities, missing evidence, and ambiguous
-names fail closed.
+lists them. The live reversed group also produced a `getInfoError` / status
+9999 / `IsSonos:false` discovery placeholder for the known Gym follower. Local
+regressions now cover that exact shape: exclusion requires matching discovery
+Name/Key/RemoteName, one stable registry RINCON match, no duplicate discovery
+identity, and fresh complete consistent HA topology proving it is a follower.
+Coordinator, unknown, ambiguous, malformed and inconsistent-topology placeholders
+remain errors. This narrow fix awaits independent review and live upgrade/recheck.
+Unknown speakers, changed identities, missing evidence, and ambiguous names fail
+closed.
 
 `dashboard_music/current_track` is an authenticated read-only WebSocket command
 accepting `{source_entity}` and returning
@@ -293,9 +305,12 @@ Task 6 used Node **24.10.0** and existing lockfile-installed dependencies:
 New coverage exercises external coordinator changes during a launch and handoff,
 a retained manual Follow handoff while launch is pending, one transport skip
 while acknowledgements/topology change, per-member volume, and failed-start
-recovery after reconnection with no automatic replay. All new regressions passed
-existing production guards; no transport rerouting or other production change
-was necessary. These are mock regressions, not live Spotify/Jam acceptance.
+recovery after reconnection with no automatic replay. The first eight regressions passed existing production guards. The subsequent
+actual follower-placeholder fixture reproduced a missing discovery guard and
+received the narrow backend fix described above. No transport rerouting was
+needed. These are mock regressions, not live Spotify/Jam acceptance.
+
+`PYTHONPATH=home-assistant/tests python3 -m unittest test_dashboard_music_connect test_dashboard_music_gateway test_dashboard_music_current_track test_dashboard_music_playback -v`: **70 tests passed** after the discovery fix. The actual-shape positive regression first failed at the invalid discovery ID check; unknown/coordinator/ambiguous and malformed topology cases continue to fail closed.
 
 The controller runs the final complete JavaScript/Python/lint/dashboard-build and
 whitespace checks after all fixes, performs independent final review, and records
