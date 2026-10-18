@@ -153,3 +153,29 @@ retains these coverage limits.
 The previous dashboard remains recoverable through `npm run rollback:dashboard`.
 Backend/YAML/relay rollback uses the specific ownership-aware records in the
 backend verification document and preserves unrelated integrations/accounts.
+
+
+## Heart corner adjustment — 2026-10-17
+
+User requested the standalone heart at the music card’s top-right corner. Source
+`72d4638` places it 12 px from both edges, removes the visible button border and
+selected/hover background, and retains the invisible 44×44 px semantic button,
+focus indicator, animation and existing save/remove behavior. A browser hit test
+caught track padding intercepting the initial placement; the final slot stacks
+above that track, and actual local pointer clicks verified both remove and save.
+
+Existing relevant tests: **137 passed**. Lint, production build, whitespace check
+and independent scoped review passed. Local previews at 1224×614 and 375×812 had
+no horizontal overflow; saved, unsaved, disabled and keyboard-focus states were
+checked. The physical Fire was not re-operated for this adjustment.
+
+Production release `spotify-connect-heart-20261018T015100Z-72d4638` was atomically
+promoted. All 68 current build files match served manifest and HTTP bytes.
+Index SHA256: `e3a993c9b198168a69e1d5658601dd1a21c4005b73dd057c56971286300145c0`.
+Main JS: `assets/index-EyPsGLfc.js`, SHA256
+`d7f94f747925abc3d6e56bc55ae4e145889fab51b9ec63b0f11c4d10445904ad`.
+Read-only inspection of the actual production HA iframe confirmed 1224×614,
+12 px corner offsets, 44×44 px target, transparent background, zero border and
+successful center-point hit testing. Production playback remained paused, with
+Follow on and Gym +1 visible. Screenshot:
+`backups.local/spotify-connect-qa/heart-corner-production.png`.
