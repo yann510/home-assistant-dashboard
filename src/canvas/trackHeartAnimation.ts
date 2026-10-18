@@ -1,6 +1,7 @@
 /** Decorations must never turn a confirmed save into an application failure. */
 export function animateTrackHeart(element: HTMLElement, saved: boolean): () => void {
   const animations: Animation[] = [];
+  const completions: Promise<unknown>[] = [];
   const particles: HTMLElement[] = [];
   let media: MediaQueryList | undefined;
   let stopped = false;
@@ -24,6 +25,13 @@ export function animateTrackHeart(element: HTMLElement, saved: boolean): () => v
   function onMotionChange() {
     if (media?.matches) cleanup();
   }
+  function register(animation: Animation) {
+    animations.push(animation);
+    // Observe cancellation before a later animation can fail during startup.
+    const finished = animation.finished;
+    void finished.catch(cleanup);
+    completions.push(finished);
+  }
   try {
     media = window.matchMedia?.('(prefers-reduced-motion: reduce)');
     if (media?.matches) return cleanup;
@@ -34,7 +42,7 @@ export function animateTrackHeart(element: HTMLElement, saved: boolean): () => v
     layer.setAttribute('aria-hidden', 'true');
     layer.style.pointerEvents = 'none';
     const options = { duration: saved ? 420 : 240, easing: 'ease-out' };
-    animations.push(
+    register(
       icon.animate(
         saved
           ? [{ transform: 'scale(1)' }, { transform: 'scale(1.22)', offset: 0.45 }, { transform: 'scale(1)' }]
@@ -58,7 +66,7 @@ export function animateTrackHeart(element: HTMLElement, saved: boolean): () => v
         particle.textContent = '✦';
         particles.push(particle);
         layer.append(particle);
-        animations.push(
+        register(
           particle.animate(
             [
               { opacity: 0, transform: 'translate(0, 0) scale(.4)' },
@@ -69,7 +77,7 @@ export function animateTrackHeart(element: HTMLElement, saved: boolean): () => v
           )
         );
       }
-    void Promise.all(animations.map(animation => animation.finished)).then(cleanup, cleanup);
+    void Promise.all(completions).then(cleanup, cleanup);
   } catch {
     cleanup();
   }

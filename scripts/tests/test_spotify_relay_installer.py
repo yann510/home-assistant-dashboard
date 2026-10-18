@@ -45,7 +45,9 @@ class InstallerTests(unittest.TestCase):
             if self.fail_install:
                 raise RuntimeError('installation failed')
             self.installed = {'slug': 'local_dashboard_spotify_relay', 'version': '1.0.0', 'state': 'stopped',
-                              'options': {}, 'boot': 'auto', 'watchdog': False, 'protected': True}
+                              'options': {}, 'boot': 'auto', 'watchdog': False, 'protected': True,
+                              'auto_update': False, 'network': {'24879/tcp': 24879},
+                              'audio_input': None, 'audio_output': None, 'ingress_panel': False}
         elif path.endswith('/options'):
             self.installed.update(data)
         elif path.endswith('/uninstall'):
@@ -86,6 +88,7 @@ class InstallerTests(unittest.TestCase):
         self.assertEqual(self.installed['watchdog'], True)
         self.assertNotIn('/addons/local_dashboard_spotify_relay/start', [call[0] for call in self.mutations])
         # API runtime state is allowed to change, the owned source/config is not.
+        self.installed['stats'] = {'cpu_percent': 2.5, 'memory_usage': 1000}
         self.installer.start(backup)
         self.installer.rollback(backup)
         self.assertIsNone(self.installed)
@@ -126,6 +129,50 @@ class InstallerTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, 'changed|ownership'):
             self.installer.rollback(backup)
         self.assertEqual(self.mutations, [])
+
+    def test_each_mutable_addon_setting_refuses_start_and_rollback_without_effects(self):
+        backup = self.install()
+        ownership = Path(backup) / 'ownership.json'
+        original_record = ownership.read_bytes()
+        original_source = self.module.fingerprint(self.installer.source)
+        for key, value in {
+            'auto_update': True, 'network': {'24879/tcp': 24880},
+            'audio_input': 'input-device', 'audio_output': 'output-device', 'ingress_panel': True,
+        }.items():
+            with self.subTest(setting=key):
+                original = self.installed[key]
+                self.installed[key] = value
+                self.mutations.clear()
+                for operation in (self.installer.start, self.installer.rollback):
+                    with self.assertRaisesRegex(RuntimeError, 'changed|ownership'):
+                        operation(backup)
+                    self.assertEqual(self.mutations, [])
+                    self.assertEqual(self.installed[key], value)
+                    self.assertEqual(ownership.read_bytes(), original_record)
+                    self.assertEqual(self.module.fingerprint(self.installer.source), original_source)
+                self.installed[key] = original
+
+    def test_legacy_weak_ownership_refuses_start_and_rollback_without_adoption(self):
+        backup = self.install()
+        ownership = Path(backup) / 'ownership.json'
+        record = json.loads(ownership.read_text())
+        # Pre-fix footprints omitted five mutable settings. Even unchanged old
+        # installs need manual review; a current snapshot cannot prove ownership.
+        legacy_fields = ('slug', 'version', 'options', 'boot', 'watchdog', 'protected',
+                         'audio', 'devices', 'privileged', 'full_access', 'host_network', 'host_pid',
+                         'host_ipc', 'host_dbus', 'hassio_api', 'homeassistant_api', 'apparmor')
+        record['addon'] = self.module.digest_json({key: self.installed.get(key) for key in legacy_fields})
+        ownership.write_text(json.dumps(record))
+        original_record = ownership.read_bytes()
+        original_source = self.module.fingerprint(self.installer.source)
+        self.mutations.clear()
+        for operation in (self.installer.start, self.installer.rollback):
+            with self.assertRaisesRegex(RuntimeError, 'changed|ownership'):
+                operation(backup)
+            self.assertEqual(self.mutations, [])
+            self.assertIsNotNone(self.installed)
+            self.assertEqual(ownership.read_bytes(), original_record)
+            self.assertEqual(self.module.fingerprint(self.installer.source), original_source)
 
     def test_symlink_or_traversal_payload_and_backup_are_rejected(self):
         for name in ('../escape', '/absolute'):

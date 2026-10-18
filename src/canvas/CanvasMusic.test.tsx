@@ -564,7 +564,7 @@ describe('Canvas music', () => {
     expect(screen.queryByText('Test artist')).toBeNull();
     expect(screen.queryByText('Main speaker')).toBeNull();
     const favourite = await screen.findByRole('button', { name: 'Play Evening jazz by Yann' });
-    expect(favourite.textContent).not.toContain('Evening jazz');
+    expect(favourite.textContent).toContain('Evening jazz');
     const img = favourite.querySelector('img')!;
     expect(img.getAttribute('src')).toBe('http://homeassistant.test/jazz.jpg');
     fireEvent.error(img);
@@ -1040,17 +1040,36 @@ describe('Canvas music', () => {
   );
 });
 
-it('labels missing and failed favourite artwork while leaving successful artwork title-free', async () => {
-  listPlaylists.mockResolvedValue({ items: [playlist('A long favourite playlist title'), { ...playlist('Broken cover', '2'), thumbnail: '/broken.jpg' }], nextOffset: null, total: 2 });
+it('shows one visible title and owner on every playlist with valid, missing or broken artwork and duplicate names', async () => {
+  const title = 'A very long favourite playlist title that must remain identifiable outside its generic artwork';
+  const owner = 'A friend with a very long display name';
+  const items = [
+    { ...playlist(title), thumbnail: '/valid.jpg' },
+    { ...playlist('Another collection', '2'), thumbnail: '/another.jpg' },
+    { ...playlist(title, '3'), owner },
+    { ...playlist('Broken cover', '4'), thumbnail: '/broken.jpg' },
+  ];
+  listPlaylists.mockResolvedValue({ items, nextOffset: null, total: 4 });
   mount();
   await userEvent.click(screen.getByRole('button', { name: 'Playlists' }));
-  expect((await screen.findByRole('button', { name: 'Play A long favourite playlist title by Yann' })).textContent).toContain(
-    'A long favourite playlist title'
-  );
+  await screen.findByRole('button', { name: `Play ${title} by Yann` });
+  for (const item of items) {
+    const button = screen.getByRole('button', { name: `Play ${item.title} by ${item.owner}` });
+    const labels = Array.from(button.querySelectorAll('span')).filter(span => span.textContent === item.title);
+    expect(labels).toHaveLength(1);
+    expect(labels[0].closest('[aria-hidden="true"]')).toBeNull();
+    expect(button.textContent).toContain(item.owner);
+  }
+  const valid = screen.getByRole('button', { name: `Play ${title} by Yann` });
+  expect(valid.querySelector('img')?.getAttribute('src')).toBe('http://homeassistant.test/valid.jpg');
+  expect(screen.getByRole('button', { name: `Play ${title} by ${owner}` }).querySelector('img')).toBeNull();
   const broken = screen.getByRole('button', { name: 'Play Broken cover by Yann' });
-  expect(broken.textContent).not.toContain('Broken cover');
   fireEvent.error(broken.querySelector('img')!);
-  expect(broken.textContent).toContain('Broken cover');
+  expect(broken.querySelector('img')).toBeNull();
+  const labels = Array.from(broken.querySelectorAll('span')).filter(span => span.textContent === 'Broken cover');
+  expect(labels).toHaveLength(1);
+  expect(labels[0].closest('[aria-hidden="true"]')).toBeNull();
+  expect(broken.textContent).toContain('Yann');
 });
 
 it('shows all-muted, partly muted and unknown states truthfully and keeps opening speaker settings command-free', async () => {

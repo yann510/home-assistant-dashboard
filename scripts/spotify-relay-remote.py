@@ -65,6 +65,7 @@ def addon_identity(info):
     # Hash options instead of putting configuration/credentials in the record.
     # Runtime state/stats can change freely; version and settings cannot.
     return digest_json({key: info.get(key) for key in ('slug', 'version', 'options', 'boot', 'watchdog', 'protected',
+            'auto_update', 'network', 'audio_input', 'audio_output', 'ingress_panel',
             'audio', 'devices', 'privileged', 'full_access', 'host_network', 'host_pid',
             'host_ipc', 'host_dbus', 'hassio_api', 'homeassistant_api', 'apparmor')})
 

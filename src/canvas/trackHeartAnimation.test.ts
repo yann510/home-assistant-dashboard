@@ -75,3 +75,22 @@ it('best-effort cleanup tolerates unsupported and throwing animation APIs, rejec
   stop();
   expect(element.querySelector('[data-heart-decoration]')!.children).toHaveLength(0);
 });
+
+it('observes a real cancellation rejection when a later sparkle fails to start', async () => {
+  const removeListener = vi.fn();
+  vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener: vi.fn(), removeEventListener: removeListener }));
+  let rejectFinished!: (reason: unknown) => void;
+  const finished = new Promise<void>((_, reject) => { rejectFinished = reject; });
+  const cancelStarted = vi.fn(() => rejectFinished(new DOMException('Animation cancelled', 'AbortError')));
+  Element.prototype.animate = vi.fn()
+    .mockImplementationOnce(() => ({ cancel: cancelStarted, finished }))
+    .mockImplementation(() => { throw new Error('Sparkle startup unsupported'); }) as never;
+  const stop = animateTrackHeart(element, true);
+  // Let real rejected promises reach the unhandled-rejection checkpoint.
+  await new Promise(resolve => setTimeout(resolve, 0));
+  expect(cancelStarted).toHaveBeenCalledTimes(1);
+  expect(removeListener).toHaveBeenCalledExactlyOnceWith('change', expect.any(Function));
+  expect(element.querySelector('[data-heart-decoration]')!.children).toHaveLength(0);
+  stop();
+  expect(cancelStarted).toHaveBeenCalledTimes(1);
+});

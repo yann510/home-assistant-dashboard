@@ -16,8 +16,7 @@ function Artwork({ item }: { item: SpotifyPlaylist }) {
     />
   ) : (
     <span className='canvas-playlists__fallback' aria-hidden='true'>
-      <span>♫</span>
-      <span className='canvas-playlists__title'>{item.title}</span>
+      ♫
     </span>
   );
 }
@@ -77,7 +76,10 @@ export function CanvasPlaylists({ onPlayed }: { onPlayed(): void }) {
             <span className='canvas-playlists__artwork'>
               <Artwork key={item.thumbnail} item={item} />
             </span>
-            <span className='canvas-playlists__owner'>{item.owner}</span>
+            <span className='canvas-playlists__labels'>
+              <span className='canvas-playlists__title'>{item.title}</span>
+              <span className='canvas-playlists__owner'>{item.owner}</span>
+            </span>
           </button>
         ))}
       </div>
