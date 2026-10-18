@@ -144,7 +144,10 @@ export function CanvasMusic({
       )}
       <div className='canvas-music__settings'>
         <CanvasFollow />
-        <button className='canvas-music__playlists' aria-haspopup='dialog' onClick={event => onOpenPlayer(event.currentTarget)}>Playlists</button>
+        <button className='canvas-music__room canvas-music__playlists' aria-haspopup='dialog' onClick={event => onOpenPlayer(event.currentTarget)}>
+          <span>Playlists</span>
+          <CanvasActionIcon action='forward' />
+        </button>
         <button className='canvas-music__room' aria-label='Open speakers' onClick={event => openSpeakers(event.currentTarget)}>
           <span>{attributes?.friendly_name ?? 'Speakers'}{session.targets.length > 1 ? ` +${session.targets.length - 1}` : ''}</span>
           <CanvasActionIcon action='forward' />
