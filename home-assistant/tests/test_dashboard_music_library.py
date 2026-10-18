@@ -29,6 +29,18 @@ class LibraryTests(unittest.IsolatedAsyncioTestCase):
         self.now = 0
         self.provider = Provider()
         self.library = Library(self.provider, clock=lambda: self.now)
+    async def test_liked_songs_requires_verified_account_without_playlist_pagination(self):
+        verified = []
+        self.provider.verify_account = lambda: verified.append(True) or 'trusted'
+        self.assertTrue(await self.library.contains_playlist('spotify:collection:tracks'))
+        self.assertEqual(verified, [True])
+        self.assertEqual(self.provider.pages, [])
+        def denied():
+            raise MusicError('auth_required')
+        self.provider.verify_account = denied
+        with self.assertRaises(MusicError):
+            await self.library.contains_playlist('spotify:collection:tracks')
+
     async def test_private_and_collaborative_playlist_pages(self):
         first = await self.library.page(0, 1)
         second = await self.library.page(1, 1)

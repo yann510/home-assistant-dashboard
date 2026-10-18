@@ -73,6 +73,22 @@ class ConnectGatewayTests(unittest.IsolatedAsyncioTestCase):
         self.gateway = SpotifyGateway(self.hass, ENTITY, lambda entity: account_registry if entity == ENTITY else self.sonos_registry if entity == SOURCE else None,
                                       relay_device_id=RELAY, device_registry_get=lambda _: self.device_registry)
 
+    async def test_liked_songs_context_is_account_bound_and_canonicalized(self):
+        liked = 'spotify:collection:tracks'
+        await self.gateway.start_playlist(liked, RELAY)
+        starts = [data for _, name, data, _ in self.services.calls if name == 'player_media_play_context']
+        self.assertEqual(starts[0]['context_uri'], f'spotify:user:{ACCOUNT}:collection')
+        self.assertEqual(starts[0]['device_id'], RELAY)
+        for raw in (liked, f'spotify:user:{ACCOUNT}:collection'):
+            self.services.cloud['context']['uri'] = raw
+            self.assertEqual((await self.gateway.playback_state()).context_uri, liked)
+        other = 'spotify:user:other:collection'
+        self.services.cloud['context']['uri'] = other
+        self.assertEqual((await self.gateway.playback_state()).context_uri, other)
+        for raw in (other, f'spotify:user:{ACCOUNT}:collection', 'spotify:album:' + 'a'*22):
+            with self.assertRaises(MusicError):
+                await self.gateway.start_playlist(raw, RELAY)
+
     async def test_exact_relay_context_then_unconditional_activation_and_explicit_transfer(self):
         target = await self.gateway.resolve_device(SOURCE)
         relay = await self.gateway.resolve_relay()

@@ -389,3 +389,5 @@ released runtime.
 The existing atomic deployment tools retain the previous dashboard for
 `npm run rollback:dashboard`; backend recovery remains scoped to the ownership
 records above.
+
+Liked Songs is pinned separately from paginated playlists. The public `playlist_uri` contract accepts the exact `spotify:collection:tracks` sentinel alongside strict playlist URIs. After verifying the configured account, the gateway expands it to `spotify:user:{account}:collection` only on the verified silent relay, then uses the same activation, transfer, and confirmation path. Playback state canonicalizes only the generic sentinel and that verified account’s collection. No saved-track enumeration or queue limit is involved.

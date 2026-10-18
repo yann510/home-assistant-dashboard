@@ -1608,3 +1608,19 @@ it.each(['first', 'last'] as const)('pins pending and uncertain playback feedbac
   expect(body.scrollTop).toBe(choice === 'last' ? 4000 : 0);
   expect(sendMessagePromise).toHaveBeenCalledTimes(1);
 });
+
+it.each(['empty', 'error'])('pins exactly one Liked Songs first with an %s library and includes saved-song filtering', async mode => {
+  if (mode === 'error') listPlaylists.mockRejectedValue(new Error('Spotify unavailable'));
+  mount();
+  await userEvent.click(screen.getByRole('button', { name: 'Playlists' }));
+  const liked = await screen.findByRole('button', { name: 'Play Liked Songs' });
+  expect(screen.getAllByRole('button', { name: 'Play Liked Songs' })).toHaveLength(1);
+  expect(liked.closest('.canvas-playlists__grid')?.firstElementChild).toBe(liked);
+  expect(liked.querySelector('.canvas-playlists__fallback')?.textContent).toBe('♥');
+  expect((liked as HTMLButtonElement).disabled).toBe(false);
+  await userEvent.type(screen.getByRole('searchbox'), 'saved songs');
+  expect(screen.getByRole('button', { name: 'Play Liked Songs' })).toBe(liked);
+  await userEvent.clear(screen.getByRole('searchbox'));
+  await userEvent.type(screen.getByRole('searchbox'), 'unmatched');
+  expect(screen.queryByRole('button', { name: 'Play Liked Songs' })).toBeNull();
+});

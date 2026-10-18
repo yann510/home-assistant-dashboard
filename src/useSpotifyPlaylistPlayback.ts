@@ -1,3 +1,4 @@
+import { isSpotifyPlaybackContext } from './spotifyPlaybackContext';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useStore } from '@hakit/core';
 import { onSpeakerDisconnect } from './speakerConnection';
@@ -58,7 +59,7 @@ export function useSpotifyPlaylistPlayback(sourceEntity: string, disabled: boole
       connectionStatus !== 'connected'
     )
       return false;
-    if (!/^spotify:playlist:[A-Za-z0-9]{22}$/.test(item.uri)) return false;
+    if (!isSpotifyPlaybackContext(item.uri)) return false;
     const request = new AbortController();
     const id = requestId();
     active.current = request;

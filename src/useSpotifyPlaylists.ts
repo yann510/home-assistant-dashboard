@@ -1,3 +1,4 @@
+import { isSpotifyPlaybackContext, LIKED_SONGS_URI } from './spotifyPlaybackContext';
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { useStore } from '@hakit/core';
 import { onSpeakerDisconnect, subscribeSpeakerConnectionChanged } from './speakerConnection';
@@ -70,7 +71,11 @@ export function useSpotifyPlaylists(enabled: boolean) {
         throw new Error('Could not read Spotify playlists. Refresh to try again.');
       }
       const valid = page.items.filter(
-        item => /^spotify:playlist:[A-Za-z0-9]{22}$/.test(item.uri) && typeof item.title === 'string' && typeof item.owner === 'string'
+        item =>
+          isSpotifyPlaybackContext(item.uri) &&
+          item.uri !== LIKED_SONGS_URI &&
+          typeof item.title === 'string' &&
+          typeof item.owner === 'string'
       );
       setItems(previous => [...new Map([...(offset === 0 ? [] : previous), ...valid].map(item => [item.uri, item])).values()]);
       setNextOffset(page.nextOffset);

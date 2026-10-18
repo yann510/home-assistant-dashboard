@@ -4,7 +4,7 @@ import math
 import time
 import ipaddress
 import re
-from .models import MusicError, PlaybackState, validate_page, validate_uri
+from .models import LIKED_SONGS_URI, validate_playback_context, MusicError, PlaybackState, validate_page, validate_uri
 
 REQUIRED_SCOPES = frozenset(('playlist-read-private', 'playlist-read-collaborative', 'user-library-read', 'user-library-modify'))
 LIBRARY_SERVICES = ('get_playlist_favorites', 'check_track_favorites', 'save_track_favorites', 'remove_track_favorites')
@@ -383,7 +383,9 @@ class SpotifyGateway:
             await asyncio.gather(*(asyncio.shield(task) for task in tuple(self._pending_playback)), return_exceptions=True)
 
     async def start_playlist(self, playlist_uri: str, device_id: str, guard=lambda: True) -> None:
-        validate_uri(playlist_uri, 'playlist')
+        validate_playback_context(playlist_uri)
+        if playlist_uri == LIKED_SONGS_URI:
+            playlist_uri = f'spotify:user:{self.verify_account()}:collection'
         relay = self._relay(await self._discovery())
         if device_id != relay['Id']:
             raise MusicError('invalid_request')
@@ -525,5 +527,8 @@ class SpotifyGateway:
                 track = validate_uri(item.get('uri'), 'track')
             except MusicError:
                 pass
-        return PlaybackState(account, ident, context.get('uri'), result.get('is_playing') if type(result.get('is_playing')) is bool else None,
+        context_uri = context.get('uri')
+        if context_uri in (LIKED_SONGS_URI, f'spotify:user:{account}:collection'):
+            context_uri = LIKED_SONGS_URI
+        return PlaybackState(account, ident, context_uri, result.get('is_playing') if type(result.get('is_playing')) is bool else None,
                              connect, track)

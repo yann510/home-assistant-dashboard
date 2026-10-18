@@ -75,6 +75,22 @@ class PlaybackTests(unittest.IsolatedAsyncioTestCase):
         self.player.poll_interval = .005
     async def launch(self, request='request', source=SOURCE, uri=P1, user='user'):
         return await self.player.play(uri, source, request, user)
+    async def test_liked_songs_uses_relay_transfer_and_idempotency_then_noop(self):
+        liked = 'spotify:collection:tracks'
+        async def member(uri):
+            return uri == liked
+        self.player.library.contains_playlist = member
+        result = await self.launch(uri=liked)
+        self.assertEqual(result['status'], 'confirmed')
+        self.assertEqual(result['playlist_uri'], liked)
+        self.assertIn(('start', liked, 'relay-id'), self.provider.calls)
+        self.assertIn(('handoff', 'connect-id'), self.provider.calls)
+        calls = list(self.provider.calls)
+        self.assertEqual(await self.launch(uri=liked), result)
+        self.assertEqual(self.provider.calls, calls)
+        self.assertEqual((await self.launch(request='another', uri=liked))['status'], 'already_playing')
+        self.assertEqual(sum(c[0] == 'start' for c in self.provider.calls), 1)
+
     async def test_follower_resolves_to_coordinator(self):
         group = [GYM, SOURCE]
         for e in group:

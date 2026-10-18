@@ -31,6 +31,14 @@ def validate_uri(uri, kind):
     return uri
 
 
+LIKED_SONGS_URI = 'spotify:collection:tracks'
+
+def validate_playback_context(uri):
+    if uri == LIKED_SONGS_URI:
+        return uri
+    return validate_uri(uri, 'playlist')
+
+
 def validate_page(offset, limit):
     if type(offset) is not int or not 0 <= offset <= 100000 or type(limit) is not int or not 1 <= limit <= 50:
         raise MusicError('invalid_request')

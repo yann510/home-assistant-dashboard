@@ -135,3 +135,10 @@ it('blocks disabled, disconnected and invalid playlist starts, including a retai
   await act(async () => expect(await result.current.play(item)).toBe(false));
   expect(send).not.toHaveBeenCalled();
 });
+
+it('launches Liked Songs through the usual authenticated service contract', async () => {
+  const liked = { uri: 'spotify:collection:tracks', title: 'Liked Songs', owner: 'Your saved songs' };
+  const { result } = renderHook(() => useSpotifyPlaylistPlayback('media_player.gym', false));
+  await act(async () => expect(await result.current.play(liked)).toBe(true));
+  expect(send.mock.calls[0][0].service_data.playlist_uri).toBe(liked.uri);
+});

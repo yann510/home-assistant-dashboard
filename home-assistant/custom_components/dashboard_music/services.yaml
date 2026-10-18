@@ -1,9 +1,10 @@
 # Library and saved-song operations use authenticated WebSocket commands.
 play_spotify:
-  name: Play Spotify playlist
-  description: Start a verified Spotify Connect playlist using the configured account and relay.
+  name: Play Spotify
+  description: Start a Spotify playlist or Liked Songs using the verified configured account and relay.
   fields:
     playlist_uri:
+      description: Spotify playlist URI or spotify:collection:tracks for the configured account’s Liked Songs.
       required: true
       selector:
         text:

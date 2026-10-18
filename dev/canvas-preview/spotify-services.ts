@@ -1,7 +1,9 @@
+import { isSpotifyPlaybackContext } from '../../src/spotifyPlaybackContext';
 import type { SpotifyPlaylist, SpotifyPlaylistPage, SpotifyPlayResult, SpotifySavedTrack } from '../../src/spotifyMusicTypes';
 import { previewFavourites } from './favourites';
 
-type PreviewResult = Partial<SpotifyPlaylistPage> & Partial<Omit<SpotifySavedTrack, 'track_uri'>> & { response?: SpotifyPlayResult; source_entity?: string; track_uri?: string | null };
+type PreviewResult = Partial<SpotifyPlaylistPage> &
+  Partial<Omit<SpotifySavedTrack, 'track_uri'>> & { response?: SpotifyPlayResult; source_entity?: string; track_uri?: string | null };
 const previewTrackUri = 'spotify:track:2qRWNDee5Hfi6DFjfiu58c';
 /** Authenticated HA wire shapes, entirely local; this handler never opens a socket. */
 export function createSpotifyPreview(params: URLSearchParams) {
@@ -26,16 +28,21 @@ export function createSpotifyPreview(params: URLSearchParams) {
     if (message.type === 'dashboard_music/current_track') {
       const delay = Math.min(60000, Math.max(0, Number(params.get('songReadDelay')) || 0));
       if (delay) await new Promise(resolve => setTimeout(resolve, delay));
-      return { source_entity: String(message.source_entity), track_uri: ['unknown', 'tv', 'episode', 'local'].includes(song ?? '') ? null : previewTrackUri };
+      return {
+        source_entity: String(message.source_entity),
+        track_uri: ['unknown', 'tv', 'episode', 'local'].includes(song ?? '') ? null : previewTrackUri,
+      };
     }
     if (['dashboard_music/track_saved', 'dashboard_music/set_track_saved'].includes(String(message.type))) {
       const write = message.type === 'dashboard_music/set_track_saved';
       const uri = String(message.track_uri);
-      if (!/^spotify:track:[A-Za-z0-9]{22}$/.test(uri) || (write && typeof message.saved !== 'boolean')) throw new Error('Invalid local track request');
+      if (!/^spotify:track:[A-Za-z0-9]{22}$/.test(uri) || (write && typeof message.saved !== 'boolean'))
+        throw new Error('Invalid local track request');
       const delay = Math.min(60000, Math.max(0, Number(params.get(write ? 'songDelay' : 'songReadDelay')) || 0));
       if (delay) await new Promise(resolve => setTimeout(resolve, delay));
       if (song === 'auth') throw { code: 'auth_required' };
-      if ((!write && song === 'read-error') || (write && (song === 'error' || (song === 'remove-error' && !message.saved)))) throw new Error('Controlled local song failure');
+      if ((!write && song === 'read-error') || (write && (song === 'error' || (song === 'remove-error' && !message.saved))))
+        throw new Error('Controlled local song failure');
       if (write) saved.set(uri, message.saved as boolean);
       return { track_uri: uri, saved: saved.get(uri) ?? ['saved', 'remove-error'].includes(song ?? '') };
     }
@@ -54,6 +61,7 @@ export function createSpotifyPreview(params: URLSearchParams) {
     }
     if (message.type !== 'call_service' || message.domain !== 'dashboard_music' || message.service !== 'play_spotify') return undefined;
     const data = message.service_data as { request_id: string; source_entity: string; playlist_uri: string };
+    if (!isSpotifyPlaybackContext(data.playlist_uri)) throw new Error('Invalid local playback context');
     const requested = params.get('spotifyPlay') ?? (params.has('unconfirmed') ? 'unconfirmed' : 'confirmed');
     const status = ['confirmed', 'already_playing', 'busy', 'failed', 'unconfirmed'].includes(requested)
       ? (requested as SpotifyPlayResult['status'])

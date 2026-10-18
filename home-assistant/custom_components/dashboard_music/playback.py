@@ -3,7 +3,7 @@ import asyncio
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 import time
-from .models import MusicError, validate_uri
+from .models import LIKED_SONGS_URI, validate_playback_context, MusicError, validate_uri
 
 
 class TopologyBusy(Exception):
@@ -125,7 +125,7 @@ class PlaybackController:
     async def play(self, playlist_uri, source_entity, request_id, user_id, context_id=None):
         if self.closed:
             raise MusicError('unavailable')
-        validate_uri(playlist_uri, 'playlist')
+        validate_playback_context(playlist_uri)
         if not isinstance(request_id, str) or not 1 <= len(request_id) <= 256:
             raise MusicError('invalid_request')
         if not isinstance(user_id, str) or not user_id:

@@ -4,7 +4,7 @@ from collections import OrderedDict
 from contextlib import asynccontextmanager
 import copy
 import time
-from .models import MusicError, validate_page, validate_uri
+from .models import LIKED_SONGS_URI, validate_playback_context, MusicError, validate_page, validate_uri
 
 
 class Library:
@@ -46,7 +46,10 @@ class Library:
                 return copy.deepcopy(result)
 
     async def contains_playlist(self, uri: str) -> bool:
-        validate_uri(uri, 'playlist')
+        validate_playback_context(uri)
+        if uri == LIKED_SONGS_URI:
+            self.gateway.verify_account()
+            return True
         # Revalidate launch membership from the current library. A recent visible
         # page alone cannot establish that a playlist has not been unfollowed.
         try:

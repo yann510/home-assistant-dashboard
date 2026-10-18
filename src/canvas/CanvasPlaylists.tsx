@@ -1,3 +1,4 @@
+import { likedSongs, LIKED_SONGS_URI } from '../spotifyPlaybackContext';
 import { useEffect, useRef, useState } from 'react';
 import { animateFavouriteArtwork } from './favouriteArtworkTransition';
 import { useHass } from '@hakit/core';
@@ -7,6 +8,12 @@ import { useCanvasMusic } from './CanvasMusicProvider';
 function Artwork({ item }: { item: SpotifyPlaylist }) {
   const { joinHassUrl } = useHass();
   const [failed, setFailed] = useState(false);
+  if (item.uri === LIKED_SONGS_URI)
+    return (
+      <span className='canvas-playlists__fallback' aria-hidden='true'>
+        ♥
+      </span>
+    );
   return item.thumbnail && !failed ? (
     <img
       src={item.thumbnail.startsWith('/') ? joinHassUrl(item.thumbnail) : item.thumbnail}
@@ -36,7 +43,9 @@ export function CanvasPlaylists({ onPlayed }: { onPlayed(): void }) {
     animateFavouriteArtwork(button.querySelector('img'), document.querySelector('.canvas-music__cover'));
     onPlayed();
   }
-  const shown = library.items.filter(item => `${item.title} ${item.owner}`.toLocaleLowerCase().includes(filter.toLocaleLowerCase()));
+  const shown = [likedSongs, ...library.items].filter(item =>
+    `${item.title} ${item.owner}`.toLocaleLowerCase().includes(filter.toLocaleLowerCase())
+  );
   return (
     <section className='canvas-playlists' aria-label='Your Spotify playlists'>
       {(playback.status || playback.pending || playback.error) && (
@@ -55,7 +64,7 @@ export function CanvasPlaylists({ onPlayed }: { onPlayed(): void }) {
         <button onClick={library.refresh} disabled={!session.connected || library.loading || library.loadingMore}>
           Refresh
         </button>
-        <span>{library.items.length} loaded</span>
+        <span>{library.items.length} playlists loaded</span>
       </div>
       {library.loading && <p role='status'>Loading playlists…</p>}
       {session.connected && library.error && (
@@ -64,12 +73,12 @@ export function CanvasPlaylists({ onPlayed }: { onPlayed(): void }) {
         </p>
       )}
       {!library.loading && !library.error && session.connected && library.items.length === 0 && <p>No saved Spotify playlists yet.</p>}
-      {library.items.length > 0 && shown.length === 0 && <p>No loaded playlists match this filter.</p>}
+      {shown.length === 0 && <p>No loaded playlists match this filter.</p>}
       <div className='canvas-playlists__grid'>
         {shown.map(item => (
           <button
             key={item.uri}
-            aria-label={`Play ${item.title} by ${item.owner}`}
+            aria-label={item.uri === LIKED_SONGS_URI ? 'Play Liked Songs' : `Play ${item.title} by ${item.owner}`}
             disabled={disabled || session.updating || rooms.busy || !!playback.pending}
             onClick={event => void play(item, event.currentTarget)}
           >
