@@ -252,6 +252,57 @@ class PlaybackTests(unittest.IsolatedAsyncioTestCase):
         self.provider.state = replace(self.provider.state, is_playing=True)
         self.assertEqual((await self.launch())['status'], 'already_playing')
         self.assertEqual(self.provider.calls, [('resolve', SOURCE)])
+    async def test_coordinator_changes_during_handoff_never_transfer_or_restart_again(self):
+        entered, release = asyncio.Event(), asyncio.Event()
+        original_handoff = self.provider.handoff
+        async def delayed_handoff(device, guard):
+            await original_handoff(device, guard)
+            entered.set()
+            await release.wait()
+        self.provider.handoff = delayed_handoff
+        request = asyncio.create_task(self.launch())
+        await entered.wait()
+        for entity in (SOURCE, GYM):
+            self.states[entity].attributes['group_members'] = [GYM, SOURCE]
+        release.set()
+        result = await request
+        await self.player.wait_settled()
+        self.assertEqual(result['status'], 'unconfirmed')
+        self.assertEqual(result['source_entity'], SOURCE)
+        self.assertEqual(await self.launch(), result)
+        self.assertEqual([call for call in self.provider.calls if call[0] in ('start', 'handoff')],
+                         [('start', P1, 'relay-id'), ('handoff', 'connect-id')])
+
+    async def test_external_manual_follow_handoff_during_relay_start_prevents_sonos_transfer(self):
+        self.states[FOLLOW].state = 'on'
+        self.states[FOLLOW_SOURCE].state = SOURCE
+        self.provider.release.clear()
+        request = asyncio.create_task(self.launch())
+        await self.provider.started.wait()
+        self.states[FOLLOW].state = 'off'
+        self.states[FOLLOW_SOURCE].state = ''
+        self.provider.release.set()
+        result = await request
+        await self.player.wait_settled()
+        self.assertEqual(result['status'], 'unconfirmed')
+        self.assertEqual(sum(call[0] == 'start' for call in self.provider.calls), 1)
+        self.assertFalse(any(call[0] == 'handoff' for call in self.provider.calls))
+        self.assertEqual(self.states[FOLLOW].state, 'off')
+        self.assertEqual(self.states[FOLLOW_SOURCE].state, '')
+
+    async def test_failed_preflight_recovery_does_not_replay_retained_request(self):
+        resolve = self.provider.resolve_relay
+        async def disconnected():
+            raise MusicError('unavailable')
+        self.provider.resolve_relay = disconnected
+        failed = await self.launch()
+        await self.player.wait_settled()
+        self.assertEqual(failed['status'], 'failed')
+        self.provider.resolve_relay = resolve
+        self.assertEqual(await self.launch(), failed)
+        self.assertFalse(any(call[0] == 'start' for call in self.provider.calls))
+        self.assertEqual((await self.launch('explicit-retry'))['status'], 'confirmed')
+        self.assertEqual(sum(call[0] == 'start' for call in self.provider.calls), 1)
     async def test_permissions_cover_account_and_every_affected_speaker_before_effect(self):
         for e in (SOURCE, GYM):
             self.states[e].attributes['group_members'] = [GYM, SOURCE]

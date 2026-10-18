@@ -131,6 +131,25 @@ afterEach(() => {
 });
 
 describe('Room picker and group volume', () => {
+  it('keeps individual room volume scoped to that member after its coordinator changes', async () => {
+    render(
+      <HassContext.Provider value={context}>
+        <SpeakerVolume entityId='media_player.gym' targets={['media_player.gym']} room='Gym' disabled={false} />
+      </HassContext.Provider>
+    );
+    const slider = screen.getByRole('slider', { name: 'Gym volume' });
+    fireEvent.pointerDown(slider);
+    fireEvent.change(slider, { target: { value: '48' } });
+    for (const room of ['living_room', 'gym', 'bathroom']) {
+      updateEntity(`media_player.${room}`, {}, { group_members: ['media_player.bathroom', 'media_player.gym', 'media_player.living_room'] });
+    }
+    await act(async () => { fireEvent.pointerUp(slider); });
+    expect(sendMessagePromise).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+      service: 'volume_set', target: { entity_id: ['media_player.gym'] }, service_data: { volume_level: 0.48 },
+    }));
+    expect(legacyCallService).not.toHaveBeenCalled();
+  });
+
   it('rechecks confirmed membership when dispatching a volume change', async () => {
     render(
       <HassContext.Provider value={context}>

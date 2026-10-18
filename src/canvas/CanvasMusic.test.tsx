@@ -1452,6 +1452,88 @@ it('does not let a retained playlist callback restore the previous source', asyn
   expect(screen.getByTestId('speaker-coordinator').textContent).toBe('media_player.gym');
   expect(sendMessagePromise).not.toHaveBeenCalled();
 });
+it('discards a launch confirmation after an external coordinator change without starting again', async () => {
+  const finish = delaySpotify();
+  mount();
+  let start!: Promise<boolean>;
+  act(() => { start = controller.playlistPlayback.play(playlist()); });
+  const originalRequest = sendMessagePromise.mock.calls[0][0];
+  for (const room of ['living_room', 'gym']) {
+    updateEntity(`media_player.${room}`, {}, { group_members: ['media_player.gym', 'media_player.living_room'] });
+  }
+  expect(screen.getByTestId('speaker-coordinator').textContent).toBe('media_player.gym');
+  await act(async () => { finish(); expect(await start).toBe(false); });
+  expect(controller.playlistPlayback.pending).toBeNull();
+  expect(controller.playlistPlayback.status).toBe('');
+  expect(sendMessagePromise).toHaveBeenCalledTimes(1);
+  expect(originalRequest.service_data.source_entity).toBe('media_player.living_room');
+  // Only a new user intent may launch on the new coordinator.
+  sendMessagePromise.mockImplementation(async message => ({ response: { ...message.service_data, status: 'confirmed' } }));
+  await act(async () => expect(await controller.playlistPlayback.play(playlist())).toBe(true));
+  expect(sendMessagePromise).toHaveBeenCalledTimes(2);
+  expect(sendMessagePromise.mock.calls[1][0].service_data.source_entity).toBe('media_player.gym');
+});
+
+it('blocks a retained manual Follow handoff until the playlist start settles', async () => {
+  updateEntity('input_boolean.speaker_follow_motion', { state: 'on' });
+  updateEntity('input_text.speaker_follow_source', { state: 'media_player.living_room' });
+  const finish = delaySpotify();
+  mount();
+  const retainedHandoff = controller.rooms.perform;
+  let start!: Promise<boolean>;
+  act(() => { start = controller.playlistPlayback.play(playlist()); });
+  await act(async () => { await retainedHandoff(true); });
+  expect(sendMessagePromise).toHaveBeenCalledTimes(1);
+  expect(useStore.getState().entities['input_boolean.speaker_follow_motion'].state).toBe('on');
+  expect(useStore.getState().entities['input_text.speaker_follow_source'].state).toBe('media_player.living_room');
+  await act(async () => { finish('failed'); expect(await start).toBe(false); });
+  sendMessagePromise.mockImplementation(async message => {
+    if (message.service === 'turn_off') updateEntity('input_boolean.speaker_follow_motion', { state: 'off' });
+    if (message.service === 'set_value') updateEntity('input_text.speaker_follow_source', { state: '' });
+    return {};
+  });
+  await act(async () => { await controller.rooms.perform(true); });
+  expect(sendMessagePromise.mock.calls.map(([message]) => message.service)).toEqual(['play_spotify', 'turn_off', 'set_value']);
+  expect(useStore.getState().entities['media_player.gym'].attributes.group_members).toEqual(['media_player.living_room', 'media_player.gym']);
+});
+
+it('keeps one Spotify skip per gesture across coordinator changes and delayed acknowledgements', async () => {
+  updateEntity('media_player.living_room', {}, { source: 'Spotify Connect' });
+  let acknowledge!: (value: unknown) => void;
+  sendMessagePromise.mockImplementationOnce(() => new Promise(resolve => { acknowledge = resolve; }));
+  mount();
+  const retainedTransport = controller.playback.transport;
+  let skip!: Promise<void>;
+  act(() => { skip = retainedTransport('media_next_track', 'skip track'); });
+  for (const room of ['living_room', 'gym']) {
+    updateEntity(`media_player.${room}`, {}, { group_members: ['media_player.gym', 'media_player.living_room'] });
+  }
+  await act(async () => { await retainedTransport('media_next_track', 'skip track'); await controller.playback.transport('media_next_track', 'skip track'); });
+  await act(async () => { acknowledge({}); await skip; });
+  expect(sendMessagePromise).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+    domain: 'media_player', service: 'media_next_track', target: { entity_id: ['media_player.living_room'] },
+  }));
+});
+
+it('recovers a failed start after reconnection only on a fresh explicit playlist tap', async () => {
+  listPlaylists.mockResolvedValue({ items: [playlist()], nextOffset: null, total: 1 });
+  sendMessagePromise.mockRejectedValueOnce(new Error('Connection lost'));
+  mount();
+  await userEvent.click(screen.getByRole('button', { name: 'Playlists' }));
+  await userEvent.click(await screen.findByRole('button', { name: 'Play Evening jazz by Yann' }));
+  expect((await screen.findByRole('alert')).textContent).toContain('Connection lost');
+  act(() => useStore.setState({ connectionStatus: 'disconnected' }));
+  act(() => useStore.setState({ connectionStatus: 'connected' }));
+  await act(async () => {});
+  expect(sendMessagePromise).toHaveBeenCalledTimes(1);
+  const firstId = sendMessagePromise.mock.calls[0][0].service_data.request_id;
+  sendMessagePromise.mockImplementation(async message => ({ response: { ...message.service_data, status: 'confirmed' } }));
+  await userEvent.click(await screen.findByRole('button', { name: 'Play Evening jazz by Yann' }));
+  expect(await screen.findByText('Playing Evening jazz.')).toBeTruthy();
+  expect(sendMessagePromise).toHaveBeenCalledTimes(2);
+  expect(sendMessagePromise.mock.calls[1][0].service_data.request_id).not.toBe(firstId);
+});
+
 it('enables a paused Spotify song heart independently of speaker actions and disables retained TV metadata', async () => {
   updateEntity('media_player.living_room', { state: 'paused' }, { source: 'Spotify', media_content_id: 'spotify:track:0000000000000000000001', media_title: 'Paused song' });
   const connection = useStore.getState().connection!;

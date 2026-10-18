@@ -1,6 +1,61 @@
-# SpotifyPlus Connect feasibility — 2026-10-17
+# Spotify Connect implementation verification — 2026-10-17
 
-Rollout gate: **NOT PASSED**. Installation, HA account OAuth, and live library reads are complete; Connect, Jam, and library writes remain unproven. The production playlist launcher has not changed. Do not start downstream rollout until the live gates below pass.
+Current status: **Connect feasibility passed; final rollout acceptance is in progress.**
+The relay-backed launch, fixed account, phone control/Jam, library save/remove,
+and physical Follow me path have live evidence. The remaining acceptance items
+below must be completed before claiming the final release is verified. This
+record separates real household evidence, local regression coverage, and pending
+checks. Earlier installation-only “unverified” statuses are superseded here.
+
+## Current acceptance evidence
+
+| Requirement | Status | Evidence / remaining check |
+| --- | --- | --- |
+| Pinned runtime, installed integration and fixed account | PASS | SpotifyPlus 1.0.224 / spotifywebapipython 1.0.296 on actual HA Core Python 3.14.6; registry/profile/config-entry identity and granted scopes match Yann's account |
+| Desktop consent and normal refresh | PASS | Human Desktop consent completed for the canonical account; pinned SDK normal Desktop refresh succeeded |
+| Relay isolation and restart recovery | PASS | Private paced PulseAudio null sink, UID/GID 1000, zero capabilities, no privileged/device/physical audio access; automatic boot/watchdog; relay restart and HA Core restart recovery succeeded |
+| Exact playlist/account/relay to native Sonos Connect | PASS | Fresh account/relay/context/playing, explicit supported Zeroconf activation and transfer, then fresh native Sonos Connect plus cloud target/context/playing confirmation; first/second playlists and repeated launches to already-listed devices succeeded |
+| Request identity and already-playing no-op | PASS | Duplicate request ID returned the identical result; new intent for the confirmed same context returned `already_playing` |
+| Existing group and requested follower | PASS, scoped | Gym + Bedroom launch requested through the follower resolved Gym; exact current track, group, and individual volumes were preserved. All-room idle cold starts and changed-coordinator live cases remain pending |
+| Spotify phone output, queue/control and Jam | PASS, scoped | User: “yes I see it on my phone and jam works :D”. A second participant adding a track before/after topology changes was not separately narrated and remains pending |
+| Physical Follow me on/off with Spotify/Jam | PASS | User was asked to resume Gym, start Jam, enable Follow, walk through mapped lit rooms, verify joins without Spotify/Jam interruption, and disable Follow while Gym keeps playing. User confirmed: “yes all of this works this is awesome!!” |
+| Manual grouping/ungrouping, changed coordinator, transport/seek/room volume with Connect/Jam | PENDING | Controller owns remaining native transport and room/coordinator acceptance. Existing Sonos commands are retained; no evidence currently establishes a need for Spotify transport rerouting |
+| Manual launch supersedes mood playback | PASS | Gym mood active → manual Spotify `confirmed` → End mood idle left manual session playing; relevant lighting/group/volume/Follow state restored |
+| Playlist listing and pagination | PASS | Seven real playlists, two owned/five followed; offsets 0/2/4/6 returned 2/2/2/1 and preserved full-read URI order |
+| Private/collaborative real playlists | PENDING | Required scopes and mock coverage exist; all seven actual playlists are public/noncollaborative. No real sample was created |
+| Save/remove and external saved-state reconciliation | PASS, scoped | Paused Connect exact-track WebSocket write to opposite state → direct provider check → prior state restored; external provider change reconciled through WebSocket after 31 seconds, then restored. Track races and pending/error behavior have automated coverage |
+| Failed launch/disconnection recovery | AUTOMATED; live final check pending | New frontend/backend regressions require a new explicit intent and prohibit automatic replay; real restart recovery passed separately |
+| Actual Fire viewport | PASS | Physical photographs establish dashboard iframe inner/document/visual 1224×614 CSS px, visual scale 1, DPR 1.5; screen 1280×800 landscape-primary |
+| Responsive states and final production release | IN PROGRESS | Supplemental preview at 1224×614, 375×812 and 960×540 uses DPR 1; controller owns final state/screenshots, complete checks, independent review and atomic deployment/push evidence |
+
+The Fire photos include a Silk address bar, HA sidebar and Android navigation.
+The user calls this the HA app; this is not evidence of a chrome-free fullscreen
+viewport. The measured music card remains x=647.796875, y=150,
+width=556.203125, height=232 CSS px. Existing controller preview evidence includes
+no tablet overflow, 44 px heart, visible Fire/phone error, paused Connect save,
+TV-disabled heart, and grouping/Follow remaining available after heart save.
+Animation timings (save 420 ms/remove 240 ms), reduced motion, pending races and
+stale heart responses have unit coverage. Simulated viewports supplement the
+physical measurement; they are not physical Fire proof.
+
+## Current installation and protected recovery records
+
+The live backend was verified at commit `8f01e72`; subsequent frontend regression
+and documentation changes do not imply a newer household backend deployment.
+The controller records the final release ID and served/remote hashes after rollout.
+
+- Backend runtime backup: `/homeassistant/backups.local/dashboard-music-runtime-20261018T004733191Z`.
+- Owned component YAML backup: `/homeassistant/backups.local/dashboard-music-20261018T004745349110Z`.
+- Relay installation backup: `/homeassistant/backups.local/dashboard-spotify-relay-20261018T002244009423Z`.
+- Relay credential merge backup: `/homeassistant/backups.local/spotify-relay-credentials-20261018T002705Z`.
+- Relay add-on `local_dashboard_spotify_relay`, version 1.0.0; stable name `Dashboard Relay d41bd14b`, configured Connect ID `ccd3841721c7b3bc03a5859311f40e34975b3817`.
+- Relay credential file `cache/data/credentials/credentials.json` is mode 0600; bootstrap credential is absent. Other component files and shared integration storage remain untouched.
+
+Credentials stay in ignored private tooling and HA/integration storage. They do
+not belong in source, build variables, logs, screenshots, reports or Git. Consent
+requires human interaction; token presence alone never proves matching account
+or valid Desktop authorization. Review current ownership before targeted rollback;
+never restore shared `.storage` snapshots over other integrations.
 
 ## Observed environment and selected release
 
@@ -31,83 +86,68 @@ Rollback uses the specific task backup, HACS operations, and only the SpotifyPlu
 
 `.local` DNS returned unreachable IPv6 addresses to some local Node versions after restart. Explicit IPv4 ordering restored HTTP 200; this was local tooling behavior, not evidence of a failed HA restart. Core's dependency setup reported `Attempting install of spotifywebapipython>=1.0.296` at 13:04:46 local; do not restart or duplicate config flows while dependency installation is running.
 
-## Authorization handoff
+## Authorization and verified provider boundary
 
-HA OAuth is complete. The separate application credential, named **Dashboard SpotifyPlus (existing Spotify developer app)**, was registered using the existing developer app entirely inside the tooling; values were never printed or written to Git. The completed entity is `media_player.spotifyplus_yann_luche_thibodeau`. Live profile matches the entity's `sp_user_id`, and its account ID matches the standard Spotify config entry's `unique_id`. It reports Premium. Actually granted scopes include every required playlist, library, playback, and profile scope listed below. Desktop authorization is still pending.
+HA OAuth uses the separate application credential **Dashboard SpotifyPlus
+(existing Spotify developer app)** and entity
+`media_player.spotifyplus_yann_luche_thibodeau`. The profile matches the entity's
+`sp_user_id` and the standard Spotify entry's canonical account ID; Premium and
+actually granted scopes were verified. Required scopes include
+`playlist-read-private`, `playlist-read-collaborative`, `user-library-read`,
+`user-library-modify` and SpotifyPlus's playback/profile scopes. Existing standard
+Spotify, Sonos and catalog-read integrations remain installed.
 
-1. Restart HA after HACS installation, then Settings → Devices & Services → Add Integration → SpotifyPlus. Register a separate HA application credential for SpotifyPlus. The existing developer application's client ID/secret can be reused privately, but its standard Spotify HA token cannot be substituted. User must confirm Yann's account and consent to the newly requested scopes. Never paste credentials/tokens into chat or Git.
-2. Required account scopes include `playlist-read-private`, `playlist-read-collaborative`, `user-library-read`, `user-library-modify`, and playback/profile scopes requested by SpotifyPlus. Verify actually granted scopes, fixed account, and Premium status rather than assuming the consent request proves them.
-3. Additional [Desktop authorization](https://github.com/thlucas1/homeassistantcomponent_spotifyplus/wiki/Device-Configuration-Options#spotify-desktop-player-authentication-configuration) is essential. Without it Sonos may use an invisible local queue, which fails this design.
-4. A private local Python 3.13 venv is prepared at `/Users/yann510/.codex/spotify-connect-auth.local/venv`, with `spotifywebapipython==1.0.296` and `lxml`. The reviewed upstream [AuthTokenGenerator.py](https://github.com/thlucas1/SpotifyWebApiPython/blob/master/docs/include/samplecode/ZeroconfConnect/AuthTokenGenerator.py) is next to it. Run it there using `venv/bin/python AuthTokenGenerator.py`; it asks for three `Y` confirmations and gives the human two minutes to approve **Spotify for Desktop** in the browser. No consent has been bypassed.
-5. Current generator v1.2 uses **http://127.0.0.1:4381/login**, built-in Desktop client, and `streaming` scope. The wiki's developer-app `http://127.0.0.1:8080/` example is distinct; do not change the reviewed generator callback to match that example. `tokenProfileId=None` uses the consenting account's canonical ID.
-6. Once authorized, copy/merge `spotifyplus_tokens.json` privately into HA `.storage` after backing up any current file. Retain other accounts' cache entries. Restrict permissions and verify the Desktop token key matches the configured account without printing it.
-7. `device_loginid` selects that canonical account. In the current API package, `authorization_code` and `accesstoken` Zeroconf branches still validate username/password as strings before constructing the OAuth blob; HA options require username/password paired. Whether an actual password is needed beyond this validation remains unproven. Do not promise passwordless activation or collect one in chat; inspect the actual target/auth path first.
+The separate [Spotify Desktop authorization](https://github.com/thlucas1/homeassistantcomponent_spotifyplus/wiki/Device-Configuration-Options#spotify-desktop-player-authentication-configuration)
+is complete. The reviewed generator v1.2 uses `http://127.0.0.1:4381/login`, the
+built-in Desktop client and `streaming` scope. The wiki's developer-app
+`http://127.0.0.1:8080/` example is distinct. The private pinned setup venv is
+`/Users/yann510/.codex/spotify-connect-auth.local/venv` with
+`spotifywebapipython==1.0.296` and `lxml`; it is not a source artifact. Desktop
+tokens were backed up and merged privately, preserving other account cache
+entries. `device_loginid` uses the verified canonical account. The supported
+Sonos `authorization_code` activation path succeeded with an empty password;
+this is observed behavior for this pinned target/path, not a general guarantee
+for other authentication branches.
 
-## Service schemas — live reads verified, playback/writes pending
+All SpotifyPlus services select the fixed account by `entity_id`. REST
+response-capable calls return
+`{changed_states, service_response: {user_profile, result}}`; HA WebSocket service
+responses use `{context, response}`. Required response services use
+`return_response:true`. Never log a full profile response: it contains email.
+Extract and verify account identity on the server.
 
-All services are under `spotifyplus` and require the fixed account's `entity_id`. The live registry confirmed every service below. REST returns `{changed_states, service_response: {user_profile, result}}`; response-capable registry entries report `response: {optional:false}`. Read responses use HA's `return_response:true` / REST `?return_response` and upstream envelopes `{user_profile: {...}, result: ...}`. The profile contains an email, so never log entire responses. Extract only needed account identity server-side.
+| Service | Verified use |
+| --- | --- |
+| `get_playlist_favorites` | Explicit `limit`, slot `offset`, `sort_result:false`; current-account `/me/playlists` order |
+| `get_spotify_connect_devices` | `refresh:true`; PascalCase `Items` discovery records; registry RINCON and fresh native get-info establish Sonos identity |
+| `get_player_playback_state` | Fresh account/device/context/item/playing evidence; initial non-Connect Sonos music was correctly not treated as a Connect session |
+| `zeroconf_device_getinfo` / `zeroconf_device_connect` | Fresh native identity and explicit Sonos activation; connect requires `return_response:true` |
+| `player_media_play_context` | Exact playlist URI and explicit relay device only; no Sonos context-play fallback |
+| `player_transfer_playback` | Explicit Sonos target and relay-from ID; command acknowledgement alone does not confirm playback |
+| `check_track_favorites` / `save_track_favorites` / `remove_track_favorites` | Always explicit captured exact track ID; write followed by confirmed read-back |
 
-| Service | Exact payload in addition to `entity_id` | Expected response from pinned source | Live status |
-| --- | --- | --- | --- |
-| `get_playlist_favorites` | `limit:20, offset:0, sort_result:false` (omit `limit_total`, `filter_criteria`) | `result` is `PlaylistPageSimplified`: paging + playlist items | PASS (7 playlists) |
-| `get_spotify_connect_devices` | `refresh:true` | `result` is `SpotifyConnectDevices` with discovered identities | PASS (4 Sonos + Mac) |
-| `get_player_playback_state` | optional `market`, `additional_types` | `result` is `PlayerPlayState`, including device/context/item | PASS (not playing) |
-| `player_transfer_playback` | explicit `device_id`, `play:true`, `refresh_device_list:true` | no response; confirmation requires a fresh read | Unverified |
-| `player_media_play_context` | `context_uri:"spotify:playlist:<id>", device_id:"<resolved target>"` | no response; confirmation requires a fresh read | Unverified |
-| `check_track_favorites` | `ids:"<exact track id>"` | `result` maps full `spotify:track:<id>` URI to boolean | PASS (read-only current Living Room track: false) |
-| `save_track_favorites` | `ids:"<captured exact track id>"` | no response; re-read saved state | Unverified |
-| `remove_track_favorites` | `ids:"<captured exact track id>"` | no response; re-read saved state | Unverified |
+The pinned 1.0.296 source implements track check via GET
+`/me/library/contains?uris=...`, save via PUT `/me/library?uris=...`, and removal
+via DELETE `/me/library?uris=...`; live check/save/remove succeeded. Do not use
+`get_playlists_for_user` as the default: it delegates to deprecated
+`/users/{id}/playlists`. `get_playlist_favorites` uses current-account
+`/me/playlists`. Discovery `DeviceInfo.DeviceId` is a Spotify Connect hash,
+not the stable Sonos RINCON identifier; names/group suffixes are not permanent IDs.
 
-Use **get_playlist_favorites**, which delegates to current-account `/me/playlists`. `get_playlists_for_user` delegates to deprecated `/users/{id}/playlists`, so it is not a safe default for this account's 2026 API access. The corrected preflight requires the former. Explicit `sort_result:false` preserves API order (upstream defaults to sorting names).
+## Physical viewport probe removal
 
-The inspected 1.0.296 source translates track IDs to full URIs and implements check via GET `/me/library/contains?uris=...`, save via PUT `/me/library?uris=...`, and removal via DELETE `/me/library?uris=...`. This is source evidence for migration support only, live check succeeded, while save/remove still require a user-selected test track and prior-state restoration.
+The temporary production `dashboard-viewport-probe-loader` is already absent.
+Do not restore its stale original HTML. The read-only probe sent no telemetry.
+Its historical backup is
+`/homeassistant/backups.local/dashboard-viewport-probe-20261017T130220`;
+before-index SHA256
+`15af06773fe05cd4b3c6d9bff537cdefb09310bf6698ed54c3d2904b3772212e`,
+after-probe SHA256
+`155a2baf6ecb06a42426bfcc9374c4eaee500e17e3f10106fb0bb8fc7581615f`.
+These are diagnostic historical hashes, not the final dashboard release hashes.
+A standalone diagnostic page cannot establish the embedded iframe viewport.
 
-### Exact live read shapes and payloads
-
-`get_playlist_favorites` with `{entity_id, limit:2, offset:0, sort_result:false}` returned total 7. Offsets 0, 2, 4, 6 returned counts 2, 2, 2, 1; merged URIs exactly matched the full `limit:50` read and were unique. There are two owned and five followed playlists; no private/collaborative samples were present. Page keys: `date_last_refreshed`, `href`, `limit`, `next`, `offset`, `previous`, `total`, `items_count`, `items`. Item keys: `collaborative`, `description`, `external_urls`, `href`, `id`, `image_url`, `images`, `name`, `owner`, `public`, `snapshotId`, `tracks`, `type`, `uri`.
-
-`get_spotify_connect_devices` with `{entity_id, refresh:true}` returned **PascalCase** collection keys `AgeLastRefreshed`, `DateLastRefreshed`, `ItemsCount`, `Items`. Record keys are `Id`, `Name`, `Title`, `IsActiveDevice`, `IsChromeCast`, `IsInDeviceList`, `IsRestricted`, `IsSonos`, `WasReConnected`, `DeviceIdActivated`, `DeviceInfo`, `DiscoveryResult`, `ZeroconfResponseInfo`. Bathroom, Bedroom, Gym and Living Room were `IsSonos:true`, `IsActiveDevice:false`; a Mac also appeared. All four use `DeviceInfo.TokenType:"authorization_code"`. `DeviceInfo.DeviceId` equals the current Spotify Connect hash, not the Sonos RINCON identifier. `DiscoveryResult.Name` is `sonosRINCON_<id>._spotify-connect._tcp.local.` and its lowercase `Key` contains the Sonos identifier. These service identities were matched to actual HA Sonos device-registry identifiers for all four rooms. Resolve the current coordinator using that registry/service evidence, with current IP as supporting evidence. Do not use room names alone or treat `Id`/group name as permanently stable.
-
-`get_player_playback_state` with `{entity_id}` returned `is_playing:false`; existing Sonos music was not falsely treated as an active Spotify Connect session. Result keys are `is_empty`, `actions`, `context`, `currently_playing_type`, `device`, `device_music_source`, `is_advertisement`, `is_device_state`, `is_muted`, `is_playing`, `is_repeat_enabled`, `is_shuffle_enabled`, `progress_ms`, `repeat_state`, `shuffle_state`, `smart_shuffle`, `timestamp`, `item_type`, `item`.
-
-`check_track_favorites` with `{entity_id, ids:"<track-id extracted from current Living Room Spotify URI>"}` succeeded and returned `{user_profile, result:{"spotify:track:<same-id>":false}}`. No save/remove was issued. Never omit `ids`: upstream can otherwise choose the current track, which would violate captured-track write semantics.
-
-Live registry additional fields: `get_device_playback_state`: `entity_id,device_id`; `player_media_play_context`: `entity_id,context_uri,offset_uri,offset_position,position_ms,device_id,delay,shuffle,play_show_latest_episode`; `player_transfer_playback`: `entity_id,device_id,play,delay,refresh_device_list,force_activate_device,device_id_from`. The gateway must pass explicit validated target/account/context and re-read state after commands; a command success is not confirmation.
-
-## Acceptance matrix
-
-| Requirement | Status | Evidence / next step |
-| --- | --- | --- |
-| Runtime versions and existing integrations captured | PASS | Core system-health and read-only API/SSH inspection |
-| Explicit pinned HACS installation + protected backup | PASS | Manifest v1.0.224 and original backup above |
-| Real dependency import/config flow | PASS | HA wizard completed; registered services and real reads succeeded |
-| Fixed Yann account and granted scopes | PASS | Profile/entity/config-entry identity match; required scopes present |
-| Desktop consent | UNVERIFIED | Human Spotify for Desktop authorization pending |
-| Registered service schemas and read response envelopes | PASS | Live registry, playlists, playback state, discovery and saved-state reads |
-| Idle single speaker cold-start with phone closed | UNVERIFIED | Snapshot/restore idle independent speaker; avoid active Chill mood/Living Room |
-| Existing group cold-start and changed coordinator | UNVERIFIED | Requires agreed group baseline and active-session preservation |
-| Spotify same account/device/context and queue control | UNVERIFIED | User opens Spotify and observes active Connect session |
-| Jam with second participant adding a track | UNVERIFIED | Explicit user participation; audio alone never proves Jam |
-| Current playlists and pagination | PASS | 7 unique URIs; pages at offsets 0/2/4/6 returned 2/2/2/1 in full-read order |
-| Private/collaborative playlist samples | UNVERIFIED | Scopes granted; account library has no samples |
-| Save/check/remove and restore prior saved state | UNVERIFIED | User must choose test track before any writes |
-| Token expiry/refresh and HA restart recovery | UNVERIFIED | After both auth paths succeed |
-| Sonos transport/group/Follow me preserves Connect/Jam | UNVERIFIED | Real session testing after feasibility |
-| Real Fire HA-app dashboard CSS viewport | UNVERIFIED | Temporary actual-frame probe deployed; user measurement pending |
-
-No playback or library write was issued during this task. Keep existing playback/mood ownership untouched while waiting for Desktop consent. The active Chill mood and Living Room session are not a safe test fixture for this milestone.
-
-## Viewport diagnostic support
-
-Standalone `/local/dashboard-viewport.html` is a fallback only; its viewport may differ from HA app's embedded dashboard. The actual deployed dashboard index temporarily references `/local/dashboard-viewport-probe.js`. The read-only badge measures the dashboard frame's inner/client/visual dimensions, visual scale, DPR, screen, orientation, and UA; it sends no telemetry and has a close button.
-
-Probe backup: `/homeassistant/backups.local/dashboard-viewport-probe-20261017T130220`. Dashboard index before SHA256: `15af06773fe05cd4b3c6d9bff537cdefb09310bf6698ed54c3d2904b3772212e`; after: `155a2baf6ecb06a42426bfcc9374c4eaee500e17e3f10106fb0bb8fc7581615f`. No dashboard assets changed. After measurement remove exactly `<script id="dashboard-viewport-probe-loader" src="/local/dashboard-viewport-probe.js"></script>` from the current index. Do not restore a stale whole index after another deployment. The probe did not exist before this task and can then be deleted; preserve a newer replacement if its bytes differ.
-
-## Local validation
-
-`npm ci` passed after the minimal optional transitive lock repair. `VITE_FOLDER_NAME=dashboard npm test` baseline passed 39 files / 664 tests; final passed **40 files / 678 tests**. Focused installer suite passed **14 tests**, with recorded missing-implementation and regression red/green runs. Scoped ESLint, Node syntax check, and Git whitespace checks passed. No frontend deployment was performed.
-
-## Fixed-account library component (local implementation; not deployed)
+## Fixed-account library component
 
 `custom_components/dashboard_music` exposes authenticated WebSocket commands
 `dashboard_music/playlists`, `dashboard_music/track_saved`, and
@@ -160,8 +200,8 @@ node scripts/configure-dashboard-music.mjs --env /absolute/path/to/.env --rollba
 
 Rollback preserves surrounding and later YAML changes and refuses a modified or
 missing owned block. Existing SpotifyPlus installation ownership/rollback guards
-are unchanged. No configuration mode, component deployment, save/remove call,
-Connect playback, or Jam test was performed while implementing this component.
+are unchanged. These installer guards describe configuration ownership; current live component,
+playback, and save/remove results are recorded in the acceptance matrix above.
 
 ## Relay playback backend contract
 
@@ -238,11 +278,26 @@ adds isolated real-HA registration/schema/context tests. Actual household releas
 and final acceptance evidence is recorded separately by the rollout controller;
 the backend author's tests do not stand in for those checks.
 
-The rollout controller ran isolated native tests in actual Core Python 3.14.6:
-**39 passed in 3.689s**, including the new component setup/service Context/WS
-schema/permission tests and existing integration, Follow light and startup
-readiness tests. This temp HA used fake providers and changed no household
-configuration or playback. Local final pure discovery passed **260 tests with
-one existing skip**; JavaScript passed **698 tests**, lint and dashboard build
-passed (existing bundle size warnings). Independent review and final live
-rollout acceptance remain separate checkpoints.
+## Automated verification and limits
+
+Controller evidence before this task: `ha core check` passed; **40 isolated native
+HA tests passed in 3.317s** on actual Core Python 3.14.6 at backend `8f01e72`.
+Those tests used fake providers and changed no household state. Earlier local
+full-suite counts are historical and do not certify the final integrated release.
+
+Task 6 used Node **24.10.0** and existing lockfile-installed dependencies:
+
+- `VITE_FOLDER_NAME=dashboard npm test -- src/canvas/CanvasMusic.test.tsx src/SpeakerPlayback.test.tsx`: **2 files, 136 tests passed**.
+- `python3 -m unittest discover -s home-assistant/tests -p test_dashboard_music_playback.py -v`: **25 tests passed**.
+
+New coverage exercises external coordinator changes during a launch and handoff,
+a retained manual Follow handoff while launch is pending, one transport skip
+while acknowledgements/topology change, per-member volume, and failed-start
+recovery after reconnection with no automatic replay. All new regressions passed
+existing production guards; no transport rerouting or other production change
+was necessary. These are mock regressions, not live Spotify/Jam acceptance.
+
+The controller runs the final complete JavaScript/Python/lint/dashboard-build and
+whitespace checks after all fixes, performs independent final review, and records
+remaining live/UI acceptance and the atomic production release separately. No
+final deployment or remote-main completion is claimed by this focused test task.
