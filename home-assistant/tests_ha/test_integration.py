@@ -216,6 +216,36 @@ class IntegrationTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn('light.test',runtime.engine.session.overridden)
         self.assertNotIn('light.test',runtime.engine.session.owned)
 
+    async def test_real_shuffle_repeat_service_intent_releases_only_its_playback_before_handler(self):
+        from custom_components.house_moods.sonos import SOURCE, PLAYBACK_SOURCES, GROUPS, FOLLOW
+        await async_setup(self.hass, {})
+        runtime = self.hass.data['house_moods']
+        runtime.engine._loaded = True
+        controls = {source + '#playback': {'state': 'playing', 'queue': ['fixture-track'], 'source': None, 'stream': None}
+                    for source in PLAYBACK_SOURCES}
+        controls.update({'light.test': {'state': 'on'}, SOURCE + '#volume': {'volume_level': .2},
+                         GROUPS: {'groups': [[source] for source in PLAYBACK_SOURCES]}, FOLLOW: {'state': 'on', 'source': SOURCE}})
+        calls = []
+        async def manual(call):
+            playback = call.data['entity_id'][0] + '#playback'
+            self.assertEqual(runtime.engine.session.owned, set(controls) - {playback})
+            self.assertIn(playback, runtime.engine._manual_during_operation)
+            calls.append((call.service, playback))
+        for service in ('shuffle_set', 'repeat_set'):
+            self.hass.services.async_register('media_player', service, manual)
+            for source in PLAYBACK_SOURCES:
+                with self.subTest(service=service, source=source):
+                    runtime.engine.session = Session('session', 'love', 'active', baseline=deepcopy(controls),
+                                                     expected=deepcopy(controls), owned=set(controls))
+                    runtime.engine._manual_during_operation.clear()
+                    async with runtime.engine._lock:
+                        await self.hass.services.async_call('media_player', service,
+                            {'entity_id': [source], **({'shuffle': True} if service == 'shuffle_set' else {'repeat': 'all'})},
+                            blocking=True, context=Context())
+                    await self.hass.async_block_till_done()
+                    self.assertEqual(runtime.engine.session.owned, set(controls) - {source + '#playback'})
+        self.assertEqual(len(calls), 4)
+
     async def test_script_child_context_inherits_before_nested_command(self):
         with patch('custom_components.house_moods.HAAdapter',Adapter):await async_setup(self.hass,{})
         runtime=self.hass.data['house_moods']

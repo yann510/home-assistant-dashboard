@@ -36,7 +36,9 @@ class Provider:
         return RELAY
     async def playback_state(self):
         return self.state
-    async def start_playlist(self, uri, relay):
+    async def start_playlist(self, uri, relay, guard):
+        if not guard():
+            raise RuntimeError('Request changed')
         self.effects.append(('start', uri, relay))
         self.state = PlaybackState(ACCOUNT, relay, uri, True, True, TRACK)
     async def handoff(self, target, guard):

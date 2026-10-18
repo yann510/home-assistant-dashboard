@@ -172,7 +172,7 @@ class Runtime:
                 targets.update(e + '#volume' for e in speakers)
             if service in ('join', 'unjoin') and (speakers or set(data.get('group_members', [])) & set(SPEAKERS)):
                 targets.add(GROUPS)
-            if service in ('play_media', 'media_play', 'media_pause', 'media_stop', 'media_play_pause', 'clear_playlist', 'turn_off', 'turn_on'):
+            if service in ('play_media', 'media_play', 'media_pause', 'media_stop', 'media_play_pause', 'clear_playlist', 'turn_off', 'turn_on', 'shuffle_set', 'repeat_set'):
                 targets.update(e + '#playback' for e in speakers & set(PLAYBACK_SOURCES))
         if domain == 'localtuya' and service == 'set_dp':
             from .modes import TUYA_LIGHTS

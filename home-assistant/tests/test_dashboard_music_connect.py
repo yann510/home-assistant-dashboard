@@ -6,6 +6,9 @@ import unittest
 from test_dashboard_music_gateway import Services, make_hass, ACCOUNT, ENTITY, P1, TRACK
 from custom_components.dashboard_music.gateway import SpotifyGateway
 from custom_components.dashboard_music.models import MusicError
+from custom_components.dashboard_music.playback import PlaybackController, SpeakerPort
+from test_dashboard_music_playback import house, Listed
+from custom_components.house_moods.sonos import SPEAKERS
 
 SOURCE = 'media_player.gym'
 RINCON = 'RINCON_48A6B88280DE01400'
@@ -209,3 +212,108 @@ class ConnectGatewayTests(unittest.IsolatedAsyncioTestCase):
         release.set()
         await settled
         self.assertEqual(sum(name == 'player_media_play_context' for _, name, *_ in self.services.calls), 1)
+
+
+class FinalDiscoveryServices(ConnectServices):
+    """Hold real gateway I/O at final discovery or an already-dispatched play."""
+    def __init__(self):
+        super().__init__()
+        self.cloud['is_playing'] = False
+        self.hold_final_discovery = False
+        self.discovery_entered, self.discovery_release = asyncio.Event(), asyncio.Event()
+        self.mutation_entered, self.mutation_release = asyncio.Event(), asyncio.Event()
+        self.mutation_release.set()
+        self.submitted, self.effects = [], []
+    async def async_call(self, domain, name, data, **kwargs):
+        if name == 'get_spotify_connect_devices' and self.hold_final_discovery:
+            self.discovery_entered.set()
+            await self.discovery_release.wait()
+        if name == 'player_media_play_context':
+            self.submitted.append((name, data['context_uri'], data['device_id']))
+            self.mutation_entered.set()
+            await self.mutation_release.wait()
+            self.effects.append(('play', data['context_uri'], data['device_id']))
+            self.cloud.update(is_playing=True, device={'id': RELAY, 'name': 'Silent relay', 'is_restricted': False})
+        elif name in ('zeroconf_device_connect', 'player_transfer_playback'):
+            self.submitted.append((name,))
+        return await super().async_call(domain, name, data, **kwargs)
+
+
+class FinalDiscoveryGateway(SpotifyGateway):
+    async def start_playlist(self, *args, **kwargs):
+        # Preserve the complete production method; instrument only its external
+        # discovery boundary so preceding read-only preflight can finish.
+        self.hass.services.hold_final_discovery = True
+        return await super().start_playlist(*args, **kwargs)
+
+
+class RealLaunchBoundaryTests(unittest.IsolatedAsyncioTestCase):
+    def setUp(self):
+        self.hass, account, _, runtime = make_hass()
+        runtime.session.token['scope'] += ' user-read-playback-state user-modify-playback-state user-read-private'
+        self.services = self.hass.services = FinalDiscoveryServices()
+        local, self.states, _ = house()
+        self.hass.auth = local.auth
+        self.states[ENTITY] = NS(state='idle', attributes={'sp_user_id': ACCOUNT})
+        for entity in SPEAKERS:
+            self.states[entity].attributes['source'] = 'Spotify Connect'
+        self.hass.states.get = self.states.get
+        sonos = NS(platform='sonos', device_id='trusted-device')
+        self.gateway = FinalDiscoveryGateway(self.hass, ENTITY,
+            lambda entity: account if entity == ENTITY else sonos if entity == SOURCE else None,
+            relay_device_id=RELAY, device_registry_get=lambda _: NS(identifiers={('sonos', RINCON)}))
+        self.player = PlaybackController(Listed(), self.gateway, SpeakerPort(self.hass, ENTITY, SPEAKERS))
+        self.player.deadline, self.player.poll_interval = .08, .005
+    async def asyncTearDown(self):
+        self.services.discovery_release.set()
+        self.services.mutation_release.set()
+        await self.player.close()
+        await self.player.wait_settled()
+    async def launch(self, request='intent'):
+        return await self.player.play(P1, SOURCE, request, 'user', context_id='ha-context')
+    async def test_deadline_during_final_discovery_never_dispatches_context_or_handoff(self):
+        task = asyncio.create_task(self.launch())
+        await asyncio.wait_for(self.services.discovery_entered.wait(), 1)
+        self.assertEqual((await task)['status'], 'unconfirmed')
+        self.assertEqual(self.services.submitted, [])
+        self.services.discovery_release.set()
+        await self.player.wait_settled()
+        self.assertEqual(self.services.submitted, [])
+    async def test_cancellation_during_final_discovery_never_dispatches_context_or_handoff(self):
+        task = asyncio.create_task(self.launch())
+        await asyncio.wait_for(self.services.discovery_entered.wait(), 1)
+        task.cancel()
+        with self.assertRaises(asyncio.CancelledError):
+            await task
+        self.services.discovery_release.set()
+        await self.player.wait_settled()
+        self.assertEqual(self.services.submitted, [])
+    async def test_topology_change_during_final_discovery_never_dispatches_context_or_handoff(self):
+        task = asyncio.create_task(self.launch())
+        await asyncio.wait_for(self.services.discovery_entered.wait(), 1)
+        for entity in (SOURCE, 'media_player.living_room'):
+            self.states[entity].attributes['group_members'] = ['media_player.living_room', SOURCE]
+        self.services.discovery_release.set()
+        self.assertEqual((await task)['status'], 'unconfirmed')
+        await self.player.wait_settled()
+        self.assertEqual(self.services.submitted, [])
+    async def test_dispatched_effect_retains_account_and_mood_until_true_settlement_without_handoff(self):
+        from test_dashboard_music_moods import runtime
+        mood = runtime()
+        self.assertTrue((await mood.engine.activate('unwind'))['success'])
+        self.hass.data['house_moods'] = mood
+        self.gateway.call_timeout = .01
+        self.services.discovery_release.set()
+        self.services.mutation_release.clear()
+        task = asyncio.create_task(self.launch())
+        await asyncio.wait_for(self.services.mutation_entered.wait(), 1)
+        self.assertEqual((await task)['status'], 'unconfirmed')
+        self.assertEqual(self.services.effects, [])
+        self.assertEqual((await self.launch('another-intent'))['status'], 'busy')
+        self.assertFalse((await mood.engine.activate('dinner'))['success'])
+        self.assertFalse(mood.engine._lock.locked())
+        self.services.mutation_release.set()
+        await self.player.wait_settled()
+        self.assertEqual(self.services.effects, [('play', P1, RELAY)])
+        self.assertEqual(self.services.submitted, [('player_media_play_context', P1, RELAY)])
+        self.assertFalse(mood.engine._manual_playback_active)

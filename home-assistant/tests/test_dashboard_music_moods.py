@@ -136,6 +136,39 @@ class ManualMoodTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(self.engine._manual_playback_active)
         self.assertFalse(self.engine._lock.locked())
 
+    async def test_manual_shuffle_repeat_intent_immediately_releases_only_target_playback(self):
+        # Only HA's entity-selector boundary is faked; the runtime callback and
+        # coordinator's synchronous ownership guard are the production objects.
+        core = types.ModuleType('homeassistant.core')
+        core.ServiceCall = object
+        target = types.ModuleType('homeassistant.helpers.target')
+        target.TargetSelection = lambda data: data
+        target.async_extract_referenced_entity_ids = lambda hass, data: NS(referenced=set(data['entity_id']), indirectly_referenced=set())
+        adapter = types.ModuleType('custom_components.house_moods.ha_adapter')
+        adapter.DEVICE = 'fixture-native-light'
+        modules = {'homeassistant': types.ModuleType('homeassistant'), 'homeassistant.core': core,
+                   'homeassistant.helpers': types.ModuleType('homeassistant.helpers'), 'homeassistant.helpers.target': target,
+                   'custom_components.house_moods.ha_adapter': adapter}
+        self.runtime.hass = NS()
+        self.io.origin = lambda _: None
+        observations = []
+        self.runtime.observe = lambda control, origin: observations.append((control, origin))
+        playback = SOURCE + '#playback'
+        owned = self.engine.session.owned.copy()
+        for service in ('shuffle_set', 'repeat_set'):
+            self.engine.session.owned = owned.copy()
+            self.engine.session.overridden.discard(playback)
+            observations.clear()
+            event = NS(data={'domain': 'media_player', 'service': service, 'service_data': {'entity_id': [SOURCE]}},
+                       context=NS(id='real-ha-context'))
+            async with self.engine._lock:
+                self.engine._manual_during_operation.clear()
+                with patch.dict(sys.modules, modules):
+                    self.runtime.service_called(event)
+                self.assertEqual(self.engine.session.owned, owned - {playback}, service)
+                self.assertIn(playback, self.engine._manual_during_operation)
+                self.assertEqual(observations, [(playback, 'external:real-ha-context')])
+
 
 class ServiceLifetimeTests(unittest.IsolatedAsyncioTestCase):
     async def test_timeout_keeps_executor_effect_and_manual_launch_guarded(self):

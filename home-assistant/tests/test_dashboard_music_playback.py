@@ -30,7 +30,9 @@ class Provider:
         return 'connect-id'
     async def playback_state(self):
         return self.state
-    async def start_playlist(self, uri, device):
+    async def start_playlist(self, uri, device, guard=lambda: True):
+        if not guard():
+            raise MusicError('unavailable')
         self.calls.append(('start', uri, device))
         self.started.set()
         await self.release.wait()
@@ -144,7 +146,9 @@ class PlaybackTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue((await mood.engine.activate('unwind'))['success'])
         self.hass.data['house_moods'] = mood
         finished = asyncio.Event()
-        async def delegated_start(uri, device):
+        async def delegated_start(uri, device, guard):
+            if not guard():
+                raise MusicError('unavailable')
             self.provider.calls.append(('start', uri, device))
             self.provider.started.set()
             raise MusicError('unavailable')  # HA handler timed out; service is still running.

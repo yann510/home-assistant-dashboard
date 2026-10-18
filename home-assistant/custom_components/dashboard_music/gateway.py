@@ -306,11 +306,17 @@ class SpotifyGateway:
             raise MusicError('not_configured', 'Spotify playback relay is not configured.')
         return self._relay(await self._discovery())['Id']
 
-    async def _playback_mutation(self, name, data, response=False):
+    async def _playback_mutation(self, name, data, response=False, guard=lambda: True):
         self._verify_playback(write=True)
         if self._pending_playback:
             raise MusicError('unavailable', 'An earlier Spotify playback command is still finishing.')
-        operation = asyncio.create_task(self._execute_call(name, data, response))
+        async def execute():
+            # Task scheduling and the preceding discovery both yield. Recheck
+            # intent in the delegated task, with no await before service dispatch.
+            if not guard():
+                raise MusicError('unavailable')
+            return await self._execute_call(name, data, response)
+        operation = asyncio.create_task(execute())
         self._pending_playback.add(operation)
         def settled(done):
             self._pending_playback.discard(done)
@@ -327,14 +333,14 @@ class SpotifyGateway:
         while self._pending_playback:
             await asyncio.gather(*(asyncio.shield(task) for task in tuple(self._pending_playback)), return_exceptions=True)
 
-    async def start_playlist(self, playlist_uri: str, device_id: str) -> None:
+    async def start_playlist(self, playlist_uri: str, device_id: str, guard=lambda: True) -> None:
         validate_uri(playlist_uri, 'playlist')
         relay = self._relay(await self._discovery())
         if device_id != relay['Id']:
             raise MusicError('invalid_request')
         # Never send context-play to Sonos: this pinned provider would use its
         # local queue. The verified non-Sonos relay takes the Connect API route.
-        await self._playback_mutation('player_media_play_context', {'context_uri': playlist_uri, 'device_id': device_id, 'delay': .5})
+        await self._playback_mutation('player_media_play_context', {'context_uri': playlist_uri, 'device_id': device_id, 'delay': .5}, guard=guard)
 
     async def handoff(self, device_id, guard=lambda: True):
         source = self._targets.get(device_id)
@@ -348,13 +354,13 @@ class SpotifyGateway:
         account = self._verify_playback(write=True)
         activated = await self._playback_mutation('zeroconf_device_connect', {
             **network, 'username': account, 'password': '', 'loginid': account, 'pre_disconnect': False,
-            'verify_device_list_entry': False, 'delay': .5}, response=True)
+            'verify_device_list_entry': False, 'delay': .5}, response=True, guard=guard)
         if not isinstance(activated, dict) or activated.get('Status') != 101 or activated.get('SpotifyError') != 0 or not guard():
             raise MusicError('unavailable')
         # force_activate_device is retained for the verified service payload;
         # it does not substitute for the unconditional Zeroconf step above.
         await self._playback_mutation('player_transfer_playback', {'device_id': device_id, 'device_id_from': relay['Id'],
-            'play': True, 'delay': .5, 'force_activate_device': True})
+            'play': True, 'delay': .5, 'force_activate_device': True}, guard=guard)
 
     @staticmethod
     def _sonos_network(raw):

@@ -224,7 +224,7 @@ class PlaybackController:
                             self._finish(request_id, request, 'unconfirmed')
                             return
                         request.effect_started = True
-                        await self.gateway.start_playlist(uri, relay)
+                        await self.gateway.start_playlist(uri, relay, guard=lambda: self._current(request, selected, snapshot))
                         if not await self._confirm(request, selected, snapshot, account, relay, uri):
                             self._finish(request_id, request, 'unconfirmed')
                             return
