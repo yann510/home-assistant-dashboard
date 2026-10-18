@@ -1,0 +1,20 @@
+{
+  "name": "Dashboard Spotify Relay",
+  "version": "1.0.0",
+  "slug": "dashboard_spotify_relay",
+  "description": "Private paced silent Spotify Connect staging receiver",
+  "arch": ["aarch64"],
+  "startup": "services",
+  "boot": "auto",
+  "init": false,
+  "timeout": 15,
+  "host_network": true,
+  "audio": false,
+  "hassio_api": false,
+  "homeassistant_api": false,
+  "full_access": false,
+  "tmpfs": true,
+  "watchdog": "tcp://[HOST]:24879",
+  "options": {},
+  "schema": {}
+}
