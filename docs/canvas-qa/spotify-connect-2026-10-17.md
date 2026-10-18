@@ -179,3 +179,26 @@ Read-only inspection of the actual production HA iframe confirmed 1224×614,
 successful center-point hit testing. Production playback remained paused, with
 Follow on and Gym +1 visible. Screenshot:
 `backups.local/spotify-connect-qa/heart-corner-production.png`.
+
+
+## Playlist footer placement — 2026-10-18
+
+User selected the bottom-row alternative. Source `e47a1ce` moves the existing
+Playlists control between Follow me and the speaker selector; playback and
+volume remain together above the seek bar. The speaker name truncates inside
+its remaining space while preserving the arrow and a 44 px minimum target.
+The heart, services and playback behavior are unchanged.
+
+The existing 133 CanvasMusic tests, lint, whitespace check and production build
+passed. Browser previews at 1224×614 and 375×812 had no horizontal overflow;
+all three footer controls retained 44 px heights and passed center-point hit
+tests. Playlists opened/closed the existing sheet at both sizes, and keyboard
+focus retained its visible 2 px outline. Fire-size card remains 556.2×232 px.
+These are measured-viewport browser checks; the physical Fire was not operated.
+
+Independent scoped review passed. Production release
+`spotify-connect-footer-20261018-e47a1ce` was atomically promoted. All 68 build
+files matched the served manifest and HTTP bytes. Read-only production HA-frame
+inspection confirmed 1224×614 at scale 1, the requested footer order, and all
+three 44 px targets receiving pointer hits. Household controls were not changed.
+Screenshot: `backups.local/spotify-connect-qa/playlist-footer-production.png`.
