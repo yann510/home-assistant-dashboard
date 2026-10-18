@@ -110,6 +110,7 @@ export function CanvasMusic({
       <div className='canvas-music__atmosphere' aria-hidden='true'>
         {usableArtwork && <img src={usableArtwork} alt='' onLoad={() => setLoadedArtwork(usableArtwork)} onError={() => setFailedArtwork(usableArtwork)} />}
       </div>
+      <CanvasTrackHeart trackUri={currentTrackUri} title={trackTitle ?? title} enabled={!!available && !idle} />
       <div className='canvas-music__track'>
         <Cover className='canvas-music__cover' href={spotifyHref} aria-label={trackTitle ? linkTrackUri ? 'Open current song in Spotify' : 'Open Spotify app' : undefined} aria-hidden={trackTitle ? undefined : true}>
           {usableArtwork ? (
@@ -120,10 +121,7 @@ export function CanvasMusic({
         </Cover>
         <div className='canvas-music__metadata'>
           <span className='canvas__eyebrow'>{trackTitle ? 'Music, for this moment' : 'Music'}</span>
-          <div className='canvas-music__title-row'>
-            <Title className={`canvas-music__title${trackTitle ? '' : ' canvas-music__title--status'}`} href={spotifyHref}>{title}</Title>
-            <CanvasTrackHeart trackUri={currentTrackUri} title={trackTitle ?? title} enabled={!!available && !idle} />
-          </div>
+          <Title className={`canvas-music__title${trackTitle ? '' : ' canvas-music__title--status'}`} href={spotifyHref}>{title}</Title>
           {!idle && available && attributes?.media_artist && <p>{attributes.media_artist}</p>}
         </div>
       </div>
