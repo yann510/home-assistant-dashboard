@@ -46,7 +46,7 @@ else:
                 if name == 'pulseaudio':
                     body += "(root/'pulse-config').write_text(pathlib.Path(sys.argv[sys.argv.index('--file')+1]).read_text())\n"
                 else:
-                    body += "if os.environ.get('LIBRESPOT_ACCESS_TOKEN'):\n pathlib.Path(sys.argv[sys.argv.index('--system-cache')+1], 'credentials.json').write_text('fixture credentials')\n"
+                    body += "if os.environ.get('LIBRESPOT_ACCESS_TOKEN'):\n cache=pathlib.Path(sys.argv[sys.argv.index('--system-cache')+1], 'credentials.json')\n if (root/'partial-cache').exists():\n  cache.write_text('{')\n  while not (root/'finish-cache').exists(): time.sleep(0.02)\n cache.write_text(json.dumps({'username':'fixture-canonical-account','auth_type':1,'auth_data':'Zml4dHVyZQ=='}))\n"
                     body += "print('fake-private-child-output',flush=True)\n"
                 body += 'while True: time.sleep(0.05)\n'
             path = self.bin / name
@@ -131,7 +131,42 @@ else:
         self.wait_for(self.player)
         self.assertIsNone(self.player()['token'])
         self.assertEqual(json.loads((self.data / 'identity.json').read_text()), identity)
-        self.assertEqual((self.data / 'cache/credentials.json').read_text(), 'fixture credentials')
+        self.assertEqual(json.loads((self.data / 'cache/credentials.json').read_text())['username'], 'fixture-canonical-account')
+
+    def test_partial_cache_cannot_consume_bootstrap_before_valid_credentials_are_written(self):
+        token = self.data / 'bootstrap-token'
+        token.write_text('fixture-bootstrap-secret')
+        token.chmod(0o600)
+        (self.root / 'partial-cache').touch()
+        self.start()
+        self.wait_for(lambda: (self.data / 'cache/credentials.json').exists())
+        time.sleep(0.6)
+        self.assertTrue(token.exists())
+        (self.root / 'finish-cache').touch()
+        self.wait_for(lambda: not token.exists())
+
+    def test_incomplete_cached_credentials_reuse_bootstrap_for_recovery(self):
+        cache = self.data / 'cache'
+        cache.mkdir(mode=0o700)
+        valid = {'username': 'fixture-canonical-account', 'auth_type': 1, 'auth_data': 'Zml4dHVyZQ=='}
+        invalid = ['{'] + [json.dumps({**valid, key: value}) for key, value in (
+            ('username', None), ('username', ''), ('auth_type', None),
+            ('auth_type', '1'), ('auth_type', True), ('auth_data', ''), ('auth_data', 'invalid!'),
+        )]
+        for value in invalid:
+            with self.subTest(value=value):
+                (cache / 'credentials.json').write_text(value)
+                token = self.data / 'bootstrap-token'
+                token.write_text('fixture-bootstrap-secret')
+                token.chmod(0o600)
+                self.start()
+                self.wait_for(self.player)
+                try:
+                    self.assertEqual(self.player()['token'], 'fixture-bootstrap-secret')
+                finally:
+                    self.process.terminate()
+                    self.process.communicate(timeout=4)
+                    self.log.unlink()
 
     def test_bad_sink_never_launches_player(self):
         (self.root / 'bad-sink').touch()
@@ -153,14 +188,15 @@ else:
     def test_invalid_bootstrap_never_erases_existing_credentials(self):
         cache = self.data / 'cache'
         cache.mkdir(mode=0o700)
-        (cache / 'credentials.json').write_text('existing credentials')
+        original = '{"username":"existing-canonical-account","auth_type":1,"auth_data":"ZXhpc3Rpbmc="}'
+        (cache / 'credentials.json').write_text(original)
         token = self.data / 'bootstrap-token'
         token.write_text('')
         token.chmod(0o600)
         self.start()
         self.wait_for(self.player)
         self.assertIsNone(self.player()['token'])
-        self.assertEqual((cache / 'credentials.json').read_text(), 'existing credentials')
+        self.assertEqual((cache / 'credentials.json').read_text(), original)
 
     def test_identity_tampering_fails_before_starting_audio(self):
         (self.data / 'identity.json').write_text('{"name":"same","device_id":"wrong"}')

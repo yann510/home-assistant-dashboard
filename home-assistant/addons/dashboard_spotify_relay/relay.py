@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Supervise a private, paced silent Spotify Connect receiver."""
 import argparse
+import base64
 import hashlib
 import json
 import os
@@ -72,6 +73,23 @@ def healthy(env):
         return False
 
 
+def cached_credentials_ready(path):
+    """File creation alone is not proof a non-atomic upstream write finished."""
+    private_path(path)
+    try:
+        value = json.loads(path.read_text())
+        if not isinstance(value, dict):
+            return False
+        username = value.get('username')
+        auth_type = value.get('auth_type')
+        auth_data = value.get('auth_data', value.get('encoded_auth_blob'))
+        return (isinstance(username, str) and bool(username.strip())
+                and type(auth_type) is int and 0 <= auth_type <= 4
+                and isinstance(auth_data, str) and bool(base64.b64decode(auth_data, validate=True)))
+    except (OSError, ValueError):
+        return False
+
+
 def run(data, runtime):
     identity = prepare(data, runtime)
     # Whitelist so inherited upstream LIBRESPOT_*, audio defaults, debug settings,
@@ -89,7 +107,7 @@ def run(data, runtime):
     token_file = data / 'bootstrap-token'
     credentials = data / 'cache' / 'credentials.json'
     using_bootstrap = False
-    if token_file.exists() and not credentials.exists():
+    if token_file.exists() and not cached_credentials_ready(credentials):
         token = token_file.read_text().strip()
         if not token or len(token) > 16384 or any(char.isspace() or not char.isprintable() for char in token):
             raise RuntimeError('Invalid bootstrap; existing credentials preserved')
@@ -132,8 +150,7 @@ def run(data, runtime):
         while not stopping:
             if pulse.poll() is not None or player.poll() is not None or not healthy(pulse_env):
                 raise RuntimeError('Relay process or private silent sink unhealthy')
-            if using_bootstrap and credentials.exists():
-                private_path(credentials)
+            if using_bootstrap and cached_credentials_ready(credentials):
                 token_file.unlink()
                 using_bootstrap = False
             time.sleep(0.25)
