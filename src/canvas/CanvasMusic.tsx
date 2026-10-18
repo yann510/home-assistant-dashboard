@@ -8,7 +8,7 @@ import { useCanvasMusic } from './CanvasMusicProvider';
 import { spotifyTrackUri } from './spotifyTrackUri';
 
 export function CanvasFollow() {
-  const { session: s, rooms } = useCanvasMusic();
+  const { session: s, rooms, playlistPlayback } = useCanvasMusic();
   return (
     <div className='canvas-music__follow'>
       <button
@@ -17,7 +17,7 @@ export function CanvasFollow() {
         aria-label='Follow me'
         aria-checked={s.following}
         aria-busy={s.updating}
-        disabled={s.updating || rooms.busy || !s.canToggle}
+        disabled={s.updating || rooms.busy || !!playlistPlayback.pending || !s.canToggle}
         onClick={() => void s.updateFollowing(s.following ? 'disable' : 'enable')}
       >
         <span className='canvas-music__follow-label'>Follow me</span>
@@ -35,7 +35,7 @@ export function CanvasFollow() {
       {s.canRetryCleanup && (
         <>
           <p>Motion following is off. Return audio to the original speaker.</p>
-          <button disabled={rooms.busy || !s.connected || !s.configured} onClick={() => void s.updateFollowing('disable')}>
+          <button disabled={rooms.busy || !!playlistPlayback.pending || !s.connected || !s.configured} onClick={() => void s.updateFollowing('disable')}>
             Retry ungrouping
           </button>
         </>
@@ -84,7 +84,7 @@ export function CanvasMusic({
   onOpenPlayer(trigger: HTMLElement): void;
   onOpenSpeakers(trigger: HTMLElement): void;
 }) {
-  const { session, title, trackTitle, attributes, idle, rooms, disabled, playback, favouritePlayback } = useCanvasMusic();
+  const { session, title, trackTitle, attributes, idle, rooms, disabled, playback, playlistPlayback } = useCanvasMusic();
   const { joinHassUrl } = useHass();
   const [failedArtwork, setFailedArtwork] = useState<string>();
   const [loadedArtwork, setLoadedArtwork] = useState<string>();
@@ -94,8 +94,8 @@ export function CanvasMusic({
   const usableArtwork = artworkUrl && failedArtwork !== artworkUrl ? artworkUrl : undefined;
   const hasArtwork = !!usableArtwork && loadedArtwork === usableArtwork;
   const activePlayback = !!available && session.coordinator?.state === 'playing' && !disabled && !playback.busy
-    && !session.updating && !favouritePlayback.pending && !playback.error && !session.error && !rooms.error
-    && !favouritePlayback.playError && !favouritePlayback.commandError;
+    && !session.updating && !playlistPlayback.pending && !playback.error && !session.error && !rooms.error
+    && !playlistPlayback.error;
   const currentTrackUri = spotifyTrackUri(attributes?.media_content_id);
   const spotifyHref = trackTitle ? currentTrackUri ?? 'spotify:' : undefined;
   const Cover = trackTitle ? 'a' : 'div';
@@ -121,17 +121,14 @@ export function CanvasMusic({
           <span className='canvas__eyebrow'>{trackTitle ? 'Music, for this moment' : 'Music'}</span>
           <div className='canvas-music__title-row'>
             <Title className={`canvas-music__title${trackTitle ? '' : ' canvas-music__title--status'}`} href={spotifyHref}>{title}</Title>
+            <span className='canvas-music__track-heart-slot' aria-hidden='true' />
           </div>
-          {!idle && !disabled && attributes?.media_artist && <p>{attributes.media_artist}</p>}
+          {!idle && available && attributes?.media_artist && <p>{attributes.media_artist}</p>}
         </div>
       </div>
-      <button className='canvas-music__favourites' aria-label='Open favourites' onClick={event => onOpenPlayer(event.currentTarget)}>
-        <svg viewBox='0 0 24 24' aria-hidden='true'>
-          <path d='M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z' />
-        </svg>
-      </button>
       <div className='canvas-music__bottom'>
         <CanvasTransport />
+        <button className='canvas-music__playlists' aria-haspopup='dialog' onClick={event => onOpenPlayer(event.currentTarget)}>Playlists</button>
         <SpeakerVolume
           key={session.targets.join(',')}
           entityId={session.entityId}
@@ -140,7 +137,7 @@ export function CanvasMusic({
           onOpenSettings={openSpeakers}
         />
       </div>
-      {!idle && !disabled && Number.isFinite(attributes?.media_position) && (
+      {!idle && available && Number.isFinite(attributes?.media_position) && (
         <SpeakerSeek
           key={`${session.entityId}:${attributes?.media_content_id ?? ''}:${attributes?.media_title ?? ''}`}
           entityId={session.entityId}
@@ -161,7 +158,7 @@ export function CanvasMusic({
           <circle cx='140' cy='80' r='20' />
         </svg>
       </div>
-      {favouritePlayback.playStatus && <p role='status'>{favouritePlayback.playStatus}</p>}
+      {playlistPlayback.status && <p className='canvas-music__play-status' role='status'>{playlistPlayback.status}</p>}
     </section>
   );
 }

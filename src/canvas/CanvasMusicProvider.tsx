@@ -1,19 +1,24 @@
-import { createContext, useContext, useState, type ReactNode } from 'react';
+import { createContext, useContext, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { useSpeakerSession } from '../useSpeakerSession';
 import { useSpeakerRooms } from '../useSpeakerRooms';
 import { useSpeakerTransport } from '../useSpeakerTransport';
-import { useSpeakerFavourites } from '../useSpeakerFavourites';
-import { useSpeakerFavouritePlayback } from '../useSpeakerFavouritePlayback';
+import { useSpotifyPlaylists } from '../useSpotifyPlaylists';
+import { useSpotifyPlaylistPlayback } from '../useSpotifyPlaylistPlayback';
 
 function useCanvasMusicController() {
   const session = useSpeakerSession(true);
   const { coordinator, entityId, targets, connected } = session;
   const disabled = !connected || !coordinator || ['unknown', 'unavailable'].includes(coordinator.state);
-  const rooms = useSpeakerRooms({ source: entityId, members: targets, disabled: disabled || session.busy, onSourceChanged: session.setPreferredSource, pinSource: session.pinSource });
-  const playback = useSpeakerTransport(entityId, disabled || rooms.busy);
+  const actionPending = useRef(false);
+  const playlistPlayback = useSpotifyPlaylistPlayback(entityId, disabled || session.updating);
+  const rooms = useSpeakerRooms({ source: entityId, members: targets, disabled: disabled || session.busy || !!playlistPlayback.pending, onSourceChanged: session.setPreferredSource, pinSource: session.pinSource });
+  const playback = useSpeakerTransport(entityId, disabled || rooms.busy || !!playlistPlayback.pending);
+  const latestStart = useRef({ source: entityId, blocked: true });
+  useLayoutEffect(() => {
+    latestStart.current = { source: entityId, blocked: disabled || rooms.busy || session.updating || playback.busy };
+  }, [entityId, disabled, rooms.busy, session.updating, playback.busy]);
   const [libraryOpen, setLibraryOpen] = useState(false);
-  const favourites = useSpeakerFavourites(entityId, libraryOpen && !disabled);
-  const favouritePlayback = useSpeakerFavouritePlayback(entityId, disabled || rooms.busy, () => {});
+  const playlists = useSpotifyPlaylists(libraryOpen);
   const attributes = coordinator?.attributes;
   const playing = coordinator?.state === 'playing' || coordinator?.state === 'buffering';
   const mediaTitle = attributes?.media_title?.trim() || attributes?.media_playlist?.trim() || null;
@@ -23,29 +28,52 @@ function useCanvasMusicController() {
   // The ref is acquired synchronously by grouping, before React renders its busy state.
   // Guard the shared action itself so a retained callback cannot race manual handoff.
   async function updateFollowing(command: 'enable' | 'disable') {
-    if (rooms.pending.current) return;
-    await session.updateFollowing(command);
+    if (rooms.pending.current || actionPending.current) return;
+    actionPending.current = true;
+    try {
+      await session.updateFollowing(command);
+    } finally {
+      actionPending.current = false;
+    }
   }
   async function transport(...args: Parameters<typeof playback.transport>) {
-    if (disabled || rooms.busy || playback.busy || rooms.pending.current) return;
+    if (disabled || rooms.busy || playback.busy || rooms.pending.current || actionPending.current) return;
     // A manual transport command releases mood ownership on the server. Keep
     // the chosen player so its paused queue remains available to resume.
     session.setPreferredSource(entityId);
-    await playback.transport(...args);
+    actionPending.current = true;
+    try {
+      await playback.transport(...args);
+    } finally {
+      actionPending.current = false;
+    }
   }
-  async function playFavourite(...args: Parameters<typeof favouritePlayback.play>) {
-    if (disabled || rooms.busy || favouritePlayback.pending || rooms.pending.current) return false;
+  async function playPlaylist(...args: Parameters<typeof playlistPlayback.play>) {
+    if (latestStart.current.source !== entityId || latestStart.current.blocked || rooms.pending.current || actionPending.current) return false;
+    actionPending.current = true;
     session.setPreferredSource(entityId);
-    return favouritePlayback.play(...args);
+    try {
+      return await playlistPlayback.play(...args);
+    } finally {
+      actionPending.current = false;
+    }
+  }
+  async function toggleRoom(...args: Parameters<typeof rooms.toggleRoom>) {
+    if (actionPending.current) return;
+    await rooms.toggleRoom(...args);
+  }
+  async function perform(...args: Parameters<typeof rooms.perform>) {
+    if (actionPending.current) return;
+    await rooms.perform(...args);
   }
   return {
     session: { ...session, updateFollowing },
-    rooms,
+    rooms: { ...rooms, toggleRoom, perform },
     playback: { ...playback, transport },
-    favourites,
-    favouritePlayback: { ...favouritePlayback, play: playFavourite },
+    playlists,
+    playlistPlayback: { ...playlistPlayback, play: playPlaylist },
     setLibraryOpen,
-    disabled: disabled || rooms.busy,
+    disabled: disabled || rooms.busy || !!playlistPlayback.pending,
     playing,
     idle,
     trackTitle,

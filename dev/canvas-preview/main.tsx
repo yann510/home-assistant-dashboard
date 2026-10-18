@@ -7,12 +7,13 @@ import { rooms } from '../../src/useLightSummary';
 import '../../src/index.css';
 import { applyPreviewService, previewFailures } from './preview-services';
 import { lightCapabilities } from './light-capabilities';
-import { previewFavourites } from './favourites';
+import { createSpotifyPreview } from './spotify-services';
 
 const params = new URLSearchParams(location.search);
 const scene = params.get('scene') ?? 'everyday';
 const failures = previewFailures(params);
 const media = params.get('media');
+const spotifyPreview = createSpotifyPreview(params);
 const entities: HassEntities = {};
 function publish(id: string, state: string, attributes: Record<string, unknown> = {}) {
   entities[id] = {
@@ -49,6 +50,8 @@ for (const room of ['living_room', 'bathroom', 'bedroom', 'gym'])
             : 'All In A Dream',
       media_artist:
         room === 'living_room' && (media === 'idle' || media === 'untitled') ? undefined : 'LP Giobbi · DJ Tennis · Joseph Ashworth',
+      source: 'Spotify',
+      media_content_id: 'spotify:track:2qRWNDee5Hfi6DFjfiu58c',
       media_duration: room === 'living_room' && (media === 'idle' || media === 'untitled') ? undefined : 250,
       media_position: room === 'living_room' && (media === 'idle' || media === 'untitled') ? undefined : 42,
       media_position_updated_at: new Date().toISOString(),
@@ -174,18 +177,17 @@ const connection = {
   sendMessage() {},
   async sendMessagePromise(message: Record<string, unknown>) {
     if (message.type === 'get_states') return Object.values(entities);
-    if (message.type === 'media_player/browse_media')
-      return {
-        children: previewFavourites.map((item, index) => ({
-          ...item,
-          title: index === 1 && params.has('long') ? 'Dinner at home with friends and a very long playlist title to read' : item.title,
-          media_content_id: `fixture:${index}`,
-          media_content_type: 'playlist',
-          can_play: true,
-          thumbnail: index === 2 && params.has('brokenArt') ? '/missing-favourite-cover.jpg' : item.thumbnail,
-        })),
-      };
-    if (failures.commands) throw new Error('Controlled preview failure. Choose an interactive scene to retry.');
+    if (failures.commands && message.type === 'call_service') throw new Error('Controlled preview failure. Choose an interactive scene to retry.');
+    const spotify = await spotifyPreview(message);
+    if (spotify) {
+      const response = spotify.response;
+      if (response && ['confirmed', 'already_playing'].includes(response.status) && response.source_entity && entities[response.source_entity]) {
+        const source = entities[response.source_entity];
+        // Simulate only metadata; keep room membership, volume and Follow helpers.
+        publish(response.source_entity, 'playing', { ...source.attributes, source: 'Spotify', media_content_id: 'spotify:track:2qRWNDee5Hfi6DFjfiu58c', media_title: 'All In A Dream', media_artist: 'LP Giobbi · DJ Tennis · Joseph Ashworth' });
+      }
+      return spotify;
+    }
     const result = applyPreviewService(entities, message, params.has('unconfirmed'));
     Object.assign(entities, result.updates);
     useStore.setState({ entities: { ...entities } });

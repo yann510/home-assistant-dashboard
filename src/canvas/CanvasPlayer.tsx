@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { CanvasActionIcon } from './CanvasActionIcon';
-import { CanvasFavourites } from './CanvasFavourites';
+import { CanvasPlaylists } from './CanvasPlaylists';
 import { useCanvasMusic } from './CanvasMusicProvider';
 
 export function CanvasPlayer({ onClose }: { onClose(): void }) {
@@ -15,7 +15,7 @@ export function CanvasPlayer({ onClose }: { onClose(): void }) {
         <a href='spotify:'>Open Spotify app <CanvasActionIcon action='forward' /></a>
         <a href='https://open.spotify.com/' target='_blank' rel='noopener noreferrer'>Spotify web player</a>
       </nav>
-      <CanvasFavourites onPlayed={onClose} />
+      <CanvasPlaylists onPlayed={onClose} />
     </div>
   );
 }

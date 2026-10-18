@@ -10,11 +10,22 @@ import { CanvasMusic } from './CanvasMusic';
 import { SpeakerSeek } from '../SpeakerSeek';
 import { CanvasPlayer } from './CanvasPlayer';
 import { CanvasSpeakers } from './CanvasSpeakers';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { canvasRouteTitle } from './routes';
 
 const sendMessagePromise = vi.fn();
 const legacyCallService = vi.fn();
 const browseMedia = vi.fn();
+const listPlaylists = vi.fn();
+const playlist = (title = 'Evening jazz', id = '1') => ({ title, uri: `spotify:playlist:${id.padStart(22, '0')}`, owner: 'Yann' });
+function delaySpotify() {
+  let finish!: (value: unknown) => void;
+  sendMessagePromise.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+  return (status = 'confirmed') => {
+    const data = sendMessagePromise.mock.calls.find(([message]) => message.service === 'play_spotify')![0].service_data;
+    finish({ response: { ...data, status } });
+  };
+}
 const context = {
   useStore,
   getAllEntities: () => useStore.getState().entities,
@@ -52,8 +63,11 @@ function updateEntity(id: string, patch: Partial<ReturnType<typeof speaker>>, at
   });
 }
 
+let controller!: ReturnType<typeof useCanvasMusic>;
 function CleanupProbe() {
-  const { session } = useCanvasMusic();
+  const value = useCanvasMusic();
+  useEffect(() => { controller = value; });
+  const { session } = value;
   return <><button onClick={() => void session.updateFollowing('disable')}>Request cleanup directly</button><output data-testid='speaker-coordinator'>{session.entityId}</output></>;
 }
 function Surface() {
@@ -65,7 +79,7 @@ function Surface() {
       {panel === 'overview' ? (
         <CanvasMusic onOpenPlayer={() => setPanel('player')} onOpenSpeakers={() => setPanel('speakers')} />
       ) : panel === 'player' ? (
-        <CanvasPlayer onClose={() => setPanel('overview')} />
+        <><h2>{canvasRouteTitle({ kind: 'player' })}</h2><CanvasPlayer onClose={() => setPanel('overview')} /></>
       ) : (
         <CanvasSpeakers />
       )}
@@ -120,6 +134,7 @@ beforeEach(() => {
   });
   sendMessagePromise.mockReset().mockResolvedValue({ context: {} });
   browseMedia.mockReset().mockResolvedValue({ children: [] });
+  listPlaylists.mockReset().mockResolvedValue({ items: [], nextOffset: null, total: 0 });
   legacyCallService.mockReset().mockResolvedValue(undefined);
   const entities: HassEntities = Object.fromEntries(
     ['living_room', 'gym', 'bathroom', 'bedroom'].map(room => [
@@ -148,6 +163,8 @@ beforeEach(() => {
       sendMessagePromise: (message: { type: string }) =>
         message.type === 'call_service'
           ? sendMessagePromise(message)
+          : message.type === 'dashboard_music/playlists'
+            ? listPlaylists(message)
           : message.type === 'media_player/browse_media'
             ? browseMedia(message)
             : Promise.resolve({}),
@@ -255,19 +272,19 @@ describe('Canvas music', () => {
   it('keeps favourite confirmation on Gym after the manual playback releases mood ownership', async () => {
     separatePlayback();
     publishGymMood();
-    browseMedia.mockResolvedValue({
-      children: [{ title: 'Gym favourite', media_content_id: 'gym-favourite', media_content_type: 'playlist', can_play: true }],
-    });
+    listPlaylists.mockResolvedValue({ items: [playlist('Gym favourite')], nextOffset: null, total: 1 });
+    const finish = delaySpotify();
     mount();
-    await userEvent.click(screen.getByRole('button', { name: 'Open favourites' }));
-    await userEvent.click(await screen.findByRole('button', { name: 'Play Gym favourite' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Playlists' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Play Gym favourite by Yann' }));
     expect(sendMessagePromise).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
-      service: 'play_media', target: { entity_id: ['media_player.gym'] },
+      service: 'play_spotify', service_data: expect.objectContaining({ source_entity: 'media_player.gym', playlist_uri: playlist().uri }),
     }));
     act(() => publishGymMood('active', ['light.gym']));
     expect(screen.getByTestId('speaker-coordinator').textContent).toBe('media_player.gym');
     updateEntity('media_player.gym', {}, { media_title: 'New Gym favourite track', media_content_id: 'gym-favourite-track' });
-    expect(await screen.findByRole('button', { name: 'Open favourites' })).toBeTruthy();
+    await act(async () => finish());
+    expect(await screen.findByRole('button', { name: 'Playlists' })).toBeTruthy();
     expect(screen.getByText('New Gym favourite track')).toBeTruthy();
     expect(screen.queryByRole('alert')).toBeNull();
   });
@@ -482,7 +499,7 @@ describe('Canvas music', () => {
     expect(screen.getByText('Nothing playing')).toBeTruthy();
     expect(screen.queryByRole('link')).toBeNull();
     expect(screen.queryByRole('slider', { name: 'Track position' })).toBeNull();
-    await userEvent.click(screen.getByRole('button', { name: 'Open favourites' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Playlists' }));
     expect(screen.queryByText('Nothing playing')).toBeNull();
     expect(screen.queryByRole('heading', { name: 'Test track' })).toBeNull();
     expect(screen.queryByText('Now playing')).toBeNull();
@@ -514,7 +531,7 @@ describe('Canvas music', () => {
     expect(screen.queryByRole('link')).toBeNull();
     expect(screen.queryByText('Test artist')).toBeNull();
     expect(screen.queryByRole('img')).toBeNull();
-    await userEvent.click(screen.getByRole('button', { name: 'Open favourites' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Playlists' }));
     expect(screen.queryByText('Speaker unavailable')).toBeNull();
     expect(screen.queryByRole('heading', { name: 'Test track' })).toBeNull();
     expect(screen.queryByText('Now playing')).toBeNull();
@@ -522,11 +539,7 @@ describe('Canvas music', () => {
     expect(sendMessagePromise).not.toHaveBeenCalled();
   });
   it('keeps seeking on the main card and opens only artwork favourites in the library', async () => {
-    browseMedia.mockResolvedValue({
-      children: [
-        { title: 'Evening jazz', media_content_id: 'jazz', media_content_type: 'playlist', can_play: true, thumbnail: '/jazz.jpg' },
-      ],
-    });
+    listPlaylists.mockResolvedValue({ items: [{ ...playlist(), thumbnail: '/jazz.jpg' }], nextOffset: null, total: 1 });
     mount();
     expect(screen.queryByRole('button', { name: 'Open player' })).toBeNull();
     const seek = screen.getByRole('slider', { name: 'Track position' });
@@ -539,13 +552,13 @@ describe('Canvas music', () => {
     expect(sendMessagePromise).toHaveBeenCalledWith(
       expect.objectContaining({ service: 'media_seek', target: { entity_id: ['media_player.living_room'] }, service_data: { seek_position: 70 } })
     );
-    await userEvent.click(screen.getByRole('button', { name: 'Open favourites' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Playlists' }));
     expect(screen.queryByRole('slider')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Pause' })).toBeNull();
     expect(screen.queryByText('Test track')).toBeNull();
     expect(screen.queryByText('Test artist')).toBeNull();
     expect(screen.queryByText('Main speaker')).toBeNull();
-    const favourite = await screen.findByRole('button', { name: 'Play Evening jazz' });
+    const favourite = await screen.findByRole('button', { name: 'Play Evening jazz by Yann' });
     expect(favourite.textContent).not.toContain('Evening jazz');
     const img = favourite.querySelector('img')!;
     expect(img.getAttribute('src')).toBe('http://homeassistant.test/jazz.jpg');
@@ -826,72 +839,69 @@ describe('Canvas music', () => {
       expect.objectContaining({ service: 'volume_mute', target: { entity_id: ['media_player.living_room'] } })
     );
   });
-  it('closes favourites only after Home Assistant confirms playback', async () => {
-    browseMedia.mockResolvedValue({
-      children: [{ title: 'Evening jazz', media_content_id: 'jazz', media_content_type: 'playlist', can_play: true }],
-    });
+  it('closes playlists only after Home Assistant confirms the exact Spotify intent', async () => {
+    listPlaylists.mockResolvedValue({ items: [playlist()], nextOffset: null, total: 1 });
+    const finish = delaySpotify();
     mount();
-    await userEvent.click(screen.getByRole('button', { name: 'Open favourites' }));
-    await userEvent.click(await screen.findByRole('button', { name: 'Play Evening jazz' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Playlists' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Play Evening jazz by Yann' }));
     expect(screen.getByText('Starting Evening jazz…')).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Open favourites' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Playlists' })).toBeNull();
     updateEntity('media_player.living_room', {}, { media_title: 'New jazz track', media_content_id: 'jazz-track' });
-    expect(await screen.findByRole('button', { name: 'Open favourites' })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Play Evening jazz' })).toBeNull();
+    await act(async () => finish());
+    expect(await screen.findByRole('button', { name: 'Playlists' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Play Evening jazz by Yann' })).toBeNull();
     expect(screen.getByText('New jazz track')).toBeTruthy();
   });
   it('keeps favourites open with its error when playback fails', async () => {
-    browseMedia.mockResolvedValue({
-      children: [{ title: 'Evening jazz', media_content_id: 'jazz', media_content_type: 'playlist', can_play: true }],
-    });
+    listPlaylists.mockResolvedValue({ items: [playlist()], nextOffset: null, total: 1 });
     sendMessagePromise.mockRejectedValue(new Error('Speaker offline'));
     mount();
-    await userEvent.click(screen.getByRole('button', { name: 'Open favourites' }));
-    await userEvent.click(await screen.findByRole('button', { name: 'Play Evening jazz' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Playlists' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Play Evening jazz by Yann' }));
     expect((await screen.findByRole('alert')).textContent).toContain('Speaker offline');
-    expect((screen.getByRole('button', { name: 'Play Evening jazz' }) as HTMLButtonElement).disabled).toBe(false);
+    expect((screen.getByRole('button', { name: 'Play Evening jazz by Yann' }) as HTMLButtonElement).disabled).toBe(false);
   });
   it('does not close speakers when a dismissed favourite request later succeeds', async () => {
-    browseMedia.mockResolvedValue({
-      children: [{ title: 'Evening jazz', media_content_id: 'jazz', media_content_type: 'playlist', can_play: true }],
-    });
+    listPlaylists.mockResolvedValue({ items: [playlist()], nextOffset: null, total: 1 });
+    const finish = delaySpotify();
     mount();
-    await userEvent.click(screen.getByRole('button', { name: 'Open favourites' }));
-    await userEvent.click(await screen.findByRole('button', { name: 'Play Evening jazz' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Playlists' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Play Evening jazz by Yann' }));
     await userEvent.click(screen.getByRole('button', { name: 'Close detail' }));
     await userEvent.click(screen.getByRole('button', { name: 'Open speakers' }));
     updateEntity('media_player.living_room', {}, { media_title: 'New jazz track', media_content_id: 'jazz-track' });
-    await act(async () => {});
+    await act(async () => finish());
     expect(screen.getByRole('checkbox', { name: /bathroom/ })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Open favourites' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Playlists' })).toBeNull();
   });
   it('retains favourite confirmation across closing and reopening Favourites', async () => {
-    browseMedia.mockResolvedValue({
-      children: [{ title: 'Evening jazz', media_content_id: 'jazz', media_content_type: 'playlist', can_play: true }],
-    });
+    listPlaylists.mockResolvedValue({ items: [playlist()], nextOffset: null, total: 1 });
+    const finish = delaySpotify();
     mount();
-    await userEvent.click(screen.getByRole('button', { name: 'Open favourites' }));
-    await userEvent.click(await screen.findByRole('button', { name: 'Play Evening jazz' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Playlists' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Play Evening jazz by Yann' }));
     await userEvent.click(screen.getByRole('button', { name: 'Close detail' }));
-    await userEvent.click(screen.getByRole('button', { name: 'Open favourites' }));
-    expect(((await screen.findByRole('button', { name: 'Play Evening jazz' })) as HTMLButtonElement).disabled).toBe(true);
+    await userEvent.click(screen.getByRole('button', { name: 'Playlists' }));
+    expect(((await screen.findByRole('button', { name: 'Play Evening jazz by Yann' })) as HTMLButtonElement).disabled).toBe(true);
     expect(screen.getByText('Starting Evening jazz…')).toBeTruthy();
     updateEntity('media_player.living_room', {}, { media_title: 'New jazz track', media_content_id: 'jazz-track' });
-    await act(async () => {});
-    expect((screen.getByRole('button', { name: 'Play Evening jazz' }) as HTMLButtonElement).disabled).toBe(false);
+    await act(async () => finish());
+    expect((screen.getByRole('button', { name: 'Play Evening jazz by Yann' }) as HTMLButtonElement).disabled).toBe(false);
     expect(sendMessagePromise).toHaveBeenCalledTimes(1);
   });
-  it('bounds recursive favourite browsing and allows a real retry', async () => {
-    browseMedia.mockImplementation((message: { media_content_id: string }) =>
-      Promise.resolve({ children: [{ media_content_type: 'folder', media_content_id: message.media_content_id + 'x', can_expand: true }] })
-    );
+  it('retains the first page after a load-more failure and retries that page', async () => {
+    listPlaylists.mockResolvedValueOnce({ items: [playlist()], nextOffset: 50, total: 2 }).mockRejectedValueOnce(new Error('Spotify unavailable'));
     mount();
-    await userEvent.click(screen.getByRole('button', { name: 'Open favourites' }));
-    await screen.findByRole('button', { name: 'Retry favourites' });
-    expect(browseMedia).toHaveBeenCalledTimes(6);
-    browseMedia.mockResolvedValue({ children: [] });
-    await userEvent.click(screen.getByRole('button', { name: 'Retry favourites' }));
-    expect(await screen.findByText('Choose this speaker in your music app.')).toBeTruthy();
+    await userEvent.click(screen.getByRole('button', { name: 'Playlists' }));
+    await screen.findByRole('button', { name: 'Play Evening jazz by Yann' });
+    await userEvent.click(screen.getByRole('button', { name: 'Load more' }));
+    expect((await screen.findByRole('alert')).textContent).toContain('Spotify unavailable');
+    expect(screen.getByRole('button', { name: 'Play Evening jazz by Yann' })).toBeTruthy();
+    listPlaylists.mockResolvedValueOnce({ items: [playlist('Private second page', '2')], nextOffset: null, total: 2 });
+    await userEvent.click(screen.getByRole('button', { name: 'Retry playlists' }));
+    expect(await screen.findByRole('button', { name: 'Play Private second page by Yann' })).toBeTruthy();
+    expect(listPlaylists).toHaveBeenLastCalledWith({ type: 'dashboard_music/playlists', offset: 50, limit: 50 });
   });
   it('blocks Follow changes while its HA script is running', async () => {
     updateEntity('script.speaker_follow_motion', { state: 'on' });
@@ -1026,18 +1036,13 @@ describe('Canvas music', () => {
 });
 
 it('labels missing and failed favourite artwork while leaving successful artwork title-free', async () => {
-  browseMedia.mockResolvedValue({
-    children: [
-      { title: 'A long favourite playlist title', media_content_id: 'one', media_content_type: 'playlist', can_play: true },
-      { title: 'Broken cover', media_content_id: 'two', media_content_type: 'playlist', can_play: true, thumbnail: '/broken.jpg' },
-    ],
-  });
+  listPlaylists.mockResolvedValue({ items: [playlist('A long favourite playlist title'), { ...playlist('Broken cover', '2'), thumbnail: '/broken.jpg' }], nextOffset: null, total: 2 });
   mount();
-  await userEvent.click(screen.getByRole('button', { name: 'Open favourites' }));
-  expect((await screen.findByRole('button', { name: 'Play A long favourite playlist title' })).textContent).toContain(
+  await userEvent.click(screen.getByRole('button', { name: 'Playlists' }));
+  expect((await screen.findByRole('button', { name: 'Play A long favourite playlist title by Yann' })).textContent).toContain(
     'A long favourite playlist title'
   );
-  const broken = screen.getByRole('button', { name: 'Play Broken cover' });
+  const broken = screen.getByRole('button', { name: 'Play Broken cover by Yann' });
   expect(broken.textContent).not.toContain('Broken cover');
   fireEvent.error(broken.querySelector('img')!);
   expect(broken.textContent).toContain('Broken cover');
@@ -1340,42 +1345,105 @@ describe('custom seek gestures', () => {
   });
 });
 
-it('closes a verified already-playing favourite without sending and shows Already playing on the overview', async () => {
-  browseMedia.mockResolvedValue({
-    children: [{ title: 'Evening jazz', media_content_id: 'jazz', media_content_type: 'playlist', can_play: true }],
-  });
-  updateEntity('media_player.living_room', {}, { media_content_id: 'jazz' });
+it('closes an already-playing Spotify playlist only on the server confirmation', async () => {
+  listPlaylists.mockResolvedValue({ items: [playlist()], nextOffset: null, total: 1 });
+  sendMessagePromise.mockImplementation(async message => ({ response: { ...message.service_data, status: 'already_playing' } }));
   mount();
-  await userEvent.click(screen.getByRole('button', { name: 'Open favourites' }));
-  await userEvent.click(await screen.findByRole('button', { name: 'Play Evening jazz' }));
-  expect(await screen.findByRole('button', { name: 'Open favourites' })).toBeTruthy();
+  await userEvent.click(screen.getByRole('button', { name: 'Playlists' }));
+  await userEvent.click(await screen.findByRole('button', { name: 'Play Evening jazz by Yann' }));
+  expect(await screen.findByRole('button', { name: 'Playlists' })).toBeTruthy();
   expect(screen.getByText('Already playing Evening jazz.')).toBeTruthy();
-  expect(sendMessagePromise).not.toHaveBeenCalled();
+  expect(sendMessagePromise).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ service: 'play_spotify' }));
 });
 
-it.each(['disconnected', 'unavailable'])('shows honest initially %s favourites guidance and loads normally on recovery', async mode => {
-  browseMedia.mockResolvedValue({ children: [{ title: 'Evening jazz', media_content_id: 'jazz', media_content_type: 'playlist', can_play: true }] });
-  if (mode === 'disconnected') act(() => useStore.setState({ connectionStatus: 'disconnected' }));
-  else updateEntity('media_player.living_room', { state: 'unavailable' });
-  mount();
-  await userEvent.click(screen.getByRole('button', { name: 'Open favourites' }));
-  expect(screen.getByText(mode === 'disconnected' ? 'Reconnecting to Home Assistant. Favourites will load when connected.' : 'Wait for an available speaker to load favourites.')).toBeTruthy();
-  expect(screen.queryByText('Loading favourites…')).toBeNull();
-  expect(screen.queryByRole('button', { name: 'Retry favourites' })).toBeNull();
-  expect(browseMedia).not.toHaveBeenCalled();
-  if (mode === 'disconnected') act(() => useStore.setState({ connectionStatus: 'connected' }));
-  else updateEntity('media_player.living_room', { state: 'playing' });
-  expect(await screen.findByRole('button', { name: 'Play Evening jazz' })).toBeTruthy();
-  expect((screen.getByRole('button', { name: 'Play Evening jazz' }) as HTMLButtonElement).disabled).toBe(false);
-});
-
-it('retains cached favourites disabled while disconnected without offering a retry or loader', async () => {
-  browseMedia.mockResolvedValue({ children: [{ title: 'Evening jazz', media_content_id: 'jazz', media_content_type: 'playlist', can_play: true }] });
-  mount(); await userEvent.click(screen.getByRole('button', { name: 'Open favourites' }));
-  await screen.findByRole('button', { name: 'Play Evening jazz' });
+it('retains cached playlists disabled while disconnected without offering a retry or loader', async () => {
+  listPlaylists.mockResolvedValue({ items: [playlist()], nextOffset: null, total: 1 });
+  mount(); await userEvent.click(screen.getByRole('button', { name: 'Playlists' }));
+  await screen.findByRole('button', { name: 'Play Evening jazz by Yann' });
   act(() => useStore.setState({ connectionStatus: 'disconnected' }));
-  expect((screen.getByRole('button', { name: 'Play Evening jazz' }) as HTMLButtonElement).disabled).toBe(true);
-  expect(screen.queryByText('Loading favourites…')).toBeNull();
-  expect(screen.queryByRole('button', { name: 'Retry favourites' })).toBeNull();
-  expect(screen.getByText('Reconnecting to Home Assistant. Favourites will load when connected.')).toBeTruthy();
+  expect((screen.getByRole('button', { name: 'Play Evening jazz by Yann' }) as HTMLButtonElement).disabled).toBe(true);
+  expect(screen.queryByText('Loading playlists…')).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Retry playlists' })).toBeNull();
+  expect(screen.getByText('Reconnecting to Home Assistant. Playlists will load when connected.')).toBeTruthy();
+});
+
+it('opens Your Spotify playlists with loaded filtering and browsing while the speaker is unavailable', async () => {
+  updateEntity('media_player.living_room', { state: 'unavailable' });
+  updateEntity('media_player.gym', { state: 'unavailable' });
+  updateEntity('media_player.bathroom', { state: 'unavailable' });
+  updateEntity('media_player.bedroom', { state: 'unavailable' });
+  const socket = useStore.getState().connection!;
+  const original = socket.sendMessagePromise.bind(socket);
+  const library = vi.fn().mockResolvedValue({ items: [
+    { uri: 'spotify:playlist:0000000000000000000001', title: 'Private collection', owner: 'Yann' },
+    { uri: 'spotify:playlist:0000000000000000000002', title: 'Private collection', owner: 'Friend' },
+  ], nextOffset: null, total: 2 });
+  Object.assign(socket, { sendMessagePromise: (message: { type: string }) => message.type === 'dashboard_music/playlists' ? library(message) : original(message) });
+  mount();
+  await userEvent.click(screen.getByRole('button', { name: 'Playlists' }));
+  expect(screen.getByRole('heading', { name: 'Your Spotify playlists' })).toBeTruthy();
+  const choices = await screen.findAllByRole('button', { name: /Play Private collection/ });
+  expect(choices).toHaveLength(2);
+  expect(choices.every(button => (button as HTMLButtonElement).disabled)).toBe(true);
+  expect(screen.getByText('Yann')).toBeTruthy();
+  expect(screen.getByText('Friend')).toBeTruthy();
+  await userEvent.type(screen.getByRole('searchbox', { name: 'Filter loaded playlists' }), 'Friend');
+  expect(screen.getAllByRole('button', { name: /Play Private collection/ })).toHaveLength(1);
+  expect(browseMedia).not.toHaveBeenCalled();
+});
+
+
+it.each(['busy', 'failed', 'unconfirmed'])('keeps the playlist sheet open after server %s', async status => {
+  listPlaylists.mockResolvedValue({ items: [playlist()], nextOffset: null, total: 1 });
+  sendMessagePromise.mockImplementation(async message => ({ response: { ...message.service_data, status, message: 'Check Spotify before trying again.' } }));
+  mount();
+  await userEvent.click(screen.getByRole('button', { name: 'Playlists' }));
+  await userEvent.click(await screen.findByRole('button', { name: 'Play Evening jazz by Yann' }));
+  expect((await screen.findByRole('alert')).textContent).toContain('Check Spotify');
+  expect(screen.getByRole('region', { name: 'Your Spotify playlists' })).toBeTruthy();
+  expect(sendMessagePromise).toHaveBeenCalledTimes(1);
+});
+it('blocks playlist starts during synchronous grouping and Follow transitions, including retained callbacks', async () => {
+  mount();
+  const retainedPlay = controller.playlistPlayback.play;
+  let follow!: Promise<void>;
+  act(() => { follow = controller.session.updateFollowing('enable'); });
+  await act(async () => expect(await retainedPlay(playlist())).toBe(false));
+  expect(sendMessagePromise.mock.calls.every(([message]) => message.service !== 'play_spotify')).toBe(true);
+  await act(async () => { await follow; });
+  // The direct grouping ref is acquired before React can expose its busy state.
+  controller.rooms.pending.current = true;
+  await act(async () => expect(await retainedPlay(playlist())).toBe(false));
+  expect(sendMessagePromise.mock.calls.every(([message]) => message.service !== 'play_spotify')).toBe(true);
+  controller.rooms.pending.current = false;
+});
+it('blocks conflicting local controls while one playlist start is pending and restores them after failure', async () => {
+  const finish = delaySpotify();
+  mount();
+  let start!: Promise<boolean>;
+  act(() => { start = controller.playlistPlayback.play(playlist()); });
+  expect((screen.getByRole('switch', { name: 'Follow me' }) as HTMLButtonElement).disabled).toBe(true);
+  expect((screen.getByRole('button', { name: 'Pause' }) as HTMLButtonElement).disabled).toBe(true);
+  const seek = screen.queryByRole('slider', { name: 'Track position' }) as HTMLInputElement | null;
+  expect(seek === null || seek.disabled).toBe(true);
+  await act(async () => { await controller.session.updateFollowing('enable'); await controller.playback.transport('media_pause', 'pause playback'); await controller.rooms.toggleRoom('media_player.bathroom'); });
+  await userEvent.click(screen.getByRole('button', { name: 'Open speakers' }));
+  expect(screen.getAllByRole('checkbox').every(box => (box as HTMLInputElement).disabled)).toBe(true);
+  expect((screen.getByRole('slider', { name: 'Group volume' }) as HTMLInputElement).disabled).toBe(true);
+  expect(sendMessagePromise).toHaveBeenCalledTimes(1);
+  await act(async () => { finish('unconfirmed'); expect(await start).toBe(false); });
+  expect((screen.getByRole('slider', { name: 'Group volume' }) as HTMLInputElement).disabled).toBe(false);
+});
+
+it('does not let a retained playlist callback restore the previous source', async () => {
+  mount();
+  const retainedPlay = controller.playlistPlayback.play;
+  act(() => controller.session.setPreferredSource('media_player.gym'));
+  expect(screen.getByTestId('speaker-coordinator').textContent).toBe('media_player.living_room');
+  // Choose an independently playing Gym so its explicit source differs from the group.
+  updateEntity('media_player.gym', {}, { group_members: ['media_player.gym'] });
+  expect(screen.getByTestId('speaker-coordinator').textContent).toBe('media_player.gym');
+  await act(async () => expect(await retainedPlay(playlist())).toBe(false));
+  expect(screen.getByTestId('speaker-coordinator').textContent).toBe('media_player.gym');
+  expect(sendMessagePromise).not.toHaveBeenCalled();
 });

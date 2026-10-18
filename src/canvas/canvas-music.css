@@ -8,11 +8,11 @@
 :is(.canvas, .canvas-dialog) .canvas-music__follow > button { display: flex; gap: var(--canvas-space-4); justify-content: space-between; }
 :is(.canvas, .canvas-dialog) .canvas-music__follow p { font-size: .85rem; }
 :is(.canvas, .canvas-dialog) .canvas-player { max-width: 800px; margin: auto; display: grid; gap: var(--canvas-space-3); }
-:is(.canvas, .canvas-dialog) .canvas-favourites__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 160px), 1fr)); gap: var(--canvas-space-3); }
-:is(.canvas, .canvas-dialog) .canvas-favourites__grid button { min-width: 0; padding: 0; overflow: hidden; aspect-ratio: 1; border-radius: 16px; }
-:is(.canvas, .canvas-dialog) .canvas-favourites__grid img { width: 100%; height: 100%; object-fit: cover; display: block; }
-:is(.canvas, .canvas-dialog) .canvas-favourites__fallback { display: flex; flex-direction: column; justify-content: center; gap: 6px; height: 100%; padding: 8px; font-size: 1.5rem; }
-:is(.canvas, .canvas-dialog) .canvas-favourites__title { font-size: .85rem; line-height: 1.3; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
+:is(.canvas, .canvas-dialog) .canvas-playlists__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 160px), 1fr)); gap: var(--canvas-space-3); }
+:is(.canvas, .canvas-dialog) .canvas-playlists__grid button { min-width: 0; padding: 0; overflow: hidden; border-radius: 16px; display: flex; flex-direction: column; }
+:is(.canvas, .canvas-dialog) .canvas-playlists__grid img { width: 100%; height: 100%; object-fit: cover; display: block; }
+:is(.canvas, .canvas-dialog) .canvas-playlists__fallback { display: flex; flex-direction: column; justify-content: center; gap: 6px; height: 100%; padding: 8px; font-size: 1.5rem; }
+:is(.canvas, .canvas-dialog) .canvas-playlists__title { font-size: .85rem; line-height: 1.3; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
 /* Speaker detail follows the playback workflow: choose rooms, set their volume,
    then reach automation and less common settings. */
 .canvas-dialog .canvas-speakers { max-width: 800px; margin: auto; display: grid; gap: var(--canvas-space-5); }
@@ -121,7 +121,7 @@
 
 /* Section flow replaces browser heading/paragraph margins in detail views. */
 .canvas-dialog :is(.canvas-player, .canvas-speakers) :is(h3, p) { margin: 0; }
-.canvas-dialog :is(.canvas-music__follow, .canvas-favourites) { display: grid; gap: var(--canvas-space-2); }
+.canvas-dialog :is(.canvas-music__follow, .canvas-playlists) { display: grid; gap: var(--canvas-space-2); }
 
 /* Explicit geometry avoids inherited dialog button padding moving the icons. */
 .canvas-dialog .canvas-speakers .speaker-control {
@@ -135,17 +135,13 @@
 .canvas-dialog .canvas-speakers__source-actions { display: flex; justify-content: flex-end; }
 
 /* Keep the library entrance separate from the current track. */
-.canvas .canvas-music > .canvas-music__favourites { position: absolute; top: var(--canvas-space-2); right: var(--canvas-space-3); z-index: 2; display: grid; place-items: center; width: 44px; height: 44px; min-width: 44px; min-height: 44px; padding: 10px; border: 0; border-radius: 50%; }
-.canvas .canvas-music__favourites svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linejoin: round; }
-.canvas .canvas-music__favourites:hover { background: var(--canvas-music-hover); }
-.canvas .canvas-music__favourites:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
-.canvas .canvas-music__metadata { min-width: 0; padding-right: 32px; }
+.canvas .canvas-music__metadata { min-width: 0; }
 .canvas .canvas-music .speaker-seek input { min-height: 44px; }
 .canvas-dialog .canvas-player { width: 100%; }
-.canvas-dialog .canvas-favourites__grid button { border: 1px solid var(--canvas-line); background: color-mix(in srgb, var(--canvas-lilac) 12%, var(--canvas-surface)); }
-.canvas-dialog .canvas-favourites__grid button:hover:not(:disabled) { border-color: var(--canvas-lilac); }
+.canvas-dialog .canvas-playlists__grid button { border: 1px solid var(--canvas-line); background: color-mix(in srgb, var(--canvas-lilac) 12%, var(--canvas-surface)); }
+.canvas-dialog .canvas-playlists__grid button:hover:not(:disabled) { border-color: var(--canvas-lilac); }
 @media (max-width: 420px) {
- .canvas-dialog .canvas-favourites__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+ .canvas-dialog .canvas-playlists__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 /* The time labels share the seek control's 44px touch row. */
@@ -219,3 +215,17 @@
  .canvas .canvas-music[data-playing='true'] .canvas-music__transport button:nth-child(2):not(:disabled)::before,
  .canvas .canvas-music[data-playing='true'] .canvas-music__transport button:nth-child(2):not(:disabled)::after { animation: none; }
 }
+
+.canvas .canvas-music__playlists { min-height: 44px; min-width: 0; width: auto; padding: 6px 10px; border-radius: 12px; border: 1px solid var(--canvas-music-line); background: var(--canvas-music-track); color: var(--canvas-music-ink); font: inherit; font-size: .8rem; font-weight: 600; white-space: nowrap; }
+.canvas .canvas-music__playlists:hover { background: var(--canvas-music-hover); }
+.canvas .canvas-music__playlists:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+.canvas .canvas-music__track-heart-slot { flex: 0 0 44px; min-height: 44px; }
+.canvas-dialog .canvas-playlists__artwork { display: block; width: 100%; aspect-ratio: 1; overflow: hidden; }
+.canvas-dialog .canvas-playlists__owner { display: block; width: 100%; min-height: 36px; padding: 8px; box-sizing: border-box; font-size: .8rem; overflow-wrap: anywhere; }
+.canvas-dialog .canvas-playlists__filter { display: grid; gap: var(--canvas-space-2); }
+.canvas-dialog .canvas-playlists__filter input { width: 100%; box-sizing: border-box; min-height: 44px; padding: 8px 12px; border: 1px solid var(--canvas-line); border-radius: 12px; background: var(--canvas-surface); color: var(--canvas-ink); font: inherit; }
+.canvas-dialog .canvas-playlists__filter input:focus-visible, .canvas-dialog .canvas-playlists button:focus-visible { outline: 2px solid var(--canvas-lilac); outline-offset: 2px; }
+.canvas-dialog .canvas-playlists__actions { display: flex; align-items: center; gap: var(--canvas-space-3); }
+
+/* Announce a confirmed launch without changing the overview card's dimensions. */
+.canvas .canvas-music > .canvas-music__play-status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }

@@ -87,7 +87,7 @@ it('opens every directory destination with one modal owner and returns to the se
   expect(fixture.calls.filter(call => (call as { type: string }).type === 'call_service')).toHaveLength(0);
 });
 
-it('retains speaker slider identity and focus across entity updates and Favourites/Speakers roundtrips', async () => {
+it('retains speaker slider identity and focus across entity updates and Playlists/Speakers roundtrips', async () => {
   speaker();
   render(<CanvasDashboard />);
   fireEvent.click(screen.getByRole('button', { name: 'Open speakers' }));
@@ -103,8 +103,8 @@ it('retains speaker slider identity and focus across entity updates and Favourit
   expect(screen.getByRole('slider', { name: 'Group volume' })).toBe(slider);
   fireEvent.click(screen.getByRole('button', { name: 'Close details' }));
   await settleHistory();
-  fireEvent.click(screen.getByRole('button', { name: 'Open favourites' }));
-  expect(screen.getByRole('dialog', { name: 'Favourites' })).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Playlists' }));
+  expect(screen.getByRole('dialog', { name: 'Your Spotify playlists' })).toBeTruthy();
   expect(within(screen.getByRole('dialog')).queryByRole('slider', { name: /volume/i })).toBeNull();
   await act(async () => {});
   fireEvent.click(screen.getByRole('button', { name: 'Close details' }));
@@ -118,20 +118,20 @@ it('keeps offline detail access, disables commands, and never replays writes on 
   fixture.disconnect();
   render(<CanvasDashboard />);
   expect((screen.getByRole('button', { name: 'Pause' }) as HTMLButtonElement).disabled).toBe(true);
-  fireEvent.click(screen.getByRole('button', { name: 'Open favourites' }));
-  expect(within(screen.getByRole('dialog')).getByText('Reconnecting to Home Assistant. Favourites will load when connected.')).toBeTruthy();
-  expect(within(screen.getByRole('dialog')).queryByText('Loading favourites…')).toBeNull();
-  expect(within(screen.getByRole('dialog')).queryByRole('button', { name: 'Retry favourites' })).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Playlists' }));
+  expect(within(screen.getByRole('dialog')).getByText('Reconnecting to Home Assistant. Playlists will load when connected.')).toBeTruthy();
+  expect(within(screen.getByRole('dialog')).queryByText('Loading playlists…')).toBeNull();
+  expect(within(screen.getByRole('dialog')).queryByRole('button', { name: 'Retry playlists' })).toBeNull();
   act(() => fixture.reconnect());
   expect(fixture.calls.filter(call => (call as { type: string }).type === 'call_service')).toHaveLength(0);
 });
 
-it.each([false, true])('hands browsing to Spotify from the unchanged favourites heart (offline: %s)', async offline => {
+it.each([false, true])('hands browsing to Spotify from the Playlists button (offline: %s)', async offline => {
   speaker();
   if (offline) fixture.disconnect();
   render(<CanvasDashboard />);
-  fireEvent.click(screen.getByRole('button', { name: 'Open favourites' }));
-  const dialog = screen.getByRole('dialog', { name: 'Favourites' });
+  fireEvent.click(screen.getByRole('button', { name: 'Playlists' }));
+  const dialog = screen.getByRole('dialog', { name: 'Your Spotify playlists' });
   const appLink = within(dialog).getByRole('link', { name: 'Open Spotify app' });
   const webLink = within(dialog).getByRole('link', { name: 'Spotify web player' });
   expect(appLink.getAttribute('href')).toBe('spotify:');
@@ -146,7 +146,7 @@ it.each([false, true])('hands browsing to Spotify from the unchanged favourites 
   }
   await act(async () => {});
   expect(fixture.calls.filter(call => (call as { type: string }).type === 'call_service')).toHaveLength(0);
-  expect(screen.getByRole('dialog', { name: 'Favourites' })).toBe(dialog);
+  expect(screen.getByRole('dialog', { name: 'Your Spotify playlists' })).toBe(dialog);
 });
 
 it('hands the current artwork and song title to Spotify without opening details or controlling playback', async () => {
@@ -166,7 +166,7 @@ it('hands the current artwork and song title to Spotify without opening details 
   await act(async () => {});
   expect(screen.queryByRole('dialog')).toBeNull();
   expect(fixture.calls.filter(call => (call as { type: string }).type === 'call_service')).toHaveLength(0);
-  expect(within(music).getByRole('button', { name: 'Open favourites' })).toBeTruthy();
+  expect(within(music).getByRole('button', { name: 'Playlists' })).toBeTruthy();
 });
 
 it.each(['idle', 'playing', 'unavailable'])('keeps %s music status non-clickable when no song title is available', state => {
@@ -323,17 +323,17 @@ it('dismisses a completed mood notice from the card', () => {
   expect(within(card).queryByText('The room is ready')).toBeNull();
 });
 
-it('labels favourites without artwork and surfaces a playback rejection in Favourites', async () => {
+it('labels private playlists without artwork and surfaces a Spotify playback rejection', async () => {
   speaker();
   fixture.respondWith(async message => {
-    if ((message as { type: string }).type === 'media_player/browse_media')
-      return { children: [{ title: 'Morning calm', can_play: true, media_content_id: 'calm', media_content_type: 'playlist' }] };
+    if ((message as { type: string }).type === 'dashboard_music/playlists')
+      return { items: [{ title: 'Morning calm', uri: 'spotify:playlist:0000000000000000000001', owner: 'Yann' }], nextOffset: null, total: 1 };
     throw new Error('Playback rejected');
   });
   render(<CanvasDashboard />);
-  fireEvent.click(screen.getByRole('button', { name: 'Open favourites' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Playlists' }));
   await act(async () => {});
-  const playlist = screen.getByRole('button', { name: 'Play Morning calm' });
+  const playlist = screen.getByRole('button', { name: 'Play Morning calm by Yann' });
   expect(playlist.textContent).toContain('Morning calm');
   fireEvent.click(playlist);
   await act(async () => {});
@@ -359,7 +359,7 @@ it('adjusts overview volume through the shared speaker control without opening a
   expect(screen.getByRole('button', { name: 'Open speaker volume' }).textContent).toBe('34%');
 });
 
-it.each(['Open favourites', 'Open speakers', 'Open speaker volume', 'All lights'])(
+it.each(['Playlists', 'Open speakers', 'Open speaker volume', 'All lights'])(
   'restores the actual %s pointer trigger without pre-focusing it',
   async name => {
     speaker();
