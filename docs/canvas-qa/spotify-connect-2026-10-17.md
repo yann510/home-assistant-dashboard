@@ -8,8 +8,9 @@ Sonos coordinator. Existing grouping, Sonos transport, per-room volumes and
 Follow me remain available. Manual playlist launch releases only affected mood
 playback ownership; House Mood presets retain their existing playback route.
 
-This is a documentation checkpoint at source `6545cef`, with controller-supplied
-household, browser and test evidence. Final rollout remains in progress. The
+This record includes controller-supplied household, browser and test evidence
+through the post-restart recheck of source `6545cef` and trial build `4ba7cfb`.
+Final rollout remains in progress. The
 [backend verification record](../../home-assistant/spotify-connect-verification.md)
 contains the exact versions, service/permission boundaries, protected backup
 paths, authorization and targeted rollback procedures. Checks recorded after
@@ -50,28 +51,28 @@ theme, artwork treatment, controls, typography and focus treatment remain in use
 The pinned live environment is SpotifyPlus 1.0.224 / spotifywebapipython 1.0.296,
 HA 2026.9.3 / actual Core Python 3.14.6, HAOS 18.3 and Supervisor 2026.09.2 on
 aarch64. The full backend was verified at `8f01e72`; the independently reviewed
-gateway update at `6545cef` has been copied to HA. Configuration check passed;
-restart is in progress and affected live verification remains pending at this
-checkpoint.
+gateway update at `6545cef` is installed. Configuration check and normal restart
+passed, preserving paused Gym + Bedroom, Follow on/saved Gym source and baseline
+volumes. Affected post-restart live checks passed as recorded below.
 
 | Requirement | Evidence and limits |
 | --- | --- |
-| Fixed account and refresh | Human Desktop consent, canonical account/scopes, normal SDK Desktop refresh, relay restart and HA Core restart recovery passed. Read-only inspection now confirms a naturally expired Desktop cache with refresh token present; automatic recovery after this expiry remains pending |
+| Fixed account and refresh | Human Desktop consent, canonical account/scopes, normal SDK Desktop refresh, relay restart and HA Core restart recovery passed. Read-only cache checks before restart and after ordinary actual activation confirmed automatic refresh from naturally expired to unexpired with refresh present, without a manual refresh call |
 | Relay isolation | Local add-on 1.0.0, private paced PulseAudio null sink, UID/GID 1000 and zero capabilities; no privileged mode, physical/shared audio or device mappings. Boot/watchdog and stable name/Connect ID verified |
 | Exact playlist launch | Fresh account/relay/context → explicit supported activation → explicit transfer → fresh native Sonos Connect plus cloud target/context/playing verified. First/second selected playlists, already-listed devices, identical duplicate request result and new-intent already-playing no-op passed |
 | All four speakers and existing group | Gym cold start and later Living Room/Bathroom/Bedroom starts confirmed. Gym + Bedroom requested through the follower resolved Gym, preserving exact current-track identity, group and member volumes |
 | Spotify phone and Jam | User: “yes I see it on my phone and jam works :D”. Detailed second-participant track addition before/after topology changes was not separately reported |
 | Physical Follow me | Asked to resume Gym, start Jam, enable Follow, walk through mapped lit rooms, verify joins without Spotify/Jam interruption, then disable Follow leaving Gym playing. User: “yes all of this works this is awesome!!” |
 | Transport and room volume | Actual Bedroom coordinator + Gym follower: pause/resume, one next, one previous, seek to 35 s and Gym volume .20 → .21 → .20 while Bedroom stayed .19 passed. Existing Sonos transport retained |
-| Manual grouping and changed coordinator | Reversed Bedroom + Gym discovery exposed a known-follower `getInfoError` placeholder before playback effects. Narrow fix has regression coverage and independent task approval; live restart/retest pending |
+| Manual grouping and changed coordinator | Known-follower `getInfoError` fix has regression coverage and independent approval. After restart with cloud initially empty, Bedroom coordinator + Gym follower launch returned `confirmed` for Bedroom; restoring Gym coordinator + Bedroom returned `confirmed` for Gym. Exact `current_track` URI resolved for both |
 | Manual launch during a mood | Active Gym mood → manual Spotify confirmed → End mood idle left manual session playing; relevant lighting/group/volumes/Follow restored |
 | Real library pagination | Seven actual playlists, two owned/five followed; offsets 0/2/4/6 returned 2/2/2/1, preserving full-read URI order. All are public/noncollaborative; private/collaborative access has granted scopes and mock coverage only |
 | Song save/remove | Paused exact-track WebSocket opposite-state write → direct provider confirmation → prior state restored. External provider change reconciled over WebSocket after 31 s, then restored. Track races have automated coverage |
 | Failed launch/reconnection | Automated regressions require a new explicit intent and prohibit automatic replay/local-queue fallback; final live failed-launch/disconnection check pending |
 
-After native controls, the controller restored Gym coordinator + Bedroom group,
+After post-restart acceptance, the controller restored Gym coordinator + Bedroom group,
 Follow on with saved Gym source, baseline volumes and paused state; Living Room
-and Bathroom were idle. The test changed playlist context and did not restore
+and Bathroom were idle; cloud playing was false. The test changed playlist context and did not restore
 the exact prior track/queue. This cleanup record does not promise preservation
 of the prior test queue. Following the user's physical acceptance, further
 household actions require a fresh snapshot of current state.
@@ -84,8 +85,9 @@ dashboard build and whitespace checks passing. Eight relay unit tests and seven
 Python installer tests also passed. The existing large-chunk build advisory
 remains. These runs are distinct from the 40 isolated native HA tests that
 passed in 3.317 s on actual Core Python 3.14.6 at backend `8f01e72`; those fake
-providers changed no household state. The newer gateway still needs affected
-native/live checks after restart.
+providers changed no household state. The newer gateway passed affected live
+restart/reversed-group checks; this does not imply a newer native test-suite run.
+The updated trial build at `4ba7cfb` also passed; publication remains pending.
 
 Task implementations received independent reviews. The known-follower discovery
 guard was independently approved at `6545cef`. Final whole-branch review is
@@ -94,9 +96,10 @@ acceptance items and current test evidence.
 
 ## Remaining acceptance and release gates
 
-The controller owns completion of the gateway restart, reversed-group live
-retest, final failed-launch/disconnection check, natural-expiry recovery,
-real private/collaborative playlist sample and detailed second-participant Jam
+The gateway restart, reversed-group live recheck and automatic recovery after
+natural expiry are passed. The controller still owns the final live
+failed-launch/disconnection check, real private/collaborative playlist sample
+and detailed second-participant Jam
 track-add evidence. The broader human Jam/physical Follow confirmations above
 are passed within their stated scope; they do not independently establish those
 missing details.

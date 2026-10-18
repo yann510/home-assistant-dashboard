@@ -16,17 +16,17 @@ checks. Earlier installation-only “unverified” statuses are superseded here.
 | Relay isolation and restart recovery | PASS | Private paced PulseAudio null sink, UID/GID 1000, zero capabilities, no privileged/device/physical audio access; automatic boot/watchdog; relay restart and HA Core restart recovery succeeded |
 | Exact playlist/account/relay to native Sonos Connect | PASS | Fresh account/relay/context/playing, explicit supported Zeroconf activation and transfer, then fresh native Sonos Connect plus cloud target/context/playing confirmation; first/second playlists and repeated launches to already-listed devices succeeded |
 | Request identity and already-playing no-op | PASS | Duplicate request ID returned the identical result; new intent for the confirmed same context returned `already_playing` |
-| Existing group and requested follower | PASS, scoped | Gym + Bedroom launch requested through the follower resolved Gym; exact current track, group, and individual volumes were preserved. Living Room, Bathroom and Bedroom cold starts subsequently confirmed, supplementing prior Gym confirmation; reversed-group discovery fix is independently approved, with live restart/retest pending |
+| Existing group and requested follower | PASS | Gym + Bedroom launch requested through the follower resolved Gym; exact current track, group, and individual volumes were preserved. Living Room, Bathroom and Bedroom cold starts subsequently confirmed, supplementing prior Gym confirmation. After the reviewed gateway update/restart, a fresh empty-cloud session launched with Bedroom coordinator + Gym follower, then with Gym coordinator + Bedroom; both returned `confirmed` for the actual coordinator |
 | Spotify phone output, queue/control and Jam | PASS, scoped | User: “yes I see it on my phone and jam works :D”. A second participant adding a track before/after topology changes was not separately narrated and remains pending |
 | Physical Follow me on/off with Spotify/Jam | PASS | User was asked to resume Gym, start Jam, enable Follow, walk through mapped lit rooms, verify joins without Spotify/Jam interruption, and disable Follow while Gym keeps playing. User confirmed: “yes all of this works this is awesome!!” |
 | Native Sonos transport/seek/room volume | PASS, scoped | Actual Bedroom coordinator + Gym follower Connect/cloud: pause/resume, one next, one previous returning the prior track, seek to 35 s confirmed by cloud at 34–42 s, Gym volume .20 → .21 → .20 while Bedroom stayed .19. Sonos transport is retained |
-| Manual grouping/ungrouping and reversed coordinator | PARTIAL | Reversed Bedroom + Gym group exposed the exact known-follower SDK placeholder described below; local regression/fix passes and independent task review approved it. Reviewed gateway copied to HA; configuration check passed, restart in progress and live recheck pending |
+| Manual grouping/ungrouping and reversed coordinator | PASS, scoped | Known-follower placeholder fix independently approved and verified live after configuration check/restart. Reversed Bedroom + Gym and restored Gym + Bedroom launches each confirmed the correct coordinator; `current_track` resolved an exact URI for both. Baseline groups/volumes/Follow on with saved Gym source were restored, then source paused and cloud playing false. Human general Jam/Follow evidence is recorded separately; detailed second-participant addition remains pending |
 | Manual launch supersedes mood playback | PASS | Gym mood active → manual Spotify `confirmed` → End mood idle left manual session playing; relevant lighting/group/volume/Follow state restored |
 | Playlist listing and pagination | PASS | Seven real playlists, two owned/five followed; offsets 0/2/4/6 returned 2/2/2/1 and preserved full-read URI order |
 | Private/collaborative real playlists | PENDING | Required scopes and mock coverage exist; all seven actual playlists are public/noncollaborative. No real sample was created |
 | Save/remove and external saved-state reconciliation | PASS, scoped | Paused Connect exact-track WebSocket write to opposite state → direct provider check → prior state restored; external provider change reconciled through WebSocket after 31 seconds, then restored. Track races and pending/error behavior have automated coverage |
 | Failed launch/disconnection recovery | AUTOMATED; live final check pending | New frontend/backend regressions require a new explicit intent and prohibit automatic replay; real restart recovery passed separately |
-| Natural authorization expiry recovery | PENDING | Read-only inspection confirmed the Desktop cache naturally expired before the latest restart, with a refresh token present. Normal activation/automatic refresh after this expiry still awaits verification; earlier normal SDK refresh and restart recovery passed separately |
+| Natural authorization expiry recovery | PASS | Read-only inspection before restart found the Desktop cache naturally expired with refresh present (`expiresAt=1792286211`). After ordinary actual playback activation, without a manual refresh call, inspection found it unexpired (`expiresAt=1792290049`) with refresh present. Fresh launch confirmation establishes automatic recovery after natural expiry |
 | Actual Fire viewport | PASS | Physical photographs establish dashboard iframe inner/document/visual 1224×614 CSS px, visual scale 1, DPR 1.5; screen 1280×800 landscape-primary |
 | Responsive states | PASS, preview scope | Actual HA host with collapsed sidebar at 1280×614 yields iframe inner/document/visual 1224×614, scale 1, DPR 1 emulation and no overflow. Supplemental fixtures cover 375×812 and 960×540; new UI has not been verified on the physical Fire |
 | Trial/production release and remote main | PENDING | Controller owns final whole-branch independent review, affected native HA checks, atomic trial/production publication, served-asset hashes and final push/remote HEAD verification |
@@ -51,11 +51,13 @@ Fire proof. See [dated UI and acceptance QA](../docs/canvas-qa/spotify-connect-2
 The full live backend was verified at commit `8f01e72`. The reviewed gateway
 update from `6545cef` was subsequently copied to HA, SHA256
 `a680b92a4534df39579318882e9b755471d7941247185ba4fcccc34f80bacb91`;
-configuration check passed, restart is in progress and reversed-group recheck
-remains pending. Frontend or documentation changes do not imply a newer household
-dashboard deployment.
+configuration check and normal HA Core restart passed, preserving the paused
+Gym + Bedroom group, Follow on/saved Gym source and baseline volumes. Fresh
+post-restart reversed-group and restored-group launches passed; this supersedes
+the earlier pending gateway recheck. Frontend or documentation changes do not
+imply a newer household dashboard deployment.
 The controller records the final release ID and served/remote hashes after rollout.
-After the latest native control checks, the controller restored Gym coordinator +
+After the latest post-restart acceptance checks, the controller restored Gym coordinator +
 Bedroom group, Follow on with saved Gym source, original volumes and paused state;
 Living Room/Bathroom were idle after transfer. The prior track/queue was not
 restored; no exact prior-track or queue-restoration claim is made.
@@ -273,7 +275,10 @@ Name/Key/RemoteName, one stable registry RINCON match, no duplicate discovery
 identity, and fresh complete consistent HA topology proving it is a follower.
 Coordinator, unknown, ambiguous, malformed and inconsistent-topology placeholders
 remain errors. Independent task review approved this narrow fix; the reviewed
-gateway has been copied to HA and awaits restart and live recheck.
+gateway passed configuration check/restart and live reversed-group recheck.
+Starting from an empty cloud session after restart, `play_spotify` confirmed
+Bedroom coordinator + Gym follower; after restoring the group it confirmed Gym
+coordinator + Bedroom. Exact current-track reads resolved correctly for both.
 Unknown speakers, changed identities, missing evidence, and ambiguous names fail
 closed.
 
@@ -331,7 +336,9 @@ dashboard build and `git diff --check`. Relay verification separately passed
 **8 relay unit tests** and **7 Python installer tests**. The build's existing
 large-chunk advisory remains. Pure Python tests do not establish the actual
 HA Core runtime; the 40 native HA tests above belong to `8f01e72`, before the
-gateway update. Affected native verification after restart, final whole-branch
-independent review and release/remote checks remain controller-owned gates.
+gateway update. The controller's affected live restart/reversed-group checks
+passed as recorded above; no newer native test-suite count is implied. The
+updated trial build at `4ba7cfb` also passed. Final whole-branch independent review
+and release/remote checks remain controller-owned gates.
 No atomic trial/production release, served hash or final remote-main completion
 is claimed by this documentation checkpoint.
