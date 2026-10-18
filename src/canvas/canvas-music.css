@@ -243,3 +243,7 @@
 .canvas .canvas-track-heart__sparkle { position: absolute; left: calc(50% - 3px); top: calc(50% - 5px); font-size: 9px; line-height: 10px; }
 .canvas .canvas-track-heart__badge { position: absolute; right: 3px; bottom: 3px; font-size: 11px; line-height: 1; font-weight: 700; }
 .canvas .canvas-track-heart__feedback { position: absolute; z-index: 3; right: 0; top: 100%; width: min(230px, 50vw); padding: 6px 8px; border: 1px solid var(--canvas-music-border); border-radius: 10px; background: var(--canvas-music-surface); color: var(--canvas-music-ink); font-size: .72rem; line-height: 1.3; pointer-events: none; }
+
+/* Keep launch feedback in the dialog's scrollport through the final gallery row. */
+.canvas-dialog .canvas-playlists__feedback { position: sticky; top: 0; z-index: 3; align-self: start; min-width: 0; border-radius: 12px; background: var(--canvas-surface); overflow-wrap: anywhere; }
+.canvas-dialog .canvas-playlists__feedback > [role='status'] { padding: .75rem; border: 1px solid var(--canvas-line); border-radius: 12px; }

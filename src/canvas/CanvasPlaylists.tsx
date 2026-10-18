@@ -40,6 +40,13 @@ export function CanvasPlaylists({ onPlayed }: { onPlayed(): void }) {
   const shown = library.items.filter(item => `${item.title} ${item.owner}`.toLocaleLowerCase().includes(filter.toLocaleLowerCase()));
   return (
     <section className='canvas-playlists' aria-label='Your Spotify playlists'>
+      {(playback.status || playback.pending || playback.error) && (
+        <section className='canvas-playlists__feedback' aria-label='Playlist playback'>
+          {playback.status && <p role='status'>{playback.status}</p>}
+          {playback.pending && <p role='status'>Starting {playback.pending.title}…</p>}
+          {playback.error && <p role='alert'>{playback.error}</p>}
+        </section>
+      )}
       {!session.connected && <p role='status'>Reconnecting to Home Assistant. Playlists will load when connected.</p>}
       <label className='canvas-playlists__filter'>
         <span>Filter loaded playlists</span>
@@ -79,9 +86,6 @@ export function CanvasPlaylists({ onPlayed }: { onPlayed(): void }) {
           {library.loadingMore ? 'Loading more…' : 'Load more'}
         </button>
       )}
-      {playback.status && <p role='status'>{playback.status}</p>}
-      {playback.pending && <p role='status'>Starting {playback.pending.title}…</p>}
-      {playback.error && <p role='alert'>{playback.error}</p>}
     </section>
   );
 }

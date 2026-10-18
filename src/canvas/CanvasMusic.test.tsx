@@ -1,3 +1,4 @@
+/// <reference types="node" />
 // @vitest-environment jsdom
 
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
@@ -12,6 +13,10 @@ import { CanvasPlayer } from './CanvasPlayer';
 import { CanvasSpeakers } from './CanvasSpeakers';
 import { useEffect, useState } from 'react';
 import { canvasRouteTitle } from './routes';
+import { CanvasDialog } from './CanvasDialog';
+import { readFileSync } from 'node:fs';
+// Vitest stubs CSS imports; apply the real rules to verify the feedback cascade.
+const musicStyles = readFileSync('src/canvas/canvas-music.css', 'utf8');
 
 const sendMessagePromise = vi.fn();
 const legacyCallService = vi.fn();
@@ -1465,4 +1470,40 @@ it('enables a paused Spotify song heart independently of speaker actions and dis
   expect((screen.getByRole('switch', { name: 'Follow me' }) as HTMLButtonElement).disabled).toBe(false);
   updateEntity('media_player.living_room', {}, { source: 'TV' });
   expect(screen.getByRole('button', { name: 'Liked Songs unavailable for this source' }).hasAttribute('aria-pressed')).toBe(false);
+});
+
+
+it.each(['first', 'last'] as const)('pins pending and uncertain playback feedback ahead of the gallery for its %s loaded choice', async choice => {
+  const items = Array.from({ length: 56 }, (_, index) => playlist(`Collection ${index + 1}`, String(index + 1)));
+  listPlaylists.mockResolvedValueOnce({ items: items.slice(0, 50), nextOffset: 50, total: 56 })
+    .mockResolvedValueOnce({ items: items.slice(50), nextOffset: null, total: 56 });
+  const finish = delaySpotify();
+  render(
+    <HassContext.Provider value={context}>
+      <style>{musicStyles}</style>
+      <CanvasDialog title='Music' onClose={() => {}}><Surface /></CanvasDialog>
+    </HassContext.Provider>
+  );
+  await userEvent.click(screen.getByRole('button', { name: 'Playlists' }));
+  await screen.findByRole('button', { name: 'Play Collection 1 by Yann' });
+  await userEvent.click(screen.getByRole('button', { name: 'Load more' }));
+  await screen.findByRole('button', { name: 'Play Collection 56 by Yann' });
+  const body = screen.getByRole('dialog').querySelector('.canvas-dialog__body')!;
+  const gallery = screen.getByRole('button', { name: 'Play Collection 1 by Yann' }).closest('.canvas-playlists__grid')!;
+  body.scrollTop = choice === 'last' ? 4000 : 0;
+  const selected = choice === 'last' ? 'Collection 56' : 'Collection 1';
+  await userEvent.click(screen.getByRole('button', { name: `Play ${selected} by Yann` }));
+  const feedback = screen.getByRole('region', { name: 'Playlist playback' });
+  expect(feedback.contains(screen.getByText(`Starting ${selected}…`))).toBe(true);
+  expect(feedback.compareDocumentPosition(gallery) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(getComputedStyle(feedback).position).toBe('sticky');
+  expect(getComputedStyle(feedback).top).toBe('0px');
+  expect(Number(getComputedStyle(feedback).zIndex)).toBeGreaterThan(0);
+  expect(body.scrollTop).toBe(choice === 'last' ? 4000 : 0);
+  await act(async () => finish('unconfirmed'));
+  expect(feedback.contains(screen.getByRole('alert'))).toBe(true);
+  expect(screen.getByRole('region', { name: 'Playlist playback' })).toBe(feedback);
+  expect(screen.getByRole('region', { name: 'Your Spotify playlists' })).toBeTruthy();
+  expect(body.scrollTop).toBe(choice === 'last' ? 4000 : 0);
+  expect(sendMessagePromise).toHaveBeenCalledTimes(1);
 });

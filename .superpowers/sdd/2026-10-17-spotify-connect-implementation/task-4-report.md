@@ -50,3 +50,21 @@ Root reported its initial 1224x614 CSS px, visual scale 1 preview pass (desktop 
 - Independent review follows this implementation commit.
 - Root owns final UI states/paging/error/phone acceptance, backend integration/deployment, fetch/merge and push to origin/main. No worker deployment/push is implied by the local commit.
 - Song save state and animation remain Task 5; its slot intentionally has no misleading temporary heart control.
+
+
+## Post-review QA fix round 1 (base c369cc5)
+
+Root's browser QA found the original playback pending/error paragraphs after the gallery, outside the visible tablet scrollport (unconfirmed alert y939 on the 614px-high Fire viewport). Moved the same existing feedback into one named Playlist playback region before the filter/gallery, pinned with `position: sticky; top: 0` within the existing dialog body. Its opaque background, borders, padding and 12px corners reuse current theme tokens and feedback styling. No playback request, retry, hooks, fixture or song-heart behavior changed; no overview card dimensions changed. Preserved all Task 5 heart changes.
+
+Regression tests: `pins pending and uncertain playback feedback ahead of the gallery for its first loaded choice` and `... last loaded choice`. They load both pages (56 choices), select the first/final playlist, verify pending feedback lives in the named region before the gallery, apply the actual stylesheet to verify sticky/top/layering, keep the user's simulated scroll position through pending→unconfirmed, retain the sheet and assert exactly one service intent. The initial RED run failed both cases because the pinned region was absent. After implementation and test stylesheet setup, both cases pass. Vitest stubs CSS imports even with raw/inline queries, so these tests read the stylesheet from disk and include the installed Node types for that test file; this also fixed the intermediate test-only TS2591 import error. No production configuration changes were needed.
+
+Focused final verification (no full-suite repetition):
+
+- `VITE_FOLDER_NAME=dashboard npm test -- src/canvas/CanvasMusic.test.tsx src/canvas/CanvasIntegration.test.tsx src/useSpotifyPlaylistPlayback.test.tsx src/useSpotifyPlaylists.test.tsx src/canvas/CanvasTrackHeart.test.tsx`: PASS, 5 files / 179 tests, exit 0.
+- `npx eslint src/canvas/CanvasPlaylists.tsx src/canvas/CanvasMusic.test.tsx`: PASS, exit 0, no output.
+- `npx tsc -b`: PASS, exit 0, no output.
+- `git diff --check`: PASS, exit 0.
+
+Self-review: feedback remains inside the existing gallery section whose height spans all loaded pages, so its sticky boundary includes the final row; it has an opaque theme surface and a higher stacking layer than the gallery. No forced scrolling/focus changes, extra network intent, replay or retry was added. Empty feedback creates no extra sheet row. Existing live-region roles remain on the actual pending/error text. The worker used mock-only tests; jsdom can validate DOM placement and style cascade but cannot establish viewport visibility or actual browser scroll geometry.
+
+Root separately reported browser geometry/screenshot checks passed: at 1224x614, first-row pending/unconfirmed and final-item pending are visible at x206.5,y105.2,w800,h44. At 375x812, first-row pending is visible at x20,y141.2,w324,h44; final-item pending at x20,y85.2,w324,h44 and unconfirmed at x20,y85.2,w324,h62. Root reported no horizontal overflow. Those are root-owned browser acceptance observations, not independent worker/physical Fire claims. Scoped independent review and root's final integrated checks follow. No worker browser/auth/house/deploy/push actions occurred.
