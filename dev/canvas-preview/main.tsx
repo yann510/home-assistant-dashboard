@@ -13,6 +13,7 @@ const params = new URLSearchParams(location.search);
 const scene = params.get('scene') ?? 'everyday';
 const failures = previewFailures(params);
 const media = params.get('media');
+const song = params.get('song');
 const spotifyPreview = createSpotifyPreview(params);
 const entities: HassEntities = {};
 function publish(id: string, state: string, attributes: Record<string, unknown> = {}) {
@@ -35,7 +36,7 @@ for (const room of rooms)
 for (const room of ['living_room', 'bathroom', 'bedroom', 'gym'])
   publish(
     `media_player.${room}`,
-    room === 'living_room' ? (['idle', 'paused', 'buffering', 'unavailable'].includes(media ?? '') ? media! : 'playing') : 'idle',
+    room === 'living_room' ? (['idle', 'paused', 'buffering', 'unavailable'].includes(media ?? '') ? media! : song === 'connect-paused' ? 'paused' : 'playing') : 'idle',
     {
       friendly_name: room.replaceAll('_', ' '),
       supported_features: 4127295,
@@ -50,8 +51,8 @@ for (const room of ['living_room', 'bathroom', 'bedroom', 'gym'])
             : 'All In A Dream',
       media_artist:
         room === 'living_room' && (media === 'idle' || media === 'untitled') ? undefined : 'LP Giobbi · DJ Tennis · Joseph Ashworth',
-      source: 'Spotify',
-      media_content_id: 'spotify:track:2qRWNDee5Hfi6DFjfiu58c',
+      source: song === 'tv' ? 'TV' : song === 'unknown' ? '' : 'Spotify',
+      media_content_id: ['connect', 'connect-paused', 'unknown'].includes(song ?? '') ? 'x-sonos-vli:RINCON_PREVIEW:2,spotify:session' : song === 'episode' ? 'spotify:episode:2qRWNDee5Hfi6DFjfiu58c' : song === 'local' ? 'spotify:local:Artist:Album:Song' : 'spotify:track:2qRWNDee5Hfi6DFjfiu58c',
       media_duration: room === 'living_room' && (media === 'idle' || media === 'untitled') ? undefined : 250,
       media_position: room === 'living_room' && (media === 'idle' || media === 'untitled') ? undefined : 42,
       media_position_updated_at: new Date().toISOString(),
@@ -62,6 +63,10 @@ for (const room of ['living_room', 'bathroom', 'bedroom', 'gym'])
         : undefined,
     }
   );
+if (params.has('songSwitchAfter')) setTimeout(() => {
+  const current = entities['media_player.living_room'];
+  publish(current.entity_id, current.state, { ...current.attributes, source: 'Spotify', media_title: 'The next song', media_content_id: 'spotify:track:0000000000000000000002' });
+}, Math.max(0, Number(params.get('songSwitchAfter')) || 0));
 publish('input_boolean.speaker_follow_motion', 'off');
 publish('input_text.speaker_follow_source', '');
 publish('script.speaker_follow_motion', 'off');

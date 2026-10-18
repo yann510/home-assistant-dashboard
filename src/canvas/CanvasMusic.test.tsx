@@ -1447,3 +1447,22 @@ it('does not let a retained playlist callback restore the previous source', asyn
   expect(screen.getByTestId('speaker-coordinator').textContent).toBe('media_player.gym');
   expect(sendMessagePromise).not.toHaveBeenCalled();
 });
+it('enables a paused Spotify song heart independently of speaker actions and disables retained TV metadata', async () => {
+  updateEntity('media_player.living_room', { state: 'paused' }, { source: 'Spotify', media_content_id: 'spotify:track:0000000000000000000001', media_title: 'Paused song' });
+  const connection = useStore.getState().connection!;
+  const original = connection.sendMessagePromise.bind(connection);
+  connection.sendMessagePromise = (message => {
+    if (message.type === 'dashboard_music/track_saved') return Promise.resolve({ track_uri: 'spotify:track:0000000000000000000001', saved: false });
+    if (message.type === 'dashboard_music/set_track_saved') return new Promise(() => {});
+    return original(message);
+  }) as typeof connection.sendMessagePromise;
+  mount();
+  const heart = await screen.findByRole('button', { name: 'Save Paused song to Liked Songs' });
+  fireEvent.click(heart);
+  expect(heart.getAttribute('aria-busy')).toBe('true');
+  expect((screen.getByRole('button', { name: 'Resume' }) as HTMLButtonElement).disabled).toBe(false);
+  expect((screen.getByRole('button', { name: 'Playlists' }) as HTMLButtonElement).disabled).toBe(false);
+  expect((screen.getByRole('switch', { name: 'Follow me' }) as HTMLButtonElement).disabled).toBe(false);
+  updateEntity('media_player.living_room', {}, { source: 'TV' });
+  expect(screen.getByRole('button', { name: 'Liked Songs unavailable for this source' }).hasAttribute('aria-pressed')).toBe(false);
+});

@@ -6,6 +6,7 @@ import { useHass } from '@hakit/core';
 import { useState } from 'react';
 import { useCanvasMusic } from './CanvasMusicProvider';
 import { spotifyTrackUri } from './spotifyTrackUri';
+import { CanvasTrackHeart } from './CanvasTrackHeart';
 
 export function CanvasFollow() {
   const { session: s, rooms, playlistPlayback } = useCanvasMusic();
@@ -84,7 +85,7 @@ export function CanvasMusic({
   onOpenPlayer(trigger: HTMLElement): void;
   onOpenSpeakers(trigger: HTMLElement): void;
 }) {
-  const { session, title, trackTitle, attributes, idle, rooms, disabled, playback, playlistPlayback } = useCanvasMusic();
+  const { session, title, trackTitle, attributes, idle, rooms, disabled, playback, playlistPlayback, currentTrackUri } = useCanvasMusic();
   const { joinHassUrl } = useHass();
   const [failedArtwork, setFailedArtwork] = useState<string>();
   const [loadedArtwork, setLoadedArtwork] = useState<string>();
@@ -96,8 +97,8 @@ export function CanvasMusic({
   const activePlayback = !!available && session.coordinator?.state === 'playing' && !disabled && !playback.busy
     && !session.updating && !playlistPlayback.pending && !playback.error && !session.error && !rooms.error
     && !playlistPlayback.error;
-  const currentTrackUri = spotifyTrackUri(attributes?.media_content_id);
-  const spotifyHref = trackTitle ? currentTrackUri ?? 'spotify:' : undefined;
+  const linkTrackUri = currentTrackUri ?? spotifyTrackUri(attributes?.media_content_id);
+  const spotifyHref = trackTitle ? linkTrackUri ?? 'spotify:' : undefined;
   const Cover = trackTitle ? 'a' : 'div';
   const Title = trackTitle ? 'a' : 'div';
   function openSpeakers(trigger: HTMLElement) {
@@ -110,7 +111,7 @@ export function CanvasMusic({
         {usableArtwork && <img src={usableArtwork} alt='' onLoad={() => setLoadedArtwork(usableArtwork)} onError={() => setFailedArtwork(usableArtwork)} />}
       </div>
       <div className='canvas-music__track'>
-        <Cover className='canvas-music__cover' href={spotifyHref} aria-label={trackTitle ? currentTrackUri ? 'Open current song in Spotify' : 'Open Spotify app' : undefined} aria-hidden={trackTitle ? undefined : true}>
+        <Cover className='canvas-music__cover' href={spotifyHref} aria-label={trackTitle ? linkTrackUri ? 'Open current song in Spotify' : 'Open Spotify app' : undefined} aria-hidden={trackTitle ? undefined : true}>
           {usableArtwork ? (
             <img src={usableArtwork} alt='' onLoad={() => setLoadedArtwork(usableArtwork)} onError={() => setFailedArtwork(usableArtwork)} />
           ) : (
@@ -121,7 +122,7 @@ export function CanvasMusic({
           <span className='canvas__eyebrow'>{trackTitle ? 'Music, for this moment' : 'Music'}</span>
           <div className='canvas-music__title-row'>
             <Title className={`canvas-music__title${trackTitle ? '' : ' canvas-music__title--status'}`} href={spotifyHref}>{title}</Title>
-            <span className='canvas-music__track-heart-slot' aria-hidden='true' />
+            <CanvasTrackHeart trackUri={currentTrackUri} title={trackTitle ?? title} enabled={!!available && !idle} />
           </div>
           {!idle && available && attributes?.media_artist && <p>{attributes.media_artist}</p>}
         </div>

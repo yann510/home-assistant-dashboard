@@ -48,3 +48,17 @@ it('supports empty and load-more-only errors without breaking the first page', a
     retry_after: 5,
   });
 });
+it('serves local saved-state confirmations, supports explicit remove and never changes another track', async () => {
+  const preview = createSpotifyPreview(new URLSearchParams('song=saved'));
+  const a = 'spotify:track:0000000000000000000001'; const b = 'spotify:track:0000000000000000000002';
+  expect(await preview({ type: 'dashboard_music/track_saved', track_uri: a })).toEqual({ track_uri: a, saved: true });
+  expect(await preview({ type: 'dashboard_music/set_track_saved', track_uri: a, saved: false })).toEqual({ track_uri: a, saved: false });
+  expect(await preview({ type: 'dashboard_music/track_saved', track_uri: b })).toEqual({ track_uri: b, saved: true });
+});
+it('supports read/write/auth failures and exact coordinator Connect lookup without real HA', async () => {
+  const uri = 'spotify:track:0000000000000000000001';
+  await expect(createSpotifyPreview(new URLSearchParams('song=error'))({ type: 'dashboard_music/set_track_saved', track_uri: uri, saved: true })).rejects.toThrow();
+  await expect(createSpotifyPreview(new URLSearchParams('song=auth'))({ type: 'dashboard_music/track_saved', track_uri: uri })).rejects.toMatchObject({ code: 'auth_required' });
+  expect(await createSpotifyPreview(new URLSearchParams('song=connect'))({ type: 'dashboard_music/current_track', source_entity: 'media_player.gym' })).toEqual({ source_entity: 'media_player.gym', track_uri: 'spotify:track:2qRWNDee5Hfi6DFjfiu58c' });
+  expect(await createSpotifyPreview(new URLSearchParams('song=unknown'))({ type: 'dashboard_music/current_track', source_entity: 'media_player.gym' })).toEqual({ source_entity: 'media_player.gym', track_uri: null });
+});

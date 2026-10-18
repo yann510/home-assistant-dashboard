@@ -2,6 +2,7 @@ import { createContext, useContext, useLayoutEffect, useRef, useState, type Reac
 import { useSpeakerSession } from '../useSpeakerSession';
 import { useSpeakerRooms } from '../useSpeakerRooms';
 import { useSpeakerTransport } from '../useSpeakerTransport';
+import { useSpotifyCurrentTrack } from '../useSpotifyCurrentTrack';
 import { useSpotifyPlaylists } from '../useSpotifyPlaylists';
 import { useSpotifyPlaylistPlayback } from '../useSpotifyPlaylistPlayback';
 
@@ -20,6 +21,7 @@ function useCanvasMusicController() {
   const [libraryOpen, setLibraryOpen] = useState(false);
   const playlists = useSpotifyPlaylists(libraryOpen);
   const attributes = coordinator?.attributes;
+  const currentTrackUri = useSpotifyCurrentTrack(entityId, coordinator, !disabled);
   const playing = coordinator?.state === 'playing' || coordinator?.state === 'buffering';
   const mediaTitle = attributes?.media_title?.trim() || attributes?.media_playlist?.trim() || null;
   const idle = !playing && (coordinator?.state !== 'paused' || !mediaTitle);
@@ -79,6 +81,7 @@ function useCanvasMusicController() {
     trackTitle,
     title,
     attributes,
+    currentTrackUri,
   };
 }
 const MusicContext = createContext<ReturnType<typeof useCanvasMusicController> | null>(null);
