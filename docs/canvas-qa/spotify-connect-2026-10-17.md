@@ -202,3 +202,24 @@ files matched the served manifest and HTTP bytes. Read-only production HA-frame
 inspection confirmed 1224×614 at scale 1, the requested footer order, and all
 three 44 px targets receiving pointer hits. Household controls were not changed.
 Screenshot: `backups.local/spotify-connect-qa/playlist-footer-production.png`.
+
+
+## Playlist text action — 2026-10-18
+
+User chose text plus the speaker selector’s directional icon, with no border or
+background. Source `1c7b1e4` reuses the speaker-selector styling and existing
+`CanvasActionIcon` forward glyph, retaining footer order, dialog handler and
+accessible name. Removed the old pill and hover-fill rules.
+
+Existing 133 CanvasMusic tests, lint, whitespace check, production build and
+independent scoped review passed. At 1224×614, the action has the same 600/15px
+font as the speaker selector, transparent background, zero border and a 44px
+height. Local pointer click opened the playlist sheet. At 375×812 all footer
+actions fit without horizontal overflow and retained 44px heights; keyboard
+focus displayed a 2px outline. The physical Fire was not operated for this change.
+
+Production release `spotify-connect-playlist-text-20261018-1c7b1e4` was atomically
+promoted and all 68 build files matched served manifest/HTTP bytes. Read-only
+production HA inspection at 1224×614 confirmed matching 600/15px fonts, zero
+border, transparent background, decorative icon, 44px height and pointer hit.
+Screenshot: `backups.local/spotify-connect-qa/playlist-text-production.png`.
