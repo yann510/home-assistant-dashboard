@@ -217,7 +217,7 @@
 .canvas .canvas-music__playlists { min-height: 44px; min-width: 0; width: auto; padding: 6px 10px; border-radius: 12px; border: 1px solid var(--canvas-music-line); background: var(--canvas-music-track); color: var(--canvas-music-ink); font: inherit; font-size: .8rem; font-weight: 600; white-space: nowrap; }
 .canvas .canvas-music__playlists:hover { background: var(--canvas-music-hover); }
 .canvas .canvas-music__playlists:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
-.canvas .canvas-music > .canvas-music__track-heart-slot { position: absolute; top: var(--canvas-space-3); right: var(--canvas-space-3); min-height: 44px; }
+.canvas .canvas-music > .canvas-music__track-heart-slot { position: absolute; top: var(--canvas-space-3); right: var(--canvas-space-3); z-index: 2; min-height: 44px; }
 .canvas-dialog .canvas-playlists__artwork { display: block; width: 100%; aspect-ratio: 1; overflow: hidden; }
 .canvas-dialog .canvas-playlists__labels { display: grid; gap: 3px; width: 100%; padding: 8px; box-sizing: border-box; text-align: left; }
 .canvas-dialog .canvas-playlists__owner { color: var(--canvas-muted); font-size: .8rem; line-height: 1.3; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
