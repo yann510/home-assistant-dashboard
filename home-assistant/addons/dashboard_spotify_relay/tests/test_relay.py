@@ -122,7 +122,7 @@ else:
         identity = json.loads((self.data / 'identity.json').read_text())
         self.assertRegex(identity['device_id'], '^[0-9a-f]{40}$')
         self.assertEqual((self.data.stat().st_mode & 0o777), 0o700)
-        self.assertEqual(((self.data / 'cache').stat().st_mode & 0o777), 0o700)
+        self.assertEqual(((self.data / 'credentials').stat().st_mode & 0o777), 0o700)
         self.process.terminate()
         stdout, stderr = self.process.communicate(timeout=4)
         self.assertNotIn('fixture-bootstrap-secret', stdout + stderr)
@@ -131,7 +131,7 @@ else:
         self.wait_for(self.player)
         self.assertIsNone(self.player()['token'])
         self.assertEqual(json.loads((self.data / 'identity.json').read_text()), identity)
-        self.assertEqual(json.loads((self.data / 'cache/credentials.json').read_text())['username'], 'fixture-canonical-account')
+        self.assertEqual(json.loads((self.data / 'credentials/credentials.json').read_text())['username'], 'fixture-canonical-account')
 
     def test_partial_cache_cannot_consume_bootstrap_before_valid_credentials_are_written(self):
         token = self.data / 'bootstrap-token'
@@ -139,14 +139,14 @@ else:
         token.chmod(0o600)
         (self.root / 'partial-cache').touch()
         self.start()
-        self.wait_for(lambda: (self.data / 'cache/credentials.json').exists())
+        self.wait_for(lambda: (self.data / 'credentials/credentials.json').exists())
         time.sleep(0.6)
         self.assertTrue(token.exists())
         (self.root / 'finish-cache').touch()
         self.wait_for(lambda: not token.exists())
 
     def test_incomplete_cached_credentials_reuse_bootstrap_for_recovery(self):
-        cache = self.data / 'cache'
+        cache = self.data / 'credentials'
         cache.mkdir(mode=0o700)
         valid = {'username': 'fixture-canonical-account', 'auth_type': 1, 'auth_data': 'Zml4dHVyZQ=='}
         invalid = ['{'] + [json.dumps({**valid, key: value}) for key, value in (
@@ -186,7 +186,7 @@ else:
         self.assertTrue((self.root / 'pulseaudio-stopped').exists())
 
     def test_invalid_bootstrap_never_erases_existing_credentials(self):
-        cache = self.data / 'cache'
+        cache = self.data / 'credentials'
         cache.mkdir(mode=0o700)
         original = '{"username":"existing-canonical-account","auth_type":1,"auth_data":"ZXhpc3Rpbmc="}'
         (cache / 'credentials.json').write_text(original)

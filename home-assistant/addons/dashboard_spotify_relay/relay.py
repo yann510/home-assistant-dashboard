@@ -35,12 +35,14 @@ def private_path(path, directory=False):
 
 def prepare(data, runtime):
     os.umask(0o077)
-    for path in (data, data / 'cache', runtime):
+    # Upstream declares /data/cache and /data/system-cache as anonymous VOLUMEs.
+    # Keep durable credentials directly in HA's /data mount, outside both.
+    for path in (data, data / 'credentials', runtime):
         private_path(path, directory=True)
     for path in (data / 'identity.json', data / 'bootstrap-token'):
         private_path(path)
     # Only the relay's own state, never shared HA audio or storage.
-    for path in (data / 'cache').iterdir():
+    for path in (data / 'credentials').iterdir():
         private_path(path)
     identity_file = data / 'identity.json'
     if identity_file.exists():
@@ -105,7 +107,7 @@ def run(data, runtime):
                       f'load-module module-null-sink sink_name={SINK} rate=44100 channels=2 format=s16le\n'
                       f'set-default-sink {SINK}\n')
     token_file = data / 'bootstrap-token'
-    credentials = data / 'cache' / 'credentials.json'
+    credentials = data / 'credentials' / 'credentials.json'
     using_bootstrap = False
     if token_file.exists() and not cached_credentials_ready(credentials):
         token = token_file.read_text().strip()
@@ -141,7 +143,7 @@ def run(data, runtime):
         if stopping:
             return 0
         player = subprocess.Popen(['librespot', '--name', identity['name'],
-                                   '--backend', 'pulseaudio', '--system-cache', str(data / 'cache'),
+                                   '--backend', 'pulseaudio', '--system-cache', str(data / 'credentials'),
                                    '--disable-audio-cache', '--zeroconf-backend', 'libmdns',
                                    '--zeroconf-port', '24879', '--device-type', 'computer', '--quiet'],
                                   env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
