@@ -127,7 +127,6 @@ export function CanvasMusic({
       </div>
       <div className='canvas-music__bottom'>
         <CanvasTransport />
-        <button className='canvas-music__playlists' aria-haspopup='dialog' onClick={event => onOpenPlayer(event.currentTarget)}>Playlists</button>
         <SpeakerVolume
           key={session.targets.join(',')}
           entityId={session.entityId}
@@ -145,9 +144,10 @@ export function CanvasMusic({
       )}
       <div className='canvas-music__settings'>
         <CanvasFollow />
+        <button className='canvas-music__playlists' aria-haspopup='dialog' onClick={event => onOpenPlayer(event.currentTarget)}>Playlists</button>
         <button className='canvas-music__room' aria-label='Open speakers' onClick={event => openSpeakers(event.currentTarget)}>
-          {attributes?.friendly_name ?? 'Speakers'}
-          {session.targets.length > 1 ? ` +${session.targets.length - 1}` : ''} <CanvasActionIcon action='forward' />
+          <span>{attributes?.friendly_name ?? 'Speakers'}{session.targets.length > 1 ? ` +${session.targets.length - 1}` : ''}</span>
+          <CanvasActionIcon action='forward' />
         </button>
       </div>
       <div className='canvas-music__decoration' aria-hidden='true'>

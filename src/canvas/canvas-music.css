@@ -74,7 +74,7 @@
 .canvas .canvas-music button { background: transparent; border-color: var(--canvas-music-track); color: inherit; }
 .canvas .canvas-music p { color: var(--canvas-music-muted); margin: 4px 0 0; font-size: .75rem; }
 .canvas .canvas-music__bottom, .canvas .canvas-music__settings { display: flex; justify-content: space-between; align-items: center; gap: var(--canvas-space-2); }
-.canvas .canvas-music__settings { border-top: 1px solid var(--canvas-music-line); padding-top: var(--canvas-space-2); }
+.canvas .canvas-music__settings { display: grid; grid-template-columns: max-content max-content minmax(44px, 1fr); border-top: 1px solid var(--canvas-music-line); padding-top: var(--canvas-space-2); }
 /* The track itself replaces this divider whenever playback has a known duration. */
 .canvas .canvas-music > .speaker-seek + .canvas-music__settings { border-top: 0; padding-top: 0; }
 /* Clip the offset artwork in its own layer, so it cannot make the card scroll
@@ -91,7 +91,9 @@
 @media (prefers-reduced-motion: reduce) {
  .canvas .canvas-music__follow-state, .canvas .canvas-music__follow-indicator { transition: none; }
 }
-.canvas .canvas-music__room { min-height: 44px; min-width: 0; max-width: 60%; padding: 4px 8px; border: 0; text-align: right; font-size: .8rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.canvas .canvas-music__room { display: flex; align-items: center; justify-content: flex-end; gap: 4px; min-height: 44px; min-width: 44px; max-width: 100%; padding: 4px 8px; border: 0; text-align: right; font-size: .8rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.canvas .canvas-music__room > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.canvas .canvas-music__room > svg { flex-shrink: 0; }
 .canvas .canvas-music__track { display: grid; grid-template-columns: 85px minmax(0, 1fr); gap: var(--canvas-space-3); align-items: center; padding-right: 44px; }
 .canvas .canvas-music__cover { aspect-ratio: 1; border-radius: 12px; overflow: hidden; display: grid; place-items: center; background: #c39478; font: 3.5rem Georgia, serif; }
 .canvas .canvas-music__cover img { width: 100%; height: 100%; object-fit: cover; }
@@ -104,7 +106,6 @@
 .canvas .canvas-music__track a:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
 .canvas .canvas-music__transport button { border: 0; padding: 6px; }
 .canvas .canvas-music__transport button:nth-child(2) { border-radius: 50%; background: var(--canvas-music-ink); color: var(--canvas-music-surface); }
-.canvas .canvas-music__bottom > button { border-radius: 28px; font-size: .8rem; }
 :is(.canvas, .canvas-dialog) .canvas-speakers .speaker-volume-row { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; width: 100%; }
 :is(.canvas, .canvas-dialog) .canvas-speakers .speaker-volume-row input { width: 100%; }
 
