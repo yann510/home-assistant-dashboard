@@ -20,3 +20,11 @@ Source `68522ea` scopes preferences to confirmed mood activation identity (`sess
 ## Compatibility
 
 Production exposes session IDs. Older sensors without IDs support mood switches and reactivation after an observed non-active phase; a new same-mood session with neither an ID nor an observed phase change cannot be distinguished.
+
+## Production release
+
+Both independent task and whole-change reviews approved the fix with no actionable findings. Guarded frontend release `gym-player-sync-20261026-68522ea` was staged, hash-verified and promoted; the prior release remains available for rollback.
+
+Fresh HTTP reads verified all 68 local build files against both served bytes and the 256-entry retained-asset manifest. Index SHA-256: `fe71e90813096f424ef6cef448ae3306fbf38f4cf752e95e8aff46c7b50b92c6`.
+
+The authenticated live dashboard showed the active Gym mood, current track **Donnie Brasco** by **Know Good**, and Pause. Opening Speakers showed only **Gym Main speaker** selected, with reported volume 14%. These were read-only observations; no physical playback, volume, grouping or mood command was sent during live acceptance. Source publication uses a normal fast-forward push to `origin/main`.
