@@ -54,8 +54,20 @@ export function useSpeakerSession(allowIdleSource = false) {
   const updating = busy || followScript?.state === 'on';
   const canRetryCleanup = cleanupPending && !updating && followScript?.state === 'off';
   const configured = [followMode, followSource, followScript].every(entity => entity && !['unknown', 'unavailable'].includes(entity.state));
-  // Keep controlling the saved source while following, even if another room starts audio.
-  const [preferredSource, setPreferredSource] = useState<string | null>(null);
+  // Scope local choices to a confirmed activation. Ownership updates and other
+  // sensor attributes do not start a new activation; session IDs distinguish
+  // fresh sessions of the same mood, while the active phase handles older sensors.
+  const moodIdentity = mood?.state === 'active'
+    ? JSON.stringify([mood.attributes.session_id ?? null, mood.attributes.active_mood ?? null])
+    : null;
+  const [preference, setPreference] = useState<{ moodIdentity: string | null; source: string | null }>({ moodIdentity, source: null });
+  if (preference.moodIdentity !== moodIdentity) {
+    setPreference({ moodIdentity, source: moodIdentity === null ? preference.source : null });
+  }
+  const preferredSource = preference.moodIdentity === moodIdentity || moodIdentity === null ? preference.source : null;
+  function setPreferredSource(source: string | null) {
+    setPreference(current => ({ ...current, source }));
+  }
   const [pinnedSource, pinSource] = useState<string | null>(null);
   // The server reports the controls still owned by the active mood. Prefer its
   // playback, including a paused queue, over unrelated sessions such as TV, while
@@ -67,6 +79,7 @@ export function useSpeakerSession(allowIdleSource = false) {
   );
   const preferred = speakers.find(speaker => speaker?.entity_id === preferredSource);
   const preferredBeforeMood = preferred && !['idle', 'unavailable', 'unknown'].includes(preferred.state) ? preferred : undefined;
+  // Keep controlling the saved source while following, even if another room starts audio.
   const selected =
     (following || cleanupPending ? speakers.find(speaker => speaker?.entity_id === savedSource) : undefined) ??
     preferredBeforeMood ??

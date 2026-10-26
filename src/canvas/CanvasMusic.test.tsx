@@ -211,7 +211,7 @@ describe('Canvas music', () => {
     const entities = useStore.getState().entities;
     useStore.setState({ entities: { ...entities, 'sensor.house_mood': {
       ...speaker('mood', state, []), entity_id: 'sensor.house_mood',
-      attributes: { active_mood: 'gym', affected_devices: affectedDevices },
+      attributes: { ...entities['sensor.house_mood']?.attributes, active_mood: 'gym', affected_devices: affectedDevices },
     } } });
   }
 
@@ -235,6 +235,61 @@ describe('Canvas music', () => {
     expect(sendMessagePromise).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
       service: 'media_pause', target: { entity_id: ['media_player.gym'] },
     }));
+  });
+
+  it.each(['transport', 'source'])('replaces a prior paused %s preference when a mood activates', async preference => {
+    separatePlayback();
+    mount();
+    if (preference === 'transport') {
+      await userEvent.click(screen.getByRole('button', { name: 'Pause' }));
+    } else {
+      act(() => controller.session.setPreferredSource('media_player.living_room'));
+    }
+    updateEntity('media_player.living_room', { state: 'paused' });
+    sendMessagePromise.mockClear();
+    act(() => publishGymMood());
+    expect(screen.getByText('Gym song')).toBeTruthy();
+    expect(screen.getByText('Gym artist')).toBeTruthy();
+    expect(screen.getByTestId('speaker-coordinator').textContent).toBe('media_player.gym');
+    await userEvent.click(screen.getByRole('button', { name: 'Pause' }));
+    expect(sendMessagePromise).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+      service: 'media_pause', target: { entity_id: ['media_player.gym'] },
+    }));
+  });
+
+  it.each(['session', 'switch', 'reactivation'])('replaces an earlier manual choice on a new mood %s', kind => {
+    separatePlayback();
+    publishGymMood();
+    updateEntity('sensor.house_mood', {}, { session_id: 'first' });
+    mount();
+    act(() => controller.session.setPreferredSource('media_player.living_room'));
+    updateEntity('media_player.living_room', { state: 'paused' });
+    updateEntity('sensor.house_mood', {}, { unrelated: 'updated' });
+    act(() => publishGymMood('active', ['light.gym']));
+    expect(screen.getByTestId('speaker-coordinator').textContent).toBe('media_player.living_room');
+    // Restore the original identity after ownership-only updates.
+    updateEntity('sensor.house_mood', {}, { session_id: 'first' });
+    if (kind === 'reactivation') act(() => publishGymMood('idle'));
+    act(() => publishGymMood());
+    updateEntity('sensor.house_mood', {}, {
+      session_id: kind === 'session' ? 'second' : 'first',
+      active_mood: kind === 'switch' ? 'workout' : 'gym',
+    });
+    expect(screen.getByTestId('speaker-coordinator').textContent).toBe('media_player.gym');
+  });
+
+  it.each(['switch', 'reactivation'])('recognizes a mood %s without a session identifier', kind => {
+    separatePlayback();
+    publishGymMood();
+    mount();
+    act(() => controller.session.setPreferredSource('media_player.living_room'));
+    updateEntity('sensor.house_mood', {}, { unrelated: 'first update' });
+    updateEntity('sensor.house_mood', {}, { unrelated: 'second update' });
+    expect(screen.getByTestId('speaker-coordinator').textContent).toBe('media_player.living_room');
+    if (kind === 'reactivation') act(() => publishGymMood('idle'));
+    act(() => publishGymMood());
+    if (kind === 'switch') updateEntity('sensor.house_mood', {}, { active_mood: 'workout' });
+    expect(screen.getByTestId('speaker-coordinator').textContent).toBe('media_player.gym');
   });
 
   it.each(['idle', 'starting', 'restoring', 'recovery_required', 'unavailable'])('ignores retained mood playback targets in %s phase', phase => {
@@ -324,7 +379,7 @@ describe('Canvas music', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Change source' }));
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'media_player.living_room' } });
     act(() => publishGymMood());
-    expect(screen.getByTestId('speaker-coordinator').textContent).toBe('media_player.living_room');
+    expect(screen.getByTestId('speaker-coordinator').textContent).toBe('media_player.gym');
     updateEntity('media_player.living_room', { state });
     expect(screen.getByTestId('speaker-coordinator').textContent).toBe('media_player.gym');
   });
