@@ -23,6 +23,13 @@
   font-family: 'Avenir Next', Avenir, 'Segoe UI', sans-serif;
 }
 .canvas *, .canvas-dialog * { box-sizing: border-box; }
+.canvas-night-dimmer {
+  position: fixed;
+  inset: 0;
+  z-index: 401;
+  background: rgb(0 0 0 / 55%);
+  pointer-events: none;
+}
 .canvas :is(button, input, select), .canvas-dialog :is(button, input, select) { font: inherit; }
 .canvas button, .canvas-dialog button { min-height: 44px; min-width: 44px; cursor: pointer; touch-action: manipulation; }
 .canvas :is(button, input, select):focus-visible, .canvas-dialog :is(button, input, select):focus-visible { outline: 3px solid #faf2c7; outline-offset: 3px; }

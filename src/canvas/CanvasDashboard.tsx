@@ -8,6 +8,7 @@ import { CanvasLights, CanvasAllLights, CanvasAllLightsAction } from './CanvasLi
 import { CanvasLightDetails } from './CanvasLightDetails';
 import { CanvasLightsProvider } from './useCanvasLights';
 import { CanvasModes, CanvasModeFeedback } from './CanvasModes';
+import { CanvasNightDimmer } from './CanvasNightDimmer';
 import { useCanvasModes, hasVisibleModeFeedback } from './useCanvasModes';
 import { CanvasBlinds } from './CanvasBlinds';
 import { CanvasBlindsProvider } from './useCanvasBlinds';
@@ -208,6 +209,7 @@ export function CanvasDashboard({ quietPulse }: { quietPulse?: QuietPulsePresent
           <CanvasMusicProvider>
             <CanvasThermostatsProvider>
               <CanvasDashboardContent quietPulse={quietPulse} />
+              <CanvasNightDimmer />
             </CanvasThermostatsProvider>
           </CanvasMusicProvider>
         </CanvasVacuumProvider>

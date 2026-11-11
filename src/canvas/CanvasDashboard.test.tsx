@@ -22,6 +22,7 @@ fixtureRef.current = fixture;
 afterEach(() => {
   cleanup();
   fixture.reset();
+  vi.useRealTimers();
 });
 
 it.each(['', 'classic', 'quiet', 'canvas', 'unknown'])('always renders Canvas for view=%s without switching controls', view => {
@@ -41,6 +42,71 @@ it('mounts and reconnects without sending service calls', () => {
   expect(screen.getByText(/Disconnected/)).toBeTruthy();
   act(() => fixture.reconnect());
   expect(fixture.calls).toHaveLength(0);
+});
+
+it('dims on reported Night mode and restores normal brightness when the helper is unavailable', () => {
+  const { container } = render(<CanvasDashboard />);
+  const dimmer = () => container.querySelector('.canvas-night-dimmer');
+  expect(dimmer()).toBeNull();
+
+  act(() => fixture.publish('input_boolean.night_mode', 'on'));
+  expect(dimmer()?.getAttribute('aria-hidden')).toBe('true');
+
+  act(() => fixture.publish('input_boolean.night_mode', 'unavailable'));
+  expect(dimmer()).toBeNull();
+  expect(fixture.calls).toHaveLength(0);
+});
+
+it.each([
+  ['a key press', (dialog: HTMLElement) => fireEvent.keyDown(dialog, { key: 'Shift' })],
+  ['a virtual click', fireEvent.click],
+  ['a touch move', fireEvent.touchMove],
+] as const)('wakes on the first touch and dims again 10 seconds after %s', (_event, continueInteraction) => {
+  vi.useFakeTimers();
+  fixture.publish('input_boolean.night_mode', 'on');
+  const { container, unmount } = render(<CanvasDashboard />);
+  const dimmer = () => container.querySelector('.canvas-night-dimmer');
+  expect(dimmer()).not.toBeNull();
+
+  const devices = screen.getByRole('button', { name: 'All devices' });
+  fireEvent.pointerDown(devices, { pointerType: 'touch' });
+  expect(dimmer()).toBeNull();
+  fireEvent.pointerUp(devices, { pointerType: 'touch' });
+  fireEvent.click(devices);
+  const dialog = screen.getByRole('dialog', { name: 'All devices' });
+
+  act(() => vi.advanceTimersByTime(9_999));
+  expect(dimmer()).toBeNull();
+  continueInteraction(dialog);
+  act(() => vi.advanceTimersByTime(9_999));
+  expect(dimmer()).toBeNull();
+  act(() => vi.advanceTimersByTime(1));
+  expect(dimmer()).not.toBeNull();
+  expect(dialog.isConnected).toBe(true);
+  expect(fixture.calls).toHaveLength(0);
+  unmount();
+  history.replaceState(null, '', '/');
+});
+
+it('clears the previous wake timer when Night mode ends', () => {
+  vi.useFakeTimers();
+  fixture.publish('input_boolean.night_mode', 'on');
+  const { container } = render(<CanvasDashboard />);
+  const dimmer = () => container.querySelector('.canvas-night-dimmer');
+  fireEvent.pointerDown(screen.getByRole('main'), { pointerType: 'touch' });
+  expect(dimmer()).toBeNull();
+
+  act(() => vi.advanceTimersByTime(5_000));
+  act(() => fixture.publish('input_boolean.night_mode', 'off'));
+  expect(dimmer()).toBeNull();
+  act(() => fixture.publish('input_boolean.night_mode', 'on'));
+  expect(dimmer()).not.toBeNull();
+
+  fireEvent.pointerDown(screen.getByRole('main'), { pointerType: 'touch' });
+  act(() => vi.advanceTimersByTime(5_000));
+  expect(dimmer()).toBeNull();
+  act(() => vi.advanceTimersByTime(5_000));
+  expect(dimmer()).not.toBeNull();
 });
 
 it('uses one dialog and returns from a detail route to the device directory', async () => {
