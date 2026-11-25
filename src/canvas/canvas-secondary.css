@@ -194,8 +194,8 @@
 .canvas .canvas-mood__error { font-size: .75rem; }
 .canvas .canvas-mood__picker button:disabled[aria-pressed='true'] { opacity: 1; }
 @media (max-width: 700px) {
-
   .canvas .canvas-mood { min-height: 250px; }
+  .canvas .canvas-mood__error p:last-child { margin-bottom: 0; }
 }
 @media (min-width: 701px) {
  .canvas .canvas-mood { min-height: 218px; padding: var(--canvas-space-3) var(--canvas-space-5); }

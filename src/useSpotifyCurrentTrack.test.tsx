@@ -25,6 +25,25 @@ it('accepts paused exact Spotify metadata and rejects retained TV, ambiguous or 
   rerender({ player: { ...track, attributes: { ...track.attributes, media_content_id: 'spotify:episode:0000000000000000000001' } } });
   expect(result.current).toBeUndefined();
 });
+it.each(['playing', 'paused'])('recognizes an exact native Spotify queue track while %s without a source label', state => {
+  const nativeId = `x-sonos-spotify:${encodeURIComponent(A)}?sid=12&flags=8232&sn=12`;
+  const player: { state: string; attributes: { media_title: string; media_content_id: string; source?: string } } = {
+    state,
+    attributes: { media_title: 'Song A', media_content_id: nativeId },
+  };
+  const { result, rerender } = renderHook(({ player }) => useSpotifyCurrentTrack('media_player.gym', player, true), {
+    initialProps: { player },
+  });
+  expect(result.current).toBe(A);
+  expect(send).not.toHaveBeenCalled();
+
+  rerender({ player: { ...player, attributes: { ...player.attributes, source: 'TV' } } });
+  expect(result.current).toBeUndefined();
+  rerender({ player: { ...player, state: 'idle' } });
+  expect(result.current).toBeUndefined();
+  rerender({ player: { ...player, attributes: { ...player.attributes, media_content_id: 'x-sonos-spotify:spotify%3Atrack%3Ainvalid' } } });
+  expect(result.current).toBeUndefined();
+});
 it('resolves exact paused native Connect sessions server-side and invalidates delayed identities on track/source changes', async () => {
   let old!: (value: unknown) => void;
   send

@@ -12,6 +12,8 @@ Use **Preview tools** in the bottom corner to select a scenario or reset local c
 
 Selecting a scenario clears fault flags and resets simulated state. Refreshing resets the current scene. For focused tests, `fail=commands`, `fail=forecast`, and `unconfirmed` remain available as URL options.
 
+Use `sonosQueue&media=paused&song=saved` to preview a paused, already liked Spotify song from a native Sonos queue that omits the source label. Remove `media=paused` for playing, or set `song=error` to simulate a save failure and a read-only retry.
+
 This is an interaction preview, not a hardware emulator. Blind commands are accepted without fabricated position readings; appliance cycle timing, actual audio playback, physical motion-following, and real mood snapshot restoration require live hardware/backend testing.
 
 ## Tablet layout
@@ -23,3 +25,10 @@ Android status and navigation bars reduce the available CSS viewport. The overvi
 See `docs/canvas-qa/fire-hd-10-2026-10-06.md` for measured scenarios, interaction checks, and physical-device limitations.
 
 `?scene=health` shows curated speaker/light/presence offline cards after a simulated 15-minute outage and undocked Roomba low-battery guidance plus a noninteractive dashboard tablet charge reminder. Cards open existing controls without backend reminder actions.
+
+## Browser regression tests
+
+From the repository root, install the Playwright Chromium build once with `npx playwright install chromium`.
+Run `npm run test:browser` to start the local simulated dashboard and run the browser suite.
+The layout checks use touch viewports of 1224×614 at DPR 1.5 (the measured Fire HD 10 values),
+960×540, and 393×852, and verify that the CSS viewport uses visual scale 1.

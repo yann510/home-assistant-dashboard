@@ -13,5 +13,8 @@ export type HouseMoodCardProps = {
   onActivate: (mood: MoodId) => void;
   onEnd: () => void;
   onRetry: () => void;
+  canCheckStatus?: boolean;
+  checkingStatus?: boolean;
+  onCheckStatus?: () => Promise<void>;
 };
 

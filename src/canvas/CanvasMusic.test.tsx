@@ -419,6 +419,38 @@ describe('Canvas music', () => {
     expect(screen.getByTestId('speaker-coordinator').textContent).toBe('media_player.living_room');
   });
 
+  it.each(['unavailable', 'unknown'])('recovers controls when the selected speaker becomes %s', async state => {
+    separatePlayback();
+    mount();
+    await userEvent.click(screen.getByRole('button', { name: 'Open speakers' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Change source' }));
+    await userEvent.selectOptions(screen.getByRole('combobox'), 'media_player.gym');
+    await userEvent.click(screen.getByRole('button', { name: 'Close detail' }));
+    expect(screen.getByText('Gym song')).toBeTruthy();
+
+    updateEntity('media_player.gym', { state });
+
+    expect(screen.getByText('TV')).toBeTruthy();
+    expect(sendMessagePromise).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole('button', { name: 'Pause' }));
+    expect(sendMessagePromise).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+      service: 'media_pause', target: { entity_id: ['media_player.living_room'] },
+    }));
+  });
+
+  it('uses independent audio when a playing group reports an unavailable coordinator', async () => {
+    updateEntity('media_player.living_room', { state: 'unavailable' });
+    updateEntity('media_player.bedroom', { state: 'paused' }, { media_title: 'Bedroom song' });
+    mount();
+
+    expect(screen.getByText('Bedroom song')).toBeTruthy();
+    expect(sendMessagePromise).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole('button', { name: 'Resume' }));
+    expect(sendMessagePromise).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+      service: 'media_play', target: { entity_id: ['media_player.bedroom'] },
+    }));
+  });
+
   it.each(Array.from({ length: 15 }, (_, index) => {
     const rooms = ['living_room', 'bathroom', 'bedroom', 'gym'].filter((_, bit) => Boolean((index + 1) & (1 << bit)));
     return [rooms.join(', '), rooms] as const;
@@ -586,6 +618,7 @@ describe('Canvas music', () => {
   });
   it('shows speaker unavailable without presenting retained metadata as a track', async () => {
     updateEntity('media_player.living_room', { state: 'unavailable' }, { entity_picture: '/stale-cover.jpg', media_content_id: 'spotify:track:2qRWNDee5Hfi6DFjfiu58c' });
+    for (const room of ['bathroom', 'bedroom']) updateEntity(`media_player.${room}`, { state: 'unavailable' });
     mount();
     expect(screen.getByText('Speaker unavailable')).toBeTruthy();
     expect(screen.queryByRole('link')).toBeNull();
@@ -604,7 +637,7 @@ describe('Canvas music', () => {
     expect(screen.queryByRole('button', { name: 'Open player' })).toBeNull();
     const seek = screen.getByRole('slider', { name: 'Track position' });
     expect(seek.getAttribute('aria-valuetext')).toBe('0:40 of 3:20');
-    const divider = seek.closest('.speaker-seek');
+    const divider = seek.closest('.canvas-music__seek-slot');
     expect(divider?.previousElementSibling?.contains(screen.getByRole('button', { name: 'Pause' }))).toBe(true);
     expect(divider?.nextElementSibling?.contains(screen.getByRole('switch', { name: 'Follow me' }))).toBe(true);
     expect(divider?.nextElementSibling?.contains(screen.getByRole('button', { name: 'Open speakers' }))).toBe(true);
@@ -814,6 +847,7 @@ describe('Canvas music', () => {
       useStore.setState({ connectionStatus: 'disconnected' });
     });
     expect(screen.getByRole('alert').textContent).toContain('Connection interrupted');
+    expect(screen.queryByText('Moving playback…')).toBeNull();
     await act(async () => {
       updateEntity('media_player.gym', {}, { group_members: ['media_player.gym'] });
       useStore.setState({ connectionStatus: 'connected' });
@@ -1015,6 +1049,40 @@ describe('Canvas music', () => {
     expect(screen.getByRole('slider', { name: 'Group volume' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Mute' })).toBeTruthy();
     expect((screen.getByRole('checkbox', { name: /Gym/ }) as HTMLInputElement).checked).toBe(true);
+  });
+  it('can finish switching to manual when the saved Follow source is unavailable', async () => {
+    updateEntity('input_text.speaker_follow_source', { state: 'media_player.living_room' });
+    updateEntity('media_player.living_room', { state: 'unavailable' });
+    updateEntity('media_player.gym', {}, { group_members: ['media_player.gym'] });
+    sendMessagePromise.mockImplementation(async ({ service }) => {
+      if (service === 'set_value') updateEntity('input_text.speaker_follow_source', { state: '' });
+      return {};
+    });
+    mount();
+    await userEvent.click(screen.getByRole('button', { name: 'Open speakers' }));
+    expect((screen.getByRole('checkbox', { name: /Gym/ }) as HTMLInputElement).disabled).toBe(true);
+    await userEvent.click(screen.getByRole('button', { name: 'Switch to manual grouping' }));
+
+    expect(await screen.findByText('Manual grouping is on. Your rooms are unchanged.')).toBeTruthy();
+    expect(sendMessagePromise.mock.calls.map(([message]) => message.service)).toEqual(['turn_off', 'set_value']);
+    expect(screen.getByTestId('speaker-coordinator').textContent).toBe('media_player.gym');
+  });
+
+  it('offers a cleanup retry when Follow still has a stale saved speaker ID', async () => {
+    updateEntity('input_text.speaker_follow_source', { state: 'media_player.retired_speaker' });
+    sendMessagePromise.mockImplementation(async () => {
+      updateEntity('input_text.speaker_follow_source', { state: '' });
+      return { response: { success: true } };
+    });
+    mount();
+    const follow = screen.getByRole('switch', { name: 'Follow me' }) as HTMLButtonElement;
+    expect(follow.disabled).toBe(true);
+    await userEvent.click(screen.getByRole('button', { name: 'Retry ungrouping' }));
+
+    expect(sendMessagePromise).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+      service: 'speaker_follow_motion', service_data: { command: 'disable' },
+    }));
+    expect(follow.disabled).toBe(false);
   });
   it('uses group volume alone when only one room is playing', async () => {
     updateEntity('media_player.living_room', {}, { group_members: ['media_player.living_room'] });
@@ -1539,6 +1607,7 @@ it('discards a launch confirmation after an external coordinator change without 
   await act(async () => { finish(); expect(await start).toBe(false); });
   expect(controller.playlistPlayback.pending).toBeNull();
   expect(controller.playlistPlayback.status).toBe('');
+  expect(controller.playlistPlayback.error).toContain('The main speaker changed');
   expect(sendMessagePromise).toHaveBeenCalledTimes(1);
   expect(originalRequest.service_data.source_entity).toBe('media_player.living_room');
   // Only a new user intent may launch on the new coordinator.
@@ -1628,6 +1697,42 @@ it('enables a paused Spotify song heart independently of speaker actions and dis
   expect(screen.getByRole('button', { name: 'Liked Songs unavailable for this source' }).hasAttribute('aria-pressed')).toBe(false);
 });
 
+
+it('reads an already liked native Spotify track without a source label and lets the user remove and save it', async () => {
+  const uri = 'spotify:track:0000000000000000000001';
+  updateEntity(
+    'media_player.living_room',
+    { state: 'paused' },
+    { media_content_id: `x-sonos-spotify:${encodeURIComponent(uri)}?sid=12&flags=8232&sn=12`, media_title: 'Paused song' }
+  );
+  const library = vi.fn(async (message: { type: string; track_uri: string; saved?: boolean }) => ({
+    track_uri: message.track_uri,
+    saved: message.type === 'dashboard_music/track_saved' ? true : message.saved,
+  }));
+  const connection = useStore.getState().connection!;
+  const original = connection.sendMessagePromise.bind(connection);
+  connection.sendMessagePromise = (message =>
+    message.type === 'dashboard_music/track_saved' || message.type === 'dashboard_music/set_track_saved'
+      ? library(message as Parameters<typeof library>[0])
+      : original(message)) as typeof connection.sendMessagePromise;
+  mount();
+  const heart = await screen.findByRole('button', { name: 'Remove Paused song from Liked Songs' });
+  expect(heart.getAttribute('aria-pressed')).toBe('true');
+
+  await userEvent.click(heart);
+  await screen.findByRole('button', { name: 'Save Paused song to Liked Songs' });
+  expect(heart.getAttribute('aria-pressed')).toBe('false');
+
+  await userEvent.click(heart);
+  await screen.findByRole('button', { name: 'Remove Paused song from Liked Songs' });
+  expect(heart.getAttribute('aria-pressed')).toBe('true');
+  expect(library.mock.calls.map(([message]) => message)).toEqual([
+    { type: 'dashboard_music/track_saved', track_uri: uri },
+    { type: 'dashboard_music/set_track_saved', track_uri: uri, saved: false },
+    { type: 'dashboard_music/set_track_saved', track_uri: uri, saved: true },
+  ]);
+  expect(sendMessagePromise).not.toHaveBeenCalled();
+});
 
 it.each(['first', 'last'] as const)('pins pending and uncertain playback feedback ahead of the gallery for its %s loaded choice', async choice => {
   const items = Array.from({ length: 56 }, (_, index) => playlist(`Collection ${index + 1}`, String(index + 1)));

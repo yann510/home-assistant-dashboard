@@ -12,7 +12,14 @@ function useCanvasMusicController() {
   const disabled = !connected || !coordinator || ['unknown', 'unavailable'].includes(coordinator.state);
   const actionPending = useRef(false);
   const playlistPlayback = useSpotifyPlaylistPlayback(entityId, disabled || session.updating);
-  const rooms = useSpeakerRooms({ source: entityId, members: targets, disabled: disabled || session.busy || !!playlistPlayback.pending, onSourceChanged: session.setPreferredSource, pinSource: session.pinSource });
+  const rooms = useSpeakerRooms({
+    source: entityId,
+    members: targets,
+    disabled: disabled || session.busy || !!playlistPlayback.pending,
+    manualDisabled: !connected || !session.configured || session.busy || !!playlistPlayback.pending,
+    onSourceChanged: session.setPreferredSource,
+    pinSource: session.pinSource,
+  });
   const playback = useSpeakerTransport(entityId, disabled || rooms.busy || !!playlistPlayback.pending);
   const latestStart = useRef({ source: entityId, blocked: true });
   useLayoutEffect(() => {

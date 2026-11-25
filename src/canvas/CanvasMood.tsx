@@ -65,7 +65,7 @@ export function CanvasMood({
   attentionBusy?: boolean;
   onAttentionAction?: (item: AttentionItem) => void;
 }) {
-  const { status, connected, available, onActivate, onEnd, onRetry } = controller;
+  const { status, connected, available, canCheckStatus, checkingStatus, onCheckStatus, onActivate, onEnd, onRetry } = controller;
   const busy = status.phase === 'starting' || status.phase === 'restoring';
   const recovery = status.phase === 'recovery_required';
   // A requested mood is not yet a reported result. Restoration returns to neutral.
@@ -79,7 +79,7 @@ export function CanvasMood({
     return () => document.removeEventListener('visibilitychange', updateVisibility);
   }, []);
   const activeMotion = status.phase === 'active' && Boolean(current) && connected && available;
-  const locked = !connected || !available || busy || recovery;
+  const locked = !connected || !available || busy || recovery || canCheckStatus;
   const message = !connected
     ? 'Reconnecting to Home Assistant…'
     : !available
@@ -128,7 +128,11 @@ export function CanvasMood({
           </div>
         )}
         <div className='canvas-mood__actions'>
-          {recovery ? (
+          {canCheckStatus ? (
+            <button type='button' disabled={!connected || checkingStatus} onClick={() => void onCheckStatus?.()}>
+              {checkingStatus ? 'Checking status…' : 'Check status'}
+            </button>
+          ) : recovery ? (
             <button type='button' disabled={!connected || !available || busy} onClick={onRetry}>
               Retry restoration
             </button>

@@ -14,6 +14,17 @@ const scene = params.get('scene') ?? 'everyday';
 const failures = previewFailures(params);
 const media = params.get('media');
 const song = params.get('song');
+const sonosQueue = params.has('sonosQueue');
+const songId = '2qRWNDee5Hfi6DFjfiu58c';
+const songContentId = sonosQueue
+  ? `x-sonos-spotify:spotify%3Atrack%3A${songId}?sid=12&flags=8232&sn=12`
+  : ['connect', 'connect-paused', 'unknown'].includes(song ?? '')
+    ? 'x-sonos-vli:RINCON_PREVIEW:2,spotify:session'
+    : song === 'episode'
+      ? `spotify:episode:${songId}`
+      : song === 'local'
+        ? 'spotify:local:Artist:Album:Song'
+        : `spotify:track:${songId}`;
 const spotifyPreview = createSpotifyPreview(params);
 const entities: HassEntities = {};
 function publish(id: string, state: string, attributes: Record<string, unknown> = {}) {
@@ -51,8 +62,8 @@ for (const room of ['living_room', 'bathroom', 'bedroom', 'gym'])
             : 'All In A Dream',
       media_artist:
         room === 'living_room' && (media === 'idle' || media === 'untitled') ? undefined : 'LP Giobbi · DJ Tennis · Joseph Ashworth',
-      source: song === 'tv' ? 'TV' : song === 'unknown' ? '' : 'Spotify',
-      media_content_id: ['connect', 'connect-paused', 'unknown'].includes(song ?? '') ? 'x-sonos-vli:RINCON_PREVIEW:2,spotify:session' : song === 'episode' ? 'spotify:episode:2qRWNDee5Hfi6DFjfiu58c' : song === 'local' ? 'spotify:local:Artist:Album:Song' : 'spotify:track:2qRWNDee5Hfi6DFjfiu58c',
+      ...(song === 'tv' ? { source: 'TV' } : sonosQueue ? {} : { source: song === 'unknown' ? '' : 'Spotify' }),
+      media_content_id: songContentId,
       media_duration: room === 'living_room' && (media === 'idle' || media === 'untitled') ? undefined : 250,
       media_position: room === 'living_room' && (media === 'idle' || media === 'untitled') ? undefined : 42,
       media_position_updated_at: new Date().toISOString(),

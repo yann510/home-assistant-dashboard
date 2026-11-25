@@ -107,6 +107,25 @@ it('refreshes explicitly and does not request while disabled or disconnected', a
   act(() => result.current.refresh());
   await waitFor(() => expect(send).toHaveBeenLastCalledWith({ type: 'dashboard_music/playlists', offset: 0, limit: 50, refresh: true }));
 });
+it('recovers from a timed-out first page on retry without accepting its late result', async () => {
+  vi.useFakeTimers();
+  let finishTimedOut!: (value: unknown) => void;
+  send.mockImplementationOnce(() => new Promise(resolve => { finishTimedOut = resolve; }));
+  const { result } = renderHook(() => useSpotifyPlaylists(true));
+  expect(result.current.loading).toBe(true);
+  await act(async () => { await vi.advanceTimersByTimeAsync(15_000); });
+  expect(result.current.loading).toBe(false);
+  expect(result.current.error).toContain('took too long');
+  expect(send).toHaveBeenCalledTimes(1);
+
+  await act(async () => { result.current.retry(); });
+  expect(result.current.error).toBe('');
+  expect(result.current.items).toEqual([playlist('1')]);
+  expect(send).toHaveBeenLastCalledWith({ type: 'dashboard_music/playlists', offset: 0, limit: 50, refresh: true });
+
+  await act(async () => finishTimedOut(page([playlist('9')])));
+  expect(result.current.items).toEqual([playlist('1')]);
+});
 it('releases canceled page/refresh loading states when reopened with fresh cached choices', async () => {
   send.mockResolvedValueOnce(page([playlist('1')], 50)).mockReturnValueOnce(new Promise(() => {}));
   const { result, rerender } = renderHook(({ enabled }) => useSpotifyPlaylists(enabled), { initialProps: { enabled: true } });

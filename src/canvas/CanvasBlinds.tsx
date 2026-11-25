@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import {
   blindRooms,
   CanvasBlindsProvider,
@@ -13,6 +14,7 @@ import './canvas-controls-motion.css';
 const label = (room: BlindRoom) => (room === 'living room' ? 'Living room' : room === 'bedroom' ? 'Bedroom' : 'Gym');
 const actions: readonly BlindAction[] = ['open', 'stop', 'close'];
 const actionLabel = (action: BlindAction) => action[0].toUpperCase() + action.slice(1);
+const hasIssue = (result: TargetResult) => result.phase === 'failed' || result.phase === 'unconfirmed';
 function feedback(result: TargetResult) {
   if (result.phase === 'pending') return `${label(result.target as BlindRoom)} · Sending command…`;
   if (result.phase === 'accepted') return `${label(result.target as BlindRoom)} · Command sent · position unavailable`;
@@ -37,10 +39,20 @@ function CanvasBlindsView({ initialRoom }: { initialRoom?: BlindRoom }) {
     useCanvasBlinds(initialRoom);
   const differentStopTargets =
     movingRooms.length > 0 && (movingRooms.length !== selection.length || movingRooms.some(room => !selection.includes(room)));
+  const feedbackRef = useRef<HTMLDivElement>(null);
+  const hasErrors = actions.some(action => results[action]?.results.some(hasIssue));
+  const hasDetails = hasErrors || differentStopTargets;
+  const hint = !connected ? 'Home Assistant is disconnected. Reconnect to control blinds.' : !selection.length ? 'Select one or more rooms.' : '';
   return (
     <section className='canvas-blinds' aria-label='Blinds'>
       <div className='canvas-blinds__heading'>
         <h2>Blinds</h2>
+        {hint && !hasDetails && <p className='canvas-blinds__caption' role='status'>{hint}</p>}
+        {hasDetails && (
+          <button type='button' className='canvas-blinds__feedback-jump' onClick={() => feedbackRef.current?.focus()}>
+            {hasErrors ? 'View blind errors' : 'Stop options'}
+          </button>
+        )}
       </div>
       <div className='canvas-blinds__rooms' role='group' aria-label='Rooms to control blinds'>
         {blindRooms.map(room => (
@@ -114,61 +126,61 @@ function CanvasBlindsView({ initialRoom }: { initialRoom?: BlindRoom }) {
           </button>
         ))}
       </div>
-      {(!connected || !selection.length) && (
-        <p className='canvas-blinds__caption' role='status'>
-          {!connected ? 'Home Assistant is disconnected. Reconnect to control blinds.' : 'Select one or more rooms above'}
-        </p>
-      )}
-      {differentStopTargets && (
-        <>
-          <p className='canvas-blinds__caption'>Stop recent: {movingRooms.map(label).join(' + ')} · requested within 90 seconds.</p>
-          <div className='canvas-blinds__actions canvas-blinds__selected-stop'>
-            <button
-              type='button'
-              aria-label={`Stop selected blinds${selection.length ? ` in ${selection.map(label).join(', ')}` : ''}`}
-              disabled={!connected || !selection.length || pending.stop}
-              aria-busy={pending.stop}
-              onClick={() => void stopSelected()}
-            >
-              Stop selected{selection.length ? `: ${selection.map(label).join(' + ')}` : ''}
-            </button>
-          </div>
-        </>
-      )}
-      {actions.map(
-        action =>
-          results[action] && (
-            <div
-              key={action}
-              className='canvas-blinds__results'
-              data-has-issue={results[action]!.results.some(result => result.phase === 'failed' || result.phase === 'unconfirmed')}
-              role='group'
-              aria-label={`${actionLabel(action)} blind command results`}
-            >
-              <strong>{actionLabel(action)}</strong>
-              {results[action]!.results.map(result => (
-                <p
-                  key={result.target}
-                  data-phase={result.phase}
-                  className={result.phase === 'failed' || result.phase === 'unconfirmed' ? 'canvas-blinds__error' : ''}
-                  role={result.phase === 'failed' || result.phase === 'unconfirmed' ? 'alert' : undefined}
-                >
-                  {feedback(result)}
-                </p>
-              ))}
-              {failedRooms[action].length > 0 && (
+      <div className='canvas-blinds__feedback'>
+        <div className='canvas-blinds__feedback-content' role='group' aria-label='Blind command feedback' tabIndex={hasDetails ? -1 : undefined} ref={feedbackRef}>
+          {hint && hasDetails && <p className='canvas-blinds__caption' role='status'>{hint}</p>}
+          {differentStopTargets && (
+            <>
+              <p className='canvas-blinds__caption'>Stop recent: {movingRooms.map(label).join(' + ')} · requested within 90 seconds.</p>
+              <div className='canvas-blinds__actions canvas-blinds__selected-stop'>
                 <button
                   type='button'
-                  aria-label={`Retry ${actionLabel(action)} for failed rooms`}
-                  disabled={!connected || pending[action] || (action !== 'stop' && (pending.open || pending.close || pending.stop))}
-                  onClick={() => void retryFailed(action)}
+                  aria-label={`Stop selected blinds${selection.length ? ` in ${selection.map(label).join(', ')}` : ''}`}
+                  disabled={!connected || !selection.length || pending.stop}
+                  aria-busy={pending.stop}
+                  onClick={() => void stopSelected()}
                 >
-                  Retry {failedRooms[action].map(label).join(' + ')}
+                  Stop selected{selection.length ? `: ${selection.map(label).join(' + ')}` : ''}
                 </button>
-              )}
-            </div>
-          )
-      )}
+              </div>
+            </>
+          )}
+          {actions.map(
+            action =>
+              results[action] && (
+                <div
+                  key={action}
+                  className='canvas-blinds__results'
+                  data-has-issue={results[action]!.results.some(hasIssue)}
+                  role='group'
+                  aria-label={`${actionLabel(action)} blind command results`}
+                >
+                  <strong>{actionLabel(action)}</strong>
+                  {results[action]!.results.map(result => (
+                    <p
+                      key={result.target}
+                      data-phase={result.phase}
+                      className={hasIssue(result) ? 'canvas-blinds__error' : ''}
+                      role={hasIssue(result) ? 'alert' : undefined}
+                    >
+                      {feedback(result)}
+                    </p>
+                  ))}
+                  {failedRooms[action].length > 0 && (
+                    <button
+                      type='button'
+                      aria-label={`Retry ${actionLabel(action)} for failed rooms`}
+                      disabled={!connected || pending[action] || (action !== 'stop' && (pending.open || pending.close || pending.stop))}
+                      onClick={() => void retryFailed(action)}
+                    >
+                      Retry {failedRooms[action].map(label).join(' + ')}
+                    </button>
+                  )}
+                </div>
+              )
+          )}
+        </div>
+      </div>
     </section>
   );
 }

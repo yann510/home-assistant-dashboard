@@ -604,13 +604,41 @@ it.each(['activate', 'end'])('shows overview mood %s uncertainty and keeps its n
     fireEvent.click(screen.getByRole('button', { name }));
     await act(async () => vi.advanceTimersByTime(35000));
     expect(screen.getByRole('alert').textContent).toContain('Waiting for Home Assistant to confirm the change.');
-    fireEvent.click(screen.getByRole('button', { name }));
+    const party = screen.getByRole('button', { name: 'Party mood' }) as HTMLButtonElement;
+    expect(party.disabled).toBe(true);
+    if (service === 'end') expect(screen.queryByRole('button', { name })).toBeNull();
+    fireEvent.click(party);
     expect(ref.current!.calls).toHaveLength(1);
-    expect(screen.getByRole('button', { name }).hasAttribute('disabled')).toBe(true);
+    ref.current!.respondWith(() => Promise.resolve([{ entity_id: 'sensor.house_mood', state: 'idle', attributes: {} }]));
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Check status' })));
+    expect(ref.current!.calls[1]).toEqual({ type: 'get_states' });
+    expect(ref.current!.calls).toHaveLength(2);
+    expect(party.disabled).toBe(false);
     expect(screen.queryByRole('button', { name: 'Mood details' })).toBeNull();
   } finally {
     vi.useRealTimers();
   }
+});
+it('keeps mood recovery available across a same-socket reconnect during the status check', async () => {
+  const fixture = ref.current!;
+  const staleCheck = deferred();
+  const idle = [{ entity_id: 'sensor.house_mood', state: 'idle', attributes: {} }];
+  fixture.publish('sensor.house_mood', 'idle');
+  fixture.respondInOrder(Promise.reject(new Error('Connection lost')), staleCheck.promise, Promise.resolve(idle));
+  render(<CanvasDashboard />);
+  const love = screen.getByRole('button', { name: 'Love mood' }) as HTMLButtonElement;
+  await act(async () => fireEvent.click(love));
+  fireEvent.click(screen.getByRole('button', { name: 'Check status' }));
+  await act(async () => {
+    fixture.socketDisconnect();
+    fixture.socketReconnect();
+    staleCheck.resolve(idle);
+  });
+  expect(love.disabled).toBe(true);
+  expect(screen.getByRole('alert').textContent).toContain('Connection changed during the status check');
+  await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Check status' })));
+  expect(love.disabled).toBe(false);
+  expect(fixture.calls.slice(1)).toEqual([{ type: 'get_states' }, { type: 'get_states' }]);
 });
 it('shows a terminal mood rejection with its full explanation on the overview', async () => {
   ref.current!.publish('sensor.house_mood', 'idle');

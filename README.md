@@ -16,7 +16,7 @@ Run `npm run build` and it will build the files for you, you can then upload the
 
 ## Spotify playlists and Liked Songs
 
-The speaker card's **Playlists** button opens **Your Spotify playlists**: playlists owned or followed by Yann's configured Spotify account, in the provider's order. Pages load explicitly, the name filter searches loaded playlists, and a failed later page keeps earlier choices available. This replaces the dashboard's Sonos favourites chooser; House Mood presets keep their existing favourites and playback behavior. Liked Songs is managed through the song heart, rather than offered as a playlist to launch.
+The speaker card's **Playlists** button opens **Your Spotify playlists**, with **Liked Songs** pinned above the playlists owned or followed by Yann's configured Spotify account. Pages load explicitly, the name filter searches loaded playlists, and a failed later page keeps earlier choices available. House Mood presets use their configured Sonos favourites.
 
 A playlist tap starts that exact Spotify context through the configured account and a private local relay, then transfers the verified Connect session to the selected Sonos coordinator. A selected follower resolves to its coordinator. The launch preserves the current group, per-room volume and Follow me state/source. The chooser closes only after fresh target/context confirmation; a failed or uncertain launch stays available for an explicit retry. The backend never substitutes a Sonos local queue. Spotify on Yann's phone can control the confirmed session; start and share a Jam inside Spotify.
 

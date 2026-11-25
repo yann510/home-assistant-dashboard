@@ -178,13 +178,12 @@ class SpotifyGateway:
             if not done.cancelled():
                 done.exception()
         operation.add_done_callback(settled)
-        try:
-            async with asyncio.timeout(self.call_timeout):
-                # The service may await a non-cancellable executor operation.
-                # Caller cancellation/deadline must not cancel that lifetime.
-                await asyncio.shield(operation)
-        except TimeoutError:
-            raise MusicError('unavailable') from None
+        # The provider effect must outlive a caller timeout or cancellation.
+        # Wait for completion without cancelling the task or shielding its exception.
+        completed, _ = await asyncio.wait((operation,), timeout=self.call_timeout)
+        if not completed:
+            raise MusicError('unavailable')
+        operation.result()
 
     async def list_playlists(self, offset: int, limit: int) -> dict:
         validate_page(offset, limit)

@@ -4,48 +4,39 @@ import { SpeakerSeek } from '../SpeakerSeek';
 import { SpeakerVolume } from '../SpeakerVolume';
 import { useHass } from '@hakit/core';
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useCanvasMusic } from './CanvasMusicProvider';
 import { spotifyTrackUri } from './spotifyTrackUri';
 import { CanvasTrackHeart } from './CanvasTrackHeart';
 
-export function CanvasFollow() {
-  const { session: s, rooms, playlistPlayback } = useCanvasMusic();
+function revealMusicFeedback(message: HTMLElement | null) {
+  // Show the new message inside its own scrollport, keeping the dashboard in place.
+  if (message?.parentElement) message.parentElement.scrollTop = message.offsetTop;
+}
+
+function CanvasFollow() {
+  const { session, rooms, playlistPlayback } = useCanvasMusic();
   return (
-    <div className='canvas-music__follow'>
-      <button
-        type='button'
-        role='switch'
-        aria-label='Follow me'
-        aria-checked={s.following}
-        aria-busy={s.updating}
-        disabled={s.updating || rooms.busy || !!playlistPlayback.pending || !s.canToggle}
-        onClick={() => void s.updateFollowing(s.following ? 'disable' : 'enable')}
-      >
-        <span className='canvas-music__follow-label'>Follow me</span>
-        <span className='canvas-music__follow-state' aria-hidden='true'>
-          <span className='canvas-music__follow-indicator' />
-          {s.following ? 'On' : 'Off'}
-        </span>
-      </button>
-      {s.updating && <p role='status'>Updating Follow me…</p>}
-      {!s.connected ? (
-        <p role='status'>Reconnecting to Home Assistant…</p>
-      ) : !s.configured ? (
-        <p>Follow me is not available in Home Assistant.</p>
-      ) : null}
-      {s.canRetryCleanup && (
-        <>
-          <p>Motion following is off. Return audio to the original speaker.</p>
-          <button disabled={rooms.busy || !!playlistPlayback.pending || !s.connected || !s.configured} onClick={() => void s.updateFollowing('disable')}>
-            Retry ungrouping
-          </button>
-        </>
-      )}
-      {s.error && <p role='alert'>{s.error}</p>}
-    </div>
+    <button
+      type='button'
+      className='canvas-music__follow'
+      role='switch'
+      aria-label='Follow me'
+      aria-checked={session.following}
+      aria-busy={session.updating}
+      disabled={session.updating || rooms.busy || !!playlistPlayback.pending || !session.canToggle}
+      onClick={() => void session.updateFollowing(session.following ? 'disable' : 'enable')}
+    >
+      <span className='canvas-music__follow-label'>Follow me</span>
+      <span className='canvas-music__follow-state' aria-hidden='true'>
+        <span className='canvas-music__follow-indicator' />
+        {session.following ? 'On' : 'Off'}
+      </span>
+    </button>
   );
 }
-export function CanvasTransport() {
+
+function CanvasTransport() {
   const { playback, disabled, playing, idle, attributes } = useCanvasMusic();
   const features = attributes?.supported_features ?? 0;
   if (idle) return null;
@@ -74,7 +65,6 @@ export function CanvasTransport() {
       >
         <CanvasActionIcon action='next' size={20} />
       </button>
-      {playback.error && <p role='alert'>{playback.error}</p>}
     </div>
   );
 }
@@ -89,16 +79,34 @@ export function CanvasMusic({
   const { joinHassUrl } = useHass();
   const [failedArtwork, setFailedArtwork] = useState<string>();
   const [loadedArtwork, setLoadedArtwork] = useState<string>();
+  const [feedback, setFeedback] = useState<HTMLDivElement | null>(null);
+  const renderError = feedback
+    ? (error: string) =>
+        createPortal(
+          <p role='alert' ref={revealMusicFeedback}>
+            {error}
+          </p>,
+          feedback
+        )
+    : undefined;
   const available = session.connected && session.coordinator && !['unknown', 'unavailable'].includes(session.coordinator.state);
   const picture = !idle && available ? attributes?.entity_picture : undefined;
   const artworkUrl = picture ? joinHassUrl(picture) : undefined;
   const usableArtwork = artworkUrl && failedArtwork !== artworkUrl ? artworkUrl : undefined;
   const hasArtwork = !!usableArtwork && loadedArtwork === usableArtwork;
-  const activePlayback = !!available && session.coordinator?.state === 'playing' && !disabled && !playback.busy
-    && !session.updating && !playlistPlayback.pending && !playback.error && !session.error && !rooms.error
-    && !playlistPlayback.error;
+  const activePlayback =
+    !!available &&
+    session.coordinator?.state === 'playing' &&
+    !disabled &&
+    !playback.busy &&
+    !session.updating &&
+    !playlistPlayback.pending &&
+    !playback.error &&
+    !session.error &&
+    !rooms.error &&
+    !playlistPlayback.error;
   const linkTrackUri = currentTrackUri ?? spotifyTrackUri(attributes?.media_content_id);
-  const spotifyHref = trackTitle ? linkTrackUri ?? 'spotify:' : undefined;
+  const spotifyHref = trackTitle ? (linkTrackUri ?? 'spotify:') : undefined;
   const Cover = trackTitle ? 'a' : 'div';
   const Title = trackTitle ? 'a' : 'div';
   function openSpeakers(trigger: HTMLElement) {
@@ -106,23 +114,42 @@ export function CanvasMusic({
     onOpenSpeakers(trigger);
   }
   return (
-    <section className='canvas__music canvas-music' aria-label='Music' data-artwork={hasArtwork && activePlayback} data-playing={activePlayback}>
+    <section
+      className='canvas__music canvas-music'
+      aria-label='Music'
+      data-artwork={hasArtwork && activePlayback}
+      data-playing={activePlayback}
+    >
       <div className='canvas-music__atmosphere' aria-hidden='true'>
-        {usableArtwork && <img src={usableArtwork} alt='' onLoad={() => setLoadedArtwork(usableArtwork)} onError={() => setFailedArtwork(usableArtwork)} />}
+        {usableArtwork && (
+          <img src={usableArtwork} alt='' onLoad={() => setLoadedArtwork(usableArtwork)} onError={() => setFailedArtwork(usableArtwork)} />
+        )}
       </div>
       <CanvasTrackHeart trackUri={currentTrackUri} title={trackTitle ?? title} enabled={!!available && !idle} />
       <div className='canvas-music__track'>
-        <Cover className='canvas-music__cover' href={spotifyHref} aria-label={trackTitle ? linkTrackUri ? 'Open current song in Spotify' : 'Open Spotify app' : undefined} aria-hidden={trackTitle ? undefined : true}>
+        <Cover
+          className='canvas-music__cover'
+          href={spotifyHref}
+          aria-label={trackTitle ? (linkTrackUri ? 'Open current song in Spotify' : 'Open Spotify app') : undefined}
+          aria-hidden={trackTitle ? undefined : true}
+        >
           {usableArtwork ? (
-            <img src={usableArtwork} alt='' onLoad={() => setLoadedArtwork(usableArtwork)} onError={() => setFailedArtwork(usableArtwork)} />
+            <img
+              src={usableArtwork}
+              alt=''
+              onLoad={() => setLoadedArtwork(usableArtwork)}
+              onError={() => setFailedArtwork(usableArtwork)}
+            />
           ) : (
             <span aria-hidden='true'>♪</span>
           )}
         </Cover>
         <div className='canvas-music__metadata'>
-          <span className='canvas__eyebrow'>{trackTitle ? 'Music, for this moment' : 'Music'}</span>
-          <Title className={`canvas-music__title${trackTitle ? '' : ' canvas-music__title--status'}`} href={spotifyHref}>{title}</Title>
-          {!idle && available && attributes?.media_artist && <p>{attributes.media_artist}</p>}
+          <Title className='canvas-music__metadata-link' href={spotifyHref} aria-label={trackTitle ? title : undefined}>
+            <span className='canvas__eyebrow'>{trackTitle ? 'Music, for this moment' : 'Music'}</span>
+            <span className={`canvas-music__title${trackTitle ? '' : ' canvas-music__title--status'}`}>{title}</span>
+          </Title>
+          <p className='canvas-music__artist'>{!idle && available ? attributes?.media_artist : undefined}</p>
         </div>
       </div>
       <div className='canvas-music__bottom'>
@@ -133,25 +160,72 @@ export function CanvasMusic({
           targets={session.targets}
           disabled={disabled}
           onOpenSettings={openSpeakers}
+          renderError={renderError}
         />
       </div>
-      {!idle && available && Number.isFinite(attributes?.media_position) && (
-        <SpeakerSeek
-          key={`${session.entityId}:${attributes?.media_content_id ?? ''}:${attributes?.media_title ?? ''}`}
-          entityId={session.entityId}
-          disabled={disabled}
-        />
-      )}
+      <div className='canvas-music__seek-slot'>
+        {!idle && available && Number.isFinite(attributes?.media_position) && (
+          <SpeakerSeek
+            key={`${session.entityId}:${attributes?.media_content_id ?? ''}:${attributes?.media_title ?? ''}`}
+            entityId={session.entityId}
+            disabled={disabled}
+            renderError={renderError}
+          />
+        )}
+      </div>
       <div className='canvas-music__settings'>
         <CanvasFollow />
-        <button className='canvas-music__room canvas-music__playlists' aria-haspopup='dialog' onClick={event => onOpenPlayer(event.currentTarget)}>
+        <button
+          className='canvas-music__room canvas-music__playlists'
+          aria-haspopup='dialog'
+          onClick={event => onOpenPlayer(event.currentTarget)}
+        >
           <span>Playlists</span>
           <CanvasActionIcon action='forward' />
         </button>
         <button className='canvas-music__room' aria-label='Open speakers' onClick={event => openSpeakers(event.currentTarget)}>
-          <span>{attributes?.friendly_name ?? 'Speakers'}{session.targets.length > 1 ? ` +${session.targets.length - 1}` : ''}</span>
+          <span>
+            {attributes?.friendly_name ?? 'Speakers'}
+            {session.targets.length > 1 ? ` +${session.targets.length - 1}` : ''}
+          </span>
           <CanvasActionIcon action='forward' />
         </button>
+      </div>
+      <div className='canvas-music__feedback' role='region' aria-label='Music feedback' tabIndex={0} ref={setFeedback}>
+        {!idle && playback.error && (
+          <p key={playback.error} role='alert' ref={revealMusicFeedback}>
+            {playback.error}
+          </p>
+        )}
+        {session.updating && (
+          <p role='status' ref={revealMusicFeedback}>
+            Updating Follow me…
+          </p>
+        )}
+        {!session.connected ? (
+          <p role='status' ref={revealMusicFeedback}>
+            Reconnecting to Home Assistant…
+          </p>
+        ) : !session.configured ? (
+          <p ref={revealMusicFeedback}>Follow me is not available in Home Assistant.</p>
+        ) : null}
+        {session.canRetryCleanup && (
+          <div className='canvas-music__cleanup' ref={revealMusicFeedback}>
+            <p>Motion following is off. Return audio to the original speaker.</p>
+            <button
+              type='button'
+              disabled={rooms.busy || !!playlistPlayback.pending || !session.connected || !session.configured}
+              onClick={() => void session.updateFollowing('disable')}
+            >
+              Retry ungrouping
+            </button>
+          </div>
+        )}
+        {session.error && (
+          <p key={session.error} role='alert' ref={revealMusicFeedback}>
+            {session.error}
+          </p>
+        )}
       </div>
       <div className='canvas-music__decoration' aria-hidden='true'>
         <svg className='canvas-music__art' viewBox='0 0 200 160'>
@@ -160,7 +234,11 @@ export function CanvasMusic({
           <circle cx='140' cy='80' r='20' />
         </svg>
       </div>
-      {playlistPlayback.status && <p className='canvas-music__play-status' role='status'>{playlistPlayback.status}</p>}
+      {playlistPlayback.status && (
+        <p className='canvas-music__play-status' role='status'>
+          {playlistPlayback.status}
+        </p>
+      )}
     </section>
   );
 }

@@ -21,7 +21,7 @@ export function CanvasSpeakers() {
         {(r.following || r.cleanupPending) && (
           <div className='canvas-speakers__managed'>
             <p>{r.following ? 'Follow me is managing these rooms.' : 'Finish switching to manual grouping to edit rooms.'}</p>
-            <button disabled={disabled || r.busy || s.busy} onClick={() => void r.perform(true)}>
+            <button disabled={!r.canSwitchToManual} onClick={() => void r.perform(true)}>
               Switch to manual grouping
             </button>
           </div>

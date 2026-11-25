@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useStore, type EntityName, type FilterByDomain } from '@hakit/core';
 import { onSpeakerDisconnect } from './speakerConnection';
+import { hasSavedFollowSource } from './useSpeakerSession';
 
 type SpeakerId = FilterByDomain<EntityName, 'media_player'>;
 const membersOf = (source: string) =>
@@ -70,18 +71,17 @@ async function service(domain: string, name: string, targets: string[], data: Re
   }
 }
 
-export function useSpeakerRooms({ source, members, disabled, onSourceChanged, pinSource }: {
+export function useSpeakerRooms({ source, members, disabled, manualDisabled = disabled, onSourceChanged, pinSource }: {
   source: SpeakerId;
   members: SpeakerId[];
   disabled: boolean;
+  manualDisabled?: boolean;
   onSourceChanged?: (source: string) => void;
   pinSource?: (source: string | null) => void;
 }) {
   const entities = useStore(state => state.entities);
   const following = entities['input_boolean.speaker_follow_motion']?.state === 'on';
-  const cleanupPending =
-    !following &&
-    Boolean(entities['input_text.speaker_follow_source']?.state && entities['input_text.speaker_follow_source']?.state !== 'unknown');
+  const cleanupPending = !following && hasSavedFollowSource(entities['input_text.speaker_follow_source']?.state);
   const scriptBusy = entities['script.speaker_follow_motion']?.state === 'on';
   const name = entities[source]?.attributes.friendly_name ?? 'Speaker';
   const [selected, setSelected] = useState<string[]>([]);
@@ -92,11 +92,12 @@ export function useSpeakerRooms({ source, members, disabled, onSourceChanged, pi
   const original = useRef('');
   const [conflict, setConflict] = useState<{ signature: string; message: string } | null>(null);
   const pending = useRef(false);
-  const active = useRef<AbortController | null>(null);
+  const active = useRef<{ controller: AbortController; manual: boolean } | null>(null);
   const pinOwner = useRef<AbortController | null>(null);
   const previousSource = useRef(source);
   const current = [...new Set([source, ...members])];
   const locked = disabled || busy || following || cleanupPending || scriptBusy;
+  const canSwitchToManual = !manualDisabled && !busy && (following || cleanupPending);
   const changed = signature(selected) !== signature(current);
   const releaseOwnedPin = useCallback((controller: AbortController | null) => {
     if (controller && pinOwner.current === controller) {
@@ -108,15 +109,19 @@ export function useSpeakerRooms({ source, members, disabled, onSourceChanged, pi
   useEffect(() => {
     if (previousSource.current === source) return;
     previousSource.current = source;
-    const controller = active.current;
-    controller?.abort();
-    releaseOwnedPin(controller);
-    active.current = null;
-    pending.current = false;
-    setBusy(false);
-    setBusyRoom(null);
+    const request = active.current;
+    // Changing the player invalidates room edits. The Follow helpers are global,
+    // and clearing their saved source is itself expected to change the player.
+    if (request && !request.manual) {
+      request.controller.abort();
+      releaseOwnedPin(request.controller);
+      active.current = null;
+      pending.current = false;
+      setBusy(false);
+      setBusyRoom(null);
+      setStatus('');
+    }
     setConflict(null);
-    setStatus('');
     setSelected(membersOf(source));
     original.current = signature(membersOf(source));
   }, [source, releaseOwnedPin]);
@@ -124,17 +129,20 @@ export function useSpeakerRooms({ source, members, disabled, onSourceChanged, pi
   useEffect(() => {
     const unsubscribe = onSpeakerDisconnect(() => {
       const wasPending = pending.current;
-      const controller = active.current;
+      const controller = active.current?.controller ?? null;
       controller?.abort();
       releaseOwnedPin(controller);
       active.current = null;
       setBusy(false);
       setBusyRoom(null);
       pending.current = false;
-      if (wasPending) setError('Connection interrupted. Reload current rooms before retrying.');
+      if (wasPending) {
+        setStatus('');
+        setError('Connection interrupted. Reload current rooms before retrying.');
+      }
     });
     return () => {
-      const controller = active.current;
+      const controller = active.current?.controller ?? null;
       controller?.abort();
       releaseOwnedPin(controller);
       active.current = null;
@@ -154,7 +162,7 @@ export function useSpeakerRooms({ source, members, disabled, onSourceChanged, pi
   }, [source]);
   async function perform(manual = false, consent?: string, immediateSelection?: string[]) {
     const requested = immediateSelection ?? selected;
-    if (pending.current || disabled || (!manual && locked)) return;
+    if (pending.current || (manual ? !canSwitchToManual : locked)) return;
     if (!manual) {
       if (original.current !== signature(membersOf(source))) {
         setConflict(null);
@@ -195,7 +203,7 @@ export function useSpeakerRooms({ source, members, disabled, onSourceChanged, pi
     setBusy(true);
     setError(null);
     const controller = new AbortController();
-    active.current = controller;
+    active.current = { controller, manual };
     let action = 'update rooms';
     try {
       if (manual) {
@@ -212,7 +220,7 @@ export function useSpeakerRooms({ source, members, disabled, onSourceChanged, pi
         );
         await service('input_text', 'set_value', ['input_text.speaker_follow_source'], { value: '' }, controller.signal);
         await waitForState(() => useStore.getState().entities['input_text.speaker_follow_source']?.state === '', controller.signal);
-        setSelected(membersOf(source));
+        setSelected(membersOf(previousSource.current));
         setStatus('Manual grouping is on. Your rooms are unchanged.');
       } else {
         if (original.current !== signature(membersOf(source)))
@@ -257,7 +265,7 @@ export function useSpeakerRooms({ source, members, disabled, onSourceChanged, pi
         if (signature(membersOf(source)) !== signature(desired)) throw new Error('The group changed while applying. Please retry.');
         setStatus('Rooms updated.');
       }
-      original.current = signature(membersOf(source));
+      original.current = signature(membersOf(previousSource.current));
     } catch (cause) {
       if (!controller.signal.aborted) {
         const detail = cause && typeof cause === 'object' && 'message' in cause ? String(cause.message) : 'Please retry.';
@@ -265,7 +273,8 @@ export function useSpeakerRooms({ source, members, disabled, onSourceChanged, pi
         setStatus('');
       }
     } finally {
-      if (active.current === controller) {
+      if (active.current?.controller === controller) {
+        active.current = null;
         setBusyRoom(null);
         pending.current = false;
         if (!controller.signal.aborted) setBusy(false);
@@ -279,7 +288,7 @@ export function useSpeakerRooms({ source, members, disabled, onSourceChanged, pi
     if (!onSourceChanged || !pinSource || !remaining.length || locked || pending.current) return;
     pending.current = true;
     const controller = new AbortController();
-    active.current = controller;
+    active.current = { controller, manual: false };
     pinOwner.current = controller;
     pinSource(source);
     setBusy(true);
@@ -353,7 +362,7 @@ export function useSpeakerRooms({ source, members, disabled, onSourceChanged, pi
         setStatus('');
       }
     } finally {
-      if (active.current === controller) {
+      if (active.current?.controller === controller) {
         // A confirmed group is still the right source if pausing the detached
         // speaker failed. Preserve the error so the partial result stays visible.
         if (!controller.signal.aborted && nextSource) {
@@ -394,6 +403,7 @@ export function useSpeakerRooms({ source, members, disabled, onSourceChanged, pi
     toggleRoom,
     following,
     cleanupPending,
+    canSwitchToManual,
     name,
     selected,
     setSelected,

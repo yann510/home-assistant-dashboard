@@ -13,6 +13,7 @@ function requestId() {
   );
 }
 const uncertainty = 'Playback could not be confirmed. Check Spotify and the speaker before trying again.';
+const coordinatorChanged = 'The main speaker changed while starting the playlist. Check Spotify and the speaker before trying again.';
 export function useSpotifyPlaylistPlayback(sourceEntity: string, disabled: boolean) {
   const [pending, setPending] = useState<SpotifyPlaylist | null>(null);
   const [error, setError] = useState('');
@@ -22,7 +23,7 @@ export function useSpotifyPlaylistPlayback(sourceEntity: string, disabled: boole
   if (stateSource !== sourceEntity) {
     setStateSource(sourceEntity);
     setPending(null);
-    setError('');
+    setError(pending ? coordinatorChanged : '');
     setStatus('');
   }
   const current = useRef({ sourceEntity, disabled });

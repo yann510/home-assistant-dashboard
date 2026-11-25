@@ -14,6 +14,7 @@ export function SpeakerVolume({
   accessibleLabel,
   headingLabel,
   onOpenSettings,
+  renderError,
   children,
 }: {
   entityId: SpeakerId;
@@ -23,6 +24,7 @@ export function SpeakerVolume({
   accessibleLabel?: string;
   headingLabel?: string;
   onOpenSettings?: (trigger: HTMLElement) => void;
+  renderError?: (error: string) => ReactNode;
   children?: ReactNode;
 }) {
   const entity = useEntity(entityId, { returnNullIfNotFound: true });
@@ -66,7 +68,7 @@ export function SpeakerVolume({
     if (previousReported.current === reported) return;
     previousReported.current = reported;
     if (draft !== null || !volumeOutput.current?.closest('.canvas, .canvas-dialog')) return;
-    return animateCanvasChange(volumeOutput.current, [{ opacity: .45 }, { opacity: 1 }], 160);
+    return animateCanvasChange(volumeOutput.current, [{ opacity: 0.45 }, { opacity: 1 }], 160);
   }, [reported, draft]);
   const label = accessibleLabel ?? (room ? `${room} volume` : 'Volume');
   const heading = headingLabel ?? room ?? (targets.length > 1 ? 'Group volume' : `${attributes?.friendly_name ?? 'Speaker'} volume`);
@@ -155,10 +157,7 @@ export function SpeakerVolume({
       const next = queued.current;
       queued.current = null;
       const currentEntities = useStore.getState().entities;
-      const confirmedGroup = [...new Set([
-        entityId,
-        ...(currentEntities[entityId]?.attributes.group_members ?? []),
-      ])];
+      const confirmedGroup = [...new Set([entityId, ...(currentEntities[entityId]?.attributes.group_members ?? [])])];
       const ids = (room ? [entityId] : confirmedGroup).filter(target => {
         const targetEntity = currentEntities[target];
         return (
@@ -324,7 +323,7 @@ export function SpeakerVolume({
         >
           +
         </button>
-        {error && <p role='alert'>{error}</p>}
+        {error && (renderError ? renderError(error) : <p role='alert'>{error}</p>)}
       </div>
     );
 

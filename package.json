@@ -18,7 +18,8 @@
     "rollback:canvas-trial": "npx tsx scripts/deploy-canvas.ts rollback",
     "build:dashboard": "tsc -b && VITE_FOLDER_NAME=dashboard vite build",
     "rollback:dashboard": "npx tsx scripts/deploy-canvas.ts rollback-dashboard",
-    "deploy:dashboard": "npx tsx scripts/deploy-canvas.ts publish-dashboard"
+    "deploy:dashboard": "npx tsx scripts/deploy-canvas.ts publish-dashboard",
+    "test:browser": "playwright test"
   },
   "dependencies": {
     "@hakit/components": "^5.1.6",
@@ -29,6 +30,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.65.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.6",
     "@types/node": "^26.1.0",

@@ -24,7 +24,7 @@ function CommandFeedback({ compact = false }: { compact?: boolean }) {
       {failures.length > 0 && (
         <p className='canvas-lights__error' role='alert'>
           {compact
-            ? `${failures.length} light${failures.length === 1 ? ' needs' : 's need'} attention. Open All lights for details.`
+            ? `${failures.length} light${failures.length === 1 ? ' needs' : 's need'} attention.`
             : failures
                 .map(item => {
                   const room = rooms.find(room => room.lights.some(light => light.id === item.target));
@@ -273,6 +273,9 @@ export function CanvasLights({ onOpenAll }: { onOpenAll(trigger: HTMLElement): v
       <div inert={Boolean(settings.active)} aria-hidden={settings.active ? true : undefined}>
         <div className='canvas-lights__heading'>
           <h2>Lights</h2>
+          <div className='canvas-lights__command-summary'>
+            <CommandFeedback compact />
+          </div>
           <button type='button' className='canvas-lights__all-link' onClick={event => onOpenAll(event.currentTarget)}>
             All lights{' '}
             <span aria-hidden='true'>
@@ -294,7 +297,6 @@ export function CanvasLights({ onOpenAll }: { onOpenAll(trigger: HTMLElement): v
           <RoomBrightness room={room} compact />
           <RoomColour room={room} />
         </div>
-        <CommandFeedback compact />
       </div>
       {settings.active && <LightSettingsOverlay entityId={settings.active.entityId} onClose={settings.close} />}
     </section>

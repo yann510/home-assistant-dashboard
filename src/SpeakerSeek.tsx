@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties, type PointerEvent } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type PointerEvent, type ReactNode } from 'react';
 import { useEntity, type EntityName, type FilterByDomain } from '@hakit/core';
 import { useSpeakerCommand } from './useSpeakerCommand';
 import { onSpeakerDisconnect } from './speakerConnection';
@@ -7,7 +7,15 @@ function timeLabel(seconds: number) {
   return `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`;
 }
 
-export function SpeakerSeek({ entityId, disabled }: { entityId: FilterByDomain<EntityName, 'media_player'>; disabled: boolean }) {
+export function SpeakerSeek({
+  entityId,
+  disabled,
+  renderError,
+}: {
+  entityId: FilterByDomain<EntityName, 'media_player'>;
+  disabled: boolean;
+  renderError?: (error: string) => ReactNode;
+}) {
   const entity = useEntity(entityId, { returnNullIfNotFound: true });
   const attributes = entity?.attributes;
   const duration = attributes?.media_duration ?? 0;
@@ -164,11 +172,14 @@ export function SpeakerSeek({ entityId, disabled }: { entityId: FilterByDomain<E
         <span>{timeLabel(value)}</span>
         <span>{timeLabel(duration)}</span>
       </div>
-      {error && (
-        <p className='speaker-command-error' role='alert'>
-          {error}
-        </p>
-      )}
+      {error &&
+        (renderError ? (
+          renderError(error)
+        ) : (
+          <p className='speaker-command-error' role='alert'>
+            {error}
+          </p>
+        ))}
     </div>
   );
 }

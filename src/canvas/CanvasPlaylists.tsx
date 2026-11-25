@@ -1,5 +1,5 @@
 import { likedSongs, LIKED_SONGS_URI } from '../spotifyPlaybackContext';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { animateFavouriteArtwork } from './favouriteArtworkTransition';
 import { useHass } from '@hakit/core';
 import type { SpotifyPlaylist } from '../spotifyMusicTypes';
@@ -27,9 +27,14 @@ function Artwork({ item }: { item: SpotifyPlaylist }) {
     </span>
   );
 }
+function revealPlaybackMessage(message: HTMLParagraphElement | null) {
+  if (message?.parentElement) message.parentElement.scrollTop = 0;
+}
+
 export function CanvasPlaylists({ onPlayed }: { onPlayed(): void }) {
   const { playlists: library, playlistPlayback: playback, disabled, session, rooms } = useCanvasMusic();
   const [filter, setFilter] = useState('');
+  const libraryErrorId = useId();
   const mounted = useRef(true);
   useEffect(() => {
     mounted.current = true;
@@ -46,33 +51,55 @@ export function CanvasPlaylists({ onPlayed }: { onPlayed(): void }) {
   const shown = [likedSongs, ...library.items].filter(item =>
     `${item.title} ${item.owner}`.toLocaleLowerCase().includes(filter.toLocaleLowerCase())
   );
+  const libraryError = session.connected ? library.error : undefined;
+  const noPlaylists = !library.loading && !library.error && session.connected && library.items.length === 0;
+  const hasFeedback = !!(
+    playback.status ||
+    playback.pending ||
+    playback.error ||
+    !session.connected ||
+    library.loading ||
+    library.error ||
+    noPlaylists
+  );
   return (
     <section className='canvas-playlists' aria-label='Your Spotify playlists'>
-      {(playback.status || playback.pending || playback.error) && (
-        <section className='canvas-playlists__feedback' aria-label='Playlist playback'>
-          {playback.status && <p role='status'>{playback.status}</p>}
-          {playback.pending && <p role='status'>Starting {playback.pending.title}…</p>}
-          {playback.error && <p role='alert'>{playback.error}</p>}
-        </section>
-      )}
-      {!session.connected && <p role='status'>Reconnecting to Home Assistant. Playlists will load when connected.</p>}
       <label className='canvas-playlists__filter'>
         <span>Filter loaded playlists</span>
         <input type='search' value={filter} onChange={event => setFilter(event.target.value)} />
       </label>
-      <div className='canvas-playlists__actions'>
+      <section className='canvas-playlists__feedback' aria-label='Playlist playback'>
         <button onClick={library.refresh} disabled={!session.connected || library.loading || library.loadingMore}>
           Refresh
         </button>
-        <span>{library.items.length} playlists loaded</span>
-      </div>
-      {library.loading && <p role='status'>Loading playlists…</p>}
-      {session.connected && library.error && (
-        <p role='alert'>
-          {library.error} <button onClick={library.retry}>Retry playlists</button>
-        </p>
-      )}
-      {!library.loading && !library.error && session.connected && library.items.length === 0 && <p>No saved Spotify playlists yet.</p>}
+        <div className='canvas-playlists__messages' tabIndex={hasFeedback ? 0 : undefined}>
+          {!hasFeedback && <span>{library.items.length} playlists loaded</span>}
+          {playback.status && <p role='status'>{playback.status}</p>}
+          {playback.pending && (
+            <p role='status' ref={revealPlaybackMessage}>
+              Starting {playback.pending.title}…
+            </p>
+          )}
+          {playback.error && (
+            <p role='alert' ref={revealPlaybackMessage}>
+              {playback.error}
+            </p>
+          )}
+          {!session.connected && <p role='status'>Reconnecting to Home Assistant. Playlists will load when connected.</p>}
+          {library.loading && <p role='status'>Loading playlists…</p>}
+          {libraryError && (
+            <p role='alert' id={libraryErrorId}>
+              {libraryError}
+            </p>
+          )}
+          {noPlaylists && <p>No saved Spotify playlists yet.</p>}
+        </div>
+        {libraryError && (
+          <button aria-describedby={libraryErrorId} onClick={library.retry} disabled={library.loading || library.loadingMore}>
+            Retry playlists
+          </button>
+        )}
+      </section>
       {shown.length === 0 && <p>No loaded playlists match this filter.</p>}
       <div className='canvas-playlists__grid'>
         {shown.map(item => (

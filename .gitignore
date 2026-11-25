@@ -28,3 +28,7 @@ dist-ssr
 .venv-ha/
 __pycache__/
 *.pyc
+
+# Local Playwright output
+/test-results/
+/playwright-report/

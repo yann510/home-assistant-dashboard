@@ -16,7 +16,9 @@ export function useSpotifyCurrentTrack(sourceEntity: string, player: Player | nu
   const id = attributes?.media_content_id;
   const active = enabled && online && !!sourceEntity && ['playing', 'buffering', 'paused'].includes(player?.state ?? '');
   const spotifySource = source === 'spotify' || source === 'spotify connect';
-  const direct = active && spotifySource ? spotifyTrackUri(id) : undefined;
+  // Native Sonos queues can omit the source label while providing an exact Spotify track wrapper.
+  const nativeSpotifyTrack = !source && typeof id === 'string' && id.startsWith('x-sonos-spotify:');
+  const direct = active && (spotifySource || nativeSpotifyTrack) ? spotifyTrackUri(id) : undefined;
   // Native Connect wrappers have no exact song URI. The authenticated backend
   // validates account, coordinator, fresh target identity and native session.
   const wrapper = active && (!source || spotifySource) && typeof id === 'string' && /^x-sonos-vli:.*:2,spotify:/.test(id);

@@ -22,7 +22,7 @@
     top: calc(50% - 24px);
     transform: translateY(-50%) rotate(-12deg);
   }
-  .canvas .canvas-music__title { font-size: 24px; }
+  .canvas .canvas__music { --canvas-music-title-size: 24px; }
   .canvas .canvas-music__title--status { font-size: var(--tablet-heading); }
   .canvas .canvas-modes button,
   .canvas .canvas-weather-now strong,
@@ -30,7 +30,7 @@
   .canvas .canvas__all-devices,
   .canvas .canvas-mood__actions button,
   .canvas .canvas-mood__picker button,
-  .canvas .canvas-music__follow > button,
+  .canvas button.canvas-music__follow,
   .canvas .canvas-music__room,
   .canvas .speaker-volume-shortcuts button:nth-child(2),
   .canvas .canvas-lights--compact button.canvas-lights__room-picker,
@@ -125,11 +125,9 @@
   .canvas .canvas-mood__copy { align-content: start; }
   .canvas .canvas-mood__copy h2 { font-size: 36px; margin-top: 4px; }
   .canvas .canvas-mood__picker { margin-top: 0; }
-  .canvas .canvas__music { min-height: 208px; --canvas-music-gap: 0px; padding-block: 4px; }
+  .canvas .canvas__music { min-height: 208px; --canvas-music-gap: 0px; --canvas-music-title-lines: 1; --canvas-music-title-padding: 0px; padding-block: 4px; }
   .canvas .canvas-music__track { grid-template-columns: 64px minmax(0, 1fr); }
-  .canvas .canvas-music__title { -webkit-line-clamp: 1; }
   .canvas .canvas-music__settings { padding-top: 0; }
-  .canvas .canvas-music__metadata > p { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .canvas .canvas-lights--compact,
   .canvas .canvas__shortcuts > .canvas-blinds { padding-block: 4px 8px; }
   .canvas .canvas-lights--compact .canvas-lights__quick { margin-top: 4px; }
@@ -169,7 +167,6 @@
   .canvas :is(.canvas-pulse__activity, .canvas-pulse__notice) { padding-block: 2px; }
   .canvas .canvas-mood { min-height: 200px; }
   .canvas .canvas__music { min-height: 200px; padding-block: 2px; }
-  .canvas .canvas-music__title { padding-block: 0; }
   .canvas .canvas-lights--compact .canvas-lights__room-line { min-height: 44px; }
   .canvas .canvas-lights--compact .canvas-lights__quick { margin-top: 0; }
   .canvas .canvas-blinds .canvas-blinds__rooms button { min-height: 66px; }

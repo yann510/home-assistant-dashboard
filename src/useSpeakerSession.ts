@@ -4,6 +4,10 @@ import { onSpeakerDisconnect, subscribeSpeakerConnectionChanged } from './speake
 
 export const speakerIds = ['media_player.living_room', 'media_player.bathroom', 'media_player.bedroom', 'media_player.gym'] as const;
 
+export function hasSavedFollowSource(state: string | undefined) {
+  return Boolean(state && !['unknown', 'unavailable'].includes(state));
+}
+
 export function useSpeakerSession(allowIdleSource = false) {
   const speakers = [
     useEntity('media_player.living_room', { returnNullIfNotFound: true }),
@@ -45,10 +49,14 @@ export function useSpeakerSession(allowIdleSource = false) {
   const available = speakers.filter(
     (speaker): speaker is NonNullable<typeof speaker> => speaker !== null && !['unavailable', 'unknown'].includes(speaker.state)
   );
+  const controllable = available.filter(speaker => {
+    const coordinator = speaker.attributes.group_members?.[0] ?? speaker.entity_id;
+    return available.some(candidate => candidate.entity_id === coordinator);
+  });
 
   const following = followMode?.state === 'on';
   const savedSource = speakerIds.find(id => id === followSource?.state);
-  const cleanupPending = !following && Boolean(savedSource);
+  const cleanupPending = !following && hasSavedFollowSource(followSource?.state);
   // Disabling clears the mode before unjoining and clearing the saved source.
   // That intermediate state is progress, not a failed cleanup.
   const updating = busy || followScript?.state === 'on';
@@ -74,21 +82,21 @@ export function useSpeakerSession(allowIdleSource = false) {
   // retaining explicit room choices and Follow me ownership.
   const moodTargets = mood?.state === 'active' && Array.isArray(mood.attributes.affected_devices)
     ? mood.attributes.affected_devices : [];
-  const moodSource = available.find(speaker =>
+  const moodSource = controllable.find(speaker =>
     ['playing', 'buffering', 'paused'].includes(speaker.state) && moodTargets.includes(`${speaker.entity_id}#playback`)
   );
-  const preferred = speakers.find(speaker => speaker?.entity_id === preferredSource);
-  const preferredBeforeMood = preferred && !['idle', 'unavailable', 'unknown'].includes(preferred.state) ? preferred : undefined;
+  const preferred = controllable.find(speaker => speaker.entity_id === preferredSource);
+  const preferredBeforeMood = preferred?.state !== 'idle' ? preferred : undefined;
   // Keep controlling the saved source while following, even if another room starts audio.
   const selected =
     (following || cleanupPending ? speakers.find(speaker => speaker?.entity_id === savedSource) : undefined) ??
     preferredBeforeMood ??
     moodSource ??
     preferred ??
-    available.find(speaker => ['playing', 'buffering'].includes(speaker.state)) ??
-    available.find(speaker => (speaker.attributes.group_members?.length ?? 0) > 1) ??
-    available.find(speaker => speaker.state === 'paused') ??
-    (allowIdleSource ? available[0] : undefined);
+    controllable.find(speaker => ['playing', 'buffering'].includes(speaker.state)) ??
+    controllable.find(speaker => (speaker.attributes.group_members?.length ?? 0) > 1) ??
+    controllable.find(speaker => speaker.state === 'paused') ??
+    (allowIdleSource ? controllable[0] : undefined);
   const coordinatorId = pinnedSource ?? selected?.attributes.group_members?.[0] ?? selected?.entity_id;
   const coordinator = speakers.find(speaker => speaker?.entity_id === coordinatorId);
   const members = selected?.attributes.group_members ?? (coordinatorId ? [coordinatorId] : []);
