@@ -13,6 +13,7 @@ const params = new URLSearchParams(location.search);
 const scene = params.get('scene') ?? 'everyday';
 const failures = previewFailures(params);
 const media = params.get('media');
+const lightState = params.get('lights') === 'off' ? 'off' : 'on';
 const song = params.get('song');
 const sonosQueue = params.has('sonosQueue');
 const songId = '2qRWNDee5Hfi6DFjfiu58c';
@@ -40,7 +41,7 @@ function publish(id: string, state: string, attributes: Record<string, unknown> 
 }
 for (const room of rooms)
   for (const id of room.lights)
-    publish(id, 'on', {
+    publish(id, lightState, {
       friendly_name: id.split('.')[1].replaceAll('_', ' '),
       ...(lightCapabilities[id] ?? { supported_color_modes: ['onoff'] }),
     });
