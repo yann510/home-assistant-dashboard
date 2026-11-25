@@ -274,6 +274,11 @@ export function CanvasLights({ onOpenAll }: { onOpenAll(trigger: HTMLElement): v
         <div className='canvas-lights__heading'>
           <h2>Lights</h2>
           <div className='canvas-lights__command-summary'>
+            {(!connected || room.available < room.lights.length) && (
+              <p className='canvas-lights__muted' role='status'>
+                {!connected ? 'Reconnecting…' : `${room.lights.length - room.available} unavailable`}
+              </p>
+            )}
             <CommandFeedback compact />
           </div>
           <button type='button' className='canvas-lights__all-link' onClick={event => onOpenAll(event.currentTarget)}>
@@ -289,9 +294,6 @@ export function CanvasLights({ onOpenAll }: { onOpenAll(trigger: HTMLElement): v
             <CanvasRoomPicker rooms={rooms} connected={connected} value={room.name} onChange={setSelectedRoom} />
           </div>
         </div>
-        {(!connected || room.available < room.lights.length) && (
-          <p className='canvas-lights__muted'>{!connected ? 'Reconnecting…' : `${room.lights.length - room.available} unavailable`}</p>
-        )}
         <IndividualLights room={room} onOpenLight={settings.open} />
         <div className='canvas-lights__adjustments'>
           <RoomBrightness room={room} compact />

@@ -3,7 +3,7 @@ import { CanvasActionIcon } from './CanvasActionIcon';
 import { SpeakerSeek } from '../SpeakerSeek';
 import { SpeakerVolume } from '../SpeakerVolume';
 import { useHass } from '@hakit/core';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useCanvasMusic } from './CanvasMusicProvider';
 import { spotifyTrackUri } from './spotifyTrackUri';
@@ -80,6 +80,7 @@ export function CanvasMusic({
   const [failedArtwork, setFailedArtwork] = useState<string>();
   const [loadedArtwork, setLoadedArtwork] = useState<string>();
   const [feedback, setFeedback] = useState<HTMLDivElement | null>(null);
+  const artistId = useId();
   const renderError = feedback
     ? (error: string) =>
         createPortal(
@@ -90,6 +91,7 @@ export function CanvasMusic({
         )
     : undefined;
   const available = session.connected && session.coordinator && !['unknown', 'unavailable'].includes(session.coordinator.state);
+  const artist = !idle && available ? attributes?.media_artist : undefined;
   const picture = !idle && available ? attributes?.entity_picture : undefined;
   const artworkUrl = picture ? joinHassUrl(picture) : undefined;
   const usableArtwork = artworkUrl && failedArtwork !== artworkUrl ? artworkUrl : undefined;
@@ -145,11 +147,18 @@ export function CanvasMusic({
           )}
         </Cover>
         <div className='canvas-music__metadata'>
-          <Title className='canvas-music__metadata-link' href={spotifyHref} aria-label={trackTitle ? title : undefined}>
+          <Title
+            className='canvas-music__metadata-link'
+            href={spotifyHref}
+            aria-label={trackTitle ? title : undefined}
+            aria-describedby={trackTitle && artist ? artistId : undefined}
+          >
             <span className='canvas__eyebrow'>{trackTitle ? 'Music, for this moment' : 'Music'}</span>
             <span className={`canvas-music__title${trackTitle ? '' : ' canvas-music__title--status'}`}>{title}</span>
+            <p className='canvas-music__artist' id={artistId}>
+              {artist}
+            </p>
           </Title>
-          <p className='canvas-music__artist'>{!idle && available ? attributes?.media_artist : undefined}</p>
         </div>
       </div>
       <div className='canvas-music__bottom'>

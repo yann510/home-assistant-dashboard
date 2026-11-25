@@ -74,6 +74,9 @@ test('music command failures keep neighboring controls in place', async ({ page,
 test('music card geometry remains stable with missing or long track metadata', async ({ page }) => {
   await openPreview(page);
   const controls = overviewControls(page);
+  await expect(controls.music.getByRole('link', { name: 'All In A Dream' })).toHaveAccessibleDescription(
+    'LP Giobbi · DJ Tennis · Joseph Ashworth'
+  );
   const before = await capture(controls);
   for (const query of ['long', 'media=idle', 'media=unavailable', 'media=untitled']) {
     await openPreview(page, query);

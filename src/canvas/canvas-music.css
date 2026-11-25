@@ -96,7 +96,7 @@
 .canvas .canvas-music__cover img { width: 100%; height: 100%; object-fit: cover; }
 .canvas .canvas-music__metadata-link {
  display: flex; flex-direction: column; justify-content: center;
- min-height: max(44px, calc(var(--canvas-music-title-size) * 1.12 * var(--canvas-music-title-lines) + 1.2 * .7rem + 2 * var(--canvas-music-title-padding)));
+ min-height: calc(max(44px, var(--canvas-music-title-size) * 1.12 * var(--canvas-music-title-lines) + 1.2 * .7rem + 2 * var(--canvas-music-title-padding)) + 1.2 * var(--tablet-secondary, .75rem) + 4px);
 }
 .canvas .canvas-music__metadata-link > .canvas__eyebrow,
 .canvas .canvas-music .canvas-music__artist { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; }

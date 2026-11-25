@@ -10,7 +10,7 @@ export default defineConfig({
   projects: [
     { name: 'Fire HD 10', use: { viewport: { width: 1224, height: 614 }, deviceScaleFactor: 1.5 } },
     { name: 'Short tablet', use: { viewport: { width: 960, height: 540 }, deviceScaleFactor: 1.5 } },
-    { name: 'Phone', use: { viewport: { width: 393, height: 852 }, deviceScaleFactor: 2 } },
+    { name: 'Phone', testIgnore: 'tablet-fit.browser.ts', use: { viewport: { width: 393, height: 852 }, deviceScaleFactor: 2 } },
   ],
   webServer: {
     command: 'npm run dev -- --config dev/canvas-preview/vite.config.ts --port 4185',
