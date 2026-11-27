@@ -6,6 +6,10 @@
 .canvas .canvas-modes__feedback .canvas-modes__check:focus-visible { outline: 2px solid var(--canvas-ink); outline-offset: 2px; }
 .canvas .canvas-modes__feedback .canvas-modes__check:disabled { opacity: .55; }
 .canvas .canvas-modes__detail { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.canvas-dialog .canvas-mode-alert { overflow-wrap: anywhere; }
+.canvas-dialog .canvas-mode-alert p { margin-top: 0; }
+.canvas-dialog .canvas-mode-alert__actions { display: flex; flex-wrap: wrap; gap: var(--canvas-space-2); }
+.canvas-dialog .canvas-mode-alert [aria-disabled='true'] { opacity: .55; cursor: not-allowed; }
 
 .canvas .canvas-mood,
 .canvas-dialog .canvas-mood {
@@ -84,12 +88,14 @@
   background: #392d46;
   color: #f3eafa;
 }
-.canvas .canvas-mood__error,
-.canvas-dialog .canvas-mood__error {
+.canvas .canvas-mood__error {
   max-width: 65%;
   color: #56303a;
   font-weight: 700;
 }
+.canvas-dialog .canvas-mood-alert { overflow-wrap: anywhere; }
+.canvas-dialog .canvas-mood-alert p { margin: 0 0 var(--canvas-space-2); }
+.canvas-dialog .canvas-mood-alert button { min-height: 44px; }
 .canvas .canvas-mood__attention {
   position: relative;
   max-width: 100%;

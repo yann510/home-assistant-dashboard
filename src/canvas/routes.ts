@@ -9,6 +9,8 @@ export type CanvasRoute =
   | { kind: 'light'; entityId: string }
   | { kind: 'player' }
   | { kind: 'music-alert'; notice: MusicNoticeKind }
+  | { kind: 'mood-alert' }
+  | { kind: 'mode-alert'; mode: 'day' | 'night' }
   | { kind: 'speakers'; entityId?: string }
   | { kind: 'weather' }
   | { kind: 'thermostats'; entityId?: string }
@@ -30,6 +32,10 @@ export function canvasRouteTitle(route: CanvasRoute): string {
       return 'Your Spotify playlists';
     case 'music-alert':
       return 'Music alert';
+    case 'mood-alert':
+      return 'House Mood alert';
+    case 'mode-alert':
+      return route.mode === 'day' ? 'Day mode alert' : 'Night mode alert';
     case 'speakers':
       return 'Speakers';
     case 'weather':

@@ -7,9 +7,9 @@ import { canvasRouteTitle, routeForAttention, type CanvasRoute } from './routes'
 import { CanvasLights, CanvasAllLights, CanvasAllLightsAction } from './CanvasLights';
 import { CanvasLightDetails } from './CanvasLightDetails';
 import { CanvasLightsProvider } from './useCanvasLights';
-import { CanvasModes, CanvasModeFeedback } from './CanvasModes';
+import { CanvasModes, CanvasModeAlert, CanvasModeFeedback, CanvasModeNotices } from './CanvasModes';
 import { CanvasNightDimmer } from './CanvasNightDimmer';
-import { useCanvasModes, hasVisibleModeFeedback } from './useCanvasModes';
+import { useCanvasModes } from './useCanvasModes';
 import { CanvasBlinds } from './CanvasBlinds';
 import { CanvasBlindsProvider } from './useCanvasBlinds';
 import { CanvasMusicProvider, useCanvasMusic } from './CanvasMusicProvider';
@@ -18,7 +18,7 @@ import { followCleanupMessage, type ReportMusicNotice } from './CanvasMusicNotic
 import type { OverviewNotice, ReportOverviewNotice } from './CanvasOverviewNotice';
 import { CanvasPlayer } from './CanvasPlayer';
 import { CanvasSpeakers } from './CanvasSpeakers';
-import { CanvasMood } from './CanvasMood';
+import { CanvasMood, CanvasMoodAlert } from './CanvasMood';
 import { CanvasPulse, type QuietPulsePresentation } from './CanvasPulse';
 import { CanvasDevices } from './CanvasDevices';
 import { useHouseMood } from '../useHouseMood';
@@ -34,6 +34,15 @@ import './canvas-music.css';
 import './canvas-secondary.css';
 import './canvas-appliances-vacuum.css';
 import './canvas-tablet.css';
+
+const noticeFallback: Record<OverviewNotice['category'], string> = {
+  Music: '.canvas-music',
+  Lights: '.canvas-lights--compact',
+  Blinds: '.canvas-blinds',
+  'House Mood': '.canvas-mood',
+  'Home modes': '.canvas-modes',
+  Weather: '.canvas-weather-now',
+};
 
 function CanvasDashboardContent({ quietPulse }: { quietPulse?: QuietPulsePresentation }): React.JSX.Element {
   const connected = useStore(state => Boolean(state.connection?.connected && state.connectionStatus === 'connected'));
@@ -53,6 +62,12 @@ function CanvasDashboardContent({ quietPulse }: { quietPulse?: QuietPulsePresent
     reportNotice(`music:${kind}`, notice && { ...notice, category: 'Music', route: { kind: 'music-alert', notice: kind } });
   }, [reportNotice]);
   const modes = useCanvasModes();
+  const alertMode = route.kind === 'mode-alert' ? modes.find(mode => mode.mode === route.mode) : undefined;
+  const recoveringMode = useStore(state => {
+    const mood = state.entities['sensor.house_mood'];
+    return mood?.state === 'recovery_required' ? mood.attributes.pending_mode : undefined;
+  });
+  const showModeRestoration = alertMode && !alertMode.recoveryRequired && alertMode.mode === recoveringMode;
   const returnFocus = useRef<HTMLElement | null>(null);
   const mood = useHouseMood();
   const attention = useAttention();
@@ -77,8 +92,8 @@ function CanvasDashboardContent({ quietPulse }: { quietPulse?: QuietPulsePresent
         const { overviewNotice, noticeCategory } = returnFocus.current.dataset;
         const replacement = [...document.querySelectorAll<HTMLElement>('[data-overview-notice]')]
           .find(button => button.dataset.overviewNotice === overviewNotice);
-        const card = noticeCategory === 'Lights' ? '.canvas-lights--compact' : noticeCategory === 'Blinds' ? '.canvas-blinds' : '.canvas-music';
-        (replacement ?? document.querySelector<HTMLElement>(`.canvas__home ${card}`))?.focus({ preventScroll: true });
+        const card = noticeFallback[noticeCategory as OverviewNotice['category']];
+        (replacement ?? (card ? document.querySelector<HTMLElement>(`.canvas__home ${card}`) : null))?.focus({ preventScroll: true });
       }
       returnFocus.current = null;
     }
@@ -110,7 +125,7 @@ function CanvasDashboardContent({ quietPulse }: { quietPulse?: QuietPulsePresent
             <span className='canvas__connection' role='status'>
               {connected ? 'Connected' : 'Disconnected'}
             </span>
-            <CanvasWeatherNow onOpen={trigger => open({ kind: 'weather' }, trigger)} />
+            <CanvasWeatherNow onOpen={trigger => open({ kind: 'weather' }, trigger)} reportNotice={reportNotice} />
             <button type='button' className='canvas__all-devices' onClick={event => open({ kind: 'all-devices' }, event.currentTarget)}>
               <svg viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='1.5' aria-hidden='true'>
                 <rect x='4' y='4' width='6' height='6' rx='1.5' />
@@ -127,12 +142,14 @@ function CanvasDashboardContent({ quietPulse }: { quietPulse?: QuietPulsePresent
           attention={attention}
           onSelect={setSelectedAttention}
           quietPresentation={quietPulse}
-          feedback={modes.some(hasVisibleModeFeedback) ? <CanvasModeFeedback modes={modes} /> : undefined}
+          feedback={modes.some(mode => mode.feedback?.phase === 'pending') ? <CanvasModeFeedback modes={modes} pendingOnly /> : undefined}
           notices={notices}
         />
+        <CanvasModeNotices modes={modes} reportNotice={reportNotice} />
         <div className='canvas__feature-band'>
           <CanvasMood
             controller={mood}
+            reportNotice={reportNotice}
             attention={activeAttention?.target === 'mood' ? activeAttention : null}
             attentionBusy={attention.busy || !attention.connected || !attention.ready}
             onAttentionAction={item => {
@@ -164,7 +181,7 @@ function CanvasDashboardContent({ quietPulse }: { quietPulse?: QuietPulsePresent
             headerAccessory={route.kind === 'all-lights' ? <CanvasAllLightsAction /> : undefined}
             onClose={close}
             onBack={depth > 1 ? back : undefined}
-            routeKey={JSON.stringify(route)}
+            routeKey={JSON.stringify(route) + (showModeRestoration ? ':restoration' : '')}
             scrollTop={dialogScrollTop}
             destination={destination}
           >
@@ -201,6 +218,10 @@ function CanvasDashboardContent({ quietPulse }: { quietPulse?: QuietPulsePresent
               <CanvasPlayer onClose={close} />
             ) : route.kind === 'music-alert' ? (
               <CanvasMusicAlert notice={notices.find(notice => notice.id === `music:${route.notice}`)} showFollowRecovery={route.notice === 'follow'} />
+            ) : route.kind === 'mood-alert' ? (
+              <CanvasMoodAlert controller={mood} />
+            ) : route.kind === 'mode-alert' && alertMode ? (
+              showModeRestoration ? <CanvasMoodAlert controller={mood} /> : <CanvasModeAlert mode={alertMode} />
             ) : route.kind === 'speakers' ? (
               <CanvasSpeakers />
             ) : route.kind === 'all-lights' ? (

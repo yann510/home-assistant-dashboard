@@ -242,7 +242,7 @@ it('captures selected blinds and retries only the failed room after a detail rou
   expect(fixture.calls[2]).toMatchObject({ service_data: { command: 'open all the blinds bedroom' } });
 });
 
-it('shows mood attention and recovery actions on the card without opening details', async () => {
+it('keeps mood reminders on the card and opens restoration recovery from House Pulse', async () => {
   fixture.publish('sensor.house_mood', 'recovery_required', {
     active_mood: 'unwind',
     errors: [{ target: 'Living room', message: 'Restoration failed' }],
@@ -270,15 +270,24 @@ it('shows mood attention and recovery actions on the card without opening detail
   fireEvent.click(screen.getByRole('button', { name: 'View: Restore your home' }));
   const card = screen.getByRole('region', { name: 'House Mood' });
   expect(within(card).getByText('Mood needs recovery')).toBeTruthy();
-  expect(within(card).getByText('Restoration failed')).toBeTruthy();
+  expect(within(card).queryByText('Restoration failed')).toBeNull();
   expect(within(card).getByRole('button', { name: 'Snooze reminder' })).toBeTruthy();
-  expect(screen.queryByRole('dialog', { name: 'House Mood' })).toBeNull();
-  fireEvent.click(within(card).getByRole('button', { name: 'Retry restoration' }));
+  expect(within(card).queryByRole('button', { name: 'Retry restoration' })).toBeNull();
+  const pulse = screen.getByRole('region', { name: 'House pulse' });
+  fireEvent.click(within(pulse).getByRole('button', { name: 'View: Mood restoration needs attention' }));
+  const dialog = within(screen.getByRole('dialog', { name: 'House Mood alert' }));
+  expect(dialog.getByText('Restoration failed')).toBeTruthy();
+  fireEvent.click(dialog.getByRole('button', { name: 'Retry restoration' }));
   await act(async () => {});
+  expect(dialog.getByRole('status').textContent).toContain('This House Mood alert has cleared.');
+  fireEvent.click(dialog.getByRole('button', { name: 'Close details' }));
+  await settleHistory();
+  expect(document.activeElement).toBe(card);
+  expect(within(pulse).queryByRole('button', { name: 'View: Mood restoration needs attention' })).toBeNull();
   expect(within(card).queryByText('No mood active')).toBeNull();
   expect(within(card).queryByRole('status')).toBeNull();
   expect(within(card).getByRole('heading', { name: 'Just be.' })).toBeTruthy();
-  expect(within(card).queryByRole('button', { name: 'Retry restoration' })).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'View: Restore your home' }));
   fireEvent.click(within(card).getByRole('button', { name: 'Snooze reminder' }));
   expect(fixture.calls).toContainEqual(
     expect.objectContaining({ domain: 'dashboard_attention', service: 'snooze', service_data: { id: 'mood', episode: 'mood-1' } })

@@ -5,6 +5,7 @@ import { finite, useQuietForecast, useQuietWeather, type ForecastEntry, type For
 import { conditionLabel, forecastDateKey, forecastHourLabel, upcomingHours, weatherIcon, type WeatherIconName } from './weather';
 import './canvas-weather.css';
 import { useControlChangeFade } from './useControlChangeFade';
+import type { ReportOverviewNotice } from './CanvasOverviewNotice';
 
 function WeatherGlyph({ condition, isDaytime }: { condition?: string; isDaytime?: boolean }) {
   const name: WeatherIconName = weatherIcon(condition, isDaytime);
@@ -158,18 +159,44 @@ function CurrentWeatherHero({
   );
 }
 
-export function CanvasWeatherNow({ onOpen }: { onOpen(trigger: HTMLElement): void }) {
+export function CanvasWeatherNow({
+  onOpen,
+  reportNotice,
+}: {
+  onOpen(trigger: HTMLElement): void;
+  reportNotice?: ReportOverviewNotice;
+}) {
   const { entity, connected, available } = useQuietWeather();
   const configUnit = useStore(state => state.config?.unit_system.temperature ?? '');
   const live = connected && available;
+  const providerUnavailable = connected && Boolean(entity) && !available;
   const unit = entity?.attributes.temperature_unit ?? configUnit;
-  const condition = live ? conditionLabel(entity?.state) : connected ? 'Weather unavailable' : 'Reconnecting';
+  const condition = live
+    ? conditionLabel(entity?.state)
+    : providerUnavailable && reportNotice
+      ? 'Weather'
+      : connected
+        ? 'Weather unavailable'
+        : 'Reconnecting';
   const currentTemperature = live ? temperature(entity?.attributes.temperature, unit) : '—';
+  const label = live ? `Weather ${currentTemperature} ${condition}` : connected ? 'Weather unavailable' : 'Weather reconnecting';
+
+  useLayoutEffect(() => {
+    if (!providerUnavailable || !reportNotice) return;
+    const id = 'weather:current';
+    reportNotice(id, {
+      category: 'Weather',
+      title: 'Weather unavailable',
+      message: 'Current weather is not available from the provider.',
+      route: { kind: 'weather' },
+    });
+    return () => reportNotice(id, null);
+  }, [providerUnavailable, reportNotice]);
   return (
     <button
       type='button'
       className='canvas-weather-now'
-      aria-label={`Weather ${currentTemperature} ${condition}`}
+      aria-label={label}
       onClick={event => onOpen(event.currentTarget)}
     >
       <WeatherGlyph condition={live ? entity?.state : undefined} />

@@ -200,11 +200,65 @@ test('mood status uncertainty and recheck keep the overview controls in place', 
   const before = await capture(controls);
   const mood = page.getByRole('region', { name: 'House Mood' });
   await mood.getByRole('button', { name: 'Love mood' }).tap();
-  await expect(mood.getByRole('alert')).toContainText('Waiting for Home Assistant to confirm');
+  const notice = controls.pulse.getByRole('button', { name: 'View: Mood change unconfirmed' });
+  await expect(notice).toBeVisible();
+  await expect(mood.getByRole('alert')).toHaveCount(0);
+  await expect(mood.getByRole('button', { name: 'Check status', exact: true })).toHaveCount(0);
   await expectStable(controls, before);
 
-  await mood.getByRole('button', { name: 'Check status', exact: true }).tap();
-  await expect(mood.getByRole('alert')).toHaveCount(0);
+  await notice.tap();
+  const dialog = page.getByRole('dialog', { name: 'House Mood alert' });
+  await expect(dialog).toContainText('Waiting for Home Assistant to confirm');
+  await dialog.getByRole('button', { name: 'Check status', exact: true }).tap();
+  await dialog.getByRole('button', { name: 'Close details' }).tap();
+  await expect(notice).toHaveCount(0);
+  await expectStable(controls, before);
+});
+
+test('a mode failure is in House Pulse and retry stays in the dialog', async ({ page }) => {
+  await openPreview(page, 'scene=failure');
+  const controls = overviewControls(page);
+  const night = page.getByRole('button', { name: 'Night mode', exact: true });
+  const before = await capture({ ...controls, night });
+  await night.tap();
+  const notice = controls.pulse.getByRole('button', { name: 'View: Could not set Night mode' });
+  await expect(notice).toBeVisible();
+  await expect(controls.pulse.getByRole('button', { name: /Retry Night mode/ })).toHaveCount(0);
+  await expectStable({ ...controls, night }, before);
+
+  await notice.tap();
+  const dialog = page.getByRole('dialog', { name: 'Night mode alert' });
+  await expect(dialog).toContainText('Controlled preview failure');
+  const retry = dialog.getByRole('button', { name: 'Retry Night mode' });
+  await expect(retry).toBeEnabled();
+  await retry.tap();
+  await expect(dialog).toContainText('Controlled preview failure');
+  await dialog.getByRole('button', { name: 'Dismiss Night mode message' }).tap();
+  await dialog.getByRole('button', { name: 'Close details' }).tap();
+  await expect(notice).toHaveCount(0);
+  await expectStable({ ...controls, night }, before);
+});
+
+test('reported weather loss stays in House Pulse without moving the header or cards', async ({ page }) => {
+  await openPreview(page);
+  const overview = overviewControls(page);
+  const controls = {
+    ...overview,
+    modes: page.getByRole('group', { name: 'Home modes' }),
+    weather: page.getByRole('button', { name: /^Weather/ }),
+    devices: page.getByRole('button', { name: 'All devices' }),
+  };
+  const before = await capture(controls);
+  await openPreview(page, 'weather-unavailable');
+  const notice = overview.pulse.getByRole('button', { name: 'View: Weather unavailable' });
+  await expect(notice).toBeVisible();
+  await expectStable(controls, before);
+
+  await notice.tap();
+  const dialog = page.getByRole('dialog', { name: 'Weather' });
+  await expect(dialog).toContainText('The forecast will return when the provider reconnects.');
+  await dialog.getByRole('button', { name: 'Close details' }).tap();
+  await expect(notice).toBeFocused();
   await expectStable(controls, before);
 });
 

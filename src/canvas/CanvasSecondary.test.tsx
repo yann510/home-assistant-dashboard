@@ -246,7 +246,7 @@ it('keeps simultaneous appliance activity and a new completion episode while an 
   expect(screen.getByRole('button', { name: 'View: Dryer finished' })).toBeTruthy();
 });
 
-it('keeps mood selection, End, and recovery retry available on the overview', async () => {
+it('keeps mood selection and End on the overview and opens recovery from House Pulse', async () => {
   ref.current!.publish('sensor.house_mood', 'active', { active_mood: 'love' });
   render(<CanvasDashboard />);
   for (const name of ['Love', 'Chill', 'Dinner', 'Party', 'Gym']) expect(screen.getByRole('button', { name: `${name} mood` })).toBeTruthy();
@@ -258,7 +258,11 @@ it('keeps mood selection, End, and recovery retry available on the overview', as
   act(() =>
     ref.current!.publish('sensor.house_mood', 'recovery_required', { errors: [{ target: 'lamp', message: 'Could not restore lamp' }] })
   );
-  fireEvent.click(screen.getByRole('button', { name: 'Retry restoration' }));
+  expect(screen.queryByRole('button', { name: 'Retry restoration' })).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'View: Mood restoration needs attention' }));
+  const dialog = within(screen.getByRole('dialog', { name: 'House Mood alert' }));
+  expect(dialog.getByRole('alert').textContent).toContain('Could not restore lamp');
+  fireEvent.click(dialog.getByRole('button', { name: 'Retry restoration' }));
   expect(ref.current!.calls).toContainEqual(expect.objectContaining({ domain: 'house_moods', service: 'retry_restoration' }));
 });
 
@@ -594,7 +598,7 @@ it.each(['completion', 'condition'])('shows pending, rejection and timeout for %
   }
 });
 
-it.each(['activate', 'end'])('shows overview mood %s uncertainty and keeps its no-resend lock', async service => {
+it.each(['activate', 'end'])('routes mood %s uncertainty to House Pulse and keeps its no-resend lock', async service => {
   vi.useFakeTimers();
   try {
     ref.current!.publish('sensor.house_mood', service === 'end' ? 'active' : 'idle', service === 'end' ? { active_mood: 'love' } : {});
@@ -603,14 +607,17 @@ it.each(['activate', 'end'])('shows overview mood %s uncertainty and keeps its n
     const name = service === 'end' ? 'End mood' : 'Love mood';
     fireEvent.click(screen.getByRole('button', { name }));
     await act(async () => vi.advanceTimersByTime(35000));
-    expect(screen.getByRole('alert').textContent).toContain('Waiting for Home Assistant to confirm the change.');
+    expect(within(screen.getByRole('region', { name: 'House Mood' })).queryByRole('alert')).toBeNull();
     const party = screen.getByRole('button', { name: 'Party mood' }) as HTMLButtonElement;
     expect(party.disabled).toBe(true);
     if (service === 'end') expect(screen.queryByRole('button', { name })).toBeNull();
     fireEvent.click(party);
     expect(ref.current!.calls).toHaveLength(1);
+    fireEvent.click(screen.getByRole('button', { name: 'View: Mood change unconfirmed' }));
+    const dialog = within(screen.getByRole('dialog', { name: 'House Mood alert' }));
+    expect(dialog.getByRole('alert').textContent).toContain('Waiting for Home Assistant to confirm the change.');
     ref.current!.respondWith(() => Promise.resolve([{ entity_id: 'sensor.house_mood', state: 'idle', attributes: {} }]));
-    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Check status' })));
+    await act(async () => fireEvent.click(dialog.getByRole('button', { name: 'Check status' })));
     expect(ref.current!.calls[1]).toEqual({ type: 'get_states' });
     expect(ref.current!.calls).toHaveLength(2);
     expect(party.disabled).toBe(false);
@@ -628,19 +635,21 @@ it('keeps mood recovery available across a same-socket reconnect during the stat
   render(<CanvasDashboard />);
   const love = screen.getByRole('button', { name: 'Love mood' }) as HTMLButtonElement;
   await act(async () => fireEvent.click(love));
-  fireEvent.click(screen.getByRole('button', { name: 'Check status' }));
+  fireEvent.click(screen.getByRole('button', { name: 'View: Mood change unconfirmed' }));
+  const dialog = within(screen.getByRole('dialog', { name: 'House Mood alert' }));
+  fireEvent.click(dialog.getByRole('button', { name: 'Check status' }));
   await act(async () => {
     fixture.socketDisconnect();
     fixture.socketReconnect();
     staleCheck.resolve(idle);
   });
   expect(love.disabled).toBe(true);
-  expect(screen.getByRole('alert').textContent).toContain('Connection changed during the status check');
-  await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Check status' })));
+  expect(dialog.getByRole('alert').textContent).toContain('Connection changed during the status check');
+  await act(async () => fireEvent.click(dialog.getByRole('button', { name: 'Check status' })));
   expect(love.disabled).toBe(false);
   expect(fixture.calls.slice(1)).toEqual([{ type: 'get_states' }, { type: 'get_states' }]);
 });
-it('shows a terminal mood rejection with its full explanation on the overview', async () => {
+it('shows the full explanation of a terminal mood rejection in its Pulse dialog', async () => {
   ref.current!.publish('sensor.house_mood', 'idle');
   ref.current!.respondWith(() =>
     Promise.resolve({ response: { success: false, phase: 'idle', errors: [{ target: 'lamp', message: 'Lamp rejected activation' }] } })
@@ -648,7 +657,12 @@ it('shows a terminal mood rejection with its full explanation on the overview', 
   render(<CanvasDashboard />);
   fireEvent.click(screen.getByRole('button', { name: 'Love mood' }));
   await act(async () => {});
-  expect(screen.getByRole('alert').textContent).toContain('Lamp rejected activation');
+  expect(within(screen.getByRole('region', { name: 'House Mood' })).queryByRole('alert')).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'View: House Mood needs attention' }));
+  const dialog = within(screen.getByRole('dialog', { name: 'House Mood alert' }));
+  expect(dialog.getByRole('alert').textContent).toContain('Lamp rejected activation');
+  expect(dialog.queryByRole('button', { name: 'Retry restoration' })).toBeNull();
+  expect(dialog.queryByRole('button', { name: 'Check status' })).toBeNull();
   expect(screen.queryByRole('button', { name: 'Mood details' })).toBeNull();
 });
 

@@ -102,7 +102,7 @@ publish(
     errors: scene === 'mood-recovery' ? [{ target: 'Living room', message: 'One light could not be restored.' }] : [],
   }
 );
-publish('weather.forecast_home', 'sunny', {
+publish('weather.forecast_home', params.has('weather-unavailable') ? 'unavailable' : 'sunny', {
   temperature: 18,
   temperature_unit: '°C',
   wind_speed_unit: 'km/h',
@@ -194,6 +194,17 @@ const connection = {
   sendMessage() {},
   async sendMessagePromise(message: Record<string, unknown>) {
     if (message.type === 'get_states') return Object.values(entities);
+    if (params.has('mode-recovery') && message.domain === 'house_moods' && message.service === 'apply_mode') {
+      const { mode } = message.service_data as { mode: string };
+      const sessionId = `preview-mode-${mode}`;
+      const errors = [{ target: 'Living room', message: 'A mode step could not finish.' }];
+      const reportRecovery = () => publish('sensor.house_mood', 'recovery_required', {
+        mode_control: 'coordinated-v1', active_mood: null, pending_mode: mode, session_id: sessionId, errors,
+      });
+      if (params.get('mode-recovery') === 'late') window.addEventListener('preview-mode-recovery', reportRecovery, { once: true });
+      else reportRecovery();
+      return { response: { success: false, phase: 'recovery_required', pending_mode: mode, session_id: sessionId, errors } };
+    }
     if (failures.commands && message.type === 'call_service') throw new Error('Controlled preview failure. Choose an interactive scene to retry.');
     const spotify = await spotifyPreview(message);
     if (spotify) {

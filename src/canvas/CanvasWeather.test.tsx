@@ -49,6 +49,52 @@ it('shows the reported current zero temperature without subscribing before detai
   expect(ha.subscribe).not.toHaveBeenCalled();
 });
 
+it('reports an explicit provider outage to Pulse and clears the notice when it recovers', () => {
+  const open = vi.fn();
+  const reportNotice = vi.fn();
+  const component = <CanvasWeatherNow onOpen={open} reportNotice={reportNotice} />;
+  const { rerender } = render(component);
+  const headerButton = screen.getByRole('button', { name: /Weather.*0°C.*Sunny/i });
+
+  ha.weather = { ...ha.weather!, state: 'unknown' };
+  rerender(<CanvasWeatherNow onOpen={open} reportNotice={reportNotice} />);
+  expect(screen.getByRole('button', { name: 'Weather unavailable' })).toBe(headerButton);
+  expect(headerButton.textContent).toBe('—Weather');
+  expect(reportNotice).toHaveBeenCalledExactlyOnceWith('weather:current', {
+    category: 'Weather',
+    title: 'Weather unavailable',
+    message: 'Current weather is not available from the provider.',
+    route: { kind: 'weather' },
+  });
+  fireEvent.click(headerButton);
+  expect(open).toHaveBeenCalledWith(headerButton);
+  expect(ha.subscribe).not.toHaveBeenCalled();
+
+  ha.weather = { ...ha.weather!, state: 'unavailable' };
+  rerender(<CanvasWeatherNow onOpen={open} reportNotice={reportNotice} />);
+  expect(reportNotice).toHaveBeenCalledTimes(1);
+
+  ha.weather = { ...ha.weather!, state: 'sunny' };
+  rerender(<CanvasWeatherNow onOpen={open} reportNotice={reportNotice} />);
+  expect(reportNotice).toHaveBeenLastCalledWith('weather:current', null);
+});
+
+it('keeps a missing provider or Home Assistant disconnect out of Weather failures in Pulse', () => {
+  const open = vi.fn();
+  const reportNotice = vi.fn();
+  ha.weather = null;
+  const { rerender } = render(<CanvasWeatherNow onOpen={open} reportNotice={reportNotice} />);
+  expect(screen.getByRole('button', { name: 'Weather unavailable' })).toBeTruthy();
+  expect(reportNotice).not.toHaveBeenCalled();
+
+  ha.connected = false;
+  ha.weather = { state: 'unavailable', attributes: {} };
+  rerender(<CanvasWeatherNow onOpen={open} reportNotice={reportNotice} />);
+  expect(screen.getByRole('button', { name: 'Weather reconnecting' })).toBeTruthy();
+  expect(reportNotice).not.toHaveBeenCalled();
+  expect(ha.subscribe).not.toHaveBeenCalled();
+});
+
 it('renders a chronological 12-hour list and separate daily columns', async () => {
   render(<CanvasWeather />);
   expect(ha.subscribe.mock.calls[0][1].forecast_type).toBe('hourly');

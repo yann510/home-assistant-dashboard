@@ -1,7 +1,7 @@
 import type { CanvasRoute } from './routes';
 
 export type OverviewNotice = {
-  category: 'Music' | 'Lights' | 'Blinds';
+  category: 'Music' | 'Lights' | 'Blinds' | 'House Mood' | 'Home modes' | 'Weather';
   title: string;
   message: string;
   source?: string;

@@ -33,15 +33,52 @@ test('recovers the native Sonos heart after a failed save', async ({ page }) => 
   await expect(notice).toHaveCount(0);
 });
 
-test('reopens mood controls after a read-only status check', async ({ page }) => {
-  await openPreview(page, 'scene=mood-idle&unconfirmed');
+test('opens mood restoration from House Pulse and restores controls after retry', async ({ page }) => {
+  await openPreview(page, 'scene=mood-recovery');
+  const pulse = page.getByRole('region', { name: 'House pulse' });
   const mood = page.getByRole('region', { name: 'House Mood' });
   const love = mood.getByRole('button', { name: 'Love mood' });
-  await love.tap();
-  await expect(mood.getByRole('alert')).toContainText('Waiting for Home Assistant to confirm');
+  const notice = pulse.getByRole('button', { name: 'View: Mood restoration needs attention' });
   await expect(love).toBeDisabled();
-  await mood.getByRole('button', { name: 'Check status', exact: true }).tap();
-  await expect(mood.getByRole('heading', { name: 'Just be.' })).toBeVisible();
   await expect(mood.getByRole('alert')).toHaveCount(0);
+  await notice.tap();
+  const dialog = page.getByRole('dialog', { name: 'House Mood alert' });
+  await expect(dialog).toContainText('One light could not be restored.');
+  await dialog.getByRole('button', { name: 'Retry restoration' }).tap();
+  await dialog.getByRole('button', { name: 'Close details' }).tap();
+  await expect(mood.getByRole('heading', { name: 'Just be.' })).toBeVisible();
+  await expect(notice).toHaveCount(0);
   await expect(love).toBeEnabled();
+});
+
+test('a partially applied mode has one notice and resumes the saved recovery', async ({ page }) => {
+  await openPreview(page, 'scene=mood-idle&mode-recovery');
+  const pulse = page.getByRole('region', { name: 'House pulse' });
+  const night = page.getByRole('button', { name: 'Night mode', exact: true });
+  await night.tap();
+  const notice = pulse.locator('[data-overview-notice]');
+  await expect(notice).toHaveCount(1);
+  await notice.tap();
+  const dialog = page.getByRole('dialog', { name: 'House Mood alert' });
+  await expect(dialog).toContainText('A mode step could not finish.');
+  await expect(dialog.getByRole('button', { name: /Retry Night mode/ })).toHaveCount(0);
+  await dialog.getByRole('button', { name: 'Retry restoration' }).tap();
+  await dialog.getByRole('button', { name: 'Close details' }).tap();
+  await expect(notice).toHaveCount(0);
+  await expect(night).toBeEnabled();
+});
+
+test('the open mode alert gains restoration when the matching report arrives', async ({ page }) => {
+  await openPreview(page, 'scene=mood-idle&mode-recovery=late');
+  const pulse = page.getByRole('region', { name: 'House pulse' });
+  await page.getByRole('button', { name: 'Night mode', exact: true }).tap();
+  await pulse.getByRole('button', { name: 'View: Night mode restoration pending' }).tap();
+  const dialog = page.getByRole('dialog', { name: 'Night mode alert' });
+  await expect(dialog.getByRole('button', { name: 'Check Night mode status' })).toBeVisible();
+  await page.evaluate(() => window.dispatchEvent(new Event('preview-mode-recovery')));
+  const retry = dialog.getByRole('button', { name: 'Retry restoration' });
+  await expect(retry).toBeEnabled();
+  await retry.tap();
+  await dialog.getByRole('button', { name: 'Close details' }).tap();
+  await expect(pulse.locator('[data-overview-notice]')).toHaveCount(0);
 });

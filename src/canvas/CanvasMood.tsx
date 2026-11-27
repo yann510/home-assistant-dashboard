@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useFeatureMotion } from './useFeatureMotion';
 import './canvas-feature-motion.css';
 import type { HouseMoodCardProps, MoodId } from '../moodTypes';
 import { attentionExplanation, type AttentionItem } from '../attention';
+import type { ReportOverviewNotice } from './CanvasOverviewNotice';
 
 const moods: { id: MoodId; name: string; colour: string; caption: string }[] = [
   { id: 'love', name: 'Love', colour: '#efa5a5', caption: 'A little closer.' },
@@ -54,20 +55,89 @@ function MoodArt({ id }: { id: MoodId | null }) {
   );
 }
 
+function MoodErrors({ errors }: { errors: HouseMoodCardProps['status']['errors'] }) {
+  return errors.length > 0 && (
+    <div role='alert' className='canvas-mood__error'>
+      {errors.map((error, index) => <p key={`${error.target}-${index}`}>{error.message}</p>)}
+    </div>
+  );
+}
+
+function MoodRecoveryAction({ controller }: { controller: HouseMoodCardProps }) {
+  const { status, connected, available, canCheckStatus, checkingStatus, onCheckStatus, onRetry } = controller;
+  if (canCheckStatus) {
+    return (
+      <button type='button' disabled={!connected || checkingStatus} onClick={() => void onCheckStatus?.()}>
+        {checkingStatus ? 'Checking status…' : 'Check status'}
+      </button>
+    );
+  }
+  if (status.phase === 'recovery_required') {
+    return (
+      <button type='button' disabled={!connected || !available} onClick={onRetry}>
+        Retry restoration
+      </button>
+    );
+  }
+  return null;
+}
+
+const uncertainMessage = 'Check the current mood status in Home Assistant.';
+const recoveryMessage = 'Some settings still need to be restored.';
+
+export function CanvasMoodAlert({ controller }: { controller: HouseMoodCardProps }) {
+  const { status, canCheckStatus } = controller;
+  const recovery = status.phase === 'recovery_required';
+  const hasAction = Boolean(canCheckStatus || recovery);
+  const previousAction = useRef(hasAction);
+  const detailsRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (previousAction.current && !hasAction && document.activeElement === document.body) {
+      detailsRef.current?.focus({ preventScroll: true });
+    }
+    previousAction.current = hasAction;
+  }, [hasAction]);
+  const message = canCheckStatus ? uncertainMessage
+    : recovery ? recoveryMessage
+    : status.phase === 'restoring' ? 'Restoring previous settings…'
+    : status.phase === 'starting' ? 'Starting mood…'
+    : 'This House Mood alert has cleared.';
+  return (
+    <section className='canvas-mood-alert' ref={detailsRef} tabIndex={-1}>
+      <MoodErrors errors={status.errors} />
+      {!status.errors.length && <p role='status'>{message}</p>}
+      <MoodRecoveryAction controller={controller} />
+    </section>
+  );
+}
+
 export function CanvasMood({
   controller,
   attention,
   attentionBusy = false,
   onAttentionAction,
+  reportNotice,
 }: {
   controller: HouseMoodCardProps;
   attention?: AttentionItem | null;
   attentionBusy?: boolean;
   onAttentionAction?: (item: AttentionItem) => void;
+  reportNotice?: ReportOverviewNotice;
 }) {
-  const { status, connected, available, canCheckStatus, checkingStatus, onCheckStatus, onActivate, onEnd, onRetry } = controller;
+  const { status, connected, available, canCheckStatus, onActivate, onEnd } = controller;
   const busy = status.phase === 'starting' || status.phase === 'restoring';
   const recovery = status.phase === 'recovery_required';
+  const noticeTitle = canCheckStatus ? 'Mood change unconfirmed'
+    : recovery ? 'Mood restoration needs attention'
+    : status.errors.length ? 'House Mood needs attention'
+    : null;
+  const noticeMessage = status.errors.map(error => error.message).join('\n') || (canCheckStatus ? uncertainMessage : recoveryMessage);
+  useLayoutEffect(() => {
+    if (!reportNotice || !noticeTitle) return;
+    const id = 'mood:status';
+    reportNotice(id, { category: 'House Mood', title: noticeTitle, message: noticeMessage, route: { kind: 'mood-alert' } });
+    return () => reportNotice(id, null);
+  }, [reportNotice, noticeTitle, noticeMessage]);
   // A requested mood is not yet a reported result. Restoration returns to neutral.
   const confirmedMood = status.phase === 'active' || status.phase === 'starting' ? status.activeMood : null;
   const current = moods.find(mood => mood.id === confirmedMood);
@@ -84,7 +154,9 @@ export function CanvasMood({
     ? 'Reconnecting to Home Assistant…'
     : !available
       ? 'House moods are unavailable.'
-      : status.phase === 'starting'
+      : reportNotice && noticeTitle
+        ? null
+        : status.phase === 'starting'
         ? 'Starting mood…'
         : status.phase === 'restoring'
           ? 'Restoring previous settings…'
@@ -110,13 +182,7 @@ export function CanvasMood({
           </span>
         </h2>
         <p role={message ? 'status' : undefined}>{message ?? current?.caption ?? 'Your space. Your own pace.'}</p>
-        {status.errors.length > 0 && (
-          <div role='alert' className='canvas-mood__error'>
-            {status.errors.map((error, index) => (
-              <p key={`${error.target}-${index}`}>{error.message}</p>
-            ))}
-          </div>
-        )}
+        {!reportNotice && <MoodErrors errors={status.errors} />}
         {attention && (
           <div className='canvas-mood__attention'>
             <strong>{attention.title}</strong>
@@ -128,14 +194,8 @@ export function CanvasMood({
           </div>
         )}
         <div className='canvas-mood__actions'>
-          {canCheckStatus ? (
-            <button type='button' disabled={!connected || checkingStatus} onClick={() => void onCheckStatus?.()}>
-              {checkingStatus ? 'Checking status…' : 'Check status'}
-            </button>
-          ) : recovery ? (
-            <button type='button' disabled={!connected || !available || busy} onClick={onRetry}>
-              Retry restoration
-            </button>
+          {canCheckStatus || recovery ? (
+            !reportNotice && <MoodRecoveryAction controller={controller} />
           ) : (
             status.activeMood && (
               <button type='button' disabled={!connected || !available || busy} onClick={onEnd}>
