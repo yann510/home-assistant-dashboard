@@ -44,7 +44,7 @@ const REQUIRED = {
   get_playlist_favorites: ['entity_id', 'limit', 'offset', 'sort_result'],
   get_spotify_connect_devices: ['entity_id', 'refresh'],
   get_player_playback_state: ['entity_id'],
-  player_media_play_context: ['entity_id', 'context_uri', 'device_id'],
+  player_media_play_context: ['entity_id', 'context_uri', 'device_id', 'shuffle'],
   check_track_favorites: ['entity_id', 'ids'],
   save_track_favorites: ['entity_id', 'ids'],
   remove_track_favorites: ['entity_id', 'ids'],

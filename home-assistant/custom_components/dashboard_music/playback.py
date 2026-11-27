@@ -122,7 +122,7 @@ class PlaybackController:
         return (state.account_id == account and state.device_id == device and state.context_uri == uri
                 and state.is_playing is True and state.is_connect is True)
 
-    async def play(self, playlist_uri, source_entity, request_id, user_id, context_id=None):
+    async def play(self, playlist_uri, source_entity, request_id, user_id, context_id=None, *, shuffle=True):
         if self.closed:
             raise MusicError('unavailable')
         validate_playback_context(playlist_uri)
@@ -132,7 +132,7 @@ class PlaybackController:
             raise MusicError('auth_required')
         await self.speakers.authorize(user_id, ())
         account = self.gateway.verify_account()
-        key, payload = (account, user_id, request_id), (playlist_uri, source_entity)
+        key, payload = (account, user_id, request_id), (playlist_uri, source_entity, shuffle)
         for old_key, old in tuple(self.requests.items()):
             if old.completed is not None and self.clock() - old.completed >= self.retention:
                 self.requests.pop(old_key)
@@ -190,7 +190,7 @@ class PlaybackController:
         return False
 
     async def _run(self, request_id, request, account, user_id, snapshot, context_id):
-        uri, selected = request.payload
+        uri, selected, shuffle = request.payload
         try:
             async with asyncio.timeout_at(request.deadline):
                 if not await self.library.contains_playlist(uri):
@@ -224,7 +224,8 @@ class PlaybackController:
                             self._finish(request_id, request, 'unconfirmed')
                             return
                         request.effect_started = True
-                        await self.gateway.start_playlist(uri, relay, guard=lambda: self._current(request, selected, snapshot))
+                        await self.gateway.start_playlist(uri, relay, shuffle=shuffle,
+                                                          guard=lambda: self._current(request, selected, snapshot))
                         if not await self._confirm(request, selected, snapshot, account, relay, uri):
                             self._finish(request_id, request, 'unconfirmed')
                             return

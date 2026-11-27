@@ -49,7 +49,7 @@ export function useSpotifyPlaylistPlayback(sourceEntity: string, disabled: boole
       }),
     []
   );
-  async function play(item: SpotifyPlaylist) {
+  async function play(item: SpotifyPlaylist, shuffle = true) {
     const { connection, connectionStatus } = useStore.getState();
     if (
       current.current.disabled ||
@@ -75,7 +75,7 @@ export function useSpotifyPlaylistPlayback(sourceEntity: string, disabled: boole
           domain: 'dashboard_music',
           service: 'play_spotify',
           return_response: true,
-          service_data: { playlist_uri: item.uri, source_entity: sourceEntity, request_id: id },
+          service_data: { playlist_uri: item.uri, source_entity: sourceEntity, request_id: id, shuffle },
         }),
         new Promise<never>((_, reject) => {
           request.signal.addEventListener('abort', () => reject(new Error('Cancelled')), { once: true });

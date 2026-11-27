@@ -17,3 +17,8 @@ play_spotify:
       required: true
       selector:
         text:
+    shuffle:
+      description: Play the playlist in shuffled order on a new launch.
+      default: true
+      selector:
+        boolean:

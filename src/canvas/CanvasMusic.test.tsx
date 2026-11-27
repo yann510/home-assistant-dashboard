@@ -639,8 +639,10 @@ describe('Canvas music', () => {
     expect(seek.getAttribute('aria-valuetext')).toBe('0:40 of 3:20');
     const divider = seek.closest('.canvas-music__seek-slot');
     expect(divider?.previousElementSibling?.contains(screen.getByRole('button', { name: 'Pause' }))).toBe(true);
-    expect(divider?.nextElementSibling?.contains(screen.getByRole('switch', { name: 'Follow me' }))).toBe(true);
-    expect(divider?.nextElementSibling?.contains(screen.getByRole('button', { name: 'Open speakers' }))).toBe(true);
+    const feedback = divider?.nextElementSibling;
+    expect(feedback?.getAttribute('aria-label')).toBe('Music feedback');
+    expect(feedback?.nextElementSibling?.contains(screen.getByRole('switch', { name: 'Follow me' }))).toBe(true);
+    expect(feedback?.nextElementSibling?.contains(screen.getByRole('button', { name: 'Open speakers' }))).toBe(true);
     fireEvent.change(seek, { target: { value: '70' } });
     expect(sendMessagePromise).toHaveBeenCalledWith(
       expect.objectContaining({ service: 'media_seek', target: { entity_id: ['media_player.living_room'] }, service_data: { seek_position: 70 } })
@@ -1501,6 +1503,34 @@ it('closes an already-playing Spotify playlist only on the server confirmation',
   expect(await screen.findByRole('button', { name: 'Playlists' })).toBeTruthy();
   expect(screen.getByText('Already playing Evening jazz.')).toBeTruthy();
   expect(sendMessagePromise).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ service: 'play_spotify' }));
+});
+
+it('starts a Spotify playlist with shuffle on by default', async () => {
+  listPlaylists.mockResolvedValue({ items: [playlist()], nextOffset: null, total: 1 });
+  mount();
+  expect(screen.getByRole('button', { name: 'Shuffle playlists', pressed: true })).toBeTruthy();
+  await userEvent.click(screen.getByRole('button', { name: 'Playlists' }));
+  await userEvent.click(await screen.findByRole('button', { name: 'Play Evening jazz by Yann' }));
+  expect(sendMessagePromise).toHaveBeenCalledWith(expect.objectContaining({
+    service: 'play_spotify',
+    service_data: expect.objectContaining({ shuffle: true }),
+  }));
+});
+
+it('uses the shuffle choice made while idle when starting Liked Songs', async () => {
+  updateEntity('media_player.living_room', { state: 'idle' });
+  updateEntity('media_player.gym', { state: 'idle' });
+  mount();
+  expect(screen.queryByRole('button', { name: 'Resume' })).toBeNull();
+  await userEvent.click(screen.getByRole('button', { name: 'Shuffle playlists', pressed: true }));
+  expect(screen.getByRole('button', { name: 'Shuffle playlists', pressed: false })).toBeTruthy();
+  expect(sendMessagePromise).not.toHaveBeenCalled();
+  await userEvent.click(screen.getByRole('button', { name: 'Playlists' }));
+  await userEvent.click(await screen.findByRole('button', { name: 'Play Liked Songs' }));
+  expect(sendMessagePromise).toHaveBeenCalledWith(expect.objectContaining({
+    service: 'play_spotify',
+    service_data: expect.objectContaining({ shuffle: false }),
+  }));
 });
 
 it('retains cached playlists disabled while disconnected without offering a retry or loader', async () => {

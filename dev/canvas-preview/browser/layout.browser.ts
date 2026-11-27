@@ -56,10 +56,16 @@ test('music command failures keep neighboring controls in place', async ({ page,
   }
   const pause = controls.music.getByRole('button', { name: 'Pause', exact: true });
   const seek = controls.music.getByRole('slider', { name: 'Track position' });
-  const allControls = { ...controls, pause, seek };
+  const feedback = controls.music.getByRole('region', { name: 'Music feedback' });
+  const shuffle = controls.music.getByRole('button', { name: 'Shuffle playlists' });
+  const allControls = { ...controls, pause, seek, shuffle };
   const before = await capture(allControls);
   await pause.click();
-  await expect(controls.music.getByRole('alert').filter({ hasText: 'Could not pause playback' })).toBeVisible();
+  await expect(feedback.getByRole('alert').filter({ hasText: 'Could not pause playback' })).toBeVisible();
+  const [, seekTop, , seekHeight] = before.seek;
+  const [, feedbackTop, , feedbackHeight] = await geometry(feedback);
+  expect(feedbackTop).toBeGreaterThanOrEqual(seekTop + seekHeight - 1);
+  expect(feedbackTop + feedbackHeight).toBeLessThanOrEqual(before.follow[1] + 1);
   await expectStable(allControls, before);
 
   await controls.follow.click();
@@ -82,6 +88,28 @@ test('music card geometry remains stable with missing or long track metadata', a
     await openPreview(page, query);
     await expectStable(controls, before);
   }
+});
+
+test('playlist shuffle has a 44px target and distinct selected, focus and disabled states', async ({ page }) => {
+  await openPreview(page, 'media=idle');
+  const shuffle = page.getByRole('button', { name: 'Shuffle playlists' });
+  await expect(shuffle).toHaveAttribute('aria-pressed', 'true');
+  const [, , width, height] = await geometry(shuffle);
+  expect(Math.min(width, height)).toBeGreaterThanOrEqual(44);
+  const fill = () => shuffle.evaluate(element => getComputedStyle(element).backgroundColor);
+  const selected = await fill();
+  await shuffle.tap();
+  await expect(shuffle).toHaveAttribute('aria-pressed', 'false');
+  expect(await fill()).not.toBe(selected);
+  await page.keyboard.press('Tab');
+  await page.keyboard.press('Shift+Tab');
+  await expect(shuffle).toBeFocused();
+  expect(await shuffle.evaluate(element => element.matches(':focus-visible'))).toBe(true);
+  await page.keyboard.press('Space');
+  await expect(shuffle).toHaveAttribute('aria-pressed', 'true');
+
+  await openPreview(page, 'scene=offline');
+  await expect(shuffle).toBeDisabled();
 });
 
 test('playlist launch feedback keeps the filter, selected tile and dialog controls in place', async ({ page }) => {

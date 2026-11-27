@@ -37,33 +37,48 @@ function CanvasFollow() {
 }
 
 function CanvasTransport() {
-  const { playback, disabled, playing, idle, attributes } = useCanvasMusic();
+  const { playback, disabled, playing, idle, attributes, shuffle, setShuffle } = useCanvasMusic();
   const features = attributes?.supported_features ?? 0;
-  if (idle) return null;
   return (
     <div className='canvas-music__transport' aria-label='Playback controls' aria-busy={playback.busy}>
+      {!idle && (
+        <>
+          <button
+            aria-label='Previous track'
+            disabled={disabled || playback.busy || !(features & 16)}
+            onClick={() => void playback.transport('media_previous_track', 'play the previous track')}
+          >
+            <CanvasActionIcon action='previous' size={20} />
+          </button>
+          <button
+            aria-label={playing ? 'Pause' : 'Resume'}
+            disabled={disabled || playback.busy || !(features & (playing ? 1 : 16384))}
+            onClick={() => void playback.transport(playing ? 'media_pause' : 'media_play', playing ? 'pause playback' : 'start playback')}
+          >
+            <span className='canvas-music__play-motion'>
+              <CanvasActionIcon action={playing ? 'pause' : 'play'} size={20} />
+            </span>
+          </button>
+          <button
+            aria-label='Next track'
+            disabled={disabled || playback.busy || !(features & 32)}
+            onClick={() => void playback.transport('media_next_track', 'play the next track')}
+          >
+            <CanvasActionIcon action='next' size={20} />
+          </button>
+        </>
+      )}
       <button
-        aria-label='Previous track'
-        disabled={disabled || playback.busy || !(features & 16)}
-        onClick={() => void playback.transport('media_previous_track', 'play the previous track')}
+        type='button'
+        className='canvas-music__shuffle'
+        aria-label='Shuffle playlists'
+        aria-description='Applies when starting a Spotify playlist.'
+        aria-pressed={shuffle}
+        title='Shuffle Spotify playlists when starting playback'
+        disabled={disabled}
+        onClick={() => setShuffle(current => !current)}
       >
-        <CanvasActionIcon action='previous' size={20} />
-      </button>
-      <button
-        aria-label={playing ? 'Pause' : 'Resume'}
-        disabled={disabled || playback.busy || !(features & (playing ? 1 : 16384))}
-        onClick={() => void playback.transport(playing ? 'media_pause' : 'media_play', playing ? 'pause playback' : 'start playback')}
-      >
-        <span className='canvas-music__play-motion'>
-          <CanvasActionIcon action={playing ? 'pause' : 'play'} size={20} />
-        </span>
-      </button>
-      <button
-        aria-label='Next track'
-        disabled={disabled || playback.busy || !(features & 32)}
-        onClick={() => void playback.transport('media_next_track', 'play the next track')}
-      >
-        <CanvasActionIcon action='next' size={20} />
+        <CanvasActionIcon action='shuffle' size={20} />
       </button>
     </div>
   );
@@ -182,24 +197,6 @@ export function CanvasMusic({
           />
         )}
       </div>
-      <div className='canvas-music__settings'>
-        <CanvasFollow />
-        <button
-          className='canvas-music__room canvas-music__playlists'
-          aria-haspopup='dialog'
-          onClick={event => onOpenPlayer(event.currentTarget)}
-        >
-          <span>Playlists</span>
-          <CanvasActionIcon action='forward' />
-        </button>
-        <button className='canvas-music__room' aria-label='Open speakers' onClick={event => openSpeakers(event.currentTarget)}>
-          <span>
-            {attributes?.friendly_name ?? 'Speakers'}
-            {session.targets.length > 1 ? ` +${session.targets.length - 1}` : ''}
-          </span>
-          <CanvasActionIcon action='forward' />
-        </button>
-      </div>
       <div className='canvas-music__feedback' role='region' aria-label='Music feedback' tabIndex={0} ref={setFeedback}>
         {!idle && playback.error && (
           <p key={playback.error} role='alert' ref={revealMusicFeedback}>
@@ -235,6 +232,24 @@ export function CanvasMusic({
             {session.error}
           </p>
         )}
+      </div>
+      <div className='canvas-music__settings'>
+        <CanvasFollow />
+        <button
+          className='canvas-music__room canvas-music__playlists'
+          aria-haspopup='dialog'
+          onClick={event => onOpenPlayer(event.currentTarget)}
+        >
+          <span>Playlists</span>
+          <CanvasActionIcon action='forward' />
+        </button>
+        <button className='canvas-music__room' aria-label='Open speakers' onClick={event => openSpeakers(event.currentTarget)}>
+          <span>
+            {attributes?.friendly_name ?? 'Speakers'}
+            {session.targets.length > 1 ? ` +${session.targets.length - 1}` : ''}
+          </span>
+          <CanvasActionIcon action='forward' />
+        </button>
       </div>
       <div className='canvas-music__decoration' aria-hidden='true'>
         <svg className='canvas-music__art' viewBox='0 0 200 160'>

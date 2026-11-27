@@ -7,6 +7,7 @@ import unittest
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from homeassistant.config_entries import ConfigEntries
 from homeassistant.core import HomeAssistant, Context
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry, device_registry
@@ -36,10 +37,10 @@ class Provider:
         return RELAY
     async def playback_state(self):
         return self.state
-    async def start_playlist(self, uri, relay, guard):
+    async def start_playlist(self, uri, relay, guard, *, shuffle):
         if not guard():
             raise RuntimeError('Request changed')
-        self.effects.append(('start', uri, relay))
+        self.effects.append(('start', uri, relay, shuffle))
         self.state = PlaybackState(ACCOUNT, relay, uri, True, True, TRACK)
     async def handoff(self, target, guard):
         if not guard():
@@ -54,6 +55,8 @@ class DashboardMusicSetupTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.hass = HomeAssistant(self.temp.name)
+        self.hass.config_entries = ConfigEntries(self.hass, {})
+        await self.hass.config_entries.async_initialize()
         if hasattr(device_registry, 'async_setup'):
             device_registry.async_setup(self.hass)
         await device_registry.async_load(self.hass)
@@ -89,8 +92,8 @@ class DashboardMusicSetupTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(result['status'], 'confirmed')
             self.assertIs(handler.call_args.args[0].context, context)
             self.assertEqual(handler.call_args.args[0].context.user_id, self.user.id)
-        self.assertEqual(self.runtime.gateway.effects, [('start', PLAYLIST, RELAY), ('handoff', 'target')])
-        self.assertEqual(await self.hass.services.async_call('dashboard_music', 'play_spotify', data,
+        self.assertEqual(self.runtime.gateway.effects, [('start', PLAYLIST, RELAY, True), ('handoff', 'target')])
+        self.assertEqual(await self.hass.services.async_call('dashboard_music', 'play_spotify', {**data, 'shuffle': True},
             blocking=True, return_response=True, context=context), result)
         self.assertEqual(len(self.runtime.gateway.effects), 2)
         with self.assertRaises(HomeAssistantError):

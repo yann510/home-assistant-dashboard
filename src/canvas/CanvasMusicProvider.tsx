@@ -11,6 +11,7 @@ function useCanvasMusicController() {
   const { coordinator, entityId, targets, connected } = session;
   const disabled = !connected || !coordinator || ['unknown', 'unavailable'].includes(coordinator.state);
   const actionPending = useRef(false);
+  const [shuffle, setShuffle] = useState(true);
   const playlistPlayback = useSpotifyPlaylistPlayback(entityId, disabled || session.updating);
   const rooms = useSpeakerRooms({
     source: entityId,
@@ -57,12 +58,12 @@ function useCanvasMusicController() {
       actionPending.current = false;
     }
   }
-  async function playPlaylist(...args: Parameters<typeof playlistPlayback.play>) {
+  async function playPlaylist(item: Parameters<typeof playlistPlayback.play>[0]) {
     if (latestStart.current.source !== entityId || latestStart.current.blocked || rooms.pending.current || actionPending.current) return false;
     actionPending.current = true;
     session.setPreferredSource(entityId);
     try {
-      return await playlistPlayback.play(...args);
+      return await playlistPlayback.play(item, shuffle);
     } finally {
       actionPending.current = false;
     }
@@ -81,6 +82,8 @@ function useCanvasMusicController() {
     playback: { ...playback, transport },
     playlists,
     playlistPlayback: { ...playlistPlayback, play: playPlaylist },
+    shuffle,
+    setShuffle,
     setLibraryOpen,
     disabled: disabled || rooms.busy || !!playlistPlayback.pending,
     playing,

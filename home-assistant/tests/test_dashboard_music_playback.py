@@ -19,6 +19,7 @@ class Provider:
     def __init__(self):
         self.calls = []
         self.state = PlaybackState(ACCOUNT, 'connect-id', P1, False, True)
+        self.shuffle = None
         self.started, self.release = asyncio.Event(), asyncio.Event()
         self.release.set()
         self.change = None
@@ -30,10 +31,11 @@ class Provider:
         return 'connect-id'
     async def playback_state(self):
         return self.state
-    async def start_playlist(self, uri, device, guard=lambda: True):
+    async def start_playlist(self, uri, device, guard=lambda: True, *, shuffle=None):
         if not guard():
             raise MusicError('unavailable')
         self.calls.append(('start', uri, device))
+        self.shuffle = shuffle
         self.started.set()
         await self.release.wait()
         self.state = PlaybackState(ACCOUNT, device, uri, True, True)
@@ -84,6 +86,7 @@ class PlaybackTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result['status'], 'confirmed')
         self.assertEqual(result['playlist_uri'], liked)
         self.assertIn(('start', liked, 'relay-id'), self.provider.calls)
+        self.assertIs(self.provider.shuffle, True)
         self.assertIn(('handoff', 'connect-id'), self.provider.calls)
         calls = list(self.provider.calls)
         self.assertEqual(await self.launch(uri=liked), result)
@@ -132,6 +135,15 @@ class PlaybackTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(MusicError) as caught:
             await self.launch(uri=P2)
         self.assertEqual(caught.exception.code, 'invalid_request')
+
+    async def test_shuffle_selection_is_part_of_the_launch_intent(self):
+        result = await self.player.play(P1, SOURCE, 'ordered', 'user', shuffle=False)
+        self.assertEqual(result['status'], 'confirmed')
+        self.assertIs(self.provider.shuffle, False)
+        self.assertEqual(await self.player.play(P1, SOURCE, 'ordered', 'user', shuffle=False), result)
+        with self.assertRaises(MusicError) as caught:
+            await self.player.play(P1, SOURCE, 'ordered', 'user', shuffle=True)
+        self.assertEqual(caught.exception.code, 'invalid_request')
     async def test_new_request_is_busy_until_late_command_settles(self):
         self.provider.release.clear()
         first = await self.launch()
@@ -162,7 +174,7 @@ class PlaybackTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue((await mood.engine.activate('unwind'))['success'])
         self.hass.data['house_moods'] = mood
         finished = asyncio.Event()
-        async def delegated_start(uri, device, guard):
+        async def delegated_start(uri, device, guard, *, shuffle=None):
             if not guard():
                 raise MusicError('unavailable')
             self.provider.calls.append(('start', uri, device))

@@ -381,7 +381,7 @@ class SpotifyGateway:
         while self._pending_playback:
             await asyncio.gather(*(asyncio.shield(task) for task in tuple(self._pending_playback)), return_exceptions=True)
 
-    async def start_playlist(self, playlist_uri: str, device_id: str, guard=lambda: True) -> None:
+    async def start_playlist(self, playlist_uri: str, device_id: str, guard=lambda: True, *, shuffle: bool = True) -> None:
         validate_playback_context(playlist_uri)
         if playlist_uri == LIKED_SONGS_URI:
             playlist_uri = f'spotify:user:{self.verify_account()}:collection'
@@ -390,7 +390,9 @@ class SpotifyGateway:
             raise MusicError('invalid_request')
         # Never send context-play to Sonos: this pinned provider would use its
         # local queue. The verified non-Sonos relay takes the Connect API route.
-        await self._playback_mutation('player_media_play_context', {'context_uri': playlist_uri, 'device_id': device_id, 'delay': .5}, guard=guard)
+        await self._playback_mutation('player_media_play_context', {
+            'context_uri': playlist_uri, 'device_id': device_id, 'delay': .5, 'shuffle': shuffle,
+        }, guard=guard)
 
     async def handoff(self, device_id, guard=lambda: True):
         source = self._targets.get(device_id)

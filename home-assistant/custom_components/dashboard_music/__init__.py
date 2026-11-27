@@ -131,7 +131,10 @@ class Runtime:
     async def handle_play(self, call):
         if self.closed:
             raise MusicError('unavailable')
-        if set(call.data) != {'playlist_uri', 'source_entity', 'request_id'}:
+        required = {'playlist_uri', 'source_entity', 'request_id'}
+        fields = set(call.data)
+        shuffle = call.data.get('shuffle', True)
+        if not required <= fields or fields - (required | {'shuffle'}) or type(shuffle) is not bool:
             raise MusicError('invalid_request')
         if self.playback is None:
             raise MusicError('not_configured')
@@ -139,7 +142,7 @@ class Runtime:
         self.tasks.add(task)
         try:
             return await self.playback.play(call.data['playlist_uri'], call.data['source_entity'],
-                call.data['request_id'], call.context.user_id, context_id=call.context.id)
+                call.data['request_id'], call.context.user_id, context_id=call.context.id, shuffle=shuffle)
         finally:
             self.tasks.discard(task)
 

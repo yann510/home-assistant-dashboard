@@ -12,7 +12,7 @@ const services = {
   get_playlist_favorites: { fields: { entity_id: {}, limit: {}, offset: {}, sort_result: {} }, response: { optional: false } },
   get_spotify_connect_devices: { fields: { entity_id: {}, refresh: {} }, response: { optional: false } },
   get_player_playback_state: { fields: { entity_id: {} }, response: { optional: false } },
-  player_media_play_context: { fields: { entity_id: {}, context_uri: {}, device_id: {} } },
+  player_media_play_context: { fields: { entity_id: {}, context_uri: {}, device_id: {}, shuffle: {} } },
   check_track_favorites: { fields: { entity_id: {}, ids: {} }, response: { optional: false } },
   save_track_favorites: { fields: { entity_id: {}, ids: {} } },
   remove_track_favorites: { fields: { entity_id: {}, ids: {} } },

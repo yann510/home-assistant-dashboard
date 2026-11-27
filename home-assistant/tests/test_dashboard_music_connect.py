@@ -79,6 +79,7 @@ class ConnectGatewayTests(unittest.IsolatedAsyncioTestCase):
         starts = [data for _, name, data, _ in self.services.calls if name == 'player_media_play_context']
         self.assertEqual(starts[0]['context_uri'], f'spotify:user:{ACCOUNT}:collection')
         self.assertEqual(starts[0]['device_id'], RELAY)
+        self.assertIs(starts[0]['shuffle'], True)
         for raw in (liked, f'spotify:user:{ACCOUNT}:collection'):
             self.services.cloud['context']['uri'] = raw
             self.assertEqual((await self.gateway.playback_state()).context_uri, liked)
@@ -92,11 +93,11 @@ class ConnectGatewayTests(unittest.IsolatedAsyncioTestCase):
     async def test_exact_relay_context_then_unconditional_activation_and_explicit_transfer(self):
         target = await self.gateway.resolve_device(SOURCE)
         relay = await self.gateway.resolve_relay()
-        await self.gateway.start_playlist(P1, relay)
+        await self.gateway.start_playlist(P1, relay, shuffle=False)
         await self.gateway.handoff(target)
         mutations = [(name, data, kwargs['return_response']) for _, name, data, kwargs in self.services.calls if name not in ('get_spotify_connect_devices', 'get_player_playback_state', 'zeroconf_device_getinfo')]
         self.assertEqual(mutations, [
-            ('player_media_play_context', {'entity_id': ENTITY, 'context_uri': P1, 'device_id': RELAY, 'delay': .5}, False),
+            ('player_media_play_context', {'entity_id': ENTITY, 'context_uri': P1, 'device_id': RELAY, 'delay': .5, 'shuffle': False}, False),
             ('zeroconf_device_connect', {'entity_id': ENTITY, 'host_ipv4_address': '192.168.0.40', 'host_ip_port': 1400,
                 'cpath': '/spotifyzc', 'version': '1', 'use_ssl': False, 'username': ACCOUNT, 'password': '', 'loginid': ACCOUNT,
                 'pre_disconnect': False, 'verify_device_list_entry': False, 'delay': .5}, True),

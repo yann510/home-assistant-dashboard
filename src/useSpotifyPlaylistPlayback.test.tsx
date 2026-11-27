@@ -55,7 +55,7 @@ it.each(['confirmed', 'already_playing'])(
       domain: 'dashboard_music',
       service: 'play_spotify',
       return_response: true,
-      service_data: { playlist_uri: item.uri, source_entity: 'media_player.gym', request_id: expect.any(String) },
+      service_data: { playlist_uri: item.uri, source_entity: 'media_player.gym', request_id: expect.any(String), shuffle: true },
     });
     expect(request.service_data.request_id).toMatch(/^dashboard-/);
     expect(request.service_data.request_id.length).toBeGreaterThan(10);
@@ -140,5 +140,11 @@ it('launches Liked Songs through the usual authenticated service contract', asyn
   const liked = { uri: 'spotify:collection:tracks', title: 'Liked Songs', owner: 'Your saved songs' };
   const { result } = renderHook(() => useSpotifyPlaylistPlayback('media_player.gym', false));
   await act(async () => expect(await result.current.play(liked)).toBe(true));
-  expect(send.mock.calls[0][0].service_data.playlist_uri).toBe(liked.uri);
+  expect(send.mock.calls[0][0].service_data).toMatchObject({ playlist_uri: liked.uri, shuffle: true });
+});
+
+it('can start a playlist with shuffle explicitly off', async () => {
+  const { result } = renderHook(() => useSpotifyPlaylistPlayback('media_player.gym', false));
+  await act(async () => expect(await result.current.play(item, false)).toBe(true));
+  expect(send.mock.calls[0][0].service_data.shuffle).toBe(false);
 });

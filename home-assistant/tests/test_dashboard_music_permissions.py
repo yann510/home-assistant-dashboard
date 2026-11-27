@@ -85,11 +85,18 @@ class PermissionTests(unittest.IsolatedAsyncioTestCase):
         call = NS(data={'playlist_uri': P1, 'source_entity': SPEAKERS[2], 'request_id': 'intent'},
                   context=NS(user_id='authenticated-user', id='real-ha-context'))
         self.assertEqual(await self.runtime.handle_play(call), {'status': 'confirmed'})
-        self.assertEqual(calls, [((P1, SPEAKERS[2], 'intent', 'authenticated-user'), {'context_id': 'real-ha-context'})])
+        self.assertEqual(await self.runtime.handle_play(NS(data={**call.data, 'shuffle': False}, context=call.context)), {'status': 'confirmed'})
+        self.assertEqual(calls, [
+            ((P1, SPEAKERS[2], 'intent', 'authenticated-user'), {'context_id': 'real-ha-context', 'shuffle': True}),
+            ((P1, SPEAKERS[2], 'intent', 'authenticated-user'), {'context_id': 'real-ha-context', 'shuffle': False}),
+        ])
         for extra in ('device_id', 'relay_device_id', 'account_id', 'user_id', 'host_ipv4_address'):
             with self.assertRaises(MusicError):
                 await self.runtime.handle_play(NS(data={**call.data, extra: 'untrusted'}, context=call.context))
-        self.assertEqual(len(calls), 1)
+        for shuffle in (None, 'false', 0):
+            with self.subTest(shuffle=shuffle), self.assertRaises(MusicError):
+                await self.runtime.handle_play(NS(data={**call.data, 'shuffle': shuffle}, context=call.context))
+        self.assertEqual(len(calls), 2)
 
     async def test_socket_registration_routes_to_permissions_and_cleanup_preserves_replacement(self):
         from unittest.mock import patch
