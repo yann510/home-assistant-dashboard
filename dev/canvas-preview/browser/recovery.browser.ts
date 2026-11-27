@@ -24,9 +24,13 @@ test('recovers the native Sonos heart after a failed save', async ({ page }) => 
   const save = music.getByRole('button', { name: 'Save All In A Dream to Liked Songs' });
   await save.tap();
   const retry = music.getByRole('button', { name: 'Retry song saved state' });
-  await expect(music.getByRole('alert').filter({ hasText: 'Tap heart to retry' })).toBeVisible();
+  const pulse = page.getByRole('region', { name: 'House pulse', exact: true });
+  const notice = pulse.getByRole('button', { name: /saved state|liked songs|save song/i });
+  await expect(notice).toBeVisible();
+  await expect(music.getByRole('alert')).toHaveCount(0);
   await retry.tap();
   await expect(save).toHaveAttribute('aria-pressed', 'false');
+  await expect(notice).toHaveCount(0);
 });
 
 test('reopens mood controls after a read-only status check', async ({ page }) => {

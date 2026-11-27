@@ -1,5 +1,6 @@
 import type { AttentionItem } from '../attention';
 import type { BlindRoom } from './useCanvasBlinds';
+import type { MusicNoticeKind } from './CanvasMusicNotice';
 
 export type CanvasRoute =
   | { kind: 'overview' }
@@ -7,6 +8,7 @@ export type CanvasRoute =
   | { kind: 'blinds'; room?: BlindRoom }
   | { kind: 'light'; entityId: string }
   | { kind: 'player' }
+  | { kind: 'music-alert'; notice: MusicNoticeKind }
   | { kind: 'speakers'; entityId?: string }
   | { kind: 'weather' }
   | { kind: 'thermostats'; entityId?: string }
@@ -26,6 +28,8 @@ export function canvasRouteTitle(route: CanvasRoute): string {
       return 'Light';
     case 'player':
       return 'Your Spotify playlists';
+    case 'music-alert':
+      return 'Music alert';
     case 'speakers':
       return 'Speakers';
     case 'weather':

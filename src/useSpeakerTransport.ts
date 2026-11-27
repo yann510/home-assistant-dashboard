@@ -4,6 +4,7 @@ import { useSpeakerCommand, type SpeakerService } from './useSpeakerCommand';
 export function useSpeakerTransport(entityId: string, disabled: boolean) {
   const { send, error } = useSpeakerCommand();
   const [busy, setBusy] = useState(false);
+  const [commandEntity, setCommandEntity] = useState<string>();
   const inFlight = useRef(false);
   const mounted = useRef(true);
   useEffect(() => {
@@ -16,9 +17,10 @@ export function useSpeakerTransport(entityId: string, disabled: boolean) {
     if (inFlight.current || disabled) return;
     inFlight.current = true;
     setBusy(true);
+    setCommandEntity(entityId);
     await send(service, [entityId], description);
     inFlight.current = false;
     if (mounted.current) setBusy(false);
   }
-  return { transport, busy, error };
+  return { transport, busy, error, commandEntity };
 }

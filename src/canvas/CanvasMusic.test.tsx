@@ -1,7 +1,7 @@
 /// <reference types="node" />
 // @vitest-environment jsdom
 
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { HassContext, useStore, type HassContextProps } from '@hakit/core';
@@ -14,6 +14,7 @@ import { CanvasSpeakers } from './CanvasSpeakers';
 import { useEffect, useState } from 'react';
 import { canvasRouteTitle } from './routes';
 import { CanvasDialog } from './CanvasDialog';
+import { CanvasDashboard } from './CanvasDashboard';
 import { readFileSync } from 'node:fs';
 // Vitest stubs CSS imports; apply the real rules to verify the feedback cascade.
 const musicStyles = readFileSync('src/canvas/canvas-music.css', 'utf8');
@@ -95,6 +96,15 @@ function mount() {
   return render(
     <HassContext.Provider value={context}>
       <Surface />
+    </HassContext.Provider>
+  );
+}
+
+function mountDashboard() {
+  Object.assign(useStore.getState().connection!, { addEventListener: vi.fn(), removeEventListener: vi.fn() });
+  return render(
+    <HassContext.Provider value={context}>
+      <CanvasDashboard />
     </HassContext.Provider>
   );
 }
@@ -1813,4 +1823,33 @@ it.each(['empty', 'error'])('pins exactly one Liked Songs first with an %s libra
   await userEvent.clear(screen.getByRole('searchbox'));
   await userEvent.type(screen.getByRole('searchbox'), 'unmatched');
   expect(screen.queryByRole('button', { name: 'Play Liked Songs' })).toBeNull();
+});
+
+it('offers Follow me recovery only after the disable script stops with a saved source left over', async () => {
+  updateEntity('input_boolean.speaker_follow_motion', { state: 'on' });
+  updateEntity('input_text.speaker_follow_source', { state: 'media_player.living_room' });
+  let finish!: (value: unknown) => void;
+  sendMessagePromise.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+  mountDashboard();
+  await userEvent.click(screen.getByRole('switch', { name: 'Follow me' }));
+  updateEntity('script.speaker_follow_motion', { state: 'on' });
+  updateEntity('input_boolean.speaker_follow_motion', { state: 'off' });
+  const pulse = screen.getByRole('region', { name: 'House pulse' });
+  expect(within(pulse).queryByRole('button', { name: 'View: Finish turning off Follow me' })).toBeNull();
+
+  await act(async () => finish({ response: { success: true } }));
+  expect(within(pulse).queryByRole('button', { name: 'View: Finish turning off Follow me' })).toBeNull();
+  updateEntity('script.speaker_follow_motion', { state: 'off' });
+  await userEvent.click(await within(pulse).findByRole('button', { name: 'View: Finish turning off Follow me' }));
+  const details = screen.getByRole('dialog', { name: 'Music alert' });
+  sendMessagePromise.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+  await userEvent.click(within(details).getByRole('button', { name: 'Retry ungrouping' }));
+  expect(details.textContent).toContain('Updating Follow me');
+  expect(details.textContent).not.toContain('This Music alert has cleared');
+  updateEntity('input_text.speaker_follow_source', { state: '' });
+  await act(async () => finish({ response: { success: true } }));
+  await within(details).findByText('This Music alert has cleared.');
+  await userEvent.click(within(details).getByRole('button', { name: 'Close details' }));
+  expect(document.activeElement).toBe(screen.getByRole('region', { name: 'Music' }));
+  expect(sendMessagePromise.mock.calls.map(([request]) => request.service)).toEqual(['speaker_follow_motion', 'speaker_follow_motion']);
 });

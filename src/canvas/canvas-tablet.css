@@ -71,7 +71,6 @@
   .canvas .canvas-mood { grid-template-rows: 1fr auto; }
   .canvas .canvas-mood__copy { align-content: center; }
   .canvas .canvas-mood__picker { margin-top: 8px; }
-  .canvas .canvas__music { justify-content: space-between; }
   .canvas .canvas-lights--compact {
     display: flex;
     flex-direction: column;
@@ -116,10 +115,9 @@
   .canvas .canvas-lights__quick .canvas-lights__quick-settings { flex-basis: 44px; }
 }
 
-/* Keep tall tablet spacing while leaving room for the lower controls on
-   landscape screens that also need the reserved music feedback area. */
+/* Keep tall tablet spacing while leaving room for the lower controls. */
 @media (min-width: 800px) and (min-height: 720px) and (max-height: 799px) and (orientation: landscape) {
-  .canvas .canvas__music { --canvas-music-title-lines: 1; --canvas-music-gap: 0px; padding-block: 10px; }
+  .canvas .canvas__music { --canvas-music-title-lines: 1; padding-block: 10px; }
   .canvas .canvas-music__track { grid-template-columns: 64px minmax(0, 1fr); }
 }
 
@@ -133,7 +131,7 @@
   .canvas .canvas-mood__copy { align-content: start; }
   .canvas .canvas-mood__copy h2 { font-size: 36px; margin-top: 4px; }
   .canvas .canvas-mood__picker { margin-top: 0; }
-  .canvas .canvas__music { min-height: 208px; --canvas-music-gap: 0px; --canvas-music-title-lines: 1; --canvas-music-title-padding: 0px; padding-block: 4px; }
+  .canvas .canvas__music { min-height: 208px; --canvas-music-title-lines: 1; --canvas-music-title-padding: 0px; padding-block: 4px; }
   /* The track metadata shares one link target, including the artist. */
   .canvas .canvas-music__track { grid-template-columns: 56px minmax(0, 1fr); }
   .canvas .canvas-music__metadata-link { min-height: 44px; }
@@ -170,11 +168,10 @@
 }
 
 /* Browser chrome leaves less height in landscape. Trim decorative space while
-   retaining the two-line music feedback area and the 44px touch targets. */
+   retaining the 44px touch targets. */
 @media (min-width: 768px) and (min-height: 480px) and (max-height: 619px) {
-  .canvas .canvas-pulse { min-height: 70px; padding-block: 4px; }
-  .canvas .canvas-pulse--quiet-art { height: 70px; }
-  .canvas :is(.canvas-pulse__activity, .canvas-pulse__notice) { padding-block: 4px; }
+  .canvas .canvas-pulse { --canvas-pulse-height: 70px; --canvas-pulse-tile-height: 56px; padding-block: 4px; }
+  .canvas .canvas-pulse :is(.canvas-pulse__activity, .canvas-pulse__notice) { padding-block: 4px; }
 }
 
 @media (min-width: 768px) and (min-height: 480px) and (max-height: 599px) {
@@ -182,9 +179,8 @@
   .canvas .canvas__header { min-height: 48px; }
   .canvas .canvas__header-actions { --canvas-header-control-height: 48px; }
   .canvas .canvas__header-actions .canvas-modes { padding-block: 1px; }
-  .canvas .canvas-pulse { min-height: 54px; padding-block: 2px; }
-  .canvas .canvas-pulse--quiet-art { height: 54px; }
-  .canvas :is(.canvas-pulse__activity, .canvas-pulse__notice) { min-height: 48px; padding-block: 2px; }
+  .canvas .canvas-pulse { --canvas-pulse-height: 54px; --canvas-pulse-tile-height: 48px; padding-block: 2px; }
+  .canvas .canvas-pulse :is(.canvas-pulse__activity, .canvas-pulse__notice) { padding-block: 2px; }
   .canvas .canvas-pulse__art { height: 38px; }
   .canvas .canvas-mood { min-height: 200px; }
   .canvas .canvas-mood__error p:first-child { margin-top: 0; }
@@ -238,11 +234,9 @@
   .canvas .canvas__header { min-height: 46px; }
   .canvas .canvas__header-actions { --canvas-header-control-height: 46px; }
   .canvas .canvas__header-actions .canvas-modes { padding-block: 0; }
-  .canvas .canvas-pulse { min-height: 48px; padding-block: 1px; }
-  .canvas .canvas-pulse--quiet-art { height: 48px; }
-  .canvas :is(.canvas-pulse__activity, .canvas-pulse__notice) { min-height: 44px; padding-block: 1px; }
+  .canvas .canvas-pulse { --canvas-pulse-height: 48px; --canvas-pulse-tile-height: 44px; padding-block: 1px; }
+  .canvas .canvas-pulse :is(.canvas-pulse__activity, .canvas-pulse__notice) { padding-block: 1px; }
   .canvas .canvas-music__track { grid-template-columns: 44px minmax(0, 1fr); }
-  .canvas .speaker-volume-shortcuts { border: 0; box-shadow: inset 0 0 0 1px var(--canvas-music-border); }
   .canvas .canvas-music__settings { border-top: 0; }
   .canvas .canvas-lights--compact,
   .canvas .canvas__shortcuts > .canvas-blinds { padding-block: 0 2px; }

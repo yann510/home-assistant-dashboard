@@ -41,10 +41,11 @@ for (const [scene, query] of Object.entries(scenes)) {
       }
       if (scene === 'failure' && width === 1280 && height === 720) {
         const music = overview.getByRole('region', { name: 'Music', exact: true });
+        const pulse = overview.getByRole('region', { name: 'House pulse', exact: true });
         await music.getByRole('button', { name: 'Pause', exact: true }).tap();
-        await expect(music.getByRole('alert').filter({ hasText: 'Could not pause playback' })).toBeInViewport({ ratio: 0.9 });
+        await expect(pulse.getByRole('button', { name: /Could not pause playback/i })).toBeInViewport({ ratio: 0.9 });
         await music.getByRole('switch', { name: 'Follow me' }).tap();
-        await expect(music.getByRole('alert').filter({ hasText: 'Could not enable Follow me' })).toBeInViewport({ ratio: 0.9 });
+        await expect(pulse.getByRole('button', { name: /Could not enable Follow me/i })).toBeInViewport({ ratio: 0.9 });
       }
       const metrics = await overview.evaluate(element => {
         const targets = [...element.querySelectorAll('button, a[href], input')].filter(target =>

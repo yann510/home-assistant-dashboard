@@ -1,8 +1,18 @@
-import { useLayoutEffect, useId, useRef } from 'react';
+import { useLayoutEffect, useId, useRef, type ReactNode } from 'react';
 import { useSpotifyTrackSaved } from '../useSpotifyTrackSaved';
 import { animateTrackHeart } from './trackHeartAnimation';
 
-export function CanvasTrackHeart({ trackUri, title, enabled }: { trackUri?: string; title: string; enabled: boolean }) {
+export function CanvasTrackHeart({
+  trackUri,
+  title,
+  enabled,
+  renderError,
+}: {
+  trackUri?: string;
+  title: string;
+  enabled: boolean;
+  renderError?: (error: string) => ReactNode;
+}) {
   const { saved, loading, pending, error, setSaved, retry } = useSpotifyTrackSaved(trackUri, enabled);
   const button = useRef<HTMLButtonElement>(null);
   const cancel = useRef<(() => void) | undefined>(undefined);
@@ -53,7 +63,7 @@ export function CanvasTrackHeart({ trackUri, title, enabled }: { trackUri?: stri
         aria-busy={loading || pending}
         aria-disabled={pending || undefined}
         disabled={!enabled || !trackUri || (saved === null && !error)}
-        aria-describedby={error ? feedbackId : undefined}
+        aria-describedby={error && !renderError ? feedbackId : undefined}
         onClick={() => void toggle()}
       >
         <svg
@@ -77,11 +87,11 @@ export function CanvasTrackHeart({ trackUri, title, enabled }: { trackUri?: stri
         )}
         <span data-heart-decoration className='canvas-track-heart__decoration' aria-hidden='true' />
       </button>
-      {error && (
+      {error && (renderError ? renderError(`${error} Tap heart to retry.`) : (
         <span className='canvas-track-heart__feedback' role='alert' id={feedbackId}>
           {error} Tap heart to retry.
         </span>
-      )}
+      ))}
     </span>
   );
 }

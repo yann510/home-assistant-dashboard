@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useStore } from '@hakit/core';
 import { CanvasOverlayNavigation } from './CanvasOverlayNavigation';
 import { CanvasDialog } from './CanvasDialog';
@@ -12,8 +12,9 @@ import { CanvasNightDimmer } from './CanvasNightDimmer';
 import { useCanvasModes, hasVisibleModeFeedback } from './useCanvasModes';
 import { CanvasBlinds } from './CanvasBlinds';
 import { CanvasBlindsProvider } from './useCanvasBlinds';
-import { CanvasMusicProvider } from './CanvasMusicProvider';
+import { CanvasMusicProvider, useCanvasMusic } from './CanvasMusicProvider';
 import { CanvasMusic } from './CanvasMusic';
+import { followCleanupMessage, type MusicNotice, type ReportMusicNotice } from './CanvasMusicNotice';
 import { CanvasPlayer } from './CanvasPlayer';
 import { CanvasSpeakers } from './CanvasSpeakers';
 import { CanvasMood } from './CanvasMood';
@@ -38,6 +39,14 @@ function CanvasDashboardContent({ quietPulse }: { quietPulse?: QuietPulsePresent
   const navigation = useCanvasNavigation();
   const { route, routeDepth: depth, scrollTop: dialogScrollTop } = navigation;
   const [deviceQuery, setDeviceQuery] = useState('');
+  const [musicNotices, setMusicNotices] = useState<MusicNotice[]>([]);
+  const reportMusicNotice = useCallback<ReportMusicNotice>((kind, notice) => {
+    setMusicNotices(current => {
+      const remaining = current.filter(item => item.kind !== kind);
+      if (notice) return [notice, ...remaining];
+      return remaining.length === current.length ? current : remaining;
+    });
+  }, []);
   const modes = useCanvasModes();
   const returnFocus = useRef<HTMLElement | null>(null);
   const mood = useHouseMood();
@@ -59,6 +68,10 @@ function CanvasDashboardContent({ quietPulse }: { quietPulse?: QuietPulsePresent
     }
     if (route.kind === 'overview' && returnFocus.current) {
       if (returnFocus.current.isConnected) returnFocus.current.focus({ preventScroll: true });
+      else if (returnFocus.current.dataset.musicNotice) {
+        const replacement = document.querySelector<HTMLElement>(`[data-music-notice="${returnFocus.current.dataset.musicNotice}"]`);
+        (replacement ?? document.querySelector<HTMLElement>('.canvas-music'))?.focus({ preventScroll: true });
+      }
       returnFocus.current = null;
     }
   }, [route, navigation.focus]);
@@ -107,6 +120,7 @@ function CanvasDashboardContent({ quietPulse }: { quietPulse?: QuietPulsePresent
           onSelect={setSelectedAttention}
           quietPresentation={quietPulse}
           feedback={modes.some(hasVisibleModeFeedback) ? <CanvasModeFeedback modes={modes} /> : undefined}
+          musicNotices={musicNotices}
         />
         <div className='canvas__feature-band'>
           <CanvasMood
@@ -120,6 +134,7 @@ function CanvasDashboardContent({ quietPulse }: { quietPulse?: QuietPulsePresent
           <CanvasMusic
             onOpenPlayer={trigger => open({ kind: 'player' }, trigger)}
             onOpenSpeakers={trigger => open({ kind: 'speakers' }, trigger)}
+            reportNotice={reportMusicNotice}
           />
         </div>
         <section className='canvas__shortcuts' aria-label='Home controls'>
@@ -176,6 +191,8 @@ function CanvasDashboardContent({ quietPulse }: { quietPulse?: QuietPulsePresent
               />
             ) : route.kind === 'player' ? (
               <CanvasPlayer onClose={close} />
+            ) : route.kind === 'music-alert' ? (
+              <CanvasMusicAlert notice={musicNotices.find(notice => notice.kind === route.notice)} showFollowRecovery={route.notice === 'follow'} />
             ) : route.kind === 'speakers' ? (
               <CanvasSpeakers />
             ) : route.kind === 'all-lights' ? (
@@ -198,6 +215,41 @@ function CanvasDashboardContent({ quietPulse }: { quietPulse?: QuietPulsePresent
       )}
     </main>
     </CanvasOverlayNavigation.Provider>
+  );
+}
+
+function CanvasMusicAlert({ notice, showFollowRecovery }: { notice?: MusicNotice; showFollowRecovery: boolean }) {
+  const { session, rooms, playlistPlayback } = useCanvasMusic();
+  const recovery = showFollowRecovery && session.cleanupPending;
+  const message = useRef<HTMLParagraphElement>(null);
+  const retryWasAvailable = useRef(recovery);
+  useEffect(() => {
+    if (retryWasAvailable.current && !recovery && document.activeElement === document.body) {
+      message.current?.focus({ preventScroll: true });
+    }
+    retryWasAvailable.current = recovery;
+  }, [recovery]);
+  const retryBlocked = !session.canRetryCleanup || rooms.busy || !!playlistPlayback.pending || !session.connected || !session.configured;
+  return (
+    <section className='canvas-music-alert'>
+      {notice?.source && <p>{notice.source}</p>}
+      <p ref={message} tabIndex={-1} role={!notice && !recovery ? 'status' : undefined}>
+        {notice?.message ?? (recovery ? followCleanupMessage : 'This Music alert has cleared.')}
+      </p>
+      {recovery && (
+        <>
+          {notice && notice.message !== followCleanupMessage && <p>{followCleanupMessage}</p>}
+          {session.updating && <p role='status'>Updating Follow me…</p>}
+          <button
+            type='button'
+            aria-disabled={retryBlocked}
+            onClick={() => { if (!retryBlocked) void session.updateFollowing('disable'); }}
+          >
+            Retry ungrouping
+          </button>
+        </>
+      )}
+    </section>
   );
 }
 

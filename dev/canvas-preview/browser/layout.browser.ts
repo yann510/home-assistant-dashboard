@@ -32,6 +32,7 @@ function overviewControls(page: Page) {
   const music = page.getByRole('region', { name: 'Music', exact: true });
   return {
     music,
+    pulse: page.getByRole('region', { name: 'House pulse', exact: true }),
     follow: music.getByRole('switch', { name: 'Follow me' }),
     playlists: music.getByRole('button', { name: 'Playlists', exact: true }),
     speakers: music.getByRole('button', { name: 'Open speakers' }),
@@ -41,7 +42,7 @@ function overviewControls(page: Page) {
   };
 }
 
-test('music command failures keep neighboring controls in place', async ({ page, viewport }) => {
+test('music command failures appear in House Pulse without moving any controls', async ({ page, viewport }) => {
   await openPreview(page, 'scene=failure');
   const measured = await page.evaluate(() => [
     window.innerWidth,
@@ -56,25 +57,48 @@ test('music command failures keep neighboring controls in place', async ({ page,
   }
   const pause = controls.music.getByRole('button', { name: 'Pause', exact: true });
   const seek = controls.music.getByRole('slider', { name: 'Track position' });
-  const feedback = controls.music.getByRole('region', { name: 'Music feedback' });
   const shuffle = controls.music.getByRole('button', { name: 'Shuffle playlists' });
   const allControls = { ...controls, pause, seek, shuffle };
   const before = await capture(allControls);
   await pause.click();
-  await expect(feedback.getByRole('alert').filter({ hasText: 'Could not pause playback' })).toBeVisible();
-  const [, seekTop, , seekHeight] = before.seek;
-  const [, feedbackTop, , feedbackHeight] = await geometry(feedback);
-  expect(feedbackTop).toBeGreaterThanOrEqual(seekTop + seekHeight - 1);
-  expect(feedbackTop + feedbackHeight).toBeLessThanOrEqual(before.follow[1] + 1);
+  const pauseNotice = controls.pulse.getByRole('button', { name: /Could not pause playback/i });
+  await expect(pauseNotice).toBeVisible();
+  await expect(controls.music.getByRole('alert')).toHaveCount(0);
   await expectStable(allControls, before);
 
+  await pauseNotice.tap();
+  const details = page.getByRole('dialog', { name: 'Music alert' });
+  await expect(details).toContainText('Controlled preview failure');
+  await page.keyboard.press('Escape');
+  await expect(details).not.toBeVisible();
+  await expect(pauseNotice).toBeFocused();
+
   await controls.follow.click();
-  await expect(controls.music.getByRole('alert').filter({ hasText: 'Could not enable Follow me' })).toBeInViewport({ ratio: 0.9 });
+  await expect(controls.pulse.getByRole('button', { name: /Could not enable Follow me/i })).toBeVisible();
   await expectStable(allControls, before);
 
   await seek.press('ArrowRight');
-  await expect(controls.music.getByRole('alert').filter({ hasText: 'Could not change track position' })).toBeInViewport({ ratio: 0.9 });
+  const seekNotice = controls.pulse.getByRole('button', { name: /Could not change track position/i });
+  await expect(seekNotice).toBeVisible();
+  if (viewport?.width === 1224) await expect(seekNotice).toBeInViewport({ ratio: 0.9 });
   await expectStable(allControls, before);
+
+  await controls.music.getByRole('button', { name: 'Lower volume' }).tap();
+  const volumeNotice = controls.pulse.getByRole('button', { name: /Could not change volume/i });
+  await expect(volumeNotice).toBeVisible();
+  await expect(controls.pulse.locator('[data-music-notice]').first()).toHaveAccessibleName(/Could not change volume/i);
+  await expectStable(allControls, before);
+});
+
+test('House Pulse keeps the overview in place as notices and activity appear', async ({ page }) => {
+  await openPreview(page, 'scene=everyday');
+  const { music, pulse, homeControls } = overviewControls(page);
+  const controls = { music, pulse, homeControls };
+  const before = await capture(controls);
+  for (const scene of ['busy', 'health']) {
+    await openPreview(page, `scene=${scene}`);
+    await expectStable(controls, before);
+  }
 });
 
 test('music card geometry remains stable with missing or long track metadata', async ({ page }) => {
@@ -90,17 +114,28 @@ test('music card geometry remains stable with missing or long track metadata', a
   }
 });
 
-test('playlist shuffle has a 44px target and distinct selected, focus and disabled states', async ({ page }) => {
-  await openPreview(page, 'media=idle');
-  const shuffle = page.getByRole('button', { name: 'Shuffle playlists' });
+test('music has room below the title and shuffle sits beside volume with distinct states', async ({ page, viewport }) => {
+  await openPreview(page);
+  const { music, volume } = overviewControls(page);
+  const shuffle = music.getByRole('button', { name: 'Shuffle playlists' });
+  if (viewport?.width === 1224) {
+    const [, headerTop, , headerHeight] = await geometry(music.locator('.canvas-music__track'));
+    const [, playbackTop, , playbackHeight] = await geometry(music.locator('.canvas-music__bottom'));
+    const [, seekTop] = await geometry(music.getByRole('slider', { name: 'Track position' }));
+    expect(playbackTop - headerTop - headerHeight).toBeGreaterThanOrEqual(30);
+    expect(seekTop).toBeGreaterThanOrEqual(playbackTop + playbackHeight);
+  }
   await expect(shuffle).toHaveAttribute('aria-pressed', 'true');
-  const [, , width, height] = await geometry(shuffle);
+  const [shuffleLeft, shuffleTop, width, height] = await geometry(shuffle);
+  const [volumeLeft, volumeTop] = await geometry(volume);
   expect(Math.min(width, height)).toBeGreaterThanOrEqual(44);
-  const fill = () => shuffle.evaluate(element => getComputedStyle(element).backgroundColor);
-  const selected = await fill();
+  expect(Math.abs(volumeTop - shuffleTop)).toBeLessThanOrEqual(1);
+  expect(shuffleLeft + width).toBeLessThanOrEqual(volumeLeft);
+  const dot = () => shuffle.evaluate(element => getComputedStyle(element, '::after').content);
+  expect(await dot()).toBe('""');
   await shuffle.tap();
   await expect(shuffle).toHaveAttribute('aria-pressed', 'false');
-  expect(await fill()).not.toBe(selected);
+  expect(await dot()).toBe('none');
   await page.keyboard.press('Tab');
   await page.keyboard.press('Shift+Tab');
   await expect(shuffle).toBeFocused();
@@ -108,6 +143,8 @@ test('playlist shuffle has a 44px target and distinct selected, focus and disabl
   await page.keyboard.press('Space');
   await expect(shuffle).toHaveAttribute('aria-pressed', 'true');
 
+  await openPreview(page, 'media=idle');
+  await expect(shuffle).toBeEnabled();
   await openPreview(page, 'scene=offline');
   await expect(shuffle).toBeDisabled();
 });
@@ -137,6 +174,22 @@ test('playlist launch feedback keeps the filter, selected tile and dialog contro
   await filter.fill('no playlist with this name');
   await expect(dialog.getByText('No loaded playlists match this filter.')).toBeVisible();
   await expectStable({ close, filter, refresh }, before);
+});
+
+test('a playlist launch that fails after closing the picker appears in House Pulse', async ({ page }) => {
+  await openPreview(page, 'spotifyDelay=1800&spotifyPlay=failed');
+  const { playlists, pulse } = overviewControls(page);
+  await playlists.tap();
+  const picker = page.getByRole('dialog');
+  await picker.getByRole('button', { name: 'Play Liked Songs' }).tap();
+  await expect(picker.getByRole('status').filter({ hasText: 'Starting Liked Songs' })).toBeVisible();
+  await picker.getByRole('button', { name: 'Close details' }).tap();
+  await expect(picker).not.toBeVisible();
+  const failure = pulse.getByRole('button', { name: /Spotify playlist needs attention/i });
+  await expect(failure).toHaveCount(0);
+  await expect(failure).toBeVisible();
+  await failure.tap();
+  await expect(page.getByRole('dialog', { name: 'Music alert' })).toContainText('Spotify preview could not start');
 });
 
 test('mood status uncertainty and recheck keep the overview controls in place', async ({ page }) => {
