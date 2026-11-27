@@ -293,6 +293,108 @@ it('keeps an earlier room failure visible while another room command is pending'
   });
 });
 
+it('reports quick light failures to House Pulse under the original room and device', async () => {
+  const fixture = ref.current!;
+  fixture.publish('light.light_living_room_bulbs', 'off');
+  fixture.publish('light.light_kitchen', 'off');
+  const living = deferred();
+  const kitchen = deferred();
+  fixture.respondInOrder(living.promise, kitchen.promise);
+  const reportNotice = vi.fn();
+  render(
+    <CanvasLightsProvider>
+      <CanvasLights onOpenAll={() => {}} reportNotice={reportNotice} />
+    </CanvasLightsProvider>
+  );
+  await userEvent.click(screen.getByRole('button', { name: 'Turn on Living Room Bulbs' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Lights room' }));
+  await userEvent.click(screen.getByRole('option', { name: 'Kitchen' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Turn on Kitchen' }));
+  await act(async () => {
+    kitchen.reject(new Error('Kitchen denied'));
+    living.reject(new Error('Living denied'));
+  });
+  expect(reportNotice.mock.calls).toEqual([
+    ['lights:light.light_kitchen', expect.objectContaining({
+      category: 'Lights', title: expect.stringContaining('Kitchen'), message: expect.stringContaining('Kitchen denied'),
+      route: { kind: 'light', entityId: 'light.light_kitchen' },
+    })],
+    ['lights:light.light_living_room_bulbs', expect.objectContaining({
+      category: 'Lights', title: 'Check Living Room · Bulbs', message: expect.stringContaining('Living denied'),
+      route: { kind: 'light', entityId: 'light.light_living_room_bulbs' },
+    })],
+  ]);
+  expect(screen.queryByRole('alert')).toBeNull();
+});
+
+it.each([false, true])('keeps the failed light retry in details and checks reported state first (%s)', async alreadyChanged => {
+  const fixture = ref.current!;
+  fixture.publish('light.light_living_room_bulbs', 'on');
+  fixture.respondWith(() => Promise.reject(new Error('Power refused')));
+  const renderLights = (detail: boolean) => (
+    <CanvasLightsProvider>
+      {detail ? <CanvasLightDetails entityId='light.light_living_room_bulbs' /> : <CanvasLights onOpenAll={() => {}} reportNotice={() => {}} />}
+    </CanvasLightsProvider>
+  );
+  const view = render(renderLights(false));
+  await userEvent.click(screen.getByRole('button', { name: 'Turn off Living Room Bulbs' }));
+  expect(screen.queryByRole('button', { name: 'Retry light command' })).toBeNull();
+  view.rerender(renderLights(true));
+  expect(screen.getByRole('alert').textContent).toContain('Power refused');
+  if (alreadyChanged) act(() => fixture.publish('light.light_living_room_bulbs', 'off'));
+  fixture.respondWith(async () => {
+    fixture.publish('light.light_living_room_bulbs', 'off');
+    return {};
+  });
+  await userEvent.click(screen.getByRole('button', { name: 'Retry light command' }));
+  await waitFor(() => expect(screen.queryByRole('alert')).toBeNull());
+  expect(fixture.calls).toHaveLength(alreadyChanged ? 1 : 2);
+  if (!alreadyChanged) expect(fixture.calls[1]).toEqual(fixture.calls[0]);
+});
+
+it('retains a failed adjustment when reconnect cancels an explicitly queued retry', async () => {
+  vi.useFakeTimers();
+  try {
+    const fixture = ref.current!;
+    const id = 'light.gym';
+    const attributes = { brightness: 128, supported_color_modes: ['brightness'] };
+    fixture.publish(id, 'on', attributes);
+    fixture.respondWith(() => Promise.reject(new Error('Brightness refused')));
+    render(
+      <CanvasLightsProvider>
+        <CanvasLightDetails entityId={id} />
+      </CanvasLightsProvider>
+    );
+    fireEvent.change(screen.getByRole('slider', { name: 'Light brightness' }), { target: { value: '70' } });
+    await act(async () => {});
+    expect(screen.getByRole('alert').textContent).toContain('Brightness refused');
+    expect(screen.getByText('Reported brightness 50%')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retry light command' }));
+    expect(fixture.calls).toHaveLength(1);
+    act(() => {
+      fixture.socketDisconnect();
+      fixture.socketReconnect();
+      vi.advanceTimersByTime(150);
+    });
+    expect(fixture.calls).toHaveLength(1);
+    expect(screen.getByRole('alert').textContent).toContain('Brightness refused');
+
+    fixture.respondWith(async () => {
+      fixture.publish(id, 'on', { ...attributes, brightness: 179 });
+      return {};
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Retry light command' }));
+    await act(async () => {});
+    expect(fixture.calls).toHaveLength(2);
+    expect(fixture.calls[1]).toEqual(fixture.calls[0]);
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.getByText('Reported brightness 70%')).toBeTruthy();
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
 it('disables room brightness when all dimmable lights are off and never turns them on', async () => {
   const fixture = ref.current!;
   fixture.publish('light.light_living_room_bulbs', 'off', { brightness: 100, supported_color_modes: ['brightness'] });

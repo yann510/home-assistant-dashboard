@@ -1,5 +1,5 @@
 import { CanvasActionIcon } from './CanvasActionIcon';
-import { useRef, useState, type CSSProperties } from 'react';
+import { useEffectEvent, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { LightSettingsOverlay } from './LightSettingsOverlay';
 import { useLightSettings } from './useLightSettings';
 import { CanvasRoomPicker } from './CanvasRoomPicker';
@@ -11,29 +11,45 @@ import './canvas-controls-motion.css';
 import { useControlChangeFade } from './useControlChangeFade';
 import { LightColourPalette } from './LightColourPalette';
 import { hexFromRgb, rgbFromHex } from './lightColours';
-import { useCanvasLights, lightSupportsBrightness, lightSupportsColour, type CanvasRoom } from './useCanvasLights';
+import { useCanvasLights, lightSupportsBrightness, lightSupportsColour, type CanvasLight, type CanvasRoom } from './useCanvasLights';
+import type { TargetResult } from './commands';
+import type { ReportOverviewNotice } from './CanvasOverviewNotice';
 
 function CommandFeedback({ compact = false }: { compact?: boolean }) {
-  const { result, rooms } = useCanvasLights();
+  const { result, rooms, connected, busy, retry } = useCanvasLights();
   if (!result) return null;
   const failures = result.results.filter(item => item.phase === 'failed' || item.phase === 'unconfirmed');
   const pending = result.results.filter(item => item.phase === 'pending').length;
   const accepted = result.results.filter(item => item.phase === 'accepted').length;
   return (
     <>
-      {failures.length > 0 && (
+      {compact && failures.length > 0 && (
         <p className='canvas-lights__error' role='alert'>
-          {compact
-            ? `${failures.length} light${failures.length === 1 ? ' needs' : 's need'} attention.`
-            : failures
-                .map(item => {
-                  const room = rooms.find(room => room.lights.some(light => light.id === item.target));
-                  const light = room?.lights.find(light => light.id === item.target);
-                  return `${room && light ? `${room.name} · ${light.label}` : 'Light'}: ${item.message}`;
-                })
-                .join(' ')}
+          {failures.length} light{failures.length === 1 ? ' needs' : 's need'} attention.
         </p>
       )}
+      {!compact && failures.map(item => {
+        const room = rooms.find(room => room.lights.some(light => light.id === item.target));
+        const light = room?.lights.find(light => light.id === item.target);
+        return (
+          <div key={item.target} className='canvas-lights__failed-command'>
+            <p className='canvas-lights__error' role='alert'>
+              {room && light ? `${room.name} · ${light.label}` : 'Light'}: {item.message}
+            </p>
+            {light && (
+              <button
+                type='button'
+                aria-label={`Retry ${light.name} command`}
+                disabled={!connected || busy.has(light.id) || light.state === 'unavailable' ||
+                  (item.retryRequiresOn && light.state !== 'on')}
+                onClick={() => retry(light.id)}
+              >
+                Retry
+              </button>
+            )}
+          </div>
+        );
+      })}
       {!compact && (pending > 0 || accepted > 0) && (
         <p className='canvas-lights__muted' role='status'>
           {pending
@@ -43,6 +59,31 @@ function CommandFeedback({ compact = false }: { compact?: boolean }) {
       )}
     </>
   );
+}
+
+function LightFailureNotice({
+  failure,
+  room,
+  light,
+  report,
+}: {
+  failure: TargetResult;
+  room: CanvasRoom;
+  light: CanvasLight;
+  report: ReportOverviewNotice;
+}) {
+  const id = `lights:${light.id}`;
+  const publish = useEffectEvent(() => report(id, {
+    category: 'Lights',
+    title: `Check ${room.name} · ${light.label}`,
+    message: failure.message ?? 'Check the light before trying again.',
+    route: { kind: 'light', entityId: light.id },
+  }));
+  useLayoutEffect(() => {
+    publish();
+    return () => report(id, null);
+  }, [failure, id, report]);
+  return null;
 }
 
 function RoomPower({ room, compact = false }: { room: CanvasRoom; compact?: boolean }) {
@@ -96,11 +137,9 @@ function RoomBrightness({ room, compact = false, label = 'Room brightness' }: { 
     void brightness(
       room.lights.map(light => light.id),
       value
-    ).then(result => {
+    ).then(() => {
       if (version !== draftVersion.current[name]) return;
-      if (!result || result.results.every(item => item.phase === 'observed')) {
-        setDrafts(current => ({ ...current, [name]: undefined }));
-      }
+      setDrafts(current => ({ ...current, [name]: undefined }));
       setPendingRooms(current => {
         const next = new Set(current);
         next.delete(name);
@@ -254,9 +293,9 @@ function RoomColour({ room }: { room: CanvasRoom }) {
   );
 }
 
-export function CanvasLights({ onOpenAll }: { onOpenAll(trigger: HTMLElement): void }) {
+export function CanvasLights({ onOpenAll, reportNotice }: { onOpenAll(trigger: HTMLElement): void; reportNotice?: ReportOverviewNotice }) {
   const settings = useLightSettings('home-light-settings');
-  const { rooms, selectedRoom, setSelectedRoom, connected } = useCanvasLights();
+  const { rooms, selectedRoom, setSelectedRoom, connected, result } = useCanvasLights();
   const room = rooms.find(item => item.name === selectedRoom) ?? rooms[0];
   const contentRef = useControlChangeFade<HTMLElement>(room.name, '.canvas-lights__quick-light span');
   return (
@@ -264,6 +303,7 @@ export function CanvasLights({ onOpenAll }: { onOpenAll(trigger: HTMLElement): v
       ref={contentRef}
       className='canvas-lights canvas-lights--compact'
       aria-label='Lights'
+      tabIndex={-1}
       onKeyDown={settings.onKeyDown}
       data-room={room.name}
       style={{ '--canvas-room-accent': getRoomAccent(room.name) } as CSSProperties}
@@ -279,7 +319,7 @@ export function CanvasLights({ onOpenAll }: { onOpenAll(trigger: HTMLElement): v
                 {!connected ? 'Reconnecting…' : `${room.lights.length - room.available} unavailable`}
               </p>
             )}
-            <CommandFeedback compact />
+            {!reportNotice && <CommandFeedback compact />}
           </div>
           <button type='button' className='canvas-lights__all-link' onClick={event => onOpenAll(event.currentTarget)}>
             All lights{' '}
@@ -300,6 +340,13 @@ export function CanvasLights({ onOpenAll }: { onOpenAll(trigger: HTMLElement): v
           <RoomColour room={room} />
         </div>
       </div>
+      {reportNotice && result?.results.map(failure => {
+        if (failure.phase !== 'failed' && failure.phase !== 'unconfirmed') return null;
+        const room = rooms.find(room => room.lights.some(light => light.id === failure.target));
+        const light = room?.lights.find(light => light.id === failure.target);
+        if (!room || !light) return null;
+        return <LightFailureNotice key={failure.target} failure={failure} room={room} light={light} report={reportNotice} />;
+      })}
       {settings.active && <LightSettingsOverlay entityId={settings.active.entityId} onClose={settings.close} />}
     </section>
   );

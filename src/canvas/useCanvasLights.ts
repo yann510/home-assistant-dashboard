@@ -2,8 +2,8 @@ import { createContext, createElement, useCallback, useContext, useMemo, useRef,
 import { useStore, type LightEntity } from '@hakit/core';
 import { rooms as inventory } from '../useLightSummary';
 import { lightLabel } from './lightLabels';
-import { useLiveLightCommands } from './useLiveLightCommands';
-import type { CommandResult, TargetResult } from './commands';
+import { useLiveLightCommands, type LightCommandOutcome } from './useLiveLightCommands';
+import type { CommandResult } from './commands';
 
 export type CanvasLight = { id: string; name: string; label: string; state: 'on' | 'off' | 'unavailable'; entity?: LightEntity };
 export type CanvasRoom = {
@@ -34,9 +34,17 @@ function useCanvasLightsController() {
   const connected = useStore(state => Boolean(state.connection?.connected && state.connectionStatus === 'connected'));
   const busyRef = useRef(new Set<string>());
   const [busy, setBusy] = useState<ReadonlySet<string>>(new Set());
-  const [outcomes, setOutcomes] = useState<Record<string, TargetResult>>({});
-  const { send: sendLive, cancelQueued } = useLiveLightCommands(results =>
-    setOutcomes(previous => ({ ...previous, ...Object.fromEntries(results.map(item => [item.target, item])) }))
+  const [outcomes, setOutcomes] = useState<Record<string, LightCommandOutcome>>({});
+  const { send: sendLive, cancelQueued, retry } = useLiveLightCommands(results =>
+    setOutcomes(previous => {
+      const next = { ...previous };
+      for (const item of results) {
+        // Preserve settle order when several lights report failures in one render.
+        delete next[item.target];
+        next[item.target] = item;
+      }
+      return next;
+    })
   );
   const [selectedRoom, setSelectedRoom] = useState<string>(inventory[0].name);
   const rooms: CanvasRoom[] = useMemo(
@@ -147,6 +155,7 @@ function useCanvasLightsController() {
     connected,
     busy,
     result: results.length ? ({ results } satisfies CommandResult) : null,
+    retry,
     sendLive,
     power,
     brightness,

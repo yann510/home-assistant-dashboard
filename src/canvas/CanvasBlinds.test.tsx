@@ -3,7 +3,9 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testi
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { CanvasBlinds } from './CanvasBlinds';
+import type { ReportOverviewNotice } from './CanvasOverviewNotice';
 import { createHaFixture, deferred } from './testing/haFixture';
+import { CanvasBlindsProvider } from './useCanvasBlinds';
 
 const fixtureRef = vi.hoisted(() => ({ current: null as ReturnType<typeof createHaFixture> | null }));
 vi.mock('@hakit/core', () => ({
@@ -87,6 +89,68 @@ it('reports a partial failure and retries only its immutable failed room', async
   const finalFeedback = screen.getByRole('group', { name: 'Open blind command results' });
   expect(within(finalFeedback).getByText('Living room · Command sent · position unavailable')).toBeTruthy();
   expect(within(finalFeedback).getByText('Bedroom · Command sent · position unavailable')).toBeTruthy();
+});
+
+it('sends overview failures to Pulse and lets the dialog retry only rejected rooms', async () => {
+  const reportNotice = vi.fn<ReportOverviewNotice>();
+  fixture.respondWith(message => String((message as { service_data: { command: string } }).service_data.command).includes('bedroom')
+    ? Promise.reject(new Error('Assistant unavailable'))
+    : Promise.resolve({}));
+  const surfaces = (showDetails = false) => (
+    <CanvasBlindsProvider>
+      <CanvasBlinds reportNotice={reportNotice} />
+      {showDetails && <div role='dialog' aria-label='Blind details'><CanvasBlinds initialRoom='bedroom' /></div>}
+    </CanvasBlindsProvider>
+  );
+  const view = render(surfaces());
+  await choose('Gym');
+  await userEvent.click(screen.getByRole('button', { name: 'Open selected blinds' }));
+  await waitFor(() => expect(reportNotice).toHaveBeenLastCalledWith('blinds:open', expect.objectContaining({
+    category: 'Blinds',
+    title: 'Could not open blinds',
+    source: 'Bedroom',
+    message: expect.stringContaining('Assistant unavailable'),
+    route: { kind: 'blinds', room: 'bedroom', noticeAction: 'open' },
+  })));
+  const overview = within(screen.getByRole('region', { name: 'Blinds' }));
+  expect(overview.queryByRole('alert')).toBeNull();
+  expect(overview.queryByRole('button', { name: 'Retry Open for failed rooms' })).toBeNull();
+  await choose('Bedroom');
+  expect(overview.getByRole('button', { name: 'Stop recently requested blinds in Living room, Bedroom' }).hasAttribute('disabled')).toBe(false);
+  expect(overview.getByRole('button', { name: 'Stop selected blinds in Living room' }).hasAttribute('disabled')).toBe(false);
+
+  view.rerender(surfaces(true));
+  const dialog = within(screen.getByRole('dialog', { name: 'Blind details' }));
+  expect(dialog.getByRole('alert').textContent).toContain('Assistant unavailable');
+  expect(dialog.getByRole('group', { name: 'Open blind command results' }).getAttribute('data-canvas-destination')).toBe('blinds:open');
+  expect(dialog.getByText('Living room · Command sent · position unavailable')).toBeTruthy();
+  fixture.respondWith(() => Promise.resolve({}));
+  await userEvent.click(dialog.getByRole('button', { name: 'Retry Open for failed rooms' }));
+  expect(command(2).service_data.command).toBe('open all the blinds bedroom');
+  expect(fixture.calls).toHaveLength(3);
+  await waitFor(() => expect(reportNotice).toHaveBeenLastCalledWith('blinds:open', null));
+  expect(dialog.queryByRole('alert')).toBeNull();
+});
+
+it('does not promote an earlier blind failure when another room acknowledges', async () => {
+  const livingRoom = deferred();
+  const bedroom = deferred();
+  const reportNotice = vi.fn<ReportOverviewNotice>();
+  fixture.respondWith(message => {
+    const text = (message as { service_data: { command: string } }).service_data.command;
+    if (text.startsWith('stop')) return Promise.reject(new Error('Stop rejected'));
+    return text.endsWith('living room') ? livingRoom.promise : bedroom.promise;
+  });
+  render(<CanvasBlinds reportNotice={reportNotice} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Gym blinds' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Open selected blinds' }));
+  await act(async () => livingRoom.reject(new Error('Open rejected')));
+  expect(reportNotice).toHaveBeenLastCalledWith('blinds:open', expect.objectContaining({ source: 'Living room' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Stop recently requested blinds in Living room, Bedroom' }));
+  await waitFor(() => expect(reportNotice).toHaveBeenLastCalledWith('blinds:stop', expect.objectContaining({ title: 'Could not stop blinds' })));
+  const reportCount = reportNotice.mock.calls.length;
+  await act(async () => bedroom.resolve({}));
+  expect(reportNotice).toHaveBeenCalledTimes(reportCount);
 });
 
 it('does not dispatch while disconnected and describes the failure', async () => {

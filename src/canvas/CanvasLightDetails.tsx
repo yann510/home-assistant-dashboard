@@ -17,7 +17,7 @@ export function CanvasLightDetails({
   embedded?: boolean;
   closeControl?: ReactNode;
 }) {
-  const { rooms, power, sendLive, busy, connected, result } = useCanvasLights();
+  const { rooms, power, sendLive, busy, connected, result, retry } = useCanvasLights();
   const light = rooms.flatMap(room => room.lights).find(item => item.id === entityId);
   const roomName = rooms.find(room => room.lights.some(item => item.id === entityId))?.name;
   const title = light ? (embedded ? `${light.label} settings` : `${roomName} · ${light.label}`) : 'Light';
@@ -52,11 +52,11 @@ export function CanvasLightDetails({
     const key = Object.keys(data).join(',');
     const version = (draftVersion.current[key] ?? 0) + 1;
     draftVersion.current[key] = version;
-    const outcome = await sendLive({ domain: 'light', service: 'turn_on', targets: [entityId], data }, id => {
+    await sendLive({ domain: 'light', service: 'turn_on', targets: [entityId], data }, id => {
       const next = useStore.getState().entities[id] as LightEntity | undefined;
       return Boolean(next?.state === 'on' && observe(next));
     });
-    if (version === draftVersion.current[key] && (!outcome || outcome.results.every(item => item.phase === 'observed'))) clear();
+    if (version === draftVersion.current[key]) clear();
   };
   const brightness = entity?.state === 'on' ? numeric(attrs?.brightness) : undefined;
   const brightnessPercent = brightness === undefined ? undefined : Math.round((brightness / 255) * 100);
@@ -234,9 +234,16 @@ export function CanvasLightDetails({
           </label>
         )}
         {failed && (
-          <p className='canvas-lights__error' role='alert'>
-            {failed.message}
-          </p>
+          <div className='canvas-lights__failed-command'>
+            <p className='canvas-lights__error' role='alert'>{failed.message}</p>
+            <button
+              type='button'
+              disabled={!available || working || (failed.retryRequiresOn && light.state !== 'on')}
+              onClick={() => retry(entityId)}
+            >
+              Retry light command
+            </button>
+          </div>
         )}
         {!failed && phase && (!embedded || phase !== 'observed') && (
           <p className='canvas-lights__muted' role='status'>

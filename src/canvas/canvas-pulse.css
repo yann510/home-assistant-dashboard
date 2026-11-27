@@ -85,7 +85,7 @@
 }
 .canvas .canvas-pulse__notice[data-tone='blue'] { --pulse-accent: #abc9db; }
 .canvas .canvas-pulse__notice[data-tone='red'] { --pulse-accent: var(--canvas-coral); background: var(--canvas-coral); color: var(--canvas-bg); }
-.canvas .canvas-pulse__notice[data-music-notice] { order: -3; }
+.canvas .canvas-pulse__notice[data-overview-notice] { order: -3; }
 .canvas .canvas-pulse__announcement { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .canvas-dialog .canvas-music-alert { overflow-wrap: anywhere; }
 .canvas-dialog .canvas-music-alert p { margin-top: 0; }

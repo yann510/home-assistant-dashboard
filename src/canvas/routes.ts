@@ -1,11 +1,11 @@
 import type { AttentionItem } from '../attention';
-import type { BlindRoom } from './useCanvasBlinds';
+import type { BlindAction, BlindRoom } from './useCanvasBlinds';
 import type { MusicNoticeKind } from './CanvasMusicNotice';
 
 export type CanvasRoute =
   | { kind: 'overview' }
   | { kind: 'all-lights' }
-  | { kind: 'blinds'; room?: BlindRoom }
+  | { kind: 'blinds'; room?: BlindRoom; noticeAction?: BlindAction }
   | { kind: 'light'; entityId: string }
   | { kind: 'player' }
   | { kind: 'music-alert'; notice: MusicNoticeKind }

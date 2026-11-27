@@ -9,7 +9,7 @@ import type { useAttention } from '../useAttention';
 import { applianceSensors, classifyAppliance, classifyVacuum, readRoombaBattery } from './activity';
 import { routeForAttention, type CanvasRoute } from './routes';
 import { selectDeviceHealth } from './deviceHealth';
-import type { MusicNotice } from './CanvasMusicNotice';
+import type { OverviewNotice } from './CanvasOverviewNotice';
 import './canvas-pulse.css';
 
 export type QuietPulsePresentation = 'current' | 'art' | 'hidden';
@@ -21,13 +21,13 @@ export function CanvasPulse({
   attention,
   onSelect,
   feedback,
-  musicNotices = [],
+  notices = [],
   quietPresentation = 'art',
 }: {
   onOpen(route: CanvasRoute, trigger: HTMLElement): void;
   attention: AttentionController;
   feedback?: ReactNode;
-  musicNotices?: MusicNotice[];
+  notices?: (OverviewNotice & { id: string })[];
   quietPresentation?: QuietPulsePresentation;
   onSelect(item: AttentionItem | null): void;
 }) {
@@ -102,18 +102,18 @@ export function CanvasPulse({
     !visible.length &&
     !health.length &&
     !snoozed.length &&
-    !musicNotices.length &&
+    !notices.length &&
     !feedback;
 
   const itemsRef = useRef<HTMLDivElement>(null);
-  const priorMusicNotices = useRef(musicNotices);
-  const latestMusicNotice = musicNotices[0];
+  const priorNotices = useRef(notices);
+  const latestNotice = notices[0];
   useLayoutEffect(() => {
-    if (latestMusicNotice && !priorMusicNotices.current.includes(latestMusicNotice) && itemsRef.current) itemsRef.current.scrollLeft = 0;
-    priorMusicNotices.current = musicNotices;
-  }, [latestMusicNotice, musicNotices]);
+    if (latestNotice && !priorNotices.current.includes(latestNotice) && itemsRef.current) itemsRef.current.scrollLeft = 0;
+    priorNotices.current = notices;
+  }, [latestNotice, notices]);
   usePulseMotion(itemsRef, [
-    ...musicNotices.map(notice => `music:${notice.kind}`),
+    ...notices.map(notice => notice.id),
     ...(attention.connected ? [
       ...shownActivities.map(item => `device:${item.id}`),
       ...visible.map(item => `notice:${item.id}:${item.episode}`),
@@ -121,12 +121,13 @@ export function CanvasPulse({
     ] : []),
   ]);
 
-  const musicAlerts = musicNotices.map(notice => (
+  const alerts = notices.map(notice => (
     <button
-      key={notice.kind}
-      data-pulse-key={`music:${notice.kind}`}
-      data-canvas-focus-key={`music:${notice.kind}`}
-      data-music-notice={notice.kind}
+      key={notice.id}
+      data-pulse-key={notice.id}
+      data-canvas-focus-key={notice.id}
+      data-overview-notice={notice.id}
+      data-notice-category={notice.category}
       type='button'
       className='canvas-pulse__notice'
       data-tone='amber'
@@ -134,7 +135,7 @@ export function CanvasPulse({
       aria-haspopup='dialog'
       onClick={event => {
         onSelect(null);
-        onOpen({ kind: 'music-alert', notice: notice.kind }, event.currentTarget);
+        onOpen(notice.route, event.currentTarget);
       }}
     >
       <span className='canvas-pulse__notice-art' aria-hidden='true'>
@@ -145,7 +146,7 @@ export function CanvasPulse({
       </span>
       <span className='canvas-pulse__copy'>
         <strong>{notice.title}</strong>
-        <small>{notice.source ? `Music · ${notice.source}` : 'Music'}</small>
+        <small>{notice.source ? `${notice.category} · ${notice.source}` : notice.category}</small>
       </span>
       <span className='canvas-pulse__arrow' aria-hidden='true'>
         <CanvasActionIcon action='open' />
@@ -184,20 +185,20 @@ export function CanvasPulse({
           pulse
         </span>
       </span>
-      {latestMusicNotice && (
+      {latestNotice && (
         <span className='canvas-pulse__announcement' role='alert'>
-          Music: {latestMusicNotice.title}.
+          {latestNotice.category}: {latestNotice.title}.
         </span>
       )}
       {!attention.connected ? (
         <div className='canvas-pulse__items' ref={itemsRef}>
-          {musicAlerts}
+          {alerts}
           <p role='status'>Live activity unavailable while disconnected.</p>
         </div>
       ) : (
         <>
           <div className='canvas-pulse__items' ref={itemsRef}>
-            {musicAlerts}
+            {alerts}
             {feedback}
             {health.map(item =>
               item.route ? (
@@ -310,7 +311,7 @@ export function CanvasPulse({
                 </span>
               </button>
             ))}
-            {!shownActivities.length && !visible.length && !health.length && !musicNotices.length && (
+            {!shownActivities.length && !visible.length && !health.length && !notices.length && (
               <p>
                 {!attention.ready
                   ? 'Reminder status unavailable.'

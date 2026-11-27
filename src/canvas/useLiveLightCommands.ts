@@ -3,14 +3,13 @@ import { useStore } from '@hakit/core';
 import { executeCommand, type CommandResult, type DeviceIntent, type TargetResult } from './commands';
 
 const INTERVAL = 150;
-type Request = {
-  intent: DeviceIntent;
-  observe?: (id: string) => boolean;
+type LightIntent = { intent: DeviceIntent; observe?: (id: string) => boolean; onlyOn: boolean };
+type Request = LightIntent & {
   resolve: (result: CommandResult | null) => void;
   connection: unknown;
   epoch: number;
-  onlyOn: boolean;
 };
+export type LightCommandOutcome = TargetResult & { retryRequiresOn?: boolean };
 type Lane = {
   queued: Map<string, Request>;
   timer?: ReturnType<typeof setTimeout>;
@@ -19,10 +18,11 @@ type Lane = {
   observations: Map<string, AbortController>;
   ackController?: AbortController;
   latestController?: AbortController;
+  failed?: LightIntent;
 };
 
 /** Coalesce input per light, serialize service acknowledgements, and supersede obsolete telemetry waits. */
-export function useLiveLightCommands(publish: (results: TargetResult[]) => void) {
+export function useLiveLightCommands(publish: (results: LightCommandOutcome[]) => void) {
   const lanes = useRef(new Map<string, Lane>());
   const mounted = useRef(true);
   const epoch = useRef(0);
@@ -123,14 +123,21 @@ export function useLiveLightCommands(publish: (results: TargetResult[]) => void)
             targetLane.latestController = controller;
             targetLane.awaitingAck = true;
             targetLane.lastSent = Date.now();
+            targetLane.failed = undefined;
             const release = () => {
               if (targetLane.ackController !== controller) return;
               targetLane.awaitingAck = false;
               drain();
             };
             const publishCurrent = (result: CommandResult) => {
-              if (mounted.current && targetLane.latestController === controller && !controller.signal.aborted)
+              if (!mounted.current || targetLane.latestController !== controller || controller.signal.aborted) return;
+              const item = result.results[0];
+              if (item.phase === 'failed' || item.phase === 'unconfirmed') {
+                targetLane.failed = { intent: request.intent, observe: request.observe, onlyOn: request.onlyOn };
+                publishRef.current([{ ...item, retryRequiresOn: request.onlyOn }]);
+              } else {
                 publishRef.current(result.results);
+              }
             };
             publishCurrent({ results: [{ target: id, phase: 'pending' }] });
             void executeCommand(request.intent, useStore, request.observe, controller.signal, publishCurrent, release)
@@ -161,5 +168,25 @@ export function useLiveLightCommands(publish: (results: TargetResult[]) => void)
       });
     });
   }, []);
-  return { send, cancelQueued };
+  const retry = useCallback((id: string) => {
+    const lane = lanes.current.get(id);
+    const failed = lane?.failed;
+    const state = useStore.getState();
+    const deviceState = state.entities[id]?.state;
+    if (!lane || !failed || lane.awaitingAck || lane.queued.size || !state.connection?.connected ||
+        state.connectionStatus !== 'connected' || (deviceState !== 'on' && (deviceState !== 'off' || failed.onlyOn))) return;
+
+    // A timed-out command may already have taken effect. Avoid sending it again.
+    try {
+      if (failed.observe?.(id)) {
+        lane.failed = undefined;
+        publishRef.current([{ target: id, phase: 'observed' }]);
+        return;
+      }
+    } catch {
+      // If telemetry is malformed, the command will report that it could not verify the state.
+    }
+    void send(failed.intent, failed.observe, failed.onlyOn);
+  }, [send]);
+  return { send, cancelQueued, retry };
 }

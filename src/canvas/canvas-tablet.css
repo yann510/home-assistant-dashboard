@@ -131,7 +131,14 @@
   .canvas .canvas-mood__copy { align-content: start; }
   .canvas .canvas-mood__copy h2 { font-size: 36px; margin-top: 4px; }
   .canvas .canvas-mood__picker { margin-top: 0; }
-  .canvas .canvas__music { min-height: 208px; --canvas-music-title-lines: 1; --canvas-music-title-padding: 0px; padding-block: 4px; }
+  .canvas .canvas__music {
+    --canvas-music-title-lines: 1;
+    --canvas-music-title-padding: 0px;
+    --canvas-music-header-inset: clamp(var(--canvas-space-1), calc(100dvh - 600px + var(--canvas-space-1)), var(--canvas-space-3));
+    min-height: 208px;
+    padding-block: var(--canvas-music-header-inset) var(--canvas-space-1);
+  }
+  .canvas .canvas-music > .canvas-music__track-heart-slot { top: calc(var(--canvas-music-header-inset) + var(--canvas-space-2)); }
   /* The track metadata shares one link target, including the artist. */
   .canvas .canvas-music__track { grid-template-columns: 56px minmax(0, 1fr); }
   .canvas .canvas-music__metadata-link { min-height: 44px; }
@@ -185,7 +192,12 @@
   .canvas .canvas-mood { min-height: 200px; }
   .canvas .canvas-mood__error p:first-child { margin-top: 0; }
   .canvas .canvas-mood__error p:last-child { margin-bottom: 0; }
-  .canvas .canvas__music { min-height: 200px; padding-block: 2px; }
+  .canvas .canvas__music {
+    --canvas-music-header-inset: 6px;
+    --canvas-music-player-gap: var(--canvas-space-5);
+    min-height: 200px;
+    padding-block: var(--canvas-music-header-inset) 2px;
+  }
   .canvas .canvas-music__track { grid-template-columns: 48px minmax(0, 1fr); }
   .canvas .canvas-music__metadata-link > .canvas__eyebrow { display: none; }
   .canvas .canvas-lights--compact .canvas-lights__room-line { min-height: 44px; }

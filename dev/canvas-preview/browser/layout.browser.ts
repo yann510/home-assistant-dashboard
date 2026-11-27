@@ -86,7 +86,7 @@ test('music command failures appear in House Pulse without moving any controls',
   await controls.music.getByRole('button', { name: 'Lower volume' }).tap();
   const volumeNotice = controls.pulse.getByRole('button', { name: /Could not change volume/i });
   await expect(volumeNotice).toBeVisible();
-  await expect(controls.pulse.locator('[data-music-notice]').first()).toHaveAccessibleName(/Could not change volume/i);
+  await expect(controls.pulse.locator('[data-overview-notice]').first()).toHaveAccessibleName(/Could not change volume/i);
   await expectStable(allControls, before);
 });
 
@@ -119,9 +119,11 @@ test('music has room below the title and shuffle sits beside volume with distinc
   const { music, volume } = overviewControls(page);
   const shuffle = music.getByRole('button', { name: 'Shuffle playlists' });
   if (viewport?.width === 1224) {
+    const [, cardTop] = await geometry(music);
     const [, headerTop, , headerHeight] = await geometry(music.locator('.canvas-music__track'));
     const [, playbackTop, , playbackHeight] = await geometry(music.locator('.canvas-music__bottom'));
     const [, seekTop] = await geometry(music.getByRole('slider', { name: 'Track position' }));
+    expect(headerTop - cardTop).toBe(12);
     expect(playbackTop - headerTop - headerHeight).toBeGreaterThanOrEqual(30);
     expect(seekTop).toBeGreaterThanOrEqual(playbackTop + playbackHeight);
   }

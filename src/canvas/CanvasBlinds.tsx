@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useLayoutEffect, useRef } from 'react';
 import {
   blindRooms,
   CanvasBlindsProvider,
@@ -7,7 +7,8 @@ import {
   type BlindAction,
   type BlindRoom,
 } from './useCanvasBlinds';
-import type { TargetResult } from './commands';
+import type { ReportOverviewNotice } from './CanvasOverviewNotice';
+import type { CommandResult, TargetResult } from './commands';
 import './canvas-blinds.css';
 import './canvas-controls-motion.css';
 
@@ -23,28 +24,61 @@ function feedback(result: TargetResult) {
   return `${label(result.target as BlindRoom)} · ${result.message ?? 'Command failed. Try again.'}`;
 }
 
-export function CanvasBlinds({ initialRoom }: { initialRoom?: BlindRoom } = {}) {
+function BlindCommandNotice({ action, result, report }: { action: BlindAction; result: CommandResult | null; report: ReportOverviewNotice }) {
+  const id = `blinds:${action}`;
+  const published = useRef<TargetResult[]>([]);
+  useLayoutEffect(() => {
+    const issues = result?.results.filter(hasIssue) ?? [];
+    // Settling a different room in the same command does not make a previous error new.
+    if (issues.length === published.current.length && issues.every((item, index) => item === published.current[index])) return;
+    published.current = issues;
+    if (!issues.length) {
+      report(id, null);
+      return;
+    }
+    const rooms = issues.map(item => item.target as BlindRoom);
+    report(id, {
+      category: 'Blinds',
+      title: issues.some(item => item.phase === 'failed') ? `Could not ${action} blinds` : `${actionLabel(action)} blinds could not be confirmed`,
+      message: issues.map(feedback).join('\n'),
+      source: rooms.map(label).join(', '),
+      route: { kind: 'blinds', noticeAction: action, room: rooms.length === 1 ? rooms[0] : undefined },
+    });
+  }, [action, id, report, result]);
+  useLayoutEffect(() => () => {
+    if (published.current.length) report(id, null);
+    published.current = [];
+  }, [id, report]);
+  return null;
+}
+
+type CanvasBlindsProps = { initialRoom?: BlindRoom; reportNotice?: ReportOverviewNotice };
+
+export function CanvasBlinds(props: CanvasBlindsProps = {}) {
   const hasProvider = useCanvasBlindsProviderPresent();
   if (!hasProvider)
     return (
       <CanvasBlindsProvider>
-        <CanvasBlindsView initialRoom={initialRoom} />
+        <CanvasBlindsView {...props} />
       </CanvasBlindsProvider>
     );
-  return <CanvasBlindsView initialRoom={initialRoom} />;
+  return <CanvasBlindsView {...props} />;
 }
 
-function CanvasBlindsView({ initialRoom }: { initialRoom?: BlindRoom }) {
+function CanvasBlindsView({ initialRoom, reportNotice }: CanvasBlindsProps) {
   const { selection, toggleRoom, run, stopSelected, retryFailed, failedRooms, results, pending, movingRooms, connected } =
     useCanvasBlinds(initialRoom);
   const differentStopTargets =
     movingRooms.length > 0 && (movingRooms.length !== selection.length || movingRooms.some(room => !selection.includes(room)));
   const feedbackRef = useRef<HTMLDivElement>(null);
-  const hasErrors = actions.some(action => results[action]?.results.some(hasIssue));
+  const hasErrors = !reportNotice && actions.some(action => results[action]?.results.some(hasIssue));
   const hasDetails = hasErrors || differentStopTargets;
   const hint = !connected ? 'Home Assistant is disconnected. Reconnect to control blinds.' : !selection.length ? 'Select one or more rooms.' : '';
   return (
-    <section className='canvas-blinds' aria-label='Blinds'>
+    <section className='canvas-blinds' aria-label='Blinds' tabIndex={reportNotice ? -1 : undefined}>
+      {reportNotice && actions.map(action => (
+        <BlindCommandNotice key={action} action={action} result={results[action]} report={reportNotice} />
+      ))}
       <div className='canvas-blinds__heading'>
         <h2>Blinds</h2>
         {hint && !hasDetails && <p className='canvas-blinds__caption' role='status'>{hint}</p>}
@@ -145,13 +179,15 @@ function CanvasBlindsView({ initialRoom }: { initialRoom?: BlindRoom }) {
               </div>
             </>
           )}
-          {actions.map(
+          {!reportNotice && actions.map(
             action =>
               results[action] && (
                 <div
                   key={action}
                   className='canvas-blinds__results'
                   data-has-issue={results[action]!.results.some(hasIssue)}
+                  data-canvas-destination={`blinds:${action}`}
+                  tabIndex={-1}
                   role='group'
                   aria-label={`${actionLabel(action)} blind command results`}
                 >

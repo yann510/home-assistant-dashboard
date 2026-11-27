@@ -14,7 +14,8 @@ import { CanvasBlinds } from './CanvasBlinds';
 import { CanvasBlindsProvider } from './useCanvasBlinds';
 import { CanvasMusicProvider, useCanvasMusic } from './CanvasMusicProvider';
 import { CanvasMusic } from './CanvasMusic';
-import { followCleanupMessage, type MusicNotice, type ReportMusicNotice } from './CanvasMusicNotice';
+import { followCleanupMessage, type ReportMusicNotice } from './CanvasMusicNotice';
+import type { OverviewNotice, ReportOverviewNotice } from './CanvasOverviewNotice';
 import { CanvasPlayer } from './CanvasPlayer';
 import { CanvasSpeakers } from './CanvasSpeakers';
 import { CanvasMood } from './CanvasMood';
@@ -38,15 +39,19 @@ function CanvasDashboardContent({ quietPulse }: { quietPulse?: QuietPulsePresent
   const connected = useStore(state => Boolean(state.connection?.connected && state.connectionStatus === 'connected'));
   const navigation = useCanvasNavigation();
   const { route, routeDepth: depth, scrollTop: dialogScrollTop } = navigation;
+  const destination = route.kind === 'blinds' && route.noticeAction ? `blinds:${route.noticeAction}` : 'entityId' in route ? route.entityId : undefined;
   const [deviceQuery, setDeviceQuery] = useState('');
-  const [musicNotices, setMusicNotices] = useState<MusicNotice[]>([]);
-  const reportMusicNotice = useCallback<ReportMusicNotice>((kind, notice) => {
-    setMusicNotices(current => {
-      const remaining = current.filter(item => item.kind !== kind);
-      if (notice) return [notice, ...remaining];
+  const [notices, setNotices] = useState<(OverviewNotice & { id: string })[]>([]);
+  const reportNotice = useCallback<ReportOverviewNotice>((id, notice) => {
+    setNotices(current => {
+      const remaining = current.filter(item => item.id !== id);
+      if (notice) return [{ ...notice, id }, ...remaining];
       return remaining.length === current.length ? current : remaining;
     });
   }, []);
+  const reportMusicNotice = useCallback<ReportMusicNotice>((kind, notice) => {
+    reportNotice(`music:${kind}`, notice && { ...notice, category: 'Music', route: { kind: 'music-alert', notice: kind } });
+  }, [reportNotice]);
   const modes = useCanvasModes();
   const returnFocus = useRef<HTMLElement | null>(null);
   const mood = useHouseMood();
@@ -68,9 +73,12 @@ function CanvasDashboardContent({ quietPulse }: { quietPulse?: QuietPulsePresent
     }
     if (route.kind === 'overview' && returnFocus.current) {
       if (returnFocus.current.isConnected) returnFocus.current.focus({ preventScroll: true });
-      else if (returnFocus.current.dataset.musicNotice) {
-        const replacement = document.querySelector<HTMLElement>(`[data-music-notice="${returnFocus.current.dataset.musicNotice}"]`);
-        (replacement ?? document.querySelector<HTMLElement>('.canvas-music'))?.focus({ preventScroll: true });
+      else if (returnFocus.current.dataset.overviewNotice) {
+        const { overviewNotice, noticeCategory } = returnFocus.current.dataset;
+        const replacement = [...document.querySelectorAll<HTMLElement>('[data-overview-notice]')]
+          .find(button => button.dataset.overviewNotice === overviewNotice);
+        const card = noticeCategory === 'Lights' ? '.canvas-lights--compact' : noticeCategory === 'Blinds' ? '.canvas-blinds' : '.canvas-music';
+        (replacement ?? document.querySelector<HTMLElement>(`.canvas__home ${card}`))?.focus({ preventScroll: true });
       }
       returnFocus.current = null;
     }
@@ -120,7 +128,7 @@ function CanvasDashboardContent({ quietPulse }: { quietPulse?: QuietPulsePresent
           onSelect={setSelectedAttention}
           quietPresentation={quietPulse}
           feedback={modes.some(hasVisibleModeFeedback) ? <CanvasModeFeedback modes={modes} /> : undefined}
-          musicNotices={musicNotices}
+          notices={notices}
         />
         <div className='canvas__feature-band'>
           <CanvasMood
@@ -138,8 +146,8 @@ function CanvasDashboardContent({ quietPulse }: { quietPulse?: QuietPulsePresent
           />
         </div>
         <section className='canvas__shortcuts' aria-label='Home controls'>
-          <CanvasLights onOpenAll={trigger => open({ kind: 'all-lights' }, trigger)} />
-          <CanvasBlinds />
+          <CanvasLights onOpenAll={trigger => open({ kind: 'all-lights' }, trigger)} reportNotice={reportNotice} />
+          <CanvasBlinds reportNotice={reportNotice} />
         </section>
       </div>
       {route.kind === 'weather' ? (
@@ -158,7 +166,7 @@ function CanvasDashboardContent({ quietPulse }: { quietPulse?: QuietPulsePresent
             onBack={depth > 1 ? back : undefined}
             routeKey={JSON.stringify(route)}
             scrollTop={dialogScrollTop}
-            destination={'entityId' in route ? route.entityId : undefined}
+            destination={destination}
           >
             {activeAttention && routeForAttention(activeAttention).kind === route.kind && (
               <div className='canvas-attention-context'>
@@ -192,7 +200,7 @@ function CanvasDashboardContent({ quietPulse }: { quietPulse?: QuietPulsePresent
             ) : route.kind === 'player' ? (
               <CanvasPlayer onClose={close} />
             ) : route.kind === 'music-alert' ? (
-              <CanvasMusicAlert notice={musicNotices.find(notice => notice.kind === route.notice)} showFollowRecovery={route.notice === 'follow'} />
+              <CanvasMusicAlert notice={notices.find(notice => notice.id === `music:${route.notice}`)} showFollowRecovery={route.notice === 'follow'} />
             ) : route.kind === 'speakers' ? (
               <CanvasSpeakers />
             ) : route.kind === 'all-lights' ? (
@@ -218,7 +226,7 @@ function CanvasDashboardContent({ quietPulse }: { quietPulse?: QuietPulsePresent
   );
 }
 
-function CanvasMusicAlert({ notice, showFollowRecovery }: { notice?: MusicNotice; showFollowRecovery: boolean }) {
+function CanvasMusicAlert({ notice, showFollowRecovery }: { notice?: OverviewNotice; showFollowRecovery: boolean }) {
   const { session, rooms, playlistPlayback } = useCanvasMusic();
   const recovery = showFollowRecovery && session.cleanupPending;
   const message = useRef<HTMLParagraphElement>(null);

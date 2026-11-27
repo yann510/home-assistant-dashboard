@@ -16,6 +16,9 @@
 .canvas-dialog .canvas-lights--all .canvas-lights__quick-power > span:last-child { white-space: normal; overflow: visible; overflow-wrap: anywhere; }
 .canvas-dialog .canvas-lights--all button, .canvas-dialog .canvas-lights__all-off { min-height: 44px; }
 .canvas-dialog .canvas-dialog__header:has(.canvas-lights__all-off) { gap: var(--canvas-space-2); }
+.canvas-lights__failed-command { display: flex; align-items: center; gap: var(--canvas-space-2); }
+.canvas-lights__failed-command p { margin: 0; overflow-wrap: anywhere; }
+.canvas-lights__failed-command button { flex: none; min-height: 44px; }
 @media (max-width: 600px) {
   .canvas-dialog .canvas-lights--all .canvas-lights__grid { grid-template-columns: minmax(0, 1fr); }
 }
